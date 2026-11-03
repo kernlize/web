@@ -6,9 +6,9 @@ kernl deploys as one static artifact: the landing site at the root, the shell at
 
 | Variable | Used by | Meaning | Default | Pages value |
 | --- | --- | --- | --- | --- |
-| `SITE_URL` | Astro site, docs `llms.txt` | Absolute URL of the deployment root. Canonical tags, sitemap, JSON-LD and the absolute links in `llms.txt` are derived from it. | `https://kernlize.github.io/web/` | `https://kernlize.github.io/web/` |
-| `SITE_BASE` | Astro site | Path prefix the site is served under. | `/` | `/web/` |
-| `VITEPRESS_BASE` | Docs site | Path prefix the docs are served under. Always `SITE_BASE` plus `docs/`. | `/docs/` | `/web/docs/` |
+| `SITE_URL` | Astro site, docs `llms.txt` | Absolute URL of the deployment root. Canonical tags, sitemap, JSON-LD and the absolute links in `llms.txt` are derived from it. | `https://kernlize.github.io/` | `https://kernlize.github.io/` |
+| `SITE_BASE` | Astro site | Path prefix the site is served under. | `/` | `/` |
+| `VITEPRESS_BASE` | Docs site | Path prefix the docs are served under. Always `SITE_BASE` plus `docs/`. | `/docs/` | `/docs/` |
 
 The Pages workflow reads `SITE_URL` and `SITE_BASE` from repository variables (`vars.SITE_URL`, `vars.SITE_BASE`) and falls back to the project subpath. When a custom domain is chosen, set those two variables; nothing in the source references a host (D-008).
 
@@ -22,7 +22,20 @@ Agent-readiness scanners such as amiagentready score the **origin**: they read t
 | Domain root, plain static host | yes | no | 90 |
 | Project subpath `kernlize.github.io/web/` | no | no | about 82 |
 
-So production should be a domain root. With GitHub Pages that means a custom domain (set the variables to `https://<domain>/` and `/`). Content negotiation needs a host or edge rule that, for a request with `Accept: text/markdown`, serves the page's `.md` twin with `Vary: Accept`. `scripts/serve-pages.mjs` implements the rule and is the reference.
+So production is a domain root: **https://kernlize.github.io/**, scored **90** live on 2026-11-03 (no failing checks; GitHub Pages cannot negotiate Markdown). The source repository is private and on the free plan, so it cannot serve Pages itself. The built `.pages/` artifact is published to the public `kernlize/kernlize.github.io` repository, which holds nothing else.
+
+`.github/workflows/pages.yml` builds, audits and publishes on every push to `main`. Publishing needs one repository secret, `SITE_PUBLISH_TOKEN`: a fine-grained personal access token scoped to `kernlize/kernlize.github.io` with **Contents: read and write**. Without it the job still builds and audits, then stops. Organisation deploy keys are disabled for `kernlize`, which is why the workflow uses a token.
+
+To publish by hand:
+
+```bash
+pnpm site:build
+git clone git@github.com:kernlize/kernlize.github.io.git site
+find site -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+cp -R .pages/. site/ && cd site && git add -A && git commit -m "Publish kernl site" && git push
+```
+
+Moving to a custom domain later means setting the `SITE_URL` and `SITE_BASE` repository variables and adding a `CNAME` to the published artifact. With GitHub Pages that means a custom domain (set the variables to `https://<domain>/` and `/`). Content negotiation needs a host or edge rule that, for a request with `Accept: text/markdown`, serves the page's `.md` twin with `Vary: Accept`. `scripts/serve-pages.mjs` implements the rule and is the reference.
 
 To re-measure a build without deploying it, serve `.pages/` with `scripts/serve-pages.mjs`, expose it on a temporary public URL, and request `https://amiagentready.com/api/scan?url=<url>`. Add a query string to bypass the scanner's cache.
 
@@ -64,24 +77,22 @@ PAGES_PREVIEW_PATH=/web/ pnpm site:preview
 # → http://127.0.0.1:4178/web/
 ```
 
-The server resolves directory URLs to `index.html`, serves `.md` as `text/markdown` and `.txt` as `text/plain`, and refuses paths outside the artifact.
+The server resolves directory URLs to `index.html` and VitePress clean URLs to their `.html` file, answers `Accept: text/markdown` with the page's Markdown twin (`Vary: Accept`), serves `.md` as `text/markdown` and `.txt` as `text/plain`, and refuses paths outside the artifact.
 
-## GitHub Pages workflow
+## Publish workflow
 
-The workflow in `.github/workflows/pages.yml` runs on pushes to `main`:
+`.github/workflows/pages.yml` runs on pushes to `main`:
 
 ```yaml
 env:
-  SITE_URL: https://kernlize.github.io/web/
-  SITE_BASE: /web/
-  VITEPRESS_BASE: /web/docs/
+  SITE_URL: ${{ vars.SITE_URL || 'https://kernlize.github.io/' }}
+  SITE_BASE: ${{ vars.SITE_BASE || '/' }}
 steps:
-  - uses: pnpm/action-setup@v4
   - run: pnpm install --frozen-lockfile
   - run: pnpm site:build
-  - uses: actions/upload-pages-artifact@v3
-    with: { path: .pages }
-  - uses: actions/deploy-pages@v4
+  - run: pnpm check:vocabulary
+  - run: pnpm check:agent-ready
+  - name: Publish to kernlize/kernlize.github.io   # needs SITE_PUBLISH_TOKEN
 ```
 
 `pnpm site:build` includes the docs gate, so a deployment with a missing package page, a missing Markdown twin or a broken TypeDoc module does not happen. `pnpm check:vocabulary` and `pnpm check:agent-ready` run in the same workflow against `.pages/`.

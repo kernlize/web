@@ -4,7 +4,7 @@ How an AI agent should read these docs. This page describes website plumbing onl
 
 ## What is served
 
-Everything below is relative to the docs root, `/docs/` by default. On the GitHub Pages deployment the root is `https://kernlize.github.io/web/docs/`.
+Everything below is relative to the docs root, `/docs/` by default. On the GitHub Pages deployment the root is `https://kernlize.github.io/docs/`.
 
 | Want | Fetch |
 | --- | --- |

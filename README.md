@@ -15,7 +15,7 @@ The person at the keyboard is the only principal that matters.
 [![AI Slop Score](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fkernlize%2Fweb%2Fbadges%2Faislop-score.json)](https://github.com/kernlize/web/actions/workflows/aislop-badge.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-0b0b0b.svg)](./LICENSE)
 
-[Website](https://kernlize.github.io/web/) · [Docs](https://kernlize.github.io/web/docs/) · [Open the shell](https://kernlize.github.io/web/app/) · [Why](https://kernlize.github.io/web/why/)
+[Website](https://kernlize.github.io/) · [Docs](https://kernlize.github.io/docs/) · [Open the shell](https://kernlize.github.io/app/) · [Why](https://kernlize.github.io/why/)
 
 <br />
 
@@ -116,7 +116,7 @@ Features live in `packages/*/features/` and run inside vitest through [quickpick
 
 ## Documentation
 
-The docs are a product. Start at [`docs/index.md`](./docs/index.md), or on the site at [/docs/](https://kernlize.github.io/web/docs/). Agents can read [`/llms.txt`](https://kernlize.github.io/web/llms.txt) and [`/docs/llms.txt`](https://kernlize.github.io/web/docs/llms.txt); every page has a Markdown twin.
+The docs are a product. Start at [`docs/index.md`](./docs/index.md), or on the site at [/docs/](https://kernlize.github.io/docs/). Agents can read [`/llms.txt`](https://kernlize.github.io/llms.txt) and [`/docs/llms.txt`](https://kernlize.github.io/docs/llms.txt); every page has a Markdown twin.
 
 | Need | Page |
 |---|---|

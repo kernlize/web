@@ -1,6 +1,8 @@
 import { defineConfig } from '@playwright/test';
 
 const port = 4178;
+// Set PLAYWRIGHT_BASE_URL to run the suite against a deployed site instead of the local artifact.
+const remote = process.env.PLAYWRIGHT_BASE_URL;
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -9,10 +11,10 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? 'github' : 'list',
   use: {
-    baseURL: `http://127.0.0.1:${port}`,
+    baseURL: remote ?? `http://127.0.0.1:${port}`,
     trace: 'retain-on-failure',
   },
-  webServer: {
+  webServer: remote ? undefined : {
     command: 'node scripts/serve-pages.mjs',
     port,
     reuseExistingServer: false,

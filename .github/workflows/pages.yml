@@ -1,4 +1,10 @@
-name: Pages
+name: Publish site
+
+# D-013: the site is served at the root of https://kernlize.github.io/ from the public
+# kernlize/kernlize.github.io repository, which holds only the built artifact. This
+# repository stays private. Publishing needs SITE_PUBLISH_TOKEN: a fine-grained token
+# with Contents read/write on kernlize/kernlize.github.io. Without it the job builds,
+# audits and stops.
 
 on:
   push:
@@ -6,23 +12,19 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: github-pages
+  group: publish-site
   cancel-in-progress: false
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
-# D-013: production should be a domain root. Set the SITE_URL and SITE_BASE repository variables
-# (for example https://kernl.example/ and /) once a domain is chosen; the fallbacks serve the project subpath.
 env:
-  SITE_URL: ${{ vars.SITE_URL || 'https://kernlize.github.io/web/' }}
-  SITE_BASE: ${{ vars.SITE_BASE || '/web/' }}
-  VITEPRESS_BASE: ${{ vars.SITE_BASE || '/web/' }}docs/
+  SITE_URL: ${{ vars.SITE_URL || 'https://kernlize.github.io/' }}
+  SITE_BASE: ${{ vars.SITE_BASE || '/' }}
+  VITEPRESS_BASE: ${{ vars.SITE_BASE || '/' }}docs/
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,17 +37,17 @@ jobs:
       - run: pnpm site:build
       - run: pnpm check:vocabulary
       - run: pnpm check:agent-ready
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: .pages
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Publish to kernlize/kernlize.github.io
+        if: ${{ env.SITE_PUBLISH_TOKEN != '' }}
+        env:
+          SITE_PUBLISH_TOKEN: ${{ secrets.SITE_PUBLISH_TOKEN }}
+        run: |
+          git clone --depth 1 "https://x-access-token:${SITE_PUBLISH_TOKEN}@github.com/kernlize/kernlize.github.io.git" site
+          find site -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -R .pages/. site/
+          cd site
+          git config user.name "kernl publisher"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "Publish kernl site from ${GITHUB_SHA::7}"
+          git push origin HEAD:main

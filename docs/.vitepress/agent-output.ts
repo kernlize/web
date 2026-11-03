@@ -29,7 +29,7 @@ interface LlmsSection {
 const pages = new Map<string, PageData>();
 
 /** Absolute URL of the docs root. D-008: `SITE_URL` is the deployment root and the docs are always served under `docs/` beneath it. */
-export const DOCS_URL = new URL('docs/', process.env.SITE_URL ?? 'https://kernlize.github.io/web/').href;
+export const DOCS_URL = new URL('docs/', process.env.SITE_URL ?? 'https://kernlize.github.io/').href;
 
 /**
  * Remember page data so `buildEnd` can reuse parsed frontmatter and titles.

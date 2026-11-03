@@ -22,7 +22,7 @@ const base = (): string => {
 };
 
 const site = (): string => {
-  const raw = import.meta.env.SITE ?? 'https://kernlize.github.io/web/';
+  const raw = import.meta.env.SITE ?? 'https://kernlize.github.io/';
   return raw.endsWith('/') ? raw : `${raw}/`;
 };
 

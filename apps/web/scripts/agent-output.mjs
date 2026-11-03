@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { parseHTML } from 'linkedom';
 
 const DIST = fileURLToPath(new URL('../dist/', import.meta.url));
-const SITE_URL = withSlash(process.env.SITE_URL ?? 'https://kernlize.github.io/web/');
+const SITE_URL = withSlash(process.env.SITE_URL ?? 'https://kernlize.github.io/');
 const SITE_BASE = withSlash(process.env.SITE_BASE ?? '/');
 const REPO_URL = 'https://github.com/kernlize/web';
 const TOOLKIT_URL = 'https://github.com/kehto/web';
