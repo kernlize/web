@@ -14,7 +14,9 @@
   },
   "files": ["dist"],
   "sideEffects": false,
-  "publishConfig": { "access": "public" },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup",
     "type-check": "tsc --noEmit"
@@ -22,8 +24,10 @@
   "dependencies": {},
   "peerDependencies": {},
   "devDependencies": {
+    "quickpickle": "^1.11.2",
     "tsup": "^8.5.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.0"
   },
   "license": "MIT",
   "repository": {
@@ -31,5 +35,11 @@
     "url": "git+https://github.com/kernlize/web.git",
     "directory": "packages/bridges"
   },
-  "keywords": ["kernl", "kehto", "shell", "applet", "bridges"]
+  "keywords": [
+    "kernl",
+    "kehto",
+    "shell",
+    "applet",
+    "bridges"
+  ]
 }

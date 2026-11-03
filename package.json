@@ -7,8 +7,8 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "turbo run build",
-    "type-check": "turbo run type-check",
+    "build": "turbo run build --filter=\"./packages/*\"",
+    "type-check": "turbo run type-check --filter=\"./packages/*\"",
     "test": "vitest run --coverage",
     "test:watch": "vitest",
     "test:e2e": "pnpm site:build && playwright test",

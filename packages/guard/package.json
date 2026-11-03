@@ -12,18 +12,28 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "sideEffects": false,
-  "publishConfig": { "access": "public" },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup",
     "type-check": "tsc --noEmit"
   },
-  "dependencies": { "@kehto/firewall": "^0.6.3" },
-  "peerDependencies": { "@napplet/core": ">=0.37.0 <0.38.0" },
+  "dependencies": {
+    "@kehto/firewall": "^0.6.3"
+  },
+  "peerDependencies": {
+    "@napplet/core": ">=0.37.0 <0.38.0"
+  },
   "devDependencies": {
+    "quickpickle": "^1.11.2",
     "tsup": "^8.5.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.0"
   },
   "license": "MIT",
   "repository": {
@@ -31,5 +41,11 @@
     "url": "git+https://github.com/kernlize/web.git",
     "directory": "packages/guard"
   },
-  "keywords": ["kernl", "kehto", "shell", "applet", "guard"]
+  "keywords": [
+    "kernl",
+    "kehto",
+    "shell",
+    "applet",
+    "guard"
+  ]
 }
