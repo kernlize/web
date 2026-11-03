@@ -125,6 +125,91 @@ Feature: The composed shell
     Then the fake bridges were asked for "https://files.example/rogue.txt" by the shell itself
     And the shell survived and kehto can revoke the rogue window
 
+  Scenario: an applet's profile change is shown to the user and published only after yes
+    Given a kernl shell over that host and pool
+    And the shell is signed in and its store holds the profile '{"name":"alice"}'
+    And a mounted applet granted "relay" that has said hello
+    When the applet publishes a kind 0 event with content '{"name":"bob"}' over its port
+    Then the host was asked "Update your profile" marked "destructive" for applet "chat"
+    And the consent prompt lines are:
+      | label | before | after |
+      | Name  | alice  | bob   |
+    And the fake pool published nothing
+    When the host answers the consent prompt with yes
+    Then the applet's publish succeeded
+    And the fake pool published a kind 0 event
+
+  Scenario: an applet's profile change the user refuses is never signed or published
+    Given a kernl shell over that host and pool
+    And the shell is signed in
+    And a mounted applet granted "relay" that has said hello
+    When the applet publishes a kind 0 event with content '{"name":"bob"}' over its port
+    Then the host was asked "Update your profile" marked "destructive" for applet "chat"
+    When the host answers the consent prompt with no
+    Then the applet's publish failed with "denied:consent"
+    And the fake pool published nothing
+
+  Scenario: a deletion that carries nothing but its kind is still put to the user
+    Given a kernl shell over that host and pool
+    And the shell is signed in
+    And a mounted applet granted "relay" that has said hello
+    When the applet publishes a bare kind 5 template over its port
+    Then the host was asked "Delete 0 events" marked "destructive" for applet "chat"
+    When the host answers the consent prompt with no
+    Then the applet's publish failed with "denied:consent"
+
+  Scenario: a routine note is signed and published without a prompt
+    Given a kernl shell over that host and pool
+    And the shell is signed in
+    And a mounted applet granted "relay" that has said hello
+    When the applet publishes a kind 1 event with content 'hello' over its port
+    Then the host was not asked for consent
+    And the applet's publish succeeded
+    And the fake pool published a kind 1 event
+
+  Scenario: a publish whose kind is not a number is refused before signing
+    Given a kernl shell over that host and pool
+    And the shell is signed in
+    And a mounted applet granted "relay" that has said hello
+    When the applet publishes a template whose kind is the text "0" over its port
+    Then the applet's publish failed with "invalid:event-kind"
+    And the host was not asked for consent
+    And the fake pool published nothing
+
+  Scenario: a destructive publish from a window the shell did not mount is refused without asking
+    Given a kernl shell over that host and pool
+    And the shell is signed in
+    When a rogue window registered outside the shell is granted "relay", sends its hello and publishes a kind 0 event
+    Then the applet's publish failed with "denied:unknown-applet"
+    And the host was not asked for consent
+    And the fake pool published nothing
+
+  Scenario: an outbox publish of a destructive change asks first, and a refusal is reported
+    Given a kernl shell over that host and pool
+    And the shell is signed in
+    And a mounted applet granted "outbox" that has said hello
+    When the applet sends "outbox.publish" for a kind 3 event over its port
+    Then the host was asked "Change who you follow" marked "destructive" for applet "chat"
+    When the host answers the consent prompt with no
+    Then the applet received "outbox.publish.result" failing with "denied:consent"
+    And the fake pool published nothing
+
+  Scenario: a destructive outbox publish while nobody is signed in is refused without asking
+    Given a kernl shell over that host and pool
+    And a mounted applet granted "outbox" that has said hello
+    When the applet sends "outbox.publish" for a kind 3 event over its port
+    Then the applet received "outbox.publish.result" failing with "denied:signed-out"
+    And the host was not asked for consent
+
+  Scenario: an outbox publish without an event is refused, and a routine one is not asked about
+    Given a kernl shell over that host and pool
+    And the shell is signed in
+    And a mounted applet granted "outbox" that has said hello
+    When the applet sends "outbox.publish" without an id or an event over its port
+    Then the applet received "outbox.publish.result" failing with "invalid:event-kind"
+    When the applet sends "outbox.publish" for a kind 1 event over its port
+    Then the host was not asked for consent
+
   Scenario: the guard facade changes the profile and lifts quarantine
     Given a kernl shell over that host and pool
     When the shell guard profile is set to "relaxed"

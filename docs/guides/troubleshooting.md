@@ -22,7 +22,7 @@ pnpm site:dev
 
 **Cause.** When neither `disableSources` nor `sourceLinkTemplate` is configured, TypeDoc derives source links from the remote named `origin` and warns when it is missing.
 
-**Fix.** The repository's `typedoc.json` sets `packageOptions.disableSources`, which makes TypeDoc skip the remote lookup; if you see the warning, check that a local change did not remove it. `entryPointStrategy` is `packages`, so command-line flags such as `--disableSources` do not reach the per-package converters; set options under `packageOptions`. Alternatively add the remote with `git remote add origin <url>`.
+**Fix.** The repository's `typedoc.json` sets `packageOptions.disableSources: true`, which makes TypeDoc skip the remote lookup and leaves the reference without source links ([API reference](../reference/api.md)); if you see the warning, check that a local change did not remove it. `entryPointStrategy` is `packages`, so command-line flags such as `--disableSources` do not reach the per-package converters; set options under `packageOptions`. Alternatively add the remote with `git remote add origin <url>`.
 
 ## `localStorage` warnings under Node 25 and later
 

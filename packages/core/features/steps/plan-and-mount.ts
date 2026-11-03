@@ -4,7 +4,7 @@ import type { ShellAdapter, ShellEnvironment } from '@kehto/shell';
 import type { GuardProfile, WindowVisibility } from '@kernl/guard';
 import { AccountManager } from 'applesauce-accounts';
 import { createRelayTiers, createShellAdapter, mountApplet, planMount, resolveApplet, type AppletStatus, type AppletSummary, type MountDeps, type MountPlan, type MountedApplet } from '@kernl/core';
-import { attempt, createFakeFrame, scratch, signManifest, splitList, type CoreWorld, type FakeFrame } from './world.js';
+import { allowAllSigning, attempt, createFakeFrame, scratch, signManifest, splitList, type CoreWorld, type FakeFrame } from './world.js';
 
 interface MountRecord {
   steps: string[];
@@ -29,6 +29,7 @@ function fakeAdapter(world: CoreWorld, allowed: string[]): ShellAdapter {
     pool: state.pool,
     tiers: createRelayTiers(state.storage),
     accounts: new AccountManager(),
+    consent: allowAllSigning,
     services: {},
     resolveEnvironment: (_identity, available) => ({
       domains: available.domains.filter((domain) => allowed.includes(domain)),
@@ -137,9 +138,15 @@ Given('a fake frame', (world: CoreWorld) => {
   scratch(world).frame = createFakeFrame();
 });
 
-Given('a fake frame with a string sandbox, a getAttribute and allow {string}', (world: CoreWorld, allow: string) => {
-  const created = createFakeFrame({ stringSandbox: true, withGetAttribute: true });
+Given('a fake frame with a getAttribute and allow {string}', (world: CoreWorld, allow: string) => {
+  const created = createFakeFrame({ withGetAttribute: true });
   created.attributes.set('allow', allow);
+  scratch(world).frame = created;
+});
+
+Given('a fake frame whose sandbox is already {string}', (world: CoreWorld, tokens: string) => {
+  const created = createFakeFrame();
+  created.attributes.set('sandbox', tokens);
   scratch(world).frame = created;
 });
 
@@ -150,21 +157,16 @@ Given('a detached fake frame', (world: CoreWorld) => {
 async function mount(world: CoreWorld): Promise<void> {
   const target = frame(world);
   const log = record(world);
-  const originalAdd = target.sandbox;
-  if (typeof originalAdd !== 'string') {
-    target.sandbox = {
-      add: (token) => {
-        log.steps.push('sandbox');
-        originalAdd.add(token);
-      },
-    };
-  }
+  const setAttribute = target.setAttribute.bind(target);
+  target.setAttribute = (name, value) => {
+    if (name === 'sandbox') log.steps.push('sandbox');
+    setAttribute(name, value);
+  };
   await attempt(world, () => {
     const mounted = mountApplet(plan(world), target, deps(world));
     scratch(world).handle = mounted;
     mounted.status$.subscribe((status) => log.statuses.push(status));
   });
-  if (typeof target.sandbox === 'string') log.steps.unshift('sandbox');
 }
 
 When('the shell mounts the plan into the frame', mount);
@@ -175,12 +177,8 @@ Then('the mount steps were {string}', (world: CoreWorld, steps: string) => {
   expect([...observed.slice(0, srcdocAt), 'srcdoc']).toEqual(splitList(steps));
 });
 
-Then('the frame sandbox tokens are {string}', (world: CoreWorld, tokens: string) => {
-  expect([...frame(world).tokens]).toEqual(splitList(tokens));
-});
-
-Then('the frame sandbox string is {string}', (world: CoreWorld, value: string) => {
-  expect(frame(world).sandbox).toBe(value);
+Then('the frame sandbox attribute is exactly {string}', (world: CoreWorld, value: string) => {
+  expect(frame(world).attributes.get('sandbox')).toBe(value);
 });
 
 Then('the frame allow attribute is {string}', (world: CoreWorld, value: string) => {

@@ -47,3 +47,14 @@ Then('the guard mitigation {string} has limit {string}', (world: GuardWorld, id:
 Then('the guard mitigation {string} has no limit', (world: GuardWorld, id: string) => {
   expect(mitigation(world, id).limit).toBeUndefined();
 });
+
+Then('the guard mitigations {string} never claim to hold, queue, block or refuse', (world: GuardWorld, ids: string) => {
+  for (const id of ids.split(',')) {
+    const { title, summary } = mitigation(world, id);
+    expect(`${title} ${summary}`).not.toMatch(/\b(held until|are held|queued|blocked|refused until|are refused|wait their turn|paused)\b/i);
+  }
+});
+
+Then('the guard mitigation {string} says {string}', (world: GuardWorld, id: string, summary: string) => {
+  expect(mitigation(world, id).summary).toBe(summary);
+});

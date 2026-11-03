@@ -58,7 +58,8 @@ export type AppletStatus = 'mounting' | 'running' | 'revoked' | 'closed';
 /** The structural subset of an iframe element `mountApplet` needs. Lets the core stay DOM-free in tests. */
 export interface FrameLike {
   readonly contentWindow: Window | null;
-  sandbox: { add(token: string): void } | string;
+  /** Not read: the mount replaces the `sandbox` attribute through `setAttribute`, whatever tokens it held. */
+  sandbox?: unknown;
   srcdoc: string;
   addEventListener(type: 'load', listener: (event: Event) => void): void;
   removeEventListener(type: 'load', listener: (event: Event) => void): void;

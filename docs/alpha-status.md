@@ -30,13 +30,14 @@ kernl is a first draft. This page says what runs, what is a contract without an 
 
 - **Transfer backends.** `TorrentBackend`, `NzbBackend`, `SoulseekBackend` and `MailBackend` are interfaces. Without a backend the corresponding bridge reports `{ available: false, reason: 'no-backend' }`, rejects with `unavailable:no-backend`, and the shell shows that. See [Bridges](./concepts/bridges.md#backend-driven-bridges).
 - **Real messaging backends.** The table above. See [Messaging](./concepts/messaging.md).
+- **Web fetch from the browser shell, beyond the simple case.** The HTTP bridge runs in the page, so it is subject to CORS, and an opaque redirect it cannot inspect is refused with `denied:redirect-unverifiable`. Web fetch works from the shell for `https` origins that permit cross-origin reads and answer without a redirect. Hostnames are checked as literals only; no resolver is wired. See [Bridges](./concepts/bridges.md#the-http-bridge).
 - **Per-host bridge consent.** `createKernl` builds the bridge registry with `createDefaultBridges()` and no `authorize` hook, so a `resource` request from a granted applet is checked by the HTTP bridge's SSRF policy and nothing else. A host that wants a prompt per host or scheme passes its own registry in `KernlOptions.bridges`.
 - **Per-applet guard profiles.** `GuardFacade.setProfile` rebuilds the pipeline for the whole shell and is not persisted. The per-applet, remembered override [D-003](./decisions.md#d-003) describes is not in this draft.
 - **Mobile layouts.** The layouts are desktop tilings over `@kehto/wm`. Narrow viewports get a single stacked window without gestures.
 - **Multi-account switching.** `AccountManager` holds several accounts and the sign-in panel lists them, but switching means signing out and in.
 - **Grant persistence across devices.** Grants, relay tiers and messaging preferences persist in the host's storage only. There is no sync.
 - **Packages on npm.** The `@kernl/*` packages are not published; they are used from a clone of the source repository, which is private during the alpha. See [Packages](./packages/index.md#install).
-- **Source links in the API reference.** `typedoc.json` points TypeDoc's source links at the source repository, which is private, so they return 404 for readers until it is public.
+- **Source links in the API reference.** `typedoc.json` sets `packageOptions.disableSources: true`, so the generated reference has no "Defined in" source links. They would point at the source repository, which is private during the alpha.
 
 The [Roadmap](./roadmap.md) orders this list.
 

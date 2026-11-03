@@ -42,7 +42,7 @@ The shell boots in `strict`. The numbers are in [Guard](./guard.md#profiles); th
 
 **Hidden resource allowance.** A hidden window may make 8 `resource.*` requests; the ninth quarantines it with `flood:hidden-resource`. The count resets as soon as the window is visible again. Fetch what you need while visible.
 
-**Rate limits by operation class.** Each class has its own token bucket, keyed by your applet's `dTag`, so two windows of your applet share one budget. In `strict`: 30 `relay.subscribe` and 20 `relay.publish` per minute, 5 deletions (kind 5) per minute, 20 `dm.send` and 10 `intent.*` per minute, 120 `resource.*` and 60 `storage.set`/`storage.remove` per 10 seconds. Before dispatch, deletions share the `relay.publish` budget and the runtime applies kehto's default unfocused multiplier. After dispatch, kernl's firewall multiplies capacity by 0.25 while your window is not focused and reports each overrun as a guard event such as `rate:relay:publish`.
+**Rate limits by operation class.** Each class has its own token bucket, keyed by your applet's `dTag`, so two windows of your applet share one budget. In `strict`: 30 `relay.subscribe` and 20 `relay.publish` per minute, 20 `dm.send` and 10 `intent.*` per minute, 120 `resource.*` and 60 `storage.set`/`storage.remove` per 10 seconds. These are the limits the runtime enforces before dispatch, with kehto's default unfocused multiplier; deletions (kind 5) count against the `relay.publish` budget there and have no bucket of their own. After dispatch, kernl's firewall counts the same classes again, plus 5 deletions per minute, at 0.25 of capacity while your window is not focused, and reports each overrun as a guard event such as `rate:relay:publish` or `rate:relay:publish:delete`. Those reports do not refuse anything.
 
 **Ingress flood control.** kernl counts 8 messages per second per window. Above that it reports `flood:burst` (and `flood:queue-full` once 64 are counted as waiting); for port traffic these are events only. The hard limit is real: 300 messages inside any rolling 10 seconds quarantines the window with `flood:quarantine`. Batch your writes and coalesce your subscriptions.
 
@@ -52,7 +52,7 @@ The shell boots in `strict`. The numbers are in [Guard](./guard.md#profiles); th
 
 **No init-burst exemption.** kehto's own init-burst guard is not what runs here: kernl counts the same 8 messages per second from the first message your applet sends. Load lazily: request the first screen, render, then fetch the rest.
 
-**Consent for destructive kinds.** Publishing kind 0, 3, 5 or 10002 shows the user a summary of what changes and waits. Expect the publish to take as long as a person takes to read, and to fail if they refuse.
+**Consent for destructive kinds.** When your applet asks the shell to sign an event of kind 0, 3, 5, 10002 or a list kind (10000–10099, 30000–30099), through `relay.publish` or `outbox.publish`, kernl shows the user a summary of what changes and waits. Expect the publish to take as long as a person takes to read. If they refuse, signing fails with `denied:consent` and nothing is published; you receive the normal error envelope. Every other kind is signed without a prompt, and nothing is remembered: the next destructive write asks again.
 
 None of this changes the wire format. A refusal is a normal NAP error envelope; a guard event is visible to the user, not to your applet.
 

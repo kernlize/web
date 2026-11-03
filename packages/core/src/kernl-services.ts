@@ -1,7 +1,7 @@
 import type { EventStore } from 'applesauce-core';
 import { verifyEvent } from 'applesauce-core/helpers';
 import type { AuthHooks } from '@kehto/shell';
-import type { ServiceRegistry } from '@kehto/runtime';
+import type { ServiceHandler, ServiceRegistry } from '@kehto/runtime';
 import {
   createDmService,
   createIdentityService,
@@ -25,6 +25,7 @@ import type { KernlHost, RelayTiers } from './types.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { createAppletRelayBackend, createOutboxRelayPool } from './applesauce/relay-backend.js';
 import { createIdentityProviders, type IdentityProviders, type RelayPermissions } from './applesauce/identity-providers.js';
+import type { SigningConsent, SigningTemplate } from './consent/handler.js';
 
 /**
  * Whether a host-supplied theme has the colours NAP-THEME requires.
@@ -52,6 +53,8 @@ export interface KernlServiceDeps {
   readonly tiers: RelayTiers;
   readonly eventStore: EventStore;
   readonly auth: Pick<AuthHooks, 'getSigner'>;
+  /** Gates the outbox service's publishes, which kehto signs without naming the window. */
+  readonly consent: SigningConsent;
   readonly host: Pick<KernlHost, 'notify' | 'openLink'>;
   readonly bridges: BridgeRegistry;
   readonly messaging: MessagingRegistry;
@@ -119,14 +122,51 @@ function createOutbox(deps: KernlServiceDeps, identity: IdentityProviders) {
 }
 
 /**
+ * Put the outbox service's publishes through the consent gate.
+ *
+ * kehto's outbox router signs through a `signEvent` that is not told which
+ * window asked, so the gate cannot sit at the signer as it does for `relay`.
+ * It sits in front of the service instead, where the window is still known:
+ * the publish reaches the router only after the gate resolves.
+ *
+ * @param outbox - kehto's outbox service.
+ * @param consent - The signing consent gate.
+ * @returns The same service with `outbox.publish` gated.
+ * @example
+ * ```ts
+ * registry.outbox = gateOutboxPublish(createOutboxService({ router }), consent);
+ * ```
+ */
+function gateOutboxPublish(outbox: ServiceHandler, consent: SigningConsent): ServiceHandler {
+  return {
+    ...outbox,
+    handleMessage(windowId, message, send) {
+      if (message.type !== 'outbox.publish') {
+        outbox.handleMessage(windowId, message, send);
+        return;
+      }
+      const { id, event } = message as { id?: string; event?: SigningTemplate | null };
+      consent(windowId, event ?? {}).then(
+        () => outbox.handleMessage(windowId, message, send),
+        (error: Error) => {
+          const refusal = { type: 'outbox.publish.result', id: id ?? '', ok: false, error: error.message };
+          send(refusal);
+        },
+      );
+    },
+  };
+}
+
+/**
  * Register kehto's reference services over the shell's applesauce layer.
  *
  * `relay`, `identity`, `theme`, `notify`, `link`, `resource`, `dm` and `outbox`
  * are wired; every network path goes through the one pool, every resource
  * fetch through the bridge registry's SSRF policy, links open only over
- * `https:` and `mailto:`, and notifications surface through the host.
+ * `https:` and `mailto:`, notifications surface through the host, and outbox
+ * publishes pass the consent gate before they are signed.
  *
- * @param deps - Pool, tiers, store, auth, host, registries and identity resolver.
+ * @param deps - Pool, tiers, store, auth, consent gate, host, registries and identity resolver.
  * @returns The service registry and the theme and dm handles.
  * @example
  * ```ts
@@ -159,7 +199,7 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
       resolveIdentity: deps.resolveIdentity,
     }),
     dm,
-    outbox: createOutbox(deps, identity),
+    outbox: gateOutboxPublish(createOutbox(deps, identity), deps.consent),
   };
   return { registry, theme, dm };
 }

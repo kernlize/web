@@ -6,7 +6,7 @@ The API reference is generated from source JSDoc by TypeDoc 0.28 with `entryPoin
 pnpm docs:api
 ```
 
-Do not edit the generated files. Fix the JSDoc in `packages/*/src` and rerun. `treatWarningsAsErrors` is on, so an export without documentation or a broken `{@link}` fails the build. Source links come from `packageOptions.sourceLinkTemplate` and point at the source repository, which is private during the alpha, so they return 404 for public readers.
+Do not edit the generated files. Fix the JSDoc in `packages/*/src` and rerun. `treatWarningsAsErrors` is on, so an export without documentation or a broken `{@link}` fails the build. The reference has no source links: `typedoc.json` sets `packageOptions.disableSources: true`, because the source repository is private during the alpha. Read the source in a clone instead.
 
 ## Modules
 

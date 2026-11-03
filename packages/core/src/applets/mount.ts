@@ -33,8 +33,8 @@ function hasGetAttribute(frame: FrameLike): frame is FrameLike & { getAttribute(
 }
 
 function harden(frame: FrameLike): void {
-  if (typeof frame.sandbox === 'string') frame.sandbox = 'allow-scripts';
-  else frame.sandbox.add('allow-scripts');
+  // The attribute is replaced, not added to: a token the host left on the frame, such as allow-same-origin, would widen the sandbox (AGENTS.md, security posture).
+  frame.setAttribute('sandbox', 'allow-scripts');
   if (hasGetAttribute(frame)) denyNappletControllerAccess(frame);
   else frame.setAttribute('allow', CONTROLLER_DENY_POLICY);
 }

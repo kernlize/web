@@ -134,6 +134,12 @@ function limitBody(response: Response, maxBytes: number): Response {
  * hop and, when a resolver is supplied, after name resolution), a redirect cap, a
  * time limit and a byte limit enforced on the streamed body.
  *
+ * In a browser the hop check needs the redirect itself, which the fetch API
+ * hides: a redirect arrives as an opaque response and is refused with
+ * `denied:redirect-unverifiable`. Cross-origin rules still apply there; a
+ * request the browser blocks, or an opaque answer, is `unavailable:network`.
+ * On a server, redirects arrive as 3xx with a location and are followed.
+ *
  * The fetch API cannot pin a connection to a validated address, so the resolver
  * check narrows the DNS-rebinding window without closing it; the shell closes it
  * by also fetching through a guard that resolves names once.
@@ -172,6 +178,9 @@ export function createHttpBridge(options: HttpBridgeOptions = {}): Bridge {
       const response = await fetchImpl(url, { redirect: 'manual', signal, ...headers }).catch((error: unknown) => {
         throw abortReason(signals, error);
       });
+      // A browser answers `redirect: 'manual'` with an opaque redirect: status 0, no Location. The hop cannot be checked, so it is refused rather than followed blind.
+      if (response.type === 'opaqueredirect') throw new Error('denied:redirect-unverifiable');
+      if (response.status === 0) throw new Error(`unavailable:network ${response.type} response`);
       if (!REDIRECT_STATUSES.has(response.status)) return response;
       if (hop >= policy.maxRedirects) throw new Error('denied:too-many-redirects');
       const location = response.headers.get('location');

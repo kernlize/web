@@ -7,6 +7,8 @@ No encrypted messaging protocol is inherently superior. Each one trades metadata
 A `MessagingProvider` in `@kernl/messaging` is a pluggable module with one contract:
 
 ```ts
+import type { MessagingBackend, ProviderAvailability, SecurityProperties } from '@kernl/messaging';
+
 interface MessagingProvider {
   readonly id: string;              // conversation-id prefix: 'private', 'legacy', 'ratchet'
   readonly name: string;            // user-facing, no protocol vocabulary
@@ -22,6 +24,8 @@ interface MessagingProvider {
 The package holds no relay code, signer or store. A provider is built with `defineProvider(definition, deps)`, where `definition` is the fixed, user-facing part (`id`, `name`, `description`, `properties`) and `deps` is what the shell injects:
 
 ```ts
+import type { MessagingBackend, ProviderAvailability } from '@kernl/messaging';
+
 interface ProviderDeps {
   createBackend: () => MessagingBackend;     // called once per enable; the registry owns the instance
   available: () => ProviderAvailability;     // { available: true } or { available: false, reason }

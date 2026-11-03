@@ -4,6 +4,7 @@ import type { CapabilityHooks, NappletMessage, NappletRevocation, ShellAdapter, 
 import type { ServiceRegistry } from '@kehto/runtime';
 import type { RelayTier, RelayTiers } from './types.js';
 import { createAuthHooks } from './applesauce/auth-hooks.js';
+import type { SigningConsent } from './consent/handler.js';
 import { createRelayPoolHooks, type ApplesaucePool } from './applesauce/relay-hooks.js';
 
 const TIERS: readonly string[] = ['discovery', 'apps', 'outbox', 'super'];
@@ -13,6 +14,8 @@ export interface ShellAdapterDeps {
   readonly pool: ApplesaucePool;
   readonly tiers: RelayTiers;
   readonly accounts: AccountManager;
+  /** Gates every signature made for an applet window; see `createSigningConsent`. */
+  readonly consent: SigningConsent;
   readonly services: ServiceRegistry;
   readonly resolveEnvironment: NonNullable<CapabilityHooks['resolveEnvironment']>;
   readonly onNappletRevoked: (revocation: NappletRevocation) => void;
@@ -30,7 +33,8 @@ function isTier(tier: string): tier is RelayTier {
  * Choices kehto left open, decided here: windows are created by the host
  * through intents, not by applets (`createWindow` returns null); hotkeys are
  * not forwarded; there is no worker relay, the applesauce pool is the only
- * event source; update behaviour is `banner`; event signatures are verified by
+ * event source; every signature made for an applet window passes the consent
+ * gate; update behaviour is `banner`; event signatures are verified by
  * applesauce; and every applet's environment is narrowed by the grants layer.
  *
  * @param deps - Pool, tiers, accounts, services and the shell's hooks.
@@ -58,7 +62,7 @@ export function createShellAdapter(deps: ShellAdapterDeps): ShellAdapter {
       getNip66Suggestions: () => null,
     },
     windowManager: { createWindow: () => null },
-    auth: createAuthHooks(deps.accounts),
+    auth: createAuthHooks(deps.accounts, deps.consent),
     config: { getNappUpdateBehavior: () => 'banner' },
     hotkeys: { executeHotkeyFromForward: () => undefined },
     workerRelay: { getWorkerRelay: () => null },

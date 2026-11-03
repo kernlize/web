@@ -41,7 +41,7 @@ A bridge resolves a protocol-specific locator to bytes, a job or a conversation 
 | `Bridge` | interface | `{ id; label; schemes; exposure: BridgeExposure; availability(): BridgeAvailability; resolve(locator, context): Promise<BridgeResult> }`. |
 | `BridgeContext` | interface | `{ requester: { dTag; hash } \| 'shell'; signal?: AbortSignal; headers?: Readonly<Record<string, string>> }`. |
 | `BridgeResult` | union | `{ kind: 'bytes'; response: Response }`, `{ kind: 'job'; id; label }` or `{ kind: 'conversation'; id; participants: readonly string[] }`. |
-| `BridgeExposure` | interface | `{ revealsAddress; encryptedInTransit; publicActivity }`, three booleans the user reads before consenting. |
+| `BridgeExposure` | interface | `{ revealsAddress; encryptedInTransit; publicActivity }`, three booleans `describeBridge` renders for the user in the shell settings. |
 | `BridgeAvailability` | union | `{ available: true }` or `{ available: false; reason: string }`. The reason is a bare word such as `no-backend`. |
 | `BridgeAuthorizer` | type | `(locator, bridge, context) => boolean \| Promise<boolean>`; the registry's consent hook. The composed shell supplies none in this draft. |
 
@@ -58,7 +58,7 @@ A bridge resolves a protocol-specific locator to bytes, a job or a conversation 
 
 | Export | Signature | Description |
 | --- | --- | --- |
-| `createHttpBridge` | `(options?: HttpBridgeOptions) => Bridge` | Id `http`, label `downloads`. Allowed schemes only, no private or local destinations (re-checked on every redirect hop and, with `resolveHost`, after name resolution), a redirect cap, a time limit and a byte limit enforced on the streamed body. |
+| `createHttpBridge` | `(options?: HttpBridgeOptions) => Bridge` | Id `http`, label `downloads`. Allowed schemes only, no private or local destinations (re-checked on every redirect hop and, with `resolveHost`, after name resolution; without it hostnames are judged as literals), a redirect cap, a time limit and a byte limit enforced on the streamed body. In a browser an opaque redirect is refused with `denied:redirect-unverifiable`, and CORS applies. |
 | `HttpBridgeOptions` | interface | `{ policy?: Partial<HttpPolicy>; fetch?: typeof fetch; resolveHost?: (host: string) => Promise<readonly string[]> }`. |
 | `DEFAULT_HTTP_POLICY` | `HttpPolicy` | `{ allowedSchemes: ['https:'], maxRedirects: 3, maxBytes: 10485760, timeoutMs: 20000, allowPrivateHosts: [] }`. Scheme entries carry the colon, as `URL.protocol` does. |
 | `HttpPolicy` | interface | `allowedSchemes`, `maxRedirects`, `maxBytes`, `timeoutMs`, `allowPrivateHosts`. |
@@ -99,20 +99,23 @@ Without a backend each of the four reports `{ available: false, reason: 'no-back
 ## Example
 
 ```ts
-import { createBridgeRegistry, createBridgeResourceResolver, createHttpBridge, createTorrentBridge, formatLocator } from '@kernl/bridges';
+import { createBridgeRegistry, createBridgeResourceResolver, createHttpBridge, createTorrentBridge, formatLocator, type ResourceResolveInit } from '@kernl/bridges';
+
+declare const lookupAddresses: (host: string) => Promise<string[]>; // the shell's DNS lookup
+declare const identityFor: (init: ResourceResolveInit) => { dTag: string; hash: string } | 'shell'; // the shell's window-to-identity map
 
 const registry = createBridgeRegistry({
   authorize: (locator, bridge) => confirm(`Open ${formatLocator(locator)} with ${bridge.label}?`),
   onResolve: (event) => console.log(event),
 });
-registry.register(createHttpBridge({ resolveHost: lookupAddresses })); // the shell's DNS lookup, (host) => Promise<string[]>
+registry.register(createHttpBridge({ resolveHost: lookupAddresses }));
 registry.register(createTorrentBridge()); // unavailable until a TorrentBackend is supplied
 
 const result = await registry.resolve('https://example.com/file.bin', { requester: 'shell' });
 if (result.kind === 'bytes') result.response.status;
 
 // what @kernl/core hands to kehto's resource service
-const fetchLike = createBridgeResourceResolver(registry, { requesterFor: (init) => identityFor(init) }); // identityFor: the shell's window-to-identity map
+const fetchLike = createBridgeResourceResolver(registry, { requesterFor: (init) => identityFor(init) });
 ```
 
 ## Scope

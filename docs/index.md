@@ -16,7 +16,7 @@ kehto ships `@kehto/{acl,firewall,runtime,shell,services,nip,wm}` and deliberate
 | --- | --- |
 | Event layer | [applesauce](https://applesauce.build) v7 only. One `EventStore`, one `RelayPool`, one `AccountManager` per shell. `nostr-tools` is never imported by kernl source. |
 | Containment | Opaque-origin `srcdoc` iframe, `sandbox="allow-scripts"`, zero-network CSP, every network path through a shell service the user can see, rate-limit and revoke. |
-| Mitigations | Every kehto mitigation ships on, in the `strict` [guard](./concepts/guard.md) profile. The user loosens per applet; a developer never loosens globally. |
+| Mitigations | Every kehto mitigation ships on, in the `strict` [guard](./concepts/guard.md) profile. kehto's runtime firewall enforces the profile's rates before dispatch; kernl's own layers watch port traffic after dispatch, report what they see and quarantine floods. Only the user loosens the profile: shell-wide in this draft, reset to `strict` on every boot, per applet later. A developer flag never loosens it. |
 | Protocols | One identity layer, many [bridges](./concepts/bridges.md) named by what they do for the user, never by the wire format. |
 | Messaging | Any reasonable private-messaging protocol, exposed through one contract. [Providers](./concepts/messaging.md) describe their security properties truthfully and the shell does not rank them. |
 

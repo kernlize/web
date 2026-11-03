@@ -26,6 +26,10 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 | `denied:plaintext-key-persistence` | `@kernl/core` | `KernlAccountManager.addAccount` | The account type stores a raw secret key (`PLAINTEXT_KEY_ACCOUNT_TYPES`). |
 | `invalid:relay-url` | `@kernl/core` | `RelayTiers.add` | The URL is not `ws://` or `wss://`. |
 | `denied:read-only` | `@kernl/core` | the outbox service's signer | The session cannot sign, so an outbox publish is refused. |
+| `denied:consent` | `@kernl/core` | `createSigningConsent`, through the window signer (`relay.publish`) or the outbox gate (`outbox.publish`) | An applet window asked to sign a destructive kind (0, 3, 5, 10002, the list kinds) and the user denied or dismissed `host.presentConsent`. Nothing was signed or published. |
+| `denied:unknown-applet` | `@kernl/core` | `createSigningConsent` | A destructive write from a window the shell did not mount. |
+| `denied:signed-out` | `@kernl/core` | `createSigningConsent` | A destructive write (in practice an `outbox.publish`) while nobody is signed in. |
+| `invalid:event-kind` | `@kernl/core` | `createSigningConsent` | The event's `kind` is not a number. |
 | `unavailable:needs-local-key-signer`, `unavailable:not-implemented`, `unavailable:no-runtime` | `@kernl/core` | `createDefaultMessaging`'s `createBackend`; `MessagingRegistry.enable` | The host supplied no backend for `private`, `legacy` or `ratchet` (`MESSAGING_UNAVAILABLE_REASONS`). |
 | `invalid:duplicate-provider` | `@kernl/messaging` | `MessagingRegistry.register` | A provider with this id is already registered. |
 | `invalid:unknown-provider` | `@kernl/messaging` | `MessagingRegistry.enable`, `disable`; the composite backend | No provider has this id, or a namespaced id, cursor or `provider` hint names no enabled provider. |
@@ -43,9 +47,11 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 | `denied:scheme <protocol>` | `@kernl/bridges` | HTTP bridge | The URL's scheme is not in `allowedSchemes`. |
 | `denied:private-address <host>`, `denied:private-address <host> -> <ip>` | `@kernl/bridges` | HTTP bridge | The host is a blocked name or a private literal; the second form comes from a `resolveHost` result. |
 | `denied:too-many-redirects` | `@kernl/bridges` | HTTP bridge | More than `maxRedirects` hops. |
+| `denied:redirect-unverifiable` | `@kernl/bridges` | HTTP bridge | In a browser, `fetch` with `redirect: 'manual'` returns an opaque redirect whose target the bridge cannot read, so it cannot re-check the next hop and refuses. In Node and on servers redirects are followed and checked. |
 | `invalid:redirect` | `@kernl/bridges` | HTTP bridge | A redirect without a usable `Location`. |
 | `denied:too-large` | `@kernl/bridges` | HTTP bridge | `content-length` or the streamed body exceeds `maxBytes`. |
-| `unavailable:timeout`, `unavailable:aborted`, `unavailable:network <message>` | `@kernl/bridges` | HTTP bridge | The time limit expired, the caller cancelled, or `fetch` failed for another reason. |
+| `unavailable:timeout`, `unavailable:aborted`, `unavailable:network <message>` | `@kernl/bridges` | HTTP bridge | The time limit expired, the caller cancelled, or `fetch` failed for another reason. In a browser a CORS refusal and a network failure are the same `TypeError`, so both surface as `unavailable:network Failed to fetch`. |
+| `unavailable:network <type> response` | `@kernl/bridges` | HTTP bridge | Any status-0 answer other than an opaque redirect, for example `unavailable:network opaque response`. |
 
 `@kernl/guard` throws nothing. Its decisions are events.
 
@@ -53,16 +59,20 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 
 The guard reports each non-pass decision as a `GuardEvent` with a `disposition` (`defer`, `reject`, `quarantine`, `flag`) and one of these reasons. They reach the user through `kernl.guard.events$` and the shell's guard panel. The numbers are per profile; see [Guard](../concepts/guard.md#profiles).
 
-| Reason | Layer | Meaning |
-| --- | --- | --- |
-| `flood:burst` | ingress guard | More messages in one second than `ingressBurst` allows; the message is queued. |
-| `flood:queue-full` | ingress guard | The ingress queue is full; the message is rejected. |
-| `flood:quarantine` | ingress guard | Too many messages in the rolling window, or any message from a quarantined window. The applet is revoked. |
-| `flood:hidden-resource` | ingress guard | A hidden window used up its `resource.*` allowance. The applet is quarantined and revoked. |
-| `size:<class>` | ingress guard, focus firewall | The envelope is over the size cap for `resource:bytes`, `relay:subscribe` or `outbox:subscribe`. |
-| `defer:queue-full` | visibility gate | The hidden window's deferral queue is full. Only the window-level `hello` passes through the gate ([D-012](../decisions.md#d-012)). |
-| `rate:<class>` | focus firewall | The operation class's token bucket is empty, for example `rate:relay:publish`. |
-| `prompt:<ruleId>` | focus firewall | kehto's engine asked for a prompt; the guard treats it as a rejection. |
+For an applet's port traffic these layers run after kehto dispatched the envelope ([D-012](../decisions.md#d-012)): an event records what happened, and only a `quarantine` changes anything, by revoking the binding. `defer` and `reject` hold or drop only the window-level `hello`.
+
+| Reason | Emitted by | Disposition | Meaning |
+| --- | --- | --- | --- |
+| `flood:burst` | ingress guard (`ingress-guard.ts`) | `defer` | More messages in one second than `ingressBurst` allows. A `hello` is held; for port traffic this is a report. |
+| `flood:queue-full` | ingress guard | `reject` | More than `ingressQueue` messages over the burst. A `hello` is dropped; for port traffic this is a report. |
+| `flood:quarantine` | ingress guard | `quarantine` | `quarantineThreshold` messages in a rolling 10 s, or any message from a window already quarantined. The binding is revoked. |
+| `flood:hidden-resource` | ingress guard | `quarantine` | A hidden window made more `resource.*` requests than `hiddenResourceAllowance`. The binding is revoked. |
+| `size:<class>` | ingress guard | `reject` | The envelope is over the size cap for `resource:bytes`, `relay:subscribe` or `outbox:subscribe`. |
+| `defer:queue-full` | visibility gate (`visibility-gate.ts`) | `reject` | The hidden window's deferral queue is full. Only the window-level `hello` passes through the gate. |
+| `rate:<class>` | focus firewall (`focus-firewall.ts`) | `reject`, or `flag` when the rate's action is `flag` | kehto's `rate:opclass`, `rate:global` or `rate:default` rule fired; the reason names the class, for example `rate:relay:publish`. |
+| `matcher:<id>` | focus firewall | `reject` | A kehto content matcher fired, for example `matcher:size:resource:bytes`. The rule id is passed through unchanged. |
+| `policy:deny` | focus firewall | `reject` | The applet's firewall policy is `deny`. kernl sets `allow`, so this appears only if a caller changed it. |
+| `prompt:<ruleId>` | focus firewall | `reject` | kehto's engine asked for a prompt (for example `prompt:policy:ask`); the guard has no UI and treats it as a rejection. |
 
 ## Revocation reasons
 

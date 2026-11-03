@@ -53,6 +53,7 @@ export const sidebar = [
     text: 'Tutorials',
     items: [
       { text: 'Run the shell', link: '/tutorials/run-the-shell' },
+      { text: 'Embed kernl in a page', link: '/tutorials/embed-a-host-page' },
     ],
   },
   {

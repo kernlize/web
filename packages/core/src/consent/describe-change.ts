@@ -116,6 +116,25 @@ function isListKind(kind: number): boolean {
   return (kind >= 10000 && kind <= 10099) || (kind >= 30000 && kind <= 30099);
 }
 
+/** Kinds {@link describeChange} names explicitly as destructive; list kinds are added by range. */
+const DESTRUCTIVE_KINDS: ReadonlySet<number> = new Set([0, 3, 5, 10002]);
+
+/**
+ * Whether {@link describeChange} rates a kind `destructive`: profiles, follows,
+ * deletions, the connections list and every list kind.
+ *
+ * @param kind - The kind of the event about to be signed.
+ * @returns True when signing it replaces or erases part of the account's public record.
+ * @example
+ * ```ts
+ * isDestructiveKind(0); // true
+ * isDestructiveKind(1); // false
+ * ```
+ */
+export function isDestructiveKind(kind: number): boolean {
+  return DESTRUCTIVE_KINDS.has(kind) || isListKind(kind);
+}
+
 function listTitle(event: NostrEvent): string {
   const identifier = tagValues(event, 'd')[0];
   const title = tagValues(event, 'title')[0];

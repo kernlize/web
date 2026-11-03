@@ -5,7 +5,7 @@ import { PrivateKeyAccount, ReadonlyAccount } from 'applesauce-accounts/accounts
 import { PrivateKeySigner } from 'applesauce-signers';
 import type { Signer } from '@kehto/runtime';
 import { createAuthHooks, createKernlAccounts, isReadOnlyAccount, wrapAccountSigner } from '@kernl/core';
-import { attempt, passwordAccount, scratch, type CoreWorld } from './world.js';
+import { allowAllSigning, attempt, passwordAccount, scratch, type CoreWorld } from './world.js';
 
 function accounts(world: CoreWorld): AccountManager {
   const value = scratch(world).accounts as AccountManager | undefined;
@@ -89,17 +89,17 @@ Then('storage has no key {string}', (world: CoreWorld, key: string) => {
 });
 
 Then('the auth hooks report no user and no signer', (world: CoreWorld) => {
-  const auth = createAuthHooks(accounts(world));
+  const auth = createAuthHooks(accounts(world), allowAllSigning);
   expect(auth.getUserPubkey()).toBeNull();
   expect(auth.getSigner()).toBeNull();
 });
 
 Then('the auth hooks report the active pubkey', (world: CoreWorld) => {
-  expect(createAuthHooks(accounts(world)).getUserPubkey()).toBe(accounts(world).active?.pubkey);
+  expect(createAuthHooks(accounts(world), allowAllSigning).getUserPubkey()).toBe(accounts(world).active?.pubkey);
 });
 
 Then('the auth hooks report no signer', (world: CoreWorld) => {
-  expect(createAuthHooks(accounts(world)).getSigner()).toBeNull();
+  expect(createAuthHooks(accounts(world), allowAllSigning).getSigner()).toBeNull();
 });
 
 Then('the account is read-only', (world: CoreWorld) => {
@@ -111,7 +111,7 @@ Then('the account is not read-only', (world: CoreWorld) => {
 });
 
 Then('the wrapped signer signs a kind {int} event for the active pubkey', async (world: CoreWorld, kind: number) => {
-  const signer = createAuthHooks(accounts(world)).getSigner() as Signer;
+  const signer = createAuthHooks(accounts(world), allowAllSigning).getSigner() as Signer;
   expect(await signer.getPublicKey?.()).toBe(accounts(world).active?.pubkey);
   const event = await signer.signEvent?.({ kind, tags: [], content: 'hi', created_at: 1_700_000_000 });
   expect(event?.pubkey).toBe(accounts(world).active?.pubkey);
@@ -119,7 +119,7 @@ Then('the wrapped signer signs a kind {int} event for the active pubkey', async 
 });
 
 Then('the wrapped signer exposes nip04 and nip44', (world: CoreWorld) => {
-  const signer = createAuthHooks(accounts(world)).getSigner() as Signer;
+  const signer = createAuthHooks(accounts(world), allowAllSigning).getSigner() as Signer;
   expect(signer.nip04).toBeDefined();
   expect(signer.nip44).toBeDefined();
 });

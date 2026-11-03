@@ -20,6 +20,8 @@ Strings without a scheme (`just words`, `/relative/path`, `1abc:not-scheme`, the
 ## The bridge contract
 
 ```ts
+import type { BridgeAvailability, BridgeContext, BridgeExposure, BridgeResult, Locator } from '@kernl/bridges';
+
 interface Bridge {
   readonly id: string;                 // 'http' | 'torrent' | 'nzb' | 'soulseek' | 'mail'
   readonly label: string;              // 'downloads' | 'sharing' | 'mail'
@@ -92,9 +94,14 @@ Before every request, including every redirect hop, the bridge checks the URL. A
 
 Strings that are neither a valid IPv4 nor a valid IPv6 literal (`1.2.3`, `256.1.1.1`, `1::2::3`, `example.com`) are not addresses and pass `isPrivateAddress`; a hostname is judged by `isBlockedHostname` and, only if a resolver was supplied, by what it resolves to.
 
-Redirects (`301`, `302`, `303`, `307`, `308`) are followed manually, so each hop passes the same checks. More than `maxRedirects` hops fails with `denied:too-many-redirects`; a redirect without a usable `Location` fails with `invalid:redirect`. Requests race `AbortSignal.timeout(timeoutMs)` and the caller's signal: the time limit fails with `unavailable:timeout`, a caller cancel with `unavailable:aborted`, any other fetch failure with `unavailable:network <message>`. Caller headers are forwarded on every hop.
+Every request is made with `redirect: 'manual'`, so the bridge decides about each hop itself. What that yields depends on where the bridge runs:
 
-A response whose `content-length` exceeds `maxBytes` fails with `denied:too-large` before the body is read. Otherwise the `Response` is returned with its status and headers, and its body is streamed through a counter that errors the stream with `denied:too-large` the moment the limit is crossed. The guard's `hiddenResourceAllowance`, `maxResourceEnvelopeBytes` and `resource:bytes` rate apply before the request reaches the bridge.
+- **In Node and on servers**, a `301`, `302`, `303`, `307` or `308` response carries its `Location`. The bridge follows it by hand, up to `maxRedirects` hops, and each hop passes the same scheme and host checks. More than `maxRedirects` hops fails with `denied:too-many-redirects`; a redirect without a usable `Location` fails with `invalid:redirect`.
+- **In a browser**, which is where the shell runs, `fetch` with `redirect: 'manual'` returns an opaque redirect (`type: 'opaqueredirect'`, status 0) whose target the bridge cannot read. It cannot re-check the next hop, so it refuses the request with `denied:redirect-unverifiable` instead of following blind. A URL that redirects does not load from the shell in this draft; ask for the final URL.
+
+Browser requests are also subject to CORS: the shell's page fetches the URL, so an origin that does not allow cross-origin reads fails, and the browser does not say why. A request the browser blocks, for CORS or because the network failed, surfaces as `unavailable:network Failed to fetch`; any other status-0 answer as `unavailable:network <type> response`, for example `unavailable:network opaque response`. In practice the web bridge in the shell works for `https` origins that permit cross-origin reads and answer without a redirect. Requests race `AbortSignal.timeout(timeoutMs)` and the caller's signal: the time limit fails with `unavailable:timeout`, a caller cancel with `unavailable:aborted`, any other fetch failure with `unavailable:network <message>`. Caller headers are forwarded on every hop.
+
+A response whose `content-length` exceeds `maxBytes` fails with `denied:too-large` before the body is read. Otherwise the `Response` is returned with its status and headers, and its body is streamed through a counter that errors the stream with `denied:too-large` the moment the limit is crossed. Before the request reaches the bridge, kehto's runtime firewall applies the `resource:fetch` rate kernl installed at mount. The guard's `hiddenResourceAllowance`, `maxResourceEnvelopeBytes` and reactive `resource:bytes` bucket see the envelope after dispatch: they report, and the hidden allowance quarantines, but they do not stop that request ([Guard](./guard.md#where-enforcement-happens)).
 
 ## Backend-driven bridges
 
@@ -124,9 +131,10 @@ kehto's resource service takes a `fetch(url, init)` function. `createBridgeResou
 | `invalid:redirect` | HTTP bridge, redirect without a usable `Location` |
 | `unavailable:no-bridge` | `BridgeRegistry.resolve`, no bridge serves the scheme |
 | `unavailable:no-backend` | a backend-driven bridge without a backend (`availability().reason` is the bare `no-backend`) |
-| `unavailable:timeout`, `unavailable:aborted`, `unavailable:network <message>` | HTTP bridge |
+| `unavailable:timeout`, `unavailable:aborted`, `unavailable:network <message>` | HTTP bridge; in a browser a CORS refusal is `unavailable:network Failed to fetch`, another status-0 answer `unavailable:network <type> response` |
 | `denied:bridge` | `BridgeRegistry.resolve`, the authoriser said no |
 | `denied:scheme <protocol>`, `denied:private-address <host>`, `denied:private-address <host> -> <ip>`, `denied:too-many-redirects`, `denied:too-large` | HTTP bridge |
+| `denied:redirect-unverifiable` | HTTP bridge in a browser, for an opaque redirect it cannot inspect |
 
 ## Why bridges are shell-owned
 

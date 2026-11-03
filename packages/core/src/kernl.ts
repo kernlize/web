@@ -13,7 +13,7 @@ import { defaultFetchBlob, openDefaultArtifactCache } from './applets/resolve.js
 import type { MountedApplet } from './applets/mount.js';
 import { createGuardPipeline, type GuardPipeline } from './guard/pipeline.js';
 import { createEnvironmentResolver, createGrants, type KernlGrants } from './grants/grants.js';
-import { createConsentHandler, lookupReplaceable } from './consent/handler.js';
+import { createConsentHandler, createSigningConsent, lookupReplaceable } from './consent/handler.js';
 import { abbreviate } from './consent/describe-change.js';
 import { createDefaultMessaging } from './messaging/default-registry.js';
 import { createDefaultBridges } from './bridges/default-registry.js';
@@ -99,11 +99,14 @@ export function createKernl(options: KernlOptions): Kernl {
   });
 
   const identityOf = (windowId: string): AppletIdentity | undefined => handles.get(windowId)?.summary.identity;
+  const lookupBefore = lookupReplaceable(eventStore);
+  const consent = createSigningConsent({ host, lookupBefore, resolveApplet: identityOf, pubkey: () => accounts.active?.pubkey });
   const services = createKernlServices({
     pool,
     tiers,
     eventStore,
     auth: { getSigner: () => adapter.auth.getSigner() },
+    consent,
     host,
     bridges,
     messaging,
@@ -118,6 +121,7 @@ export function createKernl(options: KernlOptions): Kernl {
     pool,
     tiers,
     accounts,
+    consent,
     services: services.registry,
     resolveEnvironment: (identity, available) => createEnvironmentResolver(grants)(identity, available),
     onNappletRevoked: ({ windowId, reason }) => handles.get(windowId)?.revoked(reason),
@@ -125,7 +129,7 @@ export function createKernl(options: KernlOptions): Kernl {
   });
   const bridge = createShellBridge(adapter);
   grants = createGrants({ acl: bridge.runtime.aclState, storage: host.storage, availableDomains: () => buildShellCapabilities(adapter).domains });
-  bridge.registerConsentHandler(createConsentHandler(host, lookupReplaceable(eventStore), identityOf));
+  bridge.registerConsentHandler(createConsentHandler(host, lookupBefore, identityOf));
 
   subscriptions.add(accounts.active$.subscribe((account) => {
     session$.next(account ? toSession(account) : null);

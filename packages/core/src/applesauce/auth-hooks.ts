@@ -1,6 +1,7 @@
 import type { AccountManager, IAccount } from 'applesauce-accounts';
 import type { AuthHooks } from '@kehto/shell';
 import type { Signer } from '@kehto/runtime';
+import type { SigningConsent } from '../consent/handler.js';
 
 /** Account types whose signer cannot sign. Mirrors `ReadonlyAccount.type` without importing the class. */
 const READ_ONLY_TYPES: ReadonlySet<string> = new Set(['readonly']);
@@ -48,22 +49,37 @@ export function wrapAccountSigner(account: IAccount): Signer {
  *
  * `getSigner` returns null while nobody is signed in and for read-only accounts,
  * so the runtime refuses writes instead of failing inside a signer that throws.
+ * When kehto names the requesting window, the signer it gets back puts every
+ * `signEvent` through `consent` first, so a destructive write an applet asks
+ * for is shown to the user and signed only on yes (kehto's runtime signs
+ * applet publishes here and asks nobody). Without a window the shell is
+ * signing for itself and the plain signer is returned.
  *
  * @param accounts - The shell's account manager.
+ * @param consent - The gate from `createSigningConsent`.
  * @returns Hooks for `ShellAdapter.auth`.
  * @example
  * ```ts
- * const auth = createAuthHooks(accounts);
+ * const auth = createAuthHooks(accounts, consent);
  * auth.getUserPubkey(); // hex pubkey or null
+ * await auth.getSigner('applet-1')?.signEvent?.(profileTemplate); // asks the user first
  * ```
  */
-export function createAuthHooks(accounts: AccountManager): AuthHooks {
+export function createAuthHooks(accounts: AccountManager, consent: SigningConsent): AuthHooks {
   return {
     getUserPubkey: () => accounts.active?.pubkey ?? null,
-    getSigner() {
+    getSigner(windowId?: string) {
       const account = accounts.active;
       if (!account || isReadOnlyAccount(account)) return null;
-      return wrapAccountSigner(account);
+      const signer = wrapAccountSigner(account);
+      if (windowId === undefined) return signer;
+      return {
+        ...signer,
+        async signEvent(template) {
+          await consent(windowId, template);
+          return account.signEvent(template);
+        },
+      } satisfies Signer;
     },
   };
 }

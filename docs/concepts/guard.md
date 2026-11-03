@@ -2,7 +2,9 @@
 
 The guard is everything that stands between an applet and the user. Some of it is kehto's and kernl turns it on; some of it is kernl's and runs in front of kehto's bridge. The user sees it as one list of mitigations with reasons. This page is that list, with the numbers.
 
-The rule from `SOUL.md`: if kehto ships a mitigation, kernl enables it by default and documents how to loosen it. Loosening is per applet and done by the user, never globally and never by a developer flag ([D-003](../decisions.md#d-003)).
+The rule from `SOUL.md`: if kehto ships a mitigation, kernl enables it by default and documents how to loosen it. Loosening is done by the user, never by a developer flag ([D-003](../decisions.md#d-003)). In this draft the profile is shell-wide and resets to `strict` on every boot; per-applet profiles are planned ([Roadmap](../roadmap.md#_6-guard)).
+
+**What runs before dispatch and what only watches.** For an applet's port traffic, which is everything after the handshake, the only limits enforced before kehto dispatches an envelope are kehto's runtime firewall rates, which kernl installs at mount ([Where enforcement happens](#where-enforcement-happens)). kernl's ingress guard and focus firewall see the same envelopes after dispatch: they record guard events and quarantine (revoke the binding) on floods, but they do not hold, drop or size-cap a port envelope. The visibility gate holds only the window-level `hello`. Signing consent is a third path, in the signer itself.
 
 ## The eleven mitigations
 
@@ -14,13 +16,13 @@ The rule from `SOUL.md`: if kehto ships a mitigation, kernl enables it by defaul
 | 2 | `bound-identity` | An applet is only trusted while its connection and code match | A reloaded or substituted document inheriting grants. Identity is `(dTag, artifactHash)` plus the one `MessagePort` transferred in `napplet.hello`. | `kehto` | none |
 | 3 | `verified-artifacts` | Applet code is verified before it runs, and again before reuse | A gateway or cache serving different code than the signed manifest names. Bytes are fetched by hash through `@kehto/nip/5d`, cached only after verification and re-verified on every read. | `kehto` | none |
 | 4 | `replay-detection` | Replayed messages are dropped | One frame speaking for another; replaying a handshake. A window-level message, a second `hello`, a `hello` without exactly one port, a second load or a closed port revokes the binding. | `kehto` | none |
-| 5 | `rate-limits` | Applets have a budget for how often they can act | Publishing, subscribing or spending quota at a rate no human interaction explains. kehto's `evaluate()` runs the token buckets; kernl supplies the classes and the per-applet rates. | `both` | `publish 20 per 60s, delete 5 per 60s, messages 20 per 60s` |
-| 6 | `focus-tightening` | Applets you are not using get a smaller budget | Background windows spending a foreground budget. Capacity is multiplied by `unfocusedMultiplier` while unfocused; focus is observed by the shell, never self-reported, and never reaches zero. | `kernl` | `25% of the focused budget` |
-| 7 | `hidden-deferral` | Hidden applets wait their turn | Hidden or minimised applets consuming relay and network budget the user cannot see. The visibility gate holds everything but `control`; the ingress guard caps resource requests while hidden. | `kernl` | `200 held requests, 8 downloads while hidden` |
-| 8 | `ingress-flood` | Applets that flood the shell are put in quarantine | A busy loop starving the shell's main thread. Per-window token bucket; excess is queued, then rejected, then the window is quarantined. | `kernl` | `8 messages per second, 300 per 10s` |
-| 9 | `size-caps` | Oversized requests are refused | Memory pressure from oversized filters or payloads. `resource.*` and `relay.subscribe`/`outbox.subscribe` envelopes above the cap are rejected by the ingress guard and, independently, by kehto content matchers. | `both` | `downloads 64 KiB, queries 256 KiB` |
+| 5 | `rate-limits` | Applets have a budget for how often they can act | Publishing, subscribing or spending quota at a rate no human interaction explains. Enforced before dispatch: kehto's runtime firewall refuses over-budget envelopes using the per-class rates kernl installs at mount, where deletions count against `relay:write`. After dispatch, kernl's focus firewall counts the same classes again, including a separate `relay:publish:delete` bucket, and reports overruns as `rate:<class>` events. | `both` | `publish 20 per 60s, delete 5 per 60s, messages 20 per 60s` |
+| 6 | `focus-tightening` | Applets you are not using are measured against a smaller budget | Background windows spending a foreground budget. Reported after dispatch: kernl's focus firewall counts an unfocused window at `unfocusedMultiplier` of capacity and emits a guard event when it goes over; it does not refuse. Focus is observed by the shell, never self-reported. Before dispatch the runtime applies kehto's default multiplier, because it has no setter for kernl's. | `kernl` | `25% of the focused budget` |
+| 7 | `hidden-deferral` | Hidden applets that keep downloading are stopped | Hidden or minimised applets consuming network budget the user cannot see. After dispatch, each `resource.*` request from a hidden window counts against `hiddenResourceAllowance`; the one past it quarantines the window (`flood:hidden-resource`), which revokes its binding. Other port traffic from a hidden window is recorded, not held. The visibility gate holds only a hidden window's window-level `hello`. | `kernl` | `8 downloads while hidden` |
+| 8 | `ingress-flood` | Applets that flood the shell are put in quarantine | A busy loop starving the shell's main thread. Per-window token bucket, observed after dispatch for port traffic: bursts above `ingressBurst` are reported (`flood:burst`, `flood:queue-full`), and crossing `quarantineThreshold` in 10 s quarantines the window, which revokes its binding. Only the window-level `hello` is actually queued or rejected. | `kernl` | `8 messages per second, 300 per 10s` |
+| 9 | `size-caps` | Oversized requests are reported | Memory pressure from oversized filters or payloads. `resource.*` and `relay.subscribe`/`outbox.subscribe` envelopes are measured after dispatch, by the ingress guard (`size:<class>`) and kehto's content matchers in the focus firewall (`matcher:size:<class>`), and an oversized one is reported as a guard event; it is not stopped. Only an oversized `hello` is rejected. | `kernl` | `downloads 64 KiB, queries 256 KiB` |
 | 10 | `device-denial` | Applets cannot use your camera, microphone or other devices | An applet reaching hardware or a controller the shell registered. Device and controller access is refused for every applet; there is no grant for it. | `kehto` | none |
-| 11 | `destructive-consent` | Deleting or overwriting asks you first | An applet acquiring authority the user did not knowingly give. Writes to kinds 0, 3, 5 and 10002 are shown as what they change and wait for an answer; kehto's `acl` holds the grant, kernl's consent summaries describe the change. | `both` | none |
+| 11 | `destructive-consent` | Deleting or overwriting asks you first | An applet acquiring authority the user did not knowingly give. `createSigningConsent` asks `host.presentConsent` before a destructive kind (0, 3, 5, 10002 and the list kinds) is signed for an applet, on both routes: the window signer from `ShellAdapter.auth.getSigner(windowId)` for `relay.publish`, and kernl's outbox gate for `outbox.publish`. A denial is `denied:consent` and nothing is signed. kehto's runtime has no such step. | `kernl` | none |
 
 `enabled` is `true` for every row in every profile; the field exists for the UI contract. Two things the old shape of this list claimed are not separate mitigations: the opaque-origin frame and the CSP are one row (`zero-network-sandbox`), and kehto's init-burst guard is not a row at all, for the reason given under [Layers](#layers). See `mitigations.feature`, scenario "every mitigation is described once, in display order".
 
@@ -42,7 +44,7 @@ kehto's firewall treats the operation class as an opaque key. `classifyEnvelope`
 | `relay.close`, `outbox.close`, `storage.get`, `storage.keys`, `shell.*`, `inc.*`, `theme.*`, `identity.*`, other `dm.*` | `control` |
 | anything else (`clipboard.write`, …) | `generic` |
 
-`relay:publish:delete` exists so that kind 5 deletions have their own, tighter bucket: a flood of deletes is the cheapest way for an applet to damage an account's public record. See `classification.feature`.
+`relay:publish:delete` gives kind 5 deletions their own, tighter bucket in kernl's reactive focus firewall, so a burst of deletes is reported as `rate:relay:publish:delete`. Before dispatch there is no separate delete bucket: kehto's runtime firewall keys by capability, and deletions share the `relay:write` budget with other publishes ([translation table](#where-enforcement-happens)). What stops an unwanted deletion is signing consent, not the rate. See `classification.feature`.
 
 ## Profiles
 
@@ -75,11 +77,11 @@ The per-class `rates` are a token-bucket capacity per window. `balanced` is exac
 | `control` | 10 s | 120 | 240 | 360 |
 | `generic` | 10 s | 120 | 240 | 360 |
 
-Every rate kernl registers in kehto has exceed action `block`; kehto's own default would be `flag`. The shell boots in `strict`. [Change the guard profile](../how-tos/change-guard-profile.md) shows how a user loosens one applet. See `profiles.feature`.
+Every rate kernl registers in kehto has exceed action `block`; kehto's own default would be `flag`. The shell boots in `strict`. [Change the guard profile](../how-tos/change-guard-profile.md) shows how a user changes the shell-wide profile; per-applet profiles are planned. See `profiles.feature`.
 
 ## Layers
 
-Three stateful objects, each built from the same `GuardConfig`, each keyed by `windowId`, each with a `forget(windowId)` to call on revocation.
+Three stateful objects, each built from the same `GuardConfig`, each keyed by `windowId`, each with a `forget(windowId)` to call on revocation. This section describes each layer's own API, which is what a caller that sits in front of dispatch gets. In the composed shell that is true only for the window-level `hello`; for port traffic the dispositions below become events and, for `quarantine`, a revocation ([Where enforcement happens](#where-enforcement-happens)).
 
 | Layer | Enforces | Factory |
 | --- | --- | --- |
@@ -91,7 +93,7 @@ Three stateful objects, each built from the same `GuardConfig`, each keyed by `w
 
 **Visibility gate.** The shell reports visibility with `setVisibility`; a window it has not reported on counts as visible and unfocused. `shouldDefer(windowId, opClass)` is true when the window is hidden and the class is not `control`, so a hidden window can still be closed, themed or asked for its identity. `defer` queues up to `deferQueue` envelopes and then returns `false` while emitting a `reject` event with reason `defer:queue-full`; the event names the applet through `nappletFor`, or `unknown` without one. `drain` returns every held envelope oldest first and empties the queue. Deferral is a privacy and resource measure, not a rate limit: a minimised applet should not fetch or publish while the user cannot see it. See `visibility.feature`.
 
-**Focus firewall.** `observe` builds a kehto `Observation` from the envelope and the shell's `WindowVisibility` (`focused`, and `msSinceFocusGain` when known) and runs `evaluate()`. On the first observation of an applet it calls `applyNappletRules` so the applet's class rates exist in kehto's per-applet map; kehto keys those budgets by applet (`dTag`), so two windows of the same applet share a budget (`focus-firewall.feature`, scenario "budgets are per applet, not per window"). Decisions map to events: `reject` emits `reject`; `pass` with action `flag` emits `flag`; `prompt` emits `reject` with reason `prompt:<ruleId>`. kernl treats a prompt as a denial here because the guard runs before dispatch and has no UI; the shell's consent flow prompts the user for destructive writes on its own path, not through the firewall. kehto's `rate:*` rule ids name the tier (`rate:opclass`, `rate:global`, `rate:default`); the event reason is rewritten to `rate:<class>` so the user sees what ran out. Other rule ids pass through unchanged, for example `matcher:size:resource:bytes` and `policy:deny`. `forget(windowId)` drops the buckets of every applet seen in that window, which also resets the budget of another window running the same applet; revocation is user-driven, so that is accepted.
+**Focus firewall.** `observe` builds a kehto `Observation` from the envelope and the shell's `WindowVisibility` (`focused`, and `msSinceFocusGain` when known) and runs `evaluate()`. On the first observation of an applet it calls `applyNappletRules` so the applet's class rates exist in kehto's per-applet map; kehto keys those budgets by applet (`dTag`), so two windows of the same applet share a budget (`focus-firewall.feature`, scenario "budgets are per applet, not per window"). Decisions map to events: `reject` emits `reject`; `pass` with action `flag` emits `flag`; `prompt` emits `reject` with reason `prompt:<ruleId>`. kernl treats a prompt as a denial here because the layer has no UI; signing consent for destructive writes is a separate path, in the signer wrapper, not in the firewall. kehto's `rate:*` rule ids name the tier (`rate:opclass`, `rate:global`, `rate:default`); the event reason is rewritten to `rate:<class>` so the user sees what ran out. Other rule ids pass through unchanged, for example `matcher:size:resource:bytes` and `policy:deny`. `forget(windowId)` drops the buckets of every applet seen in that window, which also resets the budget of another window running the same applet; revocation is user-driven, so that is accepted.
 
 **What `burstGuard` is for.** `createGuardConfig` sets `firewall.burstGuard` to `{ windowMs: 1000, maxOps: ingressBurst, action: 'block' }`. kehto's init-burst guard only fires for callers that supply `initElapsedMs` in the observation; the focus firewall never does, so inside kernl the per-second burst is enforced by the ingress guard alone. The field exists so that a runtime firewall configured from this object agrees with the ingress guard, and it is why there is no separate "init-burst guard" row in the mitigation list.
 
@@ -127,12 +129,12 @@ Two limits of this arrangement are stated plainly. `FirewallStateContainer` has 
 
 `IngressGuard.admit()` returns one of four dispositions:
 
-| Disposition | Meaning | What the shell does |
-| --- | --- | --- |
-| `pass` | Within budget. | Dispatch to the bridge (after the visibility gate and the focus firewall have had their say). |
-| `defer` | The per-second burst is spent; the envelope is queued. | Call `drain()` as time passes and dispatch what it returns. |
-| `reject` | The queue is full or the envelope is over its size cap. | Drop and answer with an error carrying the reason. |
-| `quarantine` | The window hit the quarantine threshold or the hidden resource allowance, or is still quarantined. | Drop everything from the window until the user calls `release()`. |
+| Disposition | Meaning | For the window-level `hello` | For port traffic (after dispatch) |
+| --- | --- | --- | --- |
+| `pass` | Within budget. | Forwarded to the bridge after the visibility gate and the focus firewall. | Nothing; the envelope was already dispatched. |
+| `defer` | The per-second burst is spent; the envelope is queued. | Held; `drainAll` forwards it as tokens refill. | A `flood:burst` event. Nothing is held. |
+| `reject` | The queue is full or the envelope is over its size cap. | Dropped. | A `flood:queue-full` or `size:<class>` event. Nothing is dropped. |
+| `quarantine` | The window hit the quarantine threshold or the hidden resource allowance, or is still quarantined. | Dropped, and the window is revoked. | `onQuarantine` revokes the binding and removes the frame. |
 
 Every disposition other than `pass`, and every `pass` the firewall flagged, emits a `GuardEvent` with a stable prefixed reason. The user sees these events; secrets never appear in them.
 
@@ -145,7 +147,7 @@ Every disposition other than `pass`, and every `pass` the firewall flagged, emit
 | `size:<class>` (`size:resource:bytes`, `size:relay:subscribe`, `size:outbox:subscribe`) | ingress guard | `reject` |
 | `defer:queue-full` | visibility gate | `reject` |
 | `rate:<class>` | focus firewall | `reject`, or `flag` when the rate's action is `flag` |
-| `matcher:<id>` (`matcher:size:resource:bytes`, …) | focus firewall | `reject` |
+| `matcher:<id>` (`matcher:size:resource:bytes`, …), kehto's rule id passed through | focus firewall | `reject` |
 | `policy:deny` | focus firewall | `reject` |
 | `prompt:<ruleId>` (`prompt:policy:ask`) | focus firewall | `reject` |
 

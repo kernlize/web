@@ -20,6 +20,10 @@ function mitigation(id: string, provider: Provider, title: string, summary: stri
  * The list is what the grants panel renders (D-003). Titles and summaries
  * avoid protocol vocabulary: they say network, applet and account. Every
  * mitigation is enabled in every profile; only the `limit` text changes.
+ * Each summary claims only what is enforced where D-012 places it: limits
+ * the runtime applies before an applet's request is handled are described as
+ * refusals, and what kernl observes afterwards is described as reported or,
+ * for quarantine, as closing the applet.
  *
  * @param config - The guard configuration whose limits appear in the text.
  * @returns One description per mitigation, in the order the UI shows them.
@@ -43,7 +47,7 @@ export function describeMitigations(config: GuardConfig): readonly MitigationDes
       'bound-identity',
       'kehto',
       'An applet is only trusted while its connection and code match',
-      "The shell ties each applet's grants to the exact code it verified and the live connection it opened. If either changes, the grants end immediately.",
+      "The shell ties each running applet to the exact code it verified and the live connection it opened. If either changes, the shell closes it at once. Your grants stay with that exact code; changed code starts with none.",
     ),
     mitigation(
       'verified-artifacts',
@@ -61,35 +65,35 @@ export function describeMitigations(config: GuardConfig): readonly MitigationDes
       'rate-limits',
       'both',
       'Applets have a budget for how often they can act',
-      'Reading, publishing, deleting, messaging and storage each have their own allowance. An applet that spends its allowance is paused until it refills.',
+      'Reading, publishing, messaging, storage and downloads each have an allowance, set before the applet starts. A request over its allowance is refused until the allowance refills. Deletions count against publishing, and are also counted on their own so you can see an applet that deletes a lot.',
       `publish ${perWindow(rates['relay:publish'])}, delete ${perWindow(rates['relay:publish:delete'])}, messages ${perWindow(rates['dm:send'])}`,
     ),
     mitigation(
       'focus-tightening',
       'kernl',
-      'Applets you are not using get a smaller budget',
-      'When an applet window is not the one you are working in, its allowance shrinks. An applet never loses its budget entirely just for being in the background.',
+      'Applets you are not using are measured against a smaller budget',
+      'When an applet window is not the one you are working in, the shell counts its requests against a smaller allowance and tells you when it goes over. Going over is reported, not refused: the shell counts these requests after they have been handled. The budget above still applies.',
       `${limits.unfocusedMultiplier * 100}% of the focused budget`,
     ),
     mitigation(
       'hidden-deferral',
       'kernl',
-      'Hidden applets wait their turn',
-      'Requests from a minimised or hidden applet are held until you bring it back, apart from the small messages that keep its window working.',
-      `${limits.deferQueue} held requests, ${limits.hiddenResourceAllowance} downloads while hidden`,
+      'Hidden applets that keep downloading are stopped',
+      'While an applet is minimised or hidden, the shell counts its downloads. One that downloads past its allowance is quarantined: the shell closes it and tells you. Other requests from a hidden applet are recorded, not held back.',
+      `${limits.hiddenResourceAllowance} downloads while hidden`,
     ),
     mitigation(
       'ingress-flood',
       'kernl',
       'Applets that flood the shell are put in quarantine',
-      'Bursts of messages are queued rather than processed at once. An applet that keeps flooding is quarantined until you decide what to do with it.',
+      'The shell counts every message an applet sends. Bursts above the per-second rate are reported to you. An applet that keeps flooding is quarantined: the shell closes it and tells you.',
       `${limits.ingressBurst} messages per second, ${limits.quarantineThreshold} per 10s`,
     ),
     mitigation(
       'size-caps',
-      'both',
-      'Oversized requests are refused',
-      'Downloads and long-running queries have a maximum request size, so an applet cannot exhaust memory with one message.',
+      'kernl',
+      'Oversized requests are reported',
+      'The shell measures download and long-running query requests against a maximum size and tells you when an applet sends one that is too large. Such a request is not stopped: the shell measures it after it has been handled.',
       `downloads ${kib(limits.maxResourceEnvelopeBytes)}, queries ${kib(limits.maxSubscribeEnvelopeBytes)}`,
     ),
     mitigation(
@@ -100,9 +104,9 @@ export function describeMitigations(config: GuardConfig): readonly MitigationDes
     ),
     mitigation(
       'destructive-consent',
-      'both',
+      'kernl',
       'Deleting or overwriting asks you first',
-      'Before an applet removes or replaces something in your account, the shell shows you what would change and waits for your answer.',
+      'Before the shell signs a profile, contact-list, deletion, connection-list or other list change for an applet, it shows you what changes and waits for your answer.',
     ),
   ];
 }

@@ -1,6 +1,6 @@
 # Add a bridge backend
 
-The four non-HTTP bridges are complete up to the backend interface they call. Supplying a backend turns `unavailable` into a working bridge without touching the parser, the registry or the consent path, all of which the HTTP bridge already exercises. This how-to supplies a `TorrentBackend`; the others follow the same shape.
+The four non-HTTP bridges are complete up to the backend interface they call. Supplying a backend turns `unavailable` into a working bridge without touching the parser or the registry, both of which the HTTP bridge already exercises. This how-to supplies a `TorrentBackend`; the others follow the same shape.
 
 ## 1. Pick the interface
 
@@ -15,7 +15,7 @@ The four non-HTTP bridges are complete up to the backend interface they call. Su
 
 ## 2. Implement it outside the published packages
 
-A backend talks to something: a WebTorrent client, a downloader daemon, a mail account. That belongs in the host app (`apps/web`, or your own page) or in a package of its own with its own dependencies, not in `@kernl/bridges`, which stays dependency-free. The samples on this page type-check against the built packages.
+A backend talks to something: a WebTorrent client, a downloader daemon, a mail account. That belongs in the host app (`apps/web`, or your own page) or in a package of its own with its own dependencies, not in `@kernl/bridges`, which stays dependency-free. The samples on this page are one module, read top to bottom, and are type-checked by `node scripts/check-doc-samples.mjs` as part of `pnpm docs:check`.
 
 ```ts
 import type { BridgeContext, TorrentBackend } from '@kernl/bridges';
@@ -46,6 +46,7 @@ Return a stable `id`: it is the job's identity in the `202` body the applet rece
 
 The shell's bridges are registered by `createDefaultBridges` in `packages/core/src/bridges/default-registry.ts`, which `createKernl` calls when `KernlOptions.bridges` is absent. Its signature is `createDefaultBridges(options?: DefaultBridgesOptions)`, where the options are the registry's `authorize` and `onResolve` plus `http` for the web bridge. It takes no backends, and a registry cannot replace a bridge it already holds (a second `torrent` throws `invalid:duplicate-bridge torrent`). So a host that supplies a backend builds the same five registrations itself, with its backend in place, and passes the registry as `KernlOptions.bridges`:
 
+<!-- sample:continues -->
 ```ts
 import { createKernl, type KernlHost } from '@kernl/core';
 import {
@@ -56,11 +57,10 @@ import {
   createSoulseekBridge,
   createTorrentBridge,
   type BridgeRegistry,
-  type TorrentBackend,
 } from '@kernl/bridges';
 
 declare const host: KernlHost;
-declare const client: Parameters<typeof createWebTorrentBackend>[0];
+declare const client: WebTorrentLike;
 
 export function createBridgesWithTorrent(torrent: TorrentBackend): BridgeRegistry {
   const registry = createBridgeRegistry({ onResolve: (event) => console.info('bridge', event) });
@@ -80,14 +80,19 @@ The web, NZB, Soulseek and mail bridges are the same as the defaults. To ship th
 
 Check the bridge's `exposure`. The torrent bridge declares `revealsAddress: true`, `encryptedInTransit: false`, `publicActivity: true`, which is the truth for a client in a public swarm. The factory does not take an exposure argument, so if your backend changes the truth of any field (a backend that tunnels through a seedbox does not reveal the user's address), register a bridge object with the same `resolve` and a corrected `exposure`:
 
+<!-- sample:continues -->
 ```ts
-const stock = createTorrentBridge(createWebTorrentBackend(client));
-registry.register({ ...stock, exposure: { ...stock.exposure, revealsAddress: false } });
+import type { Bridge } from '@kernl/bridges';
+
+export function createTunnelledTorrentBridge(torrent: TorrentBackend): Bridge {
+  const stock = createTorrentBridge(torrent);
+  return { ...stock, exposure: { ...stock.exposure, revealsAddress: false } };
+}
 ```
 
-Register that object in place of `createTorrentBridge(torrent)` in `createBridgesWithTorrent`.
+In `createBridgesWithTorrent`, register `createTunnelledTorrentBridge(torrent)` in place of `createTorrentBridge(torrent)`.
 
-The user reads these three booleans, rendered by `describeBridge`, before consenting; they must be right.
+These three booleans are what the user reads about the bridge: `describeBridge` renders them in the shell's settings. There is no per-request bridge prompt in this draft, so the description is the only place the user learns what a transfer exposes; it must be right.
 
 ## 4. What already applies, and what does not yet
 

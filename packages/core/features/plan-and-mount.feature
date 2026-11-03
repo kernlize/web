@@ -20,7 +20,7 @@ Feature: Planning and mounting an applet
     And a fake frame
     When the shell mounts the plan into the frame
     Then the mount steps were "sandbox,register,setEnvironment,observeFrame,srcdoc"
-    And the frame sandbox tokens are "allow-scripts"
+    And the frame sandbox attribute is exactly "allow-scripts"
     And the frame allow attribute is "gamepad 'none'; hid 'none'; usb 'none'"
     And the frame srcdoc is the plan srcdoc
     And the applet status is "mounting"
@@ -28,12 +28,19 @@ Feature: Planning and mounting an applet
     Then the applet status is "running"
     And the frame has 0 load listeners
 
-  Scenario: a frame with a string sandbox and existing permissions is hardened in place
+  Scenario: a frame with existing permissions is hardened in place
     Given a plan for window "w1"
-    And a fake frame with a string sandbox, a getAttribute and allow "camera; gamepad"
+    And a fake frame with a getAttribute and allow "camera; gamepad"
     When the shell mounts the plan into the frame
-    Then the frame sandbox string is "allow-scripts"
+    Then the frame sandbox attribute is exactly "allow-scripts"
     And the frame allow attribute is "camera; gamepad 'none'; hid 'none'; usb 'none'"
+
+  Scenario: sandbox tokens the host left on the frame are dropped, never widened
+    Given a plan for window "w1"
+    And a fake frame whose sandbox is already "allow-same-origin allow-scripts allow-popups"
+    When the shell mounts the plan into the frame
+    Then the frame sandbox attribute is exactly "allow-scripts"
+    And the mount steps were "sandbox,register,setEnvironment,observeFrame,srcdoc"
 
   Scenario: a frame without a window cannot be mounted
     Given a plan for window "w1"

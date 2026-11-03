@@ -1,6 +1,6 @@
 # Embed kernl core
 
-`apps/web` is one host for `@kernl/core`; your own page can be another. This how-to implements `KernlHost`, calls `createKernl`, and mounts an applet in an iframe you own. The sample type-checks against the built packages with `strict` on.
+`apps/web` is one host for `@kernl/core`; your own page can be another. This how-to implements `KernlHost`, calls `createKernl`, and mounts an applet in an iframe you own. The sample is type-checked with `strict` on by `node scripts/check-doc-samples.mjs`, part of `pnpm docs:check`. For a slower, step-by-step version with a complete page, follow the tutorial [Embed kernl in a page](../tutorials/embed-a-host-page.md).
 
 The packages are not yet published to npm, so your page lives in a clone of the kernl source as a workspace package that depends on `@kernl/core` and `@kernl/guard` with `workspace:^`, and you run `pnpm build` first ([Packages](../packages/index.md#install)).
 
@@ -21,10 +21,10 @@ Put it in the `<head>` of the HTML the server sends, before any script runs, as 
 | Member | What the core expects |
 | --- | --- |
 | `storage` | A synchronous `StorageLike` (`getItem`, `setItem`, `removeItem`). `localStorage` satisfies it. Grants, accounts, relay tiers and messaging preferences persist here under `kernl:` keys. |
-| `presentConsent(prompt)` | Show `prompt.summary` (title, severity, lines) and call `prompt.resolve(true \| false)`. Resolve `false` on dismiss; the core never times out. |
+| `presentConsent(prompt)` | Called when an applet window asks to sign, through `relay.publish` or `outbox.publish`, a destructive change (profile, follows, deletions, connections list, lists). `prompt.summary.event` is the unsigned draft. Show `prompt.summary` (title, lines) and call `prompt.resolve(true \| false)`. `false`, which you also send on dismiss, makes signing fail with `denied:consent`. The core never times out. Routine writes never reach this hook. |
 | `notify(notice)` | Show `{ title, body?, windowId?, tone }`. Applets reach it through the `notify` domain; the guard and revocations use it too. |
 | `openLink(url)` | Open a URL outside the shell. It is called only after the link service allowed the protocol (`https:`, `mailto:`); confirming with the user is your choice. |
-| `getVisibility(windowId)` | Return `{ visible, focused, msSinceFocusGain? }` for a window, synchronously. The guard uses it for hidden allowances and focus tightening. |
+| `getVisibility(windowId)` | Current visibility for a window, when the core needs it synchronously: return `{ visible, focused, msSinceFocusGain? }`. The guard asks the first time it meets a window you have not reported with `handle.setVisibility`; after that it uses what you report. |
 | `onRevoked(windowId, reason)` | Called after the core removed a frame because its binding was revoked (`quarantine`, `second-load`, …). Update your UI. |
 
 `fetchBlob` and `now` are optional; without them the core fetches artifact blobs with `defaultFetchBlob` and uses `Date.now`.
@@ -108,14 +108,15 @@ export async function openApplet(address: string, container: HTMLElement): Promi
 3. **Grants.** Ask the user, then call `grants.allowDomain(identity, domain)` for what they allowed. Skip domains outside `grants.availableDomains()`, which throw `invalid:domain`, and the baseline ones, which are always on.
 4. **`plan(summary)`** writes the applet's ACL explicitly and returns the `MountPlan`: the srcdoc with the guard's CSP, the environment the applet will see, and `missingRequired`. It throws `denied:blocked` for a blocked applet.
 5. **The frame.** Create the iframe and attach it to the document first: `mount` needs its `contentWindow` and throws `invalid:frame-detached` otherwise. Do not set `src`, `sandbox` or `srcdoc` yourself. Record it under `plan.windowId` so `getVisibility` can answer for it.
-6. **`mount(plan, frame)`** installs the profile's runtime rates, sets `sandbox="allow-scripts"` and the controller-denying `allow` policy, registers the window, and only then assigns `srcdoc`. It returns an `AppletHandle`.
+6. **`mount(plan, frame)`** installs the profile's runtime rates, sets the `sandbox` attribute to exactly `allow-scripts` (replacing anything you set) and the controller-denying `allow` policy, registers the window, and only then assigns `srcdoc`. It returns an `AppletHandle`.
 
 After mount, keep the guard informed: call `handle.setVisibility(...)` whenever a window is shown, hidden, focused or blurred (the sample does it on `visibilitychange` and on pointer focus). `handle.close()` revokes the binding and removes the frame; grants stay, keyed by identity. `kernl.destroy()` closes everything when the page goes away.
 
 ## 4. Check it
 
 - Open an applet that `requires` `relay` and decline it: `plan.missingRequired` is `['relay']` and the applet's `shell.init` lacks it.
-- Hide its container and call `setVisibility`: from then on the applet's resource requests count against the hidden allowance, and any overrun appears on `kernl.guard.events$`.
+- Hide its container and call `setVisibility`: from then on the applet's resource requests count against the hidden allowance, and an overrun quarantines the window and appears on `kernl.guard.events$`.
+- Have the applet publish a profile change: `presentConsent` is called with the title "Update your profile". Answer `false` and the applet's publish fails with `denied:consent`.
 - Subscribe to `kernl.guard.events$` and `kernl.session$` and render them; they are the same streams `apps/web` shows in its guard panel and sign-in screen.
 
 ## Related

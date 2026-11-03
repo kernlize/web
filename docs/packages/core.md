@@ -21,7 +21,7 @@ Opinionated shell composition over kehto and applesauce. Browser-agnostic: the D
 
 ## Purpose
 
-This is where the five opinions in `SOUL.md` become code. `createKernl` builds one `EventStore`, one `RelayPool` and one `AccountManager`, adapts them to kehto's relay, auth and dm contracts, registers kehto's reference services, builds the `ShellAdapter` and hands it to `createShellBridge`, puts the guard pipeline in front of the bridge, and exposes the applet lifecycle (`decodePointer` → `resolve` → `plan` → `mount`), the grants surface, consent summaries and layouts to the shell app. The layering is in [Architecture](../concepts/architecture.md).
+This is where the five opinions in `SOUL.md` become code. `createKernl` builds one `EventStore`, one `RelayPool` and one `AccountManager`, adapts them to kehto's relay, auth and dm contracts, registers kehto's reference services, builds the `ShellAdapter` and hands it to `createShellBridge`, puts the guard pipeline in front of the bridge for the window-level `hello` and behind it, as an observer, for port traffic, wraps the account signer so destructive signatures ask the user first, and exposes the applet lifecycle (`decodePointer` → `resolve` → `plan` → `mount`), the grants surface, consent summaries and layouts to the shell app. The layering is in [Architecture](../concepts/architecture.md).
 
 ```ts
 import { createKernl, type KernlHost } from '@kernl/core';
@@ -46,11 +46,11 @@ if (plan.missingRequired.length === 0) kernl.mount(plan, iframe);
 2. **Relay tiers.** `createRelayTiers(host.storage, options.relays ?? {})`. Persisted choices at `kernl:relays:v1` win over `options.relays`, which only overrides `DEFAULT_RELAY_TIERS` on a fresh device.
 3. **Registries.** `options.messaging ?? createDefaultMessaging({ storage: host.storage, backends: options.messagingBackends })` and `options.bridges ?? createDefaultBridges()`. The default bridge registry has no `authorize` hook, so in the composed shell a resource request is checked only by the HTTP bridge's SSRF policy and the applet's `resource` grant.
 4. **Guard pipeline.** `createGuardPipeline` with `createGuardConfig(options.guard?.profile ?? 'strict')`, the host's `now` when given, `onEvent` feeding `kernl.guard.events$`, `getVisibility` delegated to `host.getVisibility`, and `onQuarantine` marking the handle revoked with reason `quarantine` and calling `bridge.revokeNapplet(windowId, 'host')`.
-5. **Services.** `createKernlServices` registers `relay`, `identity`, `theme`, `notify`, `link`, `resource`, `dm` and `outbox` over the pool, the tiers, the event store, the active signer, the host, the bridge registry and the messaging registry. `options.theme` is used only when `isTheme` accepts it. `resolveIdentity` maps a live window to its verified identity so the resource service names the requesting applet to the bridges.
-6. **ShellAdapter.** `createShellAdapter` builds kehto's adapter from the relay-pool hooks, the relay-config hooks over the tiers, `createAuthHooks(accounts)`, the service registry, `capabilities.resolveEnvironment` from `createEnvironmentResolver(grants)`, `onNappletRevoked` (removes the frame through the handle) and `onNappletMessage` (feeds `pipeline.observe`). Choices kehto left open are fixed here: applets cannot create windows (`createWindow` returns null), hotkeys are not forwarded, there is no worker relay, update behaviour is `banner`, signatures are verified by applesauce's `verifyEvent`, `link.isAvailable` is true and `getNip66Suggestions` is null.
+5. **Services.** `createKernlServices` registers `relay`, `identity`, `theme`, `notify`, `link`, `resource`, `dm` and `outbox` over the pool, the tiers, the event store, the active signer, the consent gate, the host, the bridge registry and the messaging registry. The `outbox` service is wrapped so that `outbox.publish` passes the consent gate first, because kehto's outbox service signs without naming the window. `options.theme` is used only when `isTheme` accepts it. `resolveIdentity` maps a live window to its verified identity so the resource service names the requesting applet to the bridges.
+6. **ShellAdapter.** `createShellAdapter` builds kehto's adapter from the relay-pool hooks, the relay-config hooks over the tiers, `createAuthHooks(accounts, consent)`, the service registry, `capabilities.resolveEnvironment` from `createEnvironmentResolver(grants)`, `onNappletRevoked` (removes the frame through the handle) and `onNappletMessage` (feeds `pipeline.observe`). Choices kehto left open are fixed here: applets cannot create windows (`createWindow` returns null), hotkeys are not forwarded, there is no worker relay, update behaviour is `banner`, signatures are verified by applesauce's `verifyEvent`, `link.isAvailable` is true and `getNip66Suggestions` is null.
 7. **Bridge.** `createShellBridge(adapter)`, unchanged ([D-001](../decisions.md#d-001)).
 8. **Grants.** `createGrants({ acl: bridge.runtime.aclState, storage: host.storage, availableDomains: () => buildShellCapabilities(adapter).domains })`. The grants layer writes kehto's ACL explicitly for every applet, see [Grants](#grants).
-9. **Consent.** `bridge.registerConsentHandler(createConsentHandler(host, lookupReplaceable(eventStore), identityOf))`, so every destructive-signing request kehto raises reaches `host.presentConsent` as a `ConsentSummary`.
+9. **Consent.** Before steps 5 and 6, `createSigningConsent({ host, lookupBefore: lookupReplaceable(eventStore), resolveApplet: identityOf, pubkey })` builds the gate, and both of the routes an applet's write can take pass through it: `relay.publish` is signed through `ShellAdapter.auth.getSigner(windowId)`, whose `signEvent` calls the gate first, and `outbox.publish` is gated in the outbox service wrapper before kehto signs it. For a kind `isDestructiveKind` accepts (0, 3, 5, 10002 and the list kinds), the gate describes the draft against the current version in the event store, calls `host.presentConsent` and waits; anything but yes rejects with `denied:consent` and nothing is signed. Routine kinds are not prompted; the shell's own signing (no window) is not gated; answers are not remembered. kehto's runtime has no destructive-signing consent of its own. Separately, `bridge.registerConsentHandler(createConsentHandler(host, lookupReplaceable(eventStore), identityOf))` answers kehto's own `ConsentRequest`, which the runtime raises only for a firewall `prompt` policy and without an event, so the handler refuses it without asking.
 10. **Session.** `accounts.active$` drives `session$` (`toSession(account)` or null) and calls `bridge.publishIdentityChanged(pubkey)` with the active pubkey or `''` on sign-out, so bound applets hear every identity change through kehto's live port.
 11. **Lifecycle.** `createAppletLifecycle` with `options.artifactCache ?? openDefaultArtifactCache` and `host.fetchBlob ?? defaultFetchBlob`.
 
@@ -63,10 +63,10 @@ The host is the only way the core reaches the user or the page. Applets never re
 | Member | Called when |
 | --- | --- |
 | `storage: StorageLike` | Every persisted value: accounts (`kernl:accounts:v1`, `kernl:active-account:v1`), relay tiers (`kernl:relays:v1`), grants (`kernl:grants:v1`), messaging preferences (`kernl:messaging:v1`). `localStorage` satisfies it; tests use a `Map`. |
-| `presentConsent(prompt)` | kehto asks for consent on a destructive signing kind. `prompt.summary` is a `ConsentSummary`; call `prompt.resolve(false)` on dismiss. The core never times a prompt out. |
+| `presentConsent(prompt)` | An applet window asked the shell to sign, through `relay.publish` or `outbox.publish`, an event whose kind is destructive. `prompt.summary` is a `ConsentSummary` whose `event` is the unsigned draft (empty `id` and `sig`); `prompt.resolve(true)` signs, `prompt.resolve(false)` (also on dismiss) makes the signer throw `denied:consent`. The core never times a prompt out. |
 | `notify(notice)` | An applet calls `notify.send`, or the guard has something to say. `notice.tone` is `info` or `warning`; `windowId` names the applet when there is one. |
 | `openLink(url)` | An applet's `link.open` passed the link policy (`LINK_PROTOCOLS`: `https:` and `mailto:` only). |
-| `getVisibility(windowId)` | The guard meets a window it has not been told about yet. |
+| `getVisibility(windowId)` | Current visibility for a window, when the core needs it synchronously: the guard asks the first time it meets a window that `handle.setVisibility` has not reported on yet, and keeps that answer until the next `setVisibility`. |
 | `onRevoked(windowId, reason)` | The core removed a frame because the bridge revoked its binding, or the guard quarantined it (`reason` is `quarantine`). |
 | `fetchBlob?(sha256, servers)` | Optional. Replaces `defaultFetchBlob` for artifact bytes; the bytes are hashed by kehto either way. |
 | `now?()` | Optional clock for the guard. |
@@ -98,7 +98,7 @@ The host is the only way the core reaches the user or the page. Applets never re
 `mount(plan, frame)` runs in this order:
 
 1. `applyRuntimeFirewallRules(bridge.runtime.firewallState, guard.config, dTag)` installs the profile's rates in kehto's runtime firewall for this applet.
-2. Harden the frame: `sandbox` becomes exactly `allow-scripts`; `denyNappletControllerAccess` when the frame has `getAttribute`, otherwise `allow` is set to `CONTROLLER_DENY_POLICY`.
+2. Harden the frame: the `sandbox` attribute is set to exactly `allow-scripts`, replacing any tokens the host set; `denyNappletControllerAccess` when the frame has `getAttribute`, otherwise `allow` is set to `CONTROLLER_DENY_POLICY`.
 3. `originRegistry.register(window, windowId, { dTag, aggregateHash })`.
 4. `originRegistry.setEnvironment(window, plan.environment)`.
 5. `bridge.observeFrame(frame, windowId)`, so a second load revokes the binding.
@@ -127,14 +127,14 @@ import type { MessagingBackend } from '@kernl/messaging';
 declare const sealedBackend: () => MessagingBackend;
 
 const messaging = createDefaultMessaging({ storage: localStorage, backends: { private: sealedBackend } });
-messaging.get('legacy')?.availability(); // { available: false, reason: MESSAGING_UNAVAILABLE_REASONS.legacy }
+messaging.get('legacy')?.availability; // { available: false, reason: MESSAGING_UNAVAILABLE_REASONS.legacy }
 ```
 
 ### Accounts
 
 `createKernlAccounts(storage)` returns a `KernlAccountManager` with applesauce's common account types registered, state restored from `kernl:accounts:v1` and `kernl:active-account:v1`, and every later change persisted. `KernlAccountManager.addAccount` throws `denied:plaintext-key-persistence` for the types in `PLAINTEXT_KEY_ACCOUNT_TYPES`, `['nsec', 'seed-words']`: `PrivateKeyAccount` serialises the key itself and `SeedWordsAccount` the mnemonic. Any such entry found in storage is dropped on restore. The only persisted form of a local key is applesauce's `PasswordAccount`, whose `ncryptsec` is NIP-49 encrypted.
 
-`createAuthHooks(accounts)` is kehto's `AuthHooks`: `getUserPubkey` is the active pubkey or null; `getSigner` is null while nobody is signed in and for read-only accounts, so the runtime refuses writes instead of failing inside a signer. `wrapAccountSigner(account)` exposes `getPublicKey`, `signEvent` and the `nip04`/`nip44` namespaces the account has, never the account.
+`createAuthHooks(accounts, consent)` is kehto's `AuthHooks`: `getUserPubkey` is the active pubkey or null; `getSigner(windowId?)` is null while nobody is signed in and for read-only accounts, so the runtime refuses writes instead of failing inside a signer. With a `windowId`, the returned signer's `signEvent` awaits `consent(windowId, template)` before the account signs; without one it is the account's signer, ungated. `wrapAccountSigner(account)` exposes `getPublicKey`, `signEvent` and the `nip04`/`nip44` namespaces the account has, never the account.
 
 ### Relay tiers
 
@@ -189,7 +189,9 @@ Unknown domains need no capability (`capabilitiesForDomain('made-up')` is `[]`).
 | 10000–10099, 30000–30099 | `destructive` | Change the list "title or d tag", or "Change a list" | "Entries added" and "Entries removed" as `tag:value`. |
 | anything else | `routine` | Publish a note, repost, reaction, comment, article, sealed message, legacy private message, payment receipt, or "kind N event" | One "Content" line with a 140-character preview. |
 
-`createConsentHandler(host, lookupBefore, resolveApplet)` adapts kehto's `ConsentRequest`: it looks up the current replaceable event through `lookupReplaceable(eventStore)` for the diff, asks the host, and refuses without asking when the request has no event (kehto's `firewall-policy` prompt) or comes from a window the shell cannot name.
+`isDestructiveKind(kind)` is true for exactly the `destructive` rows. `createSigningConsent(options)` returns the `SigningConsent` gate, `(windowId, template) => Promise<void>`: it resolves at once for a routine kind; for a destructive one it builds an unsigned draft (empty `id` and `sig`; this draft is the summary's `event`), describes it against `lookupBefore`, and resolves only when `host.presentConsent` answers yes. It rejects with `denied:consent` when the user refuses, `denied:unknown-applet` for a destructive write from a window the shell did not mount, `denied:signed-out` for a destructive write while nobody is signed in, and `invalid:event-kind` when the kind is not a number.
+
+`createConsentHandler(host, lookupBefore, resolveApplet)` answers kehto's own `ConsentRequest`. The kehto runtime kernl pins raises only `firewall-policy` requests, which carry no event, and the handler refuses those without asking. A request that does carry an event, from a window the shell can name, would be described and put to the user, so a later kehto release that adds such prompts is answered honestly; one from an unknown window is refused.
 
 ### Layouts
 
@@ -223,8 +225,8 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `toSession` | `(account: IAccount) => Session` | Describes an account for the UI; `readOnly` when it cannot sign. |
 | `createAppletLifecycle` | `(context: LifecycleContext) => AppletLifecycle` | `resolve`, `plan`, `mount`, `applets`, `handleWindowMessage` over the composed parts. |
 | `resolveWindow` | `(handles: ReadonlyMap<string, MountedApplet>, event: MessageEvent) => WindowResolution \| null` | The sending window from `originRegistry`, never from the message. |
-| `createShellAdapter` | `(deps: ShellAdapterDeps) => ShellAdapter` | kehto's adapter from kernl's parts, with the fixed choices listed under Composition. |
-| `createKernlServices` | `(deps: KernlServiceDeps) => KernlServices` | `{ registry, theme, dm }` with kehto's eight reference services wired. |
+| `createShellAdapter` | `(deps: ShellAdapterDeps) => ShellAdapter` | kehto's adapter from kernl's parts, with the fixed choices listed under Composition. `deps.consent` (a `SigningConsent`) is required. |
+| `createKernlServices` | `(deps: KernlServiceDeps) => KernlServices` | `{ registry, theme, dm }` with kehto's eight reference services wired. `deps.consent` is required; `outbox.publish` passes it before signing, and a refusal is answered as `outbox.publish.result` with `ok: false` and the reason. |
 | `isTheme` | `(value: Record<string, unknown> \| undefined) => value is Theme` | True when `colors.background`, `colors.text` and `colors.primary` are strings. |
 | `resourceInitFor` | `(deps, init: ResourceFetchInit) => ResourceResolveInit` | Names the requesting applet, or `'shell'`, to the bridge resolver. |
 | `LINK_PROTOCOLS` | `readonly string[]` | `['https:', 'mailto:']`. |
@@ -243,10 +245,10 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `resolveApplet` | `(options: ResolveAppletOptions) => Promise<ResolvedApplet>` | kehto's `resolveNapplet` with kernl's reasons: `unavailable:blob` or `invalid:<code>`. |
 | `summarize` | `(resolved: ResolvedNapplet) => AppletSummary` | The verified manifest reduced to what the shell shows. |
 | `planMount` | `(options: PlanMountOptions) => MountPlan` | Environment, CSP-prepared `srcdoc`, `missingRequired`. No DOM. |
-| `mountApplet` | `(plan: MountPlan, frame: FrameLike, deps: MountDeps) => MountedApplet` | The NIP-5D mount order; throws `invalid:frame-detached`. |
+| `mountApplet` | `(plan: MountPlan, frame: FrameLike, deps: MountDeps) => MountedApplet` | The NIP-5D mount order; throws `invalid:frame-detached`. Calls `frame.setAttribute('sandbox', 'allow-scripts')`. |
 | `CONTROLLER_DENY_POLICY` | `string` | `gamepad 'none'; hid 'none'; usb 'none'`. |
 | `BLOB_TIMEOUT_MS` | `20_000` | |
-| `AppletPointer`, `AppletSummary`, `AppletIdentity`, `MountPlan`, `AppletHandle`, `AppletStatus`, `FrameLike`, `ResolveAppletOptions`, `ResolvedApplet`, `PlanMountOptions`, `MountDeps`, `MountGuardHooks`, `MountedApplet` | types | `MountedApplet` adds `revoked(reason)` to `AppletHandle` for the bridge's revocation hook. |
+| `AppletPointer`, `AppletSummary`, `AppletIdentity`, `MountPlan`, `AppletHandle`, `AppletStatus`, `FrameLike`, `ResolveAppletOptions`, `ResolvedApplet`, `PlanMountOptions`, `MountDeps`, `MountGuardHooks`, `MountedApplet` | types | `MountedApplet` adds `revoked(reason)` to `AppletHandle` for the bridge's revocation hook. `FrameLike.sandbox` is optional and not read: the mount replaces the attribute whatever it held. |
 
 ### Guard
 
@@ -269,10 +271,12 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `capabilitiesForDomain` | `(domain: string) => readonly Capability[]` | Empty for unknown domains. |
 | `capabilitiesForDomains` | `(domains: readonly string[]) => readonly Capability[]` | Union in table order. |
 | `describeChange` | `(event: NostrEvent, before: NostrEvent \| undefined, applet: AppletIdentity) => ConsentSummary` | The kind table above. |
+| `isDestructiveKind` | `(kind: number) => boolean` | True for 0, 3, 5, 10002, 10000–10099 and 30000–30099. |
+| `createSigningConsent` | `(options: SigningConsentOptions) => SigningConsent` | The gate both signing routes pass; see [Consent summaries](#consent-summaries). |
 | `abbreviate` | `(hex: string) => string` | First eight characters and an ellipsis. |
 | `createConsentHandler` | `(host: Pick<KernlHost, 'presentConsent'>, lookupBefore: LookupBefore, resolveApplet: ResolveAppletIdentity) => (request: ConsentRequest) => void` | For `bridge.registerConsentHandler`. |
 | `lookupReplaceable` | `(store: Pick<EventStore, 'getReplaceable'>) => LookupBefore` | Finds the current replaceable event for the diff. |
-| `Grants`, `GrantRecord`, `KernlGrants`, `GrantsOptions`, `ConsentSummary`, `ConsentLine`, `ConsentPrompt`, `LookupBefore`, `ResolveAppletIdentity` | types | `GrantRecord` is `{ identity, domains, capabilities, blocked, stateQuotaBytes }`. |
+| `Grants`, `GrantRecord`, `KernlGrants`, `GrantsOptions`, `ConsentSummary`, `ConsentLine`, `ConsentPrompt`, `LookupBefore`, `ResolveAppletIdentity`, `SigningConsent`, `SigningConsentOptions`, `SigningTemplate` | types | `GrantRecord` is `{ identity, domains, capabilities, blocked, stateQuotaBytes }`. |
 
 ### Applesauce adapters
 
@@ -281,7 +285,7 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `createKernlAccounts` | `(storage: StorageLike) => AccountManager` | A `KernlAccountManager` with common types registered and persistence wired. |
 | `KernlAccountManager` | class extends `AccountManager` | `addAccount` throws `denied:plaintext-key-persistence` for plaintext-key types. |
 | `PLAINTEXT_KEY_ACCOUNT_TYPES` | `readonly string[]` | `['nsec', 'seed-words']`. |
-| `createAuthHooks` | `(accounts: AccountManager) => AuthHooks` | kehto's auth over the account manager. |
+| `createAuthHooks` | `(accounts: AccountManager, consent: SigningConsent) => AuthHooks` | kehto's auth over the account manager; a signer asked for with a window id passes `consent` before signing. |
 | `wrapAccountSigner` | `(account: IAccount) => Signer` | The NIP-07-shaped signer kehto expects. |
 | `isReadOnlyAccount` | `(account: IAccount) => boolean` | True for `ReadonlyAccount`. |
 | `createIdentityProviders` | `(store: EventStore, pool: ApplesaucePool, tiers: RelayTiers, options?: IdentityProviderOptions) => IdentityProviders` | Profile, follows, mutes and relays from the store, loaded once from the `discovery` tier on a miss; lists, zaps, blocked and badges are empty. |

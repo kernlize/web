@@ -25,7 +25,7 @@ Without `?preview=1`, `https://kernlize.github.io/app/` is the live shell: every
 - Access to the kernl source repository. It is private during the alpha; the packages are not on npm either ([Packages](../packages/index.md#install)). Without access, use the hosted shell above.
 - Node 22 or newer and pnpm 10. The repository pins `pnpm@10.24.0` through `packageManager`; `corepack enable` picks it up.
 - A way to sign: a browser extension that speaks NIP-07, a remote signer that speaks NIP-46, or nothing, in which case the shell creates a local account protected by a password. kernl never asks for a private key directly and never stores one in plaintext.
-- The address of an applet to open, which you get from the applet's publisher (an `naddr1…` or `nevent1…` string, or a coordinate). The [napplet.run app store](https://napplet.run/apps/) lists published applets.
+- The address of an applet to open, which you get from the applet's publisher (an `naddr1…` or `nevent1…` string, or a coordinate). The [napplet.run app store](https://napplet.run/apps/) lists published applets; step 4 gives one you can try.
 
 ## 1. Clone, install and build
 
@@ -84,12 +84,20 @@ session.readOnly; // true for a ReadonlyAccount; writes are then refused
 
 ## 4. Open an applet by address
 
-Click **Open an applet** (or press Alt+/), paste the address the applet's publisher gave you into "Applet address", and click **Look up**. `kernl.decodePointer` accepts an `naddr1…`, an `nevent1…` or `note1…`, a bare 64-hex event id, any of those behind `nostr:`, and a coordinate in either `<pubkey>:<kind>:<identifier>` or `<kind>:<pubkey>:<identifier>` order. Anything else is `invalid:pointer`, shown as "That does not look like an applet address."
+Click **Open an applet** (or press Alt+/), paste the address the applet's publisher gave you into "Applet address", and click **Look up**.
+
+**An applet you can try.** *Freeze Frame Response*, a physics puzzle, is published by a third party in the [napplet.run](https://napplet.run/apps/) catalogue, not by kernl. It needs no grants:
+
+```
+naddr1qvzqqqyf8ypzqw49s9e88sajl985jxzquprj7pyapugqp83rme3sqctxhj5mxm4rqythwumn8ghj7un9d3shjtnwv9c8qmr9wsh8xmmeqqxkuttzvy6nyefnxpjr2e3jqg5uk8
+```
+ `kernl.decodePointer` accepts an `naddr1…`, an `nevent1…` or `note1…`, a bare 64-hex event id, any of those behind `nostr:`, and a coordinate in either `<pubkey>:<kind>:<identifier>` or `<kind>:<pubkey>:<identifier>` order. Anything else is `invalid:pointer`, shown as "That does not look like an applet address."
 
 `kernl.resolve(pointer)` fetches the manifest from the pointer's relay hints plus the `apps` tier, verifies its signature, fetches the artifact bytes by hash and verifies them. Nothing runs before verification passes; a tampered artifact is `invalid:blob-hash-mismatch`, a missing one `unavailable:blob`, a manifest nobody serves `unavailable:manifest`. When it passes, the launcher shows the `AppletSummary`: title, publisher, description, and under "What it may use" the domains it `requires` and lists as `optional`, each as a switch.
 
 Baseline domains (`shell`, `inc`, `theme`, `identity`, `storage`) are marked "always on" and cannot be switched off. Every other switch starts where this identity's grants already are, which on a first run is off; a required domain is marked "the applet says it needs this", and while one is off the launcher warns "Without …, this applet may not work. You can still run it." Click **Run**. The launcher calls `kernl.grants.allowDomain` for each switch you turned on and `kernl.grants.revokeDomain` for each you turned off, then `kernl.plan(summary)`, and opens a window for the `MountPlan`. If `plan.missingRequired` is not empty, the applet sees those domains as unavailable.
 
+<!-- sample:continues -->
 ```ts
 declare const address: string; // from the applet's publisher
 

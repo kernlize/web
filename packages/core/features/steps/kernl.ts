@@ -1,5 +1,5 @@
 import { expect } from 'vitest';
-import { After, Given, Then, When } from 'quickpickle';
+import { After, Given, Then, When, type DataTable } from 'quickpickle';
 import { EventStore } from 'applesauce-core';
 import { AccountManager, type IAccount } from 'applesauce-accounts';
 import { ReadonlyAccount, registerCommonAccountTypes } from 'applesauce-accounts/accounts';
@@ -20,7 +20,7 @@ import {
   type MountPlan,
   type Session,
 } from '@kernl/core';
-import { attempt, createFakeArtifactCache, createFakeFrame, createFakePool, passwordAccount, scratch, signManifest, splitList, type CoreWorld, type FakeFrame, type ManifestVector } from './world.js';
+import { attempt, createFakeArtifactCache, createFakeFrame, createFakePool, passwordAccount, passwordSigner, scratch, signManifest, splitList, type CoreWorld, type FakeFrame, type ManifestVector } from './world.js';
 
 interface HostRecord {
   prompts: ConsentPrompt[];
@@ -482,4 +482,126 @@ Then('releasing window {string} from the guard does nothing harmful', (world: Co
 
 When('the shell is destroyed', (world: CoreWorld) => {
   k(world).kernl.destroy();
+});
+
+Given('the shell is signed in', async (world: CoreWorld) => {
+  await k(world).kernl.login(await passwordAccount('alice'));
+});
+
+Given('the shell is signed in and its store holds the profile {string}', async (world: CoreWorld, content: string) => {
+  await k(world).kernl.login(await passwordAccount('alice'));
+  const profile = await passwordSigner.signEvent({ kind: 0, tags: [], content, created_at: 1_700_000_000 });
+  k(world).kernl.eventStore.add(profile);
+});
+
+Given('a mounted applet granted {string} that has said hello', async (world: CoreWorld, domain: string) => {
+  const { kernl } = k(world);
+  const summary = await kernl.resolve(kernl.decodePointer(`${vector(world).pubkey}:35129:chat`));
+  k(world).summary = summary;
+  kernl.grants.allowDomain(summary.identity, domain);
+  k(world).plan = await kernl.plan(summary);
+  mountFrame(world);
+  const win = k(world).frame?.contentWindow;
+  if (!win) throw new Error('mount first');
+  k(world).channel = hello(world, win);
+  k(world).channel.port1.postMessage({ type: 'shell.ready', id: 'ready-1' });
+  await settle();
+});
+
+async function publish(world: CoreWorld, event: Record<string, unknown>): Promise<void> {
+  k(world).channel?.port1.postMessage({ type: 'relay.publish', id: 'publish-1', event });
+  await settle();
+}
+
+When('the applet publishes a kind {int} event with content {string} over its port', async (world: CoreWorld, kind: number, content: string) => {
+  await publish(world, { kind, content, tags: [], created_at: Math.floor(Date.now() / 1000) });
+});
+
+When('the applet publishes a bare kind {int} template over its port', async (world: CoreWorld, kind: number) => {
+  await publish(world, { kind });
+});
+
+When('the applet publishes a template whose kind is the text {string} over its port', async (world: CoreWorld, kind: string) => {
+  await publish(world, { kind, content: '', tags: [], created_at: Math.floor(Date.now() / 1000) });
+});
+
+When('the applet sends {string} for a kind {int} event over its port', async (world: CoreWorld, type: string, kind: number) => {
+  k(world).channel?.port1.postMessage({ type, id: `${type}-1`, event: { kind, content: '', tags: [['p', 'a1'.repeat(32)]], created_at: Math.floor(Date.now() / 1000) } });
+  await settle();
+});
+
+When('the applet sends {string} without an id or an event over its port', async (world: CoreWorld, type: string) => {
+  k(world).channel?.port1.postMessage({ type });
+  await settle();
+});
+
+When('a rogue window registered outside the shell is granted {string}, sends its hello and publishes a kind {int} event', async (world: CoreWorld, domain: string, kind: number) => {
+  const win = {} as Window;
+  const windowId = 'rogue-publisher';
+  const identity = { dTag: 'rogue', hash: 'ce'.repeat(32) };
+  k(world).kernl.grants.allowDomain(identity, domain);
+  originRegistry.register(win, windowId, { dTag: identity.dTag, aggregateHash: identity.hash });
+  const channel = hello(world, win);
+  k(world).rogue = { windowId, channel };
+  channel.port1.postMessage({ type: 'shell.ready', id: 'ready-1' });
+  channel.port1.postMessage({ type: 'relay.publish', id: 'publish-1', event: { kind, content: '{"name":"rogue"}', tags: [], created_at: Math.floor(Date.now() / 1000) } });
+  await settle();
+});
+
+function onlyPrompt(world: CoreWorld): ConsentPrompt {
+  const { prompts } = k(world).record;
+  expect(prompts).toHaveLength(1);
+  return prompts[0] as ConsentPrompt;
+}
+
+Then('the host was asked {string} marked {string} for applet {string}', (world: CoreWorld, title: string, severity: string, dTag: string) => {
+  const { summary } = onlyPrompt(world);
+  expect(summary).toMatchObject({ title, severity, applet: { dTag, hash: vector(world).hash } });
+  expect(summary.event.sig).toBe('');
+});
+
+Then('the consent prompt lines are:', (world: CoreWorld, table: DataTable) => {
+  const expected = table.hashes().map((row) => ({
+    label: row.label,
+    ...(row.before ? { before: row.before } : {}),
+    ...(row.after ? { after: row.after } : {}),
+  }));
+  expect(onlyPrompt(world).summary.lines).toEqual(expected);
+});
+
+When('the host answers the consent prompt with {word}', async (world: CoreWorld, answer: string) => {
+  onlyPrompt(world).resolve(answer === 'yes');
+  await settle();
+});
+
+Then('the host was not asked for consent', (world: CoreWorld) => {
+  expect(k(world).record.prompts).toEqual([]);
+});
+
+function publishResult(world: CoreWorld): Record<string, unknown> | undefined {
+  return k(world).received.find((entry) => entry.type === 'relay.publish.result');
+}
+
+Then("the applet's publish succeeded", (world: CoreWorld) => {
+  expect(publishResult(world)).toMatchObject({ ok: true, id: 'publish-1' });
+});
+
+Then("the applet's publish failed with {string}", (world: CoreWorld, error: string) => {
+  expect(publishResult(world)).toEqual({ type: 'relay.publish.result', id: 'publish-1', ok: false, error });
+});
+
+Then('the applet received {string} failing with {string}', (world: CoreWorld, type: string, error: string) => {
+  expect(k(world).received.find((entry) => entry.type === type)).toMatchObject({ ok: false, error });
+});
+
+function published(world: CoreWorld): number[] {
+  return scratch(world).pool.calls.filter((call) => call.method === 'publish').map((call) => call.event?.kind ?? -1);
+}
+
+Then('the fake pool published nothing', (world: CoreWorld) => {
+  expect(published(world)).toEqual([]);
+});
+
+Then('the fake pool published a kind {int} event', (world: CoreWorld, kind: number) => {
+  expect(published(world)).toEqual([kind]);
 });

@@ -143,6 +143,27 @@ Given('the server fails with {string}', (world: BridgeWorld, message: string) =>
   fake.failure = new Error(message);
 });
 
+/** What a browser's fetch returns for status-0 answers; `Response` cannot be constructed with status 0, so the getters are shadowed. */
+function statusZero(type: ResponseType): Response {
+  const response = new Response(null);
+  Object.defineProperties(response, { type: { value: type }, status: { value: 0 }, ok: { value: false } });
+  return response;
+}
+
+Given('the server answers with a redirect the browser hides', (world: BridgeWorld) => {
+  server(world).answer = () => statusZero('opaqueredirect');
+});
+
+Given('the server answers with an opaque response', (world: BridgeWorld) => {
+  server(world).answer = () => statusZero('opaque');
+});
+
+Given('the browser blocks the request with {string}', (world: BridgeWorld, message: string) => {
+  const fake = server(world);
+  fake.mode = 'fail';
+  fake.failure = new TypeError(message);
+});
+
 Given('the server fails with a bare string', (world: BridgeWorld) => {
   const fake = server(world);
   fake.mode = 'fail';

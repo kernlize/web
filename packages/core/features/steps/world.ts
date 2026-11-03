@@ -6,7 +6,7 @@ import type { GroupReqMessage, PublishResponse } from 'applesauce-relay';
 import type { Filter } from 'applesauce-core/helpers';
 import type { NappletArtifactCache, WriteVerifiedResolutionInput } from '@kehto/nip/5d';
 import type { NostrEvent, NostrFilter } from '@napplet/core';
-import type { ApplesaucePool, FrameLike, StorageLike } from '@kernl/core';
+import type { ApplesaucePool, FrameLike, SigningConsent, StorageLike } from '@kernl/core';
 
 /** Map-backed storage satisfying both `StorageLike` and the parts of `Storage` kehto touches. */
 export class MemoryStorage implements StorageLike {
@@ -106,7 +106,6 @@ export function createFakePool(): FakePool {
 
 /** A frame with the shape `mountApplet` needs, recording what the shell did to it. */
 export interface FakeFrame extends FrameLike {
-  readonly tokens: Set<string>;
   readonly attributes: Map<string, string>;
   removed: boolean;
   readonly listeners: Map<string, Array<(event: Event) => void>>;
@@ -114,16 +113,13 @@ export interface FakeFrame extends FrameLike {
   getAttribute?(name: string): string | null;
 }
 
-export function createFakeFrame(options: { detached?: boolean; stringSandbox?: boolean; withGetAttribute?: boolean } = {}): FakeFrame {
-  const tokens = new Set<string>();
+export function createFakeFrame(options: { detached?: boolean; withGetAttribute?: boolean } = {}): FakeFrame {
   const attributes = new Map<string, string>();
   const listeners = new Map<string, Array<(event: Event) => void>>();
   const win = {} as Window;
   const frame: FakeFrame = {
     contentWindow: options.detached ? null : win,
-    sandbox: options.stringSandbox ? '' : { add: (token: string) => void tokens.add(token) },
     srcdoc: '',
-    tokens,
     attributes,
     removed: false,
     listeners,
@@ -291,3 +287,6 @@ export async function attempt(world: CoreWorld, body: () => unknown): Promise<vo
     scratch(world).errors.push(error instanceof Error ? error : new Error(String(error)));
   }
 }
+
+/** A consent gate that lets every signature through, for steps that are not about consent. */
+export const allowAllSigning: SigningConsent = async () => undefined;

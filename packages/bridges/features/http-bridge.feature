@@ -166,6 +166,25 @@ Feature: HTTP bridge
       |                   |
       | https://exa mple/ |
 
+  Scenario: a redirect the browser hides from the bridge is refused, not followed
+    Given a web bridge
+    And the server answers with a redirect the browser hides
+    When the web bridge resolves "https://a.example/"
+    Then the web request fails with "denied:redirect-unverifiable"
+    And 1 request was sent
+
+  Scenario: an opaque answer is reported as unavailable
+    Given a web bridge
+    And the server answers with an opaque response
+    When the web bridge resolves "https://a.example/"
+    Then the web request fails with "unavailable:network opaque response"
+
+  Scenario: a request the browser blocks for cross-origin reasons is reported as unavailable
+    Given a web bridge
+    And the browser blocks the request with "Failed to fetch"
+    When the web bridge resolves "https://a.example/"
+    Then the web request fails with "unavailable:network Failed to fetch"
+
   Scenario: a request that outlives the time limit is abandoned
     Given a web bridge with a 10 ms time limit
     And the server never answers

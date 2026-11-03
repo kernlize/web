@@ -71,8 +71,17 @@ export {
 export { BASELINE_DOMAINS, DOMAIN_CAPABILITIES, capabilitiesForDomain, capabilitiesForDomains } from './grants/domain-capabilities.js';
 export { createEnvironmentResolver, createGrants, type GrantsOptions, type KernlGrants } from './grants/grants.js';
 
-export { abbreviate, describeChange } from './consent/describe-change.js';
-export { createConsentHandler, lookupReplaceable, type LookupBefore, type ResolveAppletIdentity } from './consent/handler.js';
+export { abbreviate, describeChange, isDestructiveKind } from './consent/describe-change.js';
+export {
+  createConsentHandler,
+  createSigningConsent,
+  lookupReplaceable,
+  type LookupBefore,
+  type ResolveAppletIdentity,
+  type SigningConsent,
+  type SigningConsentOptions,
+  type SigningTemplate,
+} from './consent/handler.js';
 
 export {
   createColumnsLayout,

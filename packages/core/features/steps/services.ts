@@ -20,7 +20,7 @@ import {
   type KernlServices,
   type RelayTiers,
 } from '@kernl/core';
-import { scratch, signEvent, splitList, type CoreWorld } from './world.js';
+import { allowAllSigning, scratch, signEvent, splitList, type CoreWorld } from './world.js';
 
 interface ServicesScratch {
   services: KernlServices;
@@ -69,6 +69,7 @@ async function build(world: CoreWorld, options: { signer?: boolean; theme?: Reco
     tiers: s.tiers as RelayTiers,
     eventStore: s.eventStore as EventStore,
     auth: { getSigner: () => (options.signer === false ? null : wrapAccountSigner(account)) },
+    consent: allowAllSigning,
     host: {
       notify: (notice) => void notices.push(notice),
       openLink: (url) => void links.push(url),
@@ -219,6 +220,7 @@ Given('a kernl shell adapter', (world: CoreWorld) => {
     pool: s.pool,
     tiers: s.tiers as RelayTiers,
     accounts,
+    consent: allowAllSigning,
     services: state(world).services.registry,
     resolveEnvironment: (_identity, available) => available,
     onNappletRevoked: () => undefined,
@@ -283,6 +285,7 @@ Then('the adapter forwards unrouted messages when asked to', (world: CoreWorld) 
     pool: scratch(world).pool,
     tiers: scratch(world).tiers as RelayTiers,
     accounts: new AccountManager(),
+    consent: allowAllSigning,
     services: {},
     resolveEnvironment: (_identity, available) => available,
     onNappletRevoked: () => undefined,
