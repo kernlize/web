@@ -1,3 +1,4 @@
+/* global $state, $derived, $effect */
 export interface Notice {
   readonly id: number;
   readonly title: string;

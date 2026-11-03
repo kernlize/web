@@ -1,3 +1,4 @@
+/* global $state, $derived, $effect */
 import type { ConsentPrompt } from './contract';
 
 /** One dialog at a time; the rest wait in arrival order. */

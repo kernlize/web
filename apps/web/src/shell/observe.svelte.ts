@@ -1,3 +1,4 @@
+/* global $state, $derived, $effect */
 import type { Observable } from 'rxjs';
 
 export interface Observed<T> {

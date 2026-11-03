@@ -1,3 +1,4 @@
+/* global $state, $derived, $effect */
 import type { GuardEvent, OpClass } from '@kernl/guard';
 
 const KEEP = 50;

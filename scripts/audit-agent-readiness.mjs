@@ -86,10 +86,14 @@ async function fileChecks(dir) {
   ];
 }
 
+/** Generated TypeDoc pages have no Markdown source, so they are documented as HTML-only in agent-access. */
+const TWINLESS_DIR = path.join('docs', 'api');
+
 async function htmlPages(dir, prefix = '') {
   const pages = [];
   for (const entry of await readdir(path.join(dir, prefix), { withFileTypes: true })) {
     const relative = path.join(prefix, entry.name);
+    if (relative === TWINLESS_DIR) continue;
     if (entry.isDirectory()) pages.push(...(await htmlPages(dir, relative)));
     else if (entry.name === 'index.html') pages.push(relative);
   }

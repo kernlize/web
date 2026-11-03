@@ -15,7 +15,7 @@ Format: `D-NNN · title` → Context, Decision, Consequences, Reversal cost.
 - Focus-aware rate limiting runs in `@kernl/guard` using the pure `@kehto/firewall` `evaluate()` engine with focus supplied by kernl's window manager. The runtime's built-in firewall is additionally tightened through `bridge.runtime.firewallState`.
 - A restrictive grant posture is produced with `capabilities.resolveEnvironment`, which narrows the advertised domains per applet identity until the user grants them, plus explicit `aclState.grant` calls. The runtime's permissive default is never reached for a domain the user has not granted.
 
-**Consequences.** Two upstream gaps are filed against kehto/web rather than patched locally: (1) forward the firewall hooks through `ShellAdapter`; (2) let the host choose the ACL default policy. When either lands, the corresponding kernl layer shrinks.
+**Consequences.** Four upstream gaps are recorded against kehto/web rather than patched locally: (1) forward the firewall hooks through `ShellAdapter`; (2) let the host choose the ACL default policy; (3) offer a pre-dispatch hook on port traffic, since `onNappletMessage` is observe-only; (4) expose a setter for the runtime firewall's `unfocusedMultiplier`. When any of them lands, the corresponding kernl layer shrinks (see D-012).
 
 **Reversal cost.** Low. Both local layers sit behind interfaces in `@kernl/guard` and `@kernl/core` and can be deleted when upstream provides the hook.
 

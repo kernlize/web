@@ -27,11 +27,15 @@ export function findViolations(text, file = '<text>') {
   return hits;
 }
 
-async function listFiles(dir) {
+/** Developer docs are exempt from the public-vocabulary rule (DECISIONS D-006); they live under `docs/` in the Pages artifact. */
+const EXEMPT_DIRS = new Set(['docs']);
+
+async function listFiles(dir, root = dir) {
   const files = [];
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) files.push(...(await listFiles(full)));
+    if (entry.isDirectory() && EXEMPT_DIRS.has(path.relative(root, full))) continue;
+    if (entry.isDirectory()) files.push(...(await listFiles(full, root)));
     else if (SCANNED.has(path.extname(entry.name))) files.push(full);
   }
   return files.sort();
@@ -64,7 +68,7 @@ function dirFromArgs(argv) {
 async function main() {
   const dir = dirFromArgs(process.argv.slice(2));
   const hits = await scanDirectory(dir);
-  for (const hit of hits) console.error(`${hit.file}:${hit.line}:${hit.column}  "${hit.match}"  ${hit.text}`);
+  for (const hit of hits) console.error(`${hit.file}:${hit.line}:${hit.column}  "${hit.match}"  ${hit.text.slice(0, 120)}`);
   if (hits.length) {
     console.error(`\n${hits.length} public-vocabulary hit(s) in ${dir}`);
     process.exit(1);
