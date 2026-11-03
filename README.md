@@ -2,7 +2,7 @@
 
 <br />
 
-<img src="apps/web/public/mark.svg" width="88" height="88" alt="" />
+<img src="apps/web/public/favicon.svg" width="72" height="72" alt="" />
 
 # kernl
 
@@ -23,6 +23,10 @@ The person at the keyboard is the only principal that matters.
 
 > **Alpha.** kernl is a first draft. The guard, the messaging and bridge contracts, the composition over kehto and the shell UI are real and tested. Torrent, NZB, Soulseek and mail backends are contracts without implementations. Read [`docs/alpha-status.md`](./docs/alpha-status.md) before relying on anything.
 
+<p align="center">
+  <img src=".github/assets/shell.png" alt="The kernl shell: two sandboxed applets in floating windows, the guard indicator in the status bar reading strict." width="880" />
+</p>
+
 ## What it is
 
 kehto is an unopinionated set of packages for building a NIP-5D applet shell. It does not pick a relay library, a signer, a consent model, a layout or a deployment story. kernl picks all of them, and writes each choice down.
@@ -38,6 +42,19 @@ kehto is an unopinionated set of packages for building a NIP-5D applet shell. It
 | Public voice | The website never names a protocol. Protocols are plumbing; the person is the point |
 
 The full reasoning is in [`SOUL.md`](./SOUL.md). Each concrete choice is in [`DECISIONS.md`](./DECISIONS.md).
+
+## What it does
+
+- **Runs applets in a sealed frame.** `srcdoc`, `sandbox="allow-scripts"`, a zero-network policy, identity bound to the verified bytes and a single message port. When any of that changes, the applet's grants end.
+- **Asks before it signs.** Profile edits, follow changes, deletions and connection-list changes are shown as before → after, with the raw event behind a disclosure.
+- **Guards by default.** Flood control, hidden-window deferral, focus-aware rate limits, size caps and quarantine ship on, in the strict profile, with a readable list of what is on and why.
+- **Messages across providers.** One Direct Messenger surface over several private-message providers, each described by its properties and none ranked.
+- **Bridges other networks.** Web fetch works today behind an SSRF policy; downloads, sharing and mail have their contracts and wait for backends.
+- **Previews without an account.** `/app/?preview=1` runs the whole shell offline with sample applets that exercise consent, notifications and the guard.
+
+<p align="center">
+  <img src=".github/assets/guard.png" alt="The guard panel: profile selector and the list of protections in plain words." width="880" />
+</p>
 
 ## Packages
 
