@@ -19,7 +19,7 @@ kernl's packages are shell-side. You do not import them in an applet.
 | Posture | Domains | Notes |
 | --- | --- | --- |
 | Baseline, advertised without a grant | `shell`, `inc`, `theme`, `storage` | `BASELINE_DOMAINS`. No network, and no account. Storage is the applet's own, read and write. A blocked applet sees `shell` alone. |
-| Offered, advertised once the user grants it | `identity`, `relay`, `outbox`, `resource`, `dm`, `notify`, `link` | Backed by the services `createKernlServices` registers. `identity` is "your account" in the launcher: until it is granted, your applet is not told who is signed in. In the live shell `dm` has no available provider yet ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)). |
+| Offered, advertised once the user grants it | `identity`, `relay`, `outbox`, `resource`, `dm`, `notify`, `link` | Backed by the services `createKernlServices` registers. `identity` is "your account" in the launcher: until it is granted, your applet is not told who is signed in. In the live shell `dm` reaches `private` and `legacy` while the signed-in account can encrypt; with nobody signed in no provider is available ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)). |
 | Offered, advertised once granted, nothing wired behind it | `keys`, `media` | kehto's runtime serves these domains natively, so the shell offers them; kernl wires no host behaviour (hotkeys are not forwarded). |
 | Not offered | `config`, `cvm`, `upload`, `intent`, `fs`, `llm`, `cache`, and every other domain | They have a row in `DOMAIN_CAPABILITIES` (or none), but no service is registered, so they are never advertised. |
 

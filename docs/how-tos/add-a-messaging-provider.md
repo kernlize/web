@@ -123,7 +123,7 @@ The three built-ins (`createPrivateMessagesProvider`, `createLegacyMessagesProvi
 
 The three built-in providers are registered by `createDefaultMessaging` in `packages/core/src/messaging/default-registry.ts`, which `createKernl` calls when `KernlOptions.messaging` is absent. You do not edit `createKernl`. A host has two options-based paths:
 
-- **A backend for a built-in provider.** Pass `KernlOptions.messagingBackends`, a `MessagingBackendFactories` (`{ private?, legacy?, ratchet? }`, each `() => MessagingBackend`). The provider whose factory you supply reports itself available.
+- **A backend for a built-in provider.** Pass `KernlOptions.messagingBackends`, a `MessagingBackendFactories` (`{ private?, legacy?, ratchet? }`, each `() => MessagingBackend`). Your factory replaces kernl's backend for that provider (`createPrivateMessagesBackend` or `createLegacyMessagesBackend` by default); availability still follows the active account's signer.
 - **A new provider.** Build the default registry yourself, register yours on it, and pass it as `KernlOptions.messaging`. The defaults stay registered:
 
 <!-- sample:continues -->

@@ -12,6 +12,7 @@ import './consent-vocabulary.js';
 import './layouts.js';
 import './guard-pipeline.js';
 import './services.js';
+import './messaging-backends.js';
 import './kernl.js';
 import './quarantine.js';
 import './runtime-guard.js';

@@ -62,6 +62,8 @@ test('the live settings show every default server without naming the protocol', 
   await page.keyboard.press('Escape');
 
   await page.getByRole('button', { name: /^Messages/ }).first().click();
+  // A read-only account can neither sign nor decrypt, so both message formats ask for a different account.
+  await expect(page.getByText(UNAVAILABLE_WORDS['signer-cannot-encrypt'] as string).first()).toBeVisible();
   await expect(page.getByText('No backend is available for this provider yet', { exact: false }).first()).toBeVisible();
   await expectClean(page, 'live messages');
   await page.keyboard.press('Escape');
@@ -83,7 +85,7 @@ test('the live launcher never shows the address it was asked to open', async ({ 
 
 test('every reason the core gives for an unavailable provider has plain words', () => {
   for (const reason of Object.values(core.MESSAGING_UNAVAILABLE_REASONS)) {
-    expect(UNAVAILABLE_WORDS[reason], reason).toMatch(/^No backend is available for this provider yet/);
+    expect(UNAVAILABLE_WORDS[reason], reason).toBeDefined();
     expect(messagingError(new Error(`unavailable:${reason}`)), reason).toBe(UNAVAILABLE_WORDS[reason]);
   }
   expect(messagingError(new Error('something raw:with-a-code'))).toBe('That did not work. Try again.');

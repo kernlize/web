@@ -20,7 +20,8 @@ import {
   type MountPlan,
   type Session,
 } from '@kernl/core';
-import { attempt, createFakeArtifactCache, createFakeFrame, createFakePool, passwordAccount, passwordSigner, scratch, signManifest, splitList, type CoreWorld, type FakeFrame, type ManifestVector } from './world.js';
+import type { DmSendRequest } from '@napplet/core';
+import { attempt, author, createFakeArtifactCache, createFakeFrame, createFakePool, passwordAccount, passwordSigner, scratch, signManifest, splitList, type CoreWorld, type FakeFrame, type ManifestVector } from './world.js';
 
 interface HostRecord {
   prompts: ConsentPrompt[];
@@ -191,6 +192,22 @@ Then('the shell relays {string} tier is {string}', (world: CoreWorld, tier: stri
 
 Then('the shell messaging provider {string} is unavailable', (world: CoreWorld, id: string) => {
   expect(k(world).kernl.messaging.get(id)?.availability.available).toBe(false);
+});
+
+Then('the shell messaging provider {string} is unavailable because {string}', (world: CoreWorld, id: string, reason: string) => {
+  expect(k(world).kernl.messaging.get(id)?.availability).toEqual({ available: false, reason });
+});
+
+When('the shell enables messaging provider {string} and {string}', (world: CoreWorld, first: string, second: string) => {
+  k(world).kernl.messaging.enable(first);
+  k(world).kernl.messaging.enable(second);
+});
+
+Then('the shell messaging status is available for the signed-in account', async (world: CoreWorld) => {
+  const status = await k(world).kernl.messaging.composite().status();
+  expect(status).toMatchObject({ available: true, ownerPubkey: k(world).kernl.session?.pubkey, implementations: ['nip17', 'nip04'] });
+  const sent = await k(world).kernl.messaging.composite().send({ provider: 'legacy', recipients: [await author.getPublicKey()], content: 'hello' } as DmSendRequest);
+  expect(sent.message.status).toBe('sent');
 });
 
 Then('the shell messaging provider {string} is available', (world: CoreWorld, id: string) => {

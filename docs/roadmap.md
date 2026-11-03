@@ -29,6 +29,7 @@ The shell also needs a downloads view that shows the state of each `job` result 
 ## 3. Messaging
 
 - Supply the double-ratchet runtime so the `ratchet` provider reports `available`. Its properties are already described; see [Messaging](./concepts/messaging.md).
+- Inbox setup: offer to publish the user's kind 10050 inbox relays when they have none, so `private` stops falling back to the `outbox` and `super` tiers ([D-015](./decisions.md#d-015)).
 - Per-conversation provider migration: move a correspondent from `legacy` to `private` when both clients can read it, shown as a reversible choice.
 
 ## 4. Mobile layouts

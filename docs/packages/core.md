@@ -44,7 +44,7 @@ if (plan.missingRequired.length === 0) kernl.mount(plan, iframe);
 
 1. **Event layer.** `options.eventStore ?? new EventStore()`, `options.pool ?? new RelayPool()`, `options.accounts ?? createKernlAccounts(host.storage)`. A pool the shell created itself is closed by `destroy()`; a supplied pool is left open.
 2. **Relay tiers.** `createRelayTiers(host.storage, options.relays ?? {})`. Persisted choices at `kernl:relays:v1` win over `options.relays`, which only overrides `DEFAULT_RELAY_TIERS` on a fresh device.
-3. **Registries.** `options.messaging ?? createDefaultMessaging({ storage: host.storage, backends: options.messagingBackends })` and `options.bridges ?? createDefaultBridges()`. The default bridge registry has no `authorize` hook, so in the composed shell a resource request is checked only by the HTTP bridge's SSRF policy and the applet's `resource` grant.
+3. **Registries.** `options.messaging ?? createDefaultMessaging(...)`, with `createPrivateMessagesBackend` and `createLegacyMessagesBackend` as the `private` and `legacy` backends unless `options.messagingBackends` overrides them, and availability tracking the active account ([Messaging backends](#messaging-backends)), and `options.bridges ?? createDefaultBridges()`. The default bridge registry has no `authorize` hook, so in the composed shell a resource request is checked only by the HTTP bridge's SSRF policy and the applet's `resource` grant.
 4. **Guard pipeline.** `createGuardPipeline` with `createGuardConfig(options.guard?.profile ?? 'strict')`, the host's `now` when given, `onEvent` feeding `kernl.guard.events$`, `getVisibility` delegated to `host.getVisibility`, and `onQuarantine` marking the handle revoked with reason `quarantine` and calling `bridge.revokeNapplet(windowId, 'host')`.
 5. **Services.** `createKernlServices` registers `relay`, `identity`, `theme`, `notify`, `link`, `resource`, `dm` and `outbox` over the pool, the tiers, the event store, the active signer, the consent gate, the host, the bridge registry and the messaging registry. The `outbox` service is wrapped so that `outbox.publish` passes the consent gate first, because kehto's outbox service signs without naming the window. `options.theme` is used only when `isTheme` accepts it. `resolveIdentity` maps a live window to its verified identity so the resource service names the requesting applet to the bridges.
 6. **ShellAdapter.** `createShellAdapter` builds kehto's adapter from the relay-pool hooks, the relay-config hooks over the tiers, `createAuthHooks(accounts, consent)`, the service registry, `capabilities.resolveEnvironment` from `createEnvironmentResolver(grants)`, `onNappletRevoked` (removes the frame through the handle) and `onNappletMessage` (feeds `pipeline.observe`). Choices kehto left open are fixed here: applets cannot create windows (`createWindow` returns null), hotkeys are not forwarded, there is no worker relay, update behaviour is `banner`, signatures are verified by applesauce's `verifyEvent`, `link.isAvailable` is true and `getNip66Suggestions` is null.
@@ -110,24 +110,48 @@ A frame without a `contentWindow` throws `invalid:frame-detached`. `handle.close
 
 ### Messaging backends
 
-`KernlOptions.messagingBackends` is a `MessagingBackendFactories`: `{ private?: () => MessagingBackend; legacy?: () => MessagingBackend; ratchet?: () => MessagingBackend }`. `createDefaultMessaging` registers all three providers and marks each whose factory is absent unavailable with the reason from `MESSAGING_UNAVAILABLE_REASONS`:
+`createKernl` registers all three providers through `createDefaultMessaging` and, unless `KernlOptions.messagingBackends` overrides them, wires two network backends built on the active account's signer ([D-015](../decisions.md#d-015)). `KernlOptions.messagingBackends` is a `MessagingBackendFactories`: `{ private?: () => MessagingBackend; legacy?: () => MessagingBackend; ratchet?: () => MessagingBackend }`; a factory there replaces kernl's backend for that provider.
 
-| Provider | Reason | Why |
+`createPrivateMessagesBackend({ store, pool, tiers, signer, selfPubkey, now? })` is a `MessagingBackend` over NIP-17. `signer` and `selfPubkey` are functions, read on every call, so one backend follows sign-in and sign-out.
+
+- **Send.** The message is a kind 14 rumour. It is sealed in a kind 13 event signed by `signer()`, encrypted with its `nip44`, and wrapped in a kind 1059 event signed by an ephemeral key generated inside an applesauce `PrivateKeySigner` and discarded after that wrap; the key is never persisted. Each recipient's wrap is published to their kind 10050 inbox relays, or to the user's `outbox` and `super` tiers when they publish none, and one more wrap is addressed to the user.
+- **Receive.** `subscribe` asks for kind 1059 events with `#p` set to `selfPubkey()` on the user's own kind 10050 inbox relays, or the same tiers. Wraps are opened with applesauce's helpers and the account signer and filed in an in-memory conversation store that belongs to the active account; it is cleared when the account changes or signs out. The event `store` is where inbox relay lists are read from.
+- **Conversations.** A conversation id is the sorted participant set, so the same people always meet in the same conversation, whoever wrote first.
+
+`createLegacyMessagesBackend(...)` takes the same options and sends NIP-04 kind 4 events through `signer().nip04`, with the same normalisation into `DmConversation` and `DmMessage`. It is the metadata-exposing provider: sender, recipient and timing are public on the event.
+
+Neither backend holds key bytes; signing, encryption and decryption all go through the account's applesauce signer. The shell's own Messages panel decrypts the user's messages without a kernl prompt, because the request is the shell's, for the user; applets reach messages only through the `dm` domain grant.
+
+Availability follows the active account. An unavailable provider reports a reason from `MESSAGING_UNAVAILABLE_REASONS`, and `enable(id)` throws it as `unavailable:<reason>`:
+
+| Provider | Available when | Reason otherwise |
 | --- | --- | --- |
-| `private` | `needs-local-key-signer` | kehto's sealed-message adapter wants the owner's raw secret key, which kernl never holds outside an applesauce signer. The host supplies a backend built from a signer it controls. |
-| `legacy` | `not-implemented` | No backend exists in this draft. |
-| `ratchet` | `no-runtime` | A double-ratchet runtime has to be supplied. |
+| `private` | The active signer exposes `nip44` | `sign-in-required` with no active account, `signer-cannot-encrypt` without `nip44` |
+| `legacy` | The active signer exposes `nip04` | `sign-in-required` with no active account, `signer-cannot-encrypt` without `nip04` |
+| `ratchet` | Never in this draft | `no-runtime` |
 
-`enable(id)` on an unavailable provider throws `unavailable:<reason>`. Preferences persist at `kernl:messaging:v1`.
+Preferences persist at `kernl:messaging:v1`.
 
 ```ts
-import { MESSAGING_UNAVAILABLE_REASONS, createDefaultMessaging } from '@kernl/core';
-import type { MessagingBackend } from '@kernl/messaging';
+import { createKernl, createLegacyMessagesBackend, createPrivateMessagesBackend, type KernlHost } from '@kernl/core';
 
-declare const sealedBackend: () => MessagingBackend;
+declare const host: KernlHost;
 
-const messaging = createDefaultMessaging({ storage: localStorage, backends: { private: sealedBackend } });
-messaging.get('legacy')?.availability; // { available: false, reason: MESSAGING_UNAVAILABLE_REASONS.legacy }
+const kernl = createKernl({ host });
+const account = () => kernl.accounts.active;
+const deps = {
+  store: kernl.eventStore,
+  pool: kernl.pool,
+  tiers: kernl.relays,
+  signer: () => account()?.signer,
+  selfPubkey: () => account()?.pubkey,
+};
+
+const privateMessages = createPrivateMessagesBackend(deps);
+const legacyMessages = createLegacyMessagesBackend(deps);
+
+await privateMessages.send({ recipients: ['<hex pubkey>'], content: 'hello' });
+legacyMessages.subscribe({}, (message) => console.log(message.content));
 ```
 
 ### Accounts
@@ -315,8 +339,14 @@ Signatures are abbreviated; the generated reference has the full ones.
 
 | Export | Signature | Description |
 | --- | --- | --- |
-| `createDefaultMessaging` | `(options: DefaultMessagingOptions) => MessagingRegistry` | The three providers, available only when their backend factory is supplied. |
-| `MESSAGING_UNAVAILABLE_REASONS` | `Readonly<Record<'private' \| 'legacy' \| 'ratchet', string>>` | `needs-local-key-signer`, `not-implemented`, `no-runtime`. |
+| `createDefaultMessaging` | `(options: DefaultMessagingOptions) => MessagingRegistry` | The three providers with persisted preferences; each is available when its backend is supplied and the active account can serve it. `DefaultMessagingOptions.signer` (`() => ISigner \| undefined`) makes `private` and `legacy` availability follow that signer, including for backends a host supplies. |
+| `createPrivateMessagesBackend` | `(options: { store: EventStore; pool: ApplesaucePool; tiers: RelayTiers; signer: () => ISigner \| undefined; selfPubkey: () => string \| undefined; now?: () => number }) => MessagingBackend` | NIP-17 messages over the account signer: seal signed by the account with `nip44`, wrap signed by a discarded ephemeral key, sent to inbox relays with the `outbox` and `super` tiers as fallback, plus a copy to self. See [Messaging backends](#messaging-backends). |
+| `createLegacyMessagesBackend` | same options `=> MessagingBackend` | NIP-04 kind 4 messages through `signer().nip04`, normalised the same way. Metadata-exposing. |
+| `signerAvailability` | `(signer: ISigner \| undefined, method: MessagingEncryption) => ProviderAvailability` | `sign-in-required` with no signer, `signer-cannot-encrypt` when it lacks `method`, otherwise available. |
+| `messagingSigner` | `(account: IAccount \| undefined) => ISigner \| undefined` | The signer messaging uses for an account. A read-only account maps to a signer with no encryption, so it reports `signer-cannot-encrypt`. |
+| `MessagingEncryption` | `'nip44' \| 'nip04'` | The signer method a backend needs. |
+| `SignerMessagingOptions` | `{ store, pool, tiers, signer, selfPubkey, now?, accountChanges? }` | Options for both backends. `accountChanges` clears the in-memory conversations when the account changes or signs out. |
+| `MESSAGING_UNAVAILABLE_REASONS` | `Readonly<Record<'signInRequired' \| 'signerCannotEncrypt' \| 'noRuntime', string>>` | `sign-in-required`, `signer-cannot-encrypt`, `no-runtime`. |
 | `createDefaultBridges` | `(options?: DefaultBridgesOptions) => BridgeRegistry` | The HTTP bridge plus torrent, nzb, soulseek and mail, which report `no-backend` ([D-010](../decisions.md#d-010)). `options.http` goes to the HTTP bridge; the rest to the registry. |
 | `floatingLayout`, `createDwindleLayout`, `createColumnsLayout`, `createMasterStackLayout` | `LayoutStrategy` and `(options?) => LayoutStrategy` | The layouts above. |
 | `createNamespacedStore` | `(storage: StorageLike, prefix: string) => NamespacedStore` | `getJson`, `setJson`, `remove` under `<prefix>:`; corrupt JSON reads as the fallback. |

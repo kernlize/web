@@ -110,7 +110,11 @@ export {
   type MasterStackOptions,
 } from './wm/layouts.js';
 
-export { MESSAGING_UNAVAILABLE_REASONS, createDefaultMessaging, type DefaultMessagingOptions } from './messaging/default-registry.js';
+export { createDefaultMessaging, type DefaultMessagingOptions } from './messaging/default-registry.js';
+export { MESSAGING_UNAVAILABLE_REASONS, messagingSigner, signerAvailability, type MessagingEncryption } from './messaging/availability.js';
+export type { SignerMessagingOptions } from './messaging/signer-backend.js';
+export { createPrivateMessagesBackend } from './messaging/private-backend.js';
+export { createLegacyMessagesBackend } from './messaging/legacy-backend.js';
 export { createDefaultBridges, type DefaultBridgesOptions } from './bridges/default-registry.js';
 
 export { LINK_PROTOCOLS, createKernlServices, isTheme, resourceInitFor, type KernlServiceDeps, type KernlServices } from './kernl-services.js';

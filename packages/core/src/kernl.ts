@@ -1,10 +1,12 @@
 import { BehaviorSubject, Subject, Subscription } from 'rxjs';
 import { EventStore } from 'applesauce-core';
 import { RelayPool } from 'applesauce-relay';
-import type { IAccount } from 'applesauce-accounts';
+import type { AccountManager, IAccount } from 'applesauce-accounts';
+import type { ISigner } from 'applesauce-signers';
+import type { MessagingRegistry } from '@kernl/messaging';
 import { buildShellCapabilities, createShellBridge, type ShellAdapter } from '@kehto/shell';
 import { createGuardConfig, describeMitigations, type GuardEvent } from '@kernl/guard';
-import type { AppletIdentity, GuardFacade, Kernl, KernlOptions, Session } from './types.js';
+import type { AppletIdentity, GuardFacade, Kernl, KernlOptions, RelayTiers, Session } from './types.js';
 import { createKernlAccounts } from './applesauce/accounts.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
 import { createReplaceableLoader } from './applesauce/identity-providers.js';
@@ -18,6 +20,9 @@ import { createEnvironmentResolver, createGrants, type KernlGrants } from './gra
 import { createConsentHandler, createSigningConsent, lookupReplaceable } from './consent/handler.js';
 import { abbreviate } from './consent/describe-change.js';
 import { createDefaultMessaging } from './messaging/default-registry.js';
+import { messagingSigner } from './messaging/availability.js';
+import { createPrivateMessagesBackend } from './messaging/private-backend.js';
+import { createLegacyMessagesBackend } from './messaging/legacy-backend.js';
 import { createDefaultBridges } from './bridges/default-registry.js';
 import { createKernlServices, isTheme } from './kernl-services.js';
 import { createShellAdapter } from './kernl-adapter.js';
@@ -52,6 +57,31 @@ function createGuardFacade(pipeline: GuardPipeline, events$: Subject<GuardEvent>
   };
 }
 
+interface MessagingParts {
+  readonly eventStore: EventStore;
+  readonly pool: RelayPool;
+  readonly tiers: RelayTiers;
+  readonly accounts: AccountManager;
+}
+
+/** kernl's account-signer backends for `private` and `legacy`, unless the host supplied its own. */
+function createAccountMessaging(options: KernlOptions, parts: MessagingParts): MessagingRegistry {
+  const signer = (): ISigner | undefined => messagingSigner(parts.accounts.active);
+  const deps = {
+    store: parts.eventStore,
+    pool: parts.pool,
+    tiers: parts.tiers,
+    signer,
+    selfPubkey: () => parts.accounts.active?.pubkey,
+    accountChanges: parts.accounts.active$,
+  };
+  return createDefaultMessaging({
+    storage: options.host.storage,
+    signer,
+    backends: { private: () => createPrivateMessagesBackend(deps), legacy: () => createLegacyMessagesBackend(deps), ...options.messagingBackends },
+  });
+}
+
 /**
  * Compose the shell: one `EventStore`, one `RelayPool`, one `AccountManager`,
  * the relay tiers, the guard pipeline, the grants layer, the messaging and
@@ -76,11 +106,12 @@ function createGuardFacade(pipeline: GuardPipeline, events$: Subject<GuardEvent>
 export function createKernl(options: KernlOptions): Kernl {
   const { host } = options;
   const ownsPool = !options.pool;
+  const ownsMessaging = !options.messaging;
   const eventStore = options.eventStore ?? new EventStore();
   const pool = options.pool ?? new RelayPool();
   const accounts = options.accounts ?? createKernlAccounts(host.storage);
   const tiers = createRelayTiers(host.storage, options.relays ?? {});
-  const messaging = options.messaging ?? createDefaultMessaging({ storage: host.storage, ...(options.messagingBackends ? { backends: options.messagingBackends } : {}) });
+  const messaging = options.messaging ?? createAccountMessaging(options, { eventStore, pool, tiers, accounts });
   // host.openLink asks before leaving kernl, so every hand-off is confirmed by the user (D-010).
   const bridges = options.bridges ?? createDefaultBridges({ handoff: (uri) => host.openLink(uri) });
 
@@ -190,6 +221,7 @@ export function createKernl(options: KernlOptions): Kernl {
       subscriptions.unsubscribe();
       services.dm.dispose();
       bridge.destroy();
+      if (ownsMessaging) messaging.close();
       if (ownsPool) pool.close();
     },
   };

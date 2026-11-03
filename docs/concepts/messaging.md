@@ -2,7 +2,7 @@
 
 No encrypted messaging protocol is inherently superior. Each one trades metadata exposure, forward secrecy and reach against the others, and the right trade depends on who the user is writing to. kernl therefore supports several and ranks none ([D-009](../decisions.md#d-009)). A provider describes its own properties truthfully; the shell shows the description and lets the user choose.
 
-In this alpha no real messaging backend ships. The live shell supplies none, so every provider is unavailable there; only the offline preview sends messages, over the in-memory backend, and they go nowhere ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)).
+In this alpha `private` and `legacy` work in the live shell when the signed-in account's signer can encrypt; `ratchet` needs a runtime that does not ship and is unavailable. The offline preview runs all three over the in-memory backend, and messages sent there go nowhere ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)).
 
 ## The provider contract
 
@@ -34,7 +34,7 @@ interface ProviderDeps {
 }
 ```
 
-The three built-in factories (`createPrivateMessagesProvider`, `createLegacyMessagesProvider`, `createRatchetMessagesProvider`) take the same `ProviderDeps` and supply the definition themselves. In the shell, `@kernl/core`'s `createDefaultMessaging` builds each provider's `ProviderDeps` from `KernlOptions.messagingBackends` and nothing else: `createBackend` calls the factory the host supplied, and a provider without one reports itself unavailable. `apps/web` supplies none today, so all three are unavailable in the live shell ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)). In tests and the preview, `createBackend` returns `createMemoryBackend()`. See `providers.feature`, scenario "availability and the backend come from the shell".
+The three built-in factories (`createPrivateMessagesProvider`, `createLegacyMessagesProvider`, `createRatchetMessagesProvider`) take the same `ProviderDeps` and supply the definition themselves. In the shell, `@kernl/core` builds each provider's `ProviderDeps`: `createKernl` supplies `createPrivateMessagesBackend` and `createLegacyMessagesBackend` unless `KernlOptions.messagingBackends` overrides them, and `available` follows the active account ([The shell's backends](#the-shell-s-backends)). In tests and the preview, `createBackend` returns `createMemoryBackend()`. See `providers.feature`, scenario "availability and the backend come from the shell".
 
 ## Security properties
 
@@ -66,7 +66,19 @@ Three things the table says that the picker says too:
 
 - `legacy` is marked as metadata-exposing because it is. It exists because many correspondents can read nothing else, and the user is told that before choosing it.
 - `private` has no forward secrecy. A gift wrap protects metadata, not past messages, and the picker does not claim otherwise.
-- `ratchet` is available only when the shell's `available()` says so. The package does not decide the reason; kernl's `createDefaultMessaging` supplies `no-runtime` (`MESSAGING_UNAVAILABLE_REASONS.ratchet`), `enable()` rethrows it as `unavailable:no-runtime`, and `list()` reports it so the picker can show the provider greyed with that reason. Its specification is a draft and the provider is flagged `experimental`.
+- `private` and `legacy` are available only while the active account's signer can encrypt: `nip44` for `private`, `nip04` for `legacy`. Otherwise kernl reports `sign-in-required` (nobody is signed in) or `signer-cannot-encrypt` (a read-only account, or a signer without the method).
+- `ratchet` is available only when the shell's `available()` says so. The package does not decide the reason; kernl's `createDefaultMessaging` supplies `no-runtime` (`MESSAGING_UNAVAILABLE_REASONS.noRuntime`), `enable()` rethrows it as `unavailable:no-runtime`, and `list()` reports it so the picker can show the provider greyed with that reason. Its specification is a draft and the provider is flagged `experimental`.
+
+## The shell's backends
+
+`@kernl/core` ships the two network backends the live shell uses ([D-015](../decisions.md#d-015)). Both take the shell's one `EventStore`, `RelayPool` and relay tiers, and read the signer and the user's public key through functions, so they follow the active account without being rebuilt:
+
+- **`createPrivateMessagesBackend`** sends NIP-17 messages. The message is an unsigned kind 14 rumour; it is sealed in a kind 13 event that the account signer signs, encrypting with its `nip44`; the seal is wrapped in a kind 1059 event signed by a one-time key. That key is generated inside an applesauce `PrivateKeySigner`, used for one wrap and discarded; it is never stored. The wrap goes to the recipient's kind 10050 inbox relays, or to the sender's `outbox` and `super` tiers when the recipient publishes none, and a second wrap goes to the sender so their other devices see the message. The backend subscribes to kind 1059 events tagged with the user's public key on the user's own inbox relays, or the same tiers. A conversation id is applesauce's `createConversationIdentifier`: the participants' public keys, the user's included, sorted and joined by `:`, so both sides compute the same id. Decrypted messages are kept in memory per account, never in the `EventStore`, and are cleared when the account changes or signs out; the `EventStore` is read only for inbox relay lists.
+- **`createLegacyMessagesBackend`** sends NIP-04 kind 4 messages through `signer.nip04`, with the same conversation ids and message shape. It is the metadata-exposing provider: who writes to whom, and when, is public on the event.
+
+Neither backend touches key bytes. Everything is signed and encrypted by the account's applesauce signer; an extension or remote signer may ask its own question per decryption, and kernl lets it.
+
+The Messages panel opens the user's own messages without a consent prompt from kernl: the shell is asking, for the user, to show the user their own mail. Applets are different. An applet reaches messages only through the NAP `dm` domain, which is a grant the user gives per applet and can revoke ([Identity and grants](./identity-and-grants.md)).
 
 ## The registry
 

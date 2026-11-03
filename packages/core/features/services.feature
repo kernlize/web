@@ -85,10 +85,14 @@ Feature: Shell services and adapter
 
   Scenario: the default messaging registry describes what it cannot do yet
     Given the default messaging registry over empty storage
-    Then provider "private" is unavailable because "needs-local-key-signer"
-    And provider "legacy" is unavailable because "not-implemented"
+    Then provider "private" is unavailable because "sign-in-required"
+    And provider "legacy" is unavailable because "sign-in-required"
     And provider "ratchet" is unavailable because "no-runtime"
-    And creating the "private" backend throws "unavailable:needs-local-key-signer"
+    And creating the "private" backend throws "unavailable:sign-in-required"
+
+  Scenario: a supplied runtime makes the ratchet provider available
+    Given the default messaging registry over empty storage with a "ratchet" backend
+    Then provider "ratchet" is available
 
   Scenario: a supplied backend makes a provider available and preferences persist
     Given the default messaging registry over empty storage with a "private" backend

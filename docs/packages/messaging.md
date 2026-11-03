@@ -2,8 +2,8 @@
 
 Messaging provider contract, registry, composite direct-message backend and an in-memory backend for the kernl shell. Pure: no relay code, no signer, no kehto dependency. Providers receive their backend constructor from the shell.
 
-::: warning No real messaging backend ships
-This package ships no backend that sends anything over a network; the only backend in it is `createMemoryBackend`. The live shell supplies no backend through `KernlOptions.messagingBackends`, so all three providers report themselves unavailable there ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)). The offline preview (`?preview=1`) runs the same providers over the in-memory backend with a scripted correspondent, so messages sent there go nowhere.
+::: info Network backends live in `@kernl/core`
+This package ships no backend that sends anything over a network; the only backend in it is `createMemoryBackend`. The network backends for `private` and `legacy` are `createPrivateMessagesBackend` and `createLegacyMessagesBackend` in [`@kernl/core`](./core.md#messaging-backends), because they need the shell's event store, connection pool and account signer. `createKernl` wires them by default, so both providers work in the live shell while the signed-in account's signer can encrypt; `ratchet` stays unavailable with `no-runtime` ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)). The offline preview (`?preview=1`) runs the same providers over the in-memory backend with a scripted correspondent, so messages sent there go nowhere.
 :::
 
 | Field | Value |
@@ -36,7 +36,7 @@ One contract for every private-messaging protocol, truthful self-description ins
 | `MessagingProvider` | interface | `{ id; name; description; properties: SecurityProperties; availability(): ProviderAvailability; createBackend(): MessagingBackend }`. `id` is the conversation-id prefix. |
 | `MessagingBackend` | interface | `status()`, `conversations(query?)`, `messages(query)`, `send(request)`, `subscribe(request, onMessage)`, `unsubscribe(subscriptionId)`, `close?()`. Every method except `send` may return synchronously or a promise. Structurally kehto's `DmAdapter`. |
 | `SecurityProperties` | interface | `forwardSecrecy`, `postCompromiseSecurity`, `metadataProtection: 'none' \| 'partial' \| 'strong'`, `requiresSameClient`, `groups`, `specification?`, `experimental`. |
-| `ProviderAvailability` | union | `{ available: true }` or `{ available: false; reason: string }`. The reason is a bare word such as `signed-out`; the registry prefixes it as `unavailable:<reason>`. |
+| `ProviderAvailability` | union | `{ available: true }` or `{ available: false; reason: string }`. The reason is a bare word such as `sign-in-required`; the registry prefixes it as `unavailable:<reason>`. |
 | `ProviderEntry` | interface | `{ provider; enabled: boolean; availability: ProviderAvailability }`, what `MessagingRegistry.list()` and `get()` return. |
 | `MessagingPreferences` | interface | `{ enabled: readonly string[]; defaultProvider?: string }`, the persisted registry state. |
 | `PACKAGE_NAME` | `'@kernl/messaging'` | The package name as a constant. |

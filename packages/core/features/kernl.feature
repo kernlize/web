@@ -38,9 +38,24 @@ Feature: The composed shell
     When the shell is destroyed
     Then the shell pool is closed
 
-  Scenario: a supplied private backend makes the provider available
+  Scenario: a supplied private backend is available while the signed-in account can encrypt
     Given a kernl shell over that host and pool with a private backend
+    Then the shell messaging provider "private" is unavailable because "sign-in-required"
+    When the shell logs in with a password account named "alice"
     Then the shell messaging provider "private" is available
+    When the shell logs in with a read-only account
+    Then the shell messaging provider "private" is unavailable because "signer-cannot-encrypt"
+    When the shell logs out
+    Then the shell messaging provider "private" is unavailable because "sign-in-required"
+
+  Scenario: kernl's own message backends follow the active account
+    Given a kernl shell over that host and pool
+    Then the shell messaging provider "legacy" is unavailable because "sign-in-required"
+    And the shell messaging provider "ratchet" is unavailable because "no-runtime"
+    When the shell logs in with a password account named "alice"
+    And the shell enables messaging provider "private" and "legacy"
+    Then the shell messaging status is available for the signed-in account
+    When the shell is destroyed
 
   Scenario: logging in and out drives the session
     Given a kernl shell over that host and pool

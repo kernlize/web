@@ -32,13 +32,16 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 | `denied:unknown-applet` | `@kernl/core` | `createSigningConsent` | A destructive write from a window the shell did not mount. |
 | `denied:signed-out` | `@kernl/core` | `createSigningConsent` | A destructive write (in practice an `outbox.publish`) while nobody is signed in. |
 | `invalid:event-kind` | `@kernl/core` | `createSigningConsent` | The event's `kind` is not a number. |
-| `unavailable:needs-local-key-signer`, `unavailable:not-implemented`, `unavailable:no-runtime` | `@kernl/core` | `createDefaultMessaging`'s `createBackend`; `MessagingRegistry.enable` | The host supplied no backend for `private`, `legacy` or `ratchet` (`MESSAGING_UNAVAILABLE_REASONS`). |
+| `unavailable:sign-in-required` | `@kernl/core` | `createDefaultMessaging`'s `createBackend`; `MessagingRegistry.enable` | `private` or `legacy` while no account is active (`MESSAGING_UNAVAILABLE_REASONS`). |
+| `unavailable:signer-cannot-encrypt` | `@kernl/core` | `createDefaultMessaging`'s `createBackend`; `MessagingRegistry.enable` | The active account's signer has no `nip44` (`private`) or no `nip04` (`legacy`); a read-only account is the usual case. |
+| `unavailable:no-runtime` | `@kernl/core` | `createDefaultMessaging`'s `createBackend`; `MessagingRegistry.enable` | `ratchet`: no double-ratchet runtime is supplied. |
 | `invalid:duplicate-provider` | `@kernl/messaging` | `MessagingRegistry.register` | A provider with this id is already registered. |
 | `invalid:unknown-provider` | `@kernl/messaging` | `MessagingRegistry.enable`, `disable`; the composite backend | No provider has this id, or a namespaced id, cursor or `provider` hint names no enabled provider. |
 | `unavailable:<reason>` | `@kernl/messaging` | `MessagingRegistry.enable` | The provider's `availability()` is false; `<reason>` is the bare word it reported. |
 | `invalid:provider-not-enabled` | `@kernl/messaging` | `MessagingRegistry.setDefault` | Only an enabled provider can be the default. |
 | `unavailable:no-default-provider` | `@kernl/messaging` | composite `send` | The request names no conversation and no provider, and there is no enabled default. |
 | `invalid:no-recipients`, `invalid:unknown-conversation`, `unavailable:offline` | `@kernl/messaging` | `createMemoryBackend` `send` | No recipient besides the owner; a `conversationId` the backend does not hold; the backend was created with `available: false`. |
+| `invalid:recipient`, `invalid:groups-unsupported`, `unavailable:offline` | `@kernl/core` | `createPrivateMessagesBackend`, `createLegacyMessagesBackend` `send` | The recipient is not a public key; the legacy backend got more than one correspondent; no relay accepted the message. |
 | `invalid:locator` | `@kernl/bridges` | `parseLocator` | Not a locator, or a malformed web, NZB, Soulseek or mail locator. |
 | `invalid:magnet-missing-hash` | `@kernl/bridges` | `parseLocator` | A magnet without a `urn:btih:` hash. |
 | `invalid:locator-missing-<field>` | `@kernl/bridges` | the torrent, NZB, Soulseek and mail bridges | The locator lacks `infoHash`, `url`, `user`, `path` or `address`. |

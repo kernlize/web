@@ -86,12 +86,15 @@ Feature: Shell words
     And the shell stores the typed server "ws://localhost:7777" as "ws://localhost:7777"
 
   Scenario: messaging reasons never reach a person raw
-    Then the shell explains the unavailable reason "not-implemented" as "No backend is available for this provider yet; it is not built into the shell."
+    Then the shell explains the unavailable reason "sign-in-required" as "Sign in to use this provider."
+    And the shell explains the unavailable reason "signer-cannot-encrypt" as "The account you signed in with cannot lock and unlock messages this way. Sign in with one that can."
     And the shell explains the unavailable reason "mystery" as "No backend is available for this provider yet."
     And the shell explains the messaging refusal "invalid:no-recipients" as "Add someone to write to."
     And the shell explains the messaging refusal "unavailable:offline after 3 tries" as "The message could not be sent right now."
     And the shell explains the messaging refusal "unavailable:no-runtime" as "No backend is available for this provider yet; this build lacks the part it needs."
     And the shell explains the messaging refusal "unavailable:mystery" as "No backend is available for this provider yet."
+    And the shell explains the messaging refusal "invalid:recipient" as "That does not look like an account id."
+    And the shell explains the messaging refusal "invalid:groups-unsupported" as "This provider writes to one person at a time."
     And the shell explains the messaging refusal "denied:nope" as "That did not work. Try again."
     And the shell explains the thrown messaging error "invalid:unknown-provider zz" as "That provider is not part of this shell."
 

@@ -2,6 +2,19 @@
 
 Each entry says what ships, per package and app. [Alpha status](./alpha-status.md) is the current picture; this page is the history. Versions follow semver on 0.x: a breaking change is a minor bump.
 
+## Unreleased
+
+### `@kernl/core`
+
+- `createPrivateMessagesBackend`: NIP-17 messages over the account signer. The seal is signed by the account with `nip44`; the wrap is signed by an ephemeral key that lives inside an applesauce `PrivateKeySigner` and is discarded after the wrap. Sends go to the recipient's kind 10050 inbox relays, falling back to the user's `outbox` and `super` tiers, with a copy wrapped to the user ([D-015](./decisions.md#d-015)).
+- `createLegacyMessagesBackend`: NIP-04 kind 4 messages through `signer.nip04`, normalised the same way and still marked metadata-exposing.
+- `createKernl` wires both by default unless `KernlOptions.messagingBackends` overrides them, so `private` and `legacy` work in the live shell. Availability follows the active account: `private` needs a signer with `nip44`, `legacy` one with `nip04`.
+- **Breaking.** `MESSAGING_UNAVAILABLE_REASONS` now holds `sign-in-required`, `signer-cannot-encrypt` and `no-runtime`. `needs-local-key-signer` and `not-implemented` are removed. See [Error reasons](./reference/errors.md).
+
+### Shell and site (`apps/web`)
+
+- The Messages panel sends and receives private and legacy messages for an account whose signer can encrypt (browser extension, remote signer, password-protected local account). It opens the user's own messages without a consent prompt; applets still reach messages only through the `dm` grant.
+
 ## 0.1.0 — first draft, 2026-11-03
 
 The first version of every package and of the shell. Nothing is published to npm yet; the packages are used from the source repository, which is private during the alpha ([Packages](./packages/index.md#install)).
