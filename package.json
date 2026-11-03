@@ -1,0 +1,42 @@
+{
+  "name": "kernl",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.24.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "type-check": "turbo run type-check",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest",
+    "test:e2e": "pnpm site:build && playwright test",
+    "docs:dev": "pnpm --filter @kernl/docs dev",
+    "docs:api": "typedoc",
+    "docs:build": "pnpm docs:api && pnpm --filter @kernl/docs build",
+    "docs:check": "pnpm docs:build && node scripts/audit-docs.mjs",
+    "site:dev": "pnpm --filter @kernl/web dev",
+    "site:build": "pnpm build && pnpm docs:check && pnpm --filter @kernl/web build && node scripts/build-pages.mjs",
+    "site:preview": "node scripts/serve-pages.mjs",
+    "check:vocabulary": "node scripts/check-public-vocabulary.mjs",
+    "check:agent-ready": "node scripts/audit-agent-readiness.mjs",
+    "check:deps": "node scripts/check-dependency-rules.mjs",
+    "slop": "aislop scan --json . | node scripts/assert-slop-score.mjs",
+    "check": "pnpm build && pnpm type-check && pnpm test && pnpm check:deps && pnpm docs:check && pnpm --filter @kernl/web build && node scripts/build-pages.mjs && pnpm check:vocabulary && pnpm check:agent-ready && pnpm slop",
+    "changeset": "changeset",
+    "version-packages": "changeset version"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.30.0",
+    "@playwright/test": "^1.64.1",
+    "@vitest/coverage-v8": "^5.1.0",
+    "aislop": "^0.20.0",
+    "quickpickle": "^1.11.2",
+    "tsup": "^8.5.0",
+    "turbo": "^2.9.14",
+    "typedoc": "^0.28.0",
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.0"
+  }
+}

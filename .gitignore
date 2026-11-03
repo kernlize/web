@@ -1,0 +1,14 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.turbo/
+.pages/
+.astro/
+coverage/
+test-results/
+playwright-report/
+docs/api/
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+.aislop/history.jsonl
+.DS_Store

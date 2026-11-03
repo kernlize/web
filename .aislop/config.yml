@@ -1,0 +1,30 @@
+version: 1
+engines:
+  format: true
+  lint: true
+  code-quality: true
+  ai-slop: true
+  architecture: false
+  security: true
+quality:
+  maxFunctionLoc: 120
+  maxFileLoc: 600
+  maxNesting: 4
+  maxParams: 5
+lint:
+  typecheck: false
+security:
+  # Dependency advisories are tracked by a separate, non-blocking CI job.
+  # The quality score measures code we wrote, not transitive devDependencies.
+  audit: false
+  auditTimeout: 25000
+scoring:
+  thresholds:
+    good: 90
+    ok: 75
+  smoothing: 20
+ci:
+  failBelow: 100
+  format: json
+telemetry:
+  enabled: false
