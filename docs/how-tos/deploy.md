@@ -24,16 +24,13 @@ Agent-readiness scanners such as amiagentready score the **origin**: they read t
 
 So production is a domain root: **https://kernlize.github.io/**, scored **90** live on 2026-11-03 (no failing checks; GitHub Pages cannot negotiate Markdown). The source repository is private and on the free plan, so it cannot serve Pages itself. The built `.pages/` artifact is published to the public `kernlize/kernlize.github.io` repository, which holds nothing else.
 
-`.github/workflows/pages.yml` builds, audits and publishes on every push to `main`. Publishing needs one repository secret, `SITE_PUBLISH_TOKEN`: a fine-grained personal access token scoped to `kernlize/kernlize.github.io` with **Contents: read and write**. Without it the job still builds and audits, then stops. Organisation deploy keys are disabled for `kernlize`, which is why the workflow uses a token.
-
-To publish by hand:
+Publishing is manual by decision (D-013): one command builds, runs the vocabulary and agent-readiness gates, and pushes the artifact.
 
 ```bash
-pnpm site:build
-git clone git@github.com:kernlize/kernlize.github.io.git site
-find site -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-cp -R .pages/. site/ && cd site && git add -A && git commit -m "Publish kernl site" && git push
+pnpm site:publish
 ```
+
+`.github/workflows/pages.yml` builds and audits the same artifact on every push to `main`. It publishes only if a `SITE_PUBLISH_TOKEN` secret (a fine-grained token with Contents read/write on `kernlize/kernlize.github.io`) is ever added; none is configured. Organisation deploy keys are disabled for `kernlize`.
 
 Moving to a custom domain later means setting the `SITE_URL` and `SITE_BASE` repository variables and adding a `CNAME` to the published artifact. With GitHub Pages that means a custom domain (set the variables to `https://<domain>/` and `/`). Content negotiation needs a host or edge rule that, for a request with `Accept: text/markdown`, serves the page's `.md` twin with `Vary: Accept`. `scripts/serve-pages.mjs` implements the rule and is the reference.
 
