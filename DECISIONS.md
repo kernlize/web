@@ -119,3 +119,23 @@ Published packages have zero framework dependencies, matching kehto's rule. The 
 **Consequences.** The bridge contract is exercised end to end by the HTTP bridge, so later backends plug into a tested path.
 
 **Reversal cost.** Low.
+
+## D-011 · Preview mode is a product feature, not a test double
+
+**Context.** The shell needs to be usable without an account, a network or a published applet: for people evaluating it, for the Playwright suite, and for the landing page's "open" form when nothing real is reachable.
+
+**Decision.** `apps/web/src/shell/preview-kernl.ts` implements the same `Kernl` contract as `@kernl/core` using the real `@kernl/guard`, `@kernl/messaging` (memory backend with a scripted correspondent) and `@kernl/bridges` packages, a real applesauce `AccountManager`, and two sample applets whose `srcdoc` carries the guard's CSP and exercises consent, notifications, flooding and link opening. `?preview=1` selects it; the live path falls back to it only when `createKernl` is unavailable, and says so in a notice.
+
+**Consequences.** Preview behaviour is held to the same vocabulary and accessibility rules as the live shell. Sample applets are the first place a new mitigation is demonstrated.
+
+**Reversal cost.** Low; the preview is one module behind the contract.
+
+## D-012 · Guard enforcement is layered: configured before dispatch, reactive after
+
+**Context.** kehto's bridge owns the `MessagePort` an applet speaks over, and exposes applet traffic to the host only through the observe-only `onNappletMessage` hook. kernl cannot sit between the port and the runtime (D-001).
+
+**Decision.** Two layers. Before dispatch, kernl configures kehto's own runtime firewall from the guard profile (`applyNappletRules` on bind, `firewallState.setRateLimit`), so kehto rejects over-budget envelopes itself. After dispatch, kernl's ingress guard, visibility gate and focus firewall observe the same traffic with the shell's focus and visibility; a `quarantine` disposition revokes the applet's binding, and every other non-pass disposition is surfaced to the user as a guard event. The window-level `hello` is the one message kernl filters before kehto sees it.
+
+**Consequences.** Deferral while hidden is advisory in this draft: the applet's envelope has already reached the runtime by the time the gate observes it, so the gate's effect is the tightened budget and the event trail, not a held queue. The upstream request that would make it a true pre-dispatch hook is recorded with D-001's gaps.
+
+**Reversal cost.** Low; the pipeline sits behind `createGuardPipeline` and shrinks when kehto exposes a pre-dispatch hook.
