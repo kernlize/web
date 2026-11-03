@@ -48,13 +48,13 @@ The full reasoning is in [`SOUL.md`](./SOUL.md). Each concrete choice is in [`DE
 
 ## What it does
 
-- **Runs applets in a sealed frame, with no child frames.** `srcdoc`, `sandbox="allow-scripts"` and nothing else, a zero-network policy, WebRTC removed before applet code runs, identity bound to the verified bytes and a single message port. An applet cannot open a frame of its own, whose fresh realm would still have WebRTC: markup that declares one is refused, and a lock that runs before applet code makes every way of creating one throw. It is a port of kehto's unreleased nested-context lock, carried until kehto ships it ([D-014](./DECISIONS.md)). A browser test (`tests/e2e/applet-network-sealed.spec.ts`) proves an applet frame cannot fetch, open a socket or peer connection, load an image, create a child frame by any of 15 routes, or send a beacon, and gathers no network candidate while the host page reaches a public STUN server. When the verified bytes or the port change, the binding is revoked and the frame removed; grants stay keyed by the applet's identity, so the same build gets them back when it is opened again.
-- **Shares your account only when you say so.** An applet starts with the shell handshake, in-shell messaging, the theme and its own storage. It is not told which account is signed in until you grant "your account", and every network domain is a separate grant.
-- **Asks before it signs anything destructive.** When an applet asks to sign anything that replaces a previous version (a profile, follows, connections, lists, any other replaceable or addressable record), a deletion or a request to erase the account, kernl's consent gate (in the signer it hands kehto, and in front of the outbox service) looks up the current version, locally and then on the network for up to 4 seconds, shows the change as before → after, with the raw event behind a disclosure, and waits. If the current version cannot be loaded, the prompt says so. A refusal fails with `denied:consent` and nothing is signed. Routine writes are signed without a prompt, and no answer is remembered.
-- **Guards by default.** Eleven protections ship on, in the strict profile, with a readable list of what is on and why. kehto's runtime firewall refuses, before dispatch, messages over the per-class rates kernl installs at mount and a startup burst of more than 20 operations in an applet's first 3 seconds. Oversized downloads and queries are refused before dispatch too: kernl measures them and has the runtime refuse that one message. kernl's flood control, hidden-window and focus tracking see each message just before it is dispatched but cannot hold it back: they report what they see, and an applet that floods the shell, or keeps downloading while hidden, is quarantined, which stops the message that crossed the limit and closes the applet ([D-012](./DECISIONS.md)). The profile is shell-wide and resets to strict on boot; per-applet profiles are planned.
-- **Messages across providers (preview only in this alpha).** One Direct Messenger surface over several private-message providers, each described by its properties and none ranked. In the live shell all three providers are unavailable because no backend is supplied; only the offline preview sends messages. See [`docs/alpha-status.md`](./docs/alpha-status.md).
-- **Bridges other networks.** Web fetch works today behind an SSRF policy, with caveats: from the browser shell it works for `https` origins that permit cross-origin reads, redirects are refused because the browser hides their target, and hostnames are checked as literals only (IPv4, and IPv6 parsed in full, including addresses that embed IPv4). Downloads, sharing and mail have their contracts and wait for backends.
-- **Previews without an account.** `/app/?preview=1` is a faithful offline stand-in for the live shell: the same consent rule (only destructive writes ask, decided by `@kernl/core` itself), kernl's observe-and-quarantine guard starting in strict, and two sample applets to exercise them. The preview has no kehto runtime behind it, so the refusals before dispatch described above happen only in the live shell. Messaging works only here in this alpha.
+- **Runs applets in a sealed frame.** Verified bytes run in a `srcdoc` frame with `sandbox="allow-scripts"`, a zero-network CSP, no WebRTC and a lock against frames of their own ([D-014](./DECISIONS.md)). A browser spec tries every way out; when the host page can reach a public STUN server, it asserts that it does and that the applet produces no such candidate ([Security posture](./docs/policies/security-posture.md)).
+- **Shares your account only when you say so.** An applet is not told which account is signed in until you grant "your account", and every network domain is a separate grant, keyed to the verified build ([Identity and grants](./docs/concepts/identity-and-grants.md)).
+- **Asks before it signs anything destructive.** A write that replaces or erases part of your public record is shown as before → after and waits for your answer; routine writes are signed without a prompt ([Consent](./docs/concepts/identity-and-grants.md#consent-for-destructive-writes)).
+- **Guards by default.** Eleven protections ship on in the strict profile: kehto's runtime firewall refuses over-rate and oversized requests before dispatch, and kernl quarantines an applet that floods ([Guard](./docs/concepts/guard.md)). The hosted shell boots strict and only you loosen it; an embedding host may choose the starting profile, which changes limits only.
+- **Messages across providers, in the preview only.** One messenger over several private-message providers, each described by its properties and none ranked. No real backend ships yet, so every provider is unavailable in the live shell ([Alpha status](./docs/alpha-status.md#messaging-providers-in-the-live-shell)).
+- **Bridges other networks.** Web fetch works behind an SSRF policy (`https` only, private addresses blocked, redirects refused in the browser); downloads, sharing and mail have contracts and wait for backends ([Bridges](./docs/concepts/bridges.md)).
+- **Previews without an account.** `/app/?preview=1` runs the shell offline with the core's own consent rule, kernl's guard in strict and two sample applets. Refusals before dispatch need kehto's runtime, so they happen only in the live shell ([Run the shell](./docs/tutorials/run-the-shell.md)).
 
 <p align="center">
   <img src=".github/assets/guard.png" alt="The full guard panel in the preview: the strict, balanced and relaxed profiles with strict selected, all eleven protections in plain words with their strict limits and whether each is built into the toolkit, added by kernl or both, saying which limits refuse a request, which only report it, and that quarantine drops the message that crossed the limit, and an empty recent-events log." width="520" />
@@ -64,7 +64,7 @@ The full reasoning is in [`SOUL.md`](./SOUL.md). Each concrete choice is in [`DE
 
 | Package | Purpose | Docs |
 |---|---|---|
-| [`@kernl/guard`](./packages/guard) | Ingress flood control, visibility gating, focus-aware firewall, CSP profile, mitigation descriptions. Pure. | [guard](./docs/packages/guard.md) |
+| [`@kernl/guard`](./packages/guard) | Ingress flood control, visibility gating, focus-aware firewall, CSP profile, nested-frame lock, mitigation descriptions. Pure. | [guard](./docs/packages/guard.md) |
 | [`@kernl/messaging`](./packages/messaging) | Provider contract, registry, composite direct-message adapter, three providers. Pure. | [messaging](./docs/packages/messaging.md) |
 | [`@kernl/bridges`](./packages/bridges) | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy, backend interfaces. Pure. | [bridges](./docs/packages/bridges.md) |
 | [`@kernl/core`](./packages/core) | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts. | [core](./docs/packages/core.md) |
@@ -92,14 +92,23 @@ No install: [open the preview](https://kernlize.github.io/app/?preview=1). It ru
 From source (Node 22 or newer, pnpm 10 via `corepack enable`):
 
 ```bash
-git clone git@github.com:kernlize/web.git kernl && cd kernl   # access required during alpha
+git clone https://github.com/kernlize/web.git kernl && cd kernl   # access required during alpha
 pnpm install
 pnpm build           # the site imports the built packages
-pnpm site:dev        # landing site and shell
-pnpm docs:dev        # documentation
 ```
 
-Open the URL `pnpm site:dev` prints, `http://localhost:4321/app/` by default, sign in with a browser extension, a remote signer or a local account, and paste an applet's address.
+Then run each dev server in its own terminal:
+
+```bash
+pnpm site:dev        # landing site and shell, http://localhost:4321/app/
+pnpm docs:dev        # documentation, http://localhost:5173/docs/
+```
+
+In the shell, sign in with a browser extension, a remote signer or a local account, and paste an applet's address. `pnpm docs:dev` serves the Markdown pages only, not the generated API reference; `pnpm site:build && pnpm site:preview` builds the site, the docs and the API reference into `.pages/` and serves them at `http://127.0.0.1:4178/`.
+
+## Write an applet
+
+Applets are ordinary NIP-5D napplets; kernl changes the posture, not the wire format. [Write an applet](./docs/tutorials/write-an-applet.md) builds one, tests it against the guard, publishes it and opens it in the shell. [Applets under kernl](./docs/concepts/applets-under-kernl.md) lists what an applet meets here and how to test against it.
 
 ## Check it
 
@@ -143,17 +152,21 @@ The docs are a product. Start at [`docs/index.md`](./docs/index.md), or on the s
 
 | Need | Page |
 |---|---|
-| Understand the layering | [Architecture](./docs/concepts/architecture.md) |
-| Understand what protects the user | [Guard](./docs/concepts/guard.md) |
-| Understand grants and identity | [Identity and grants](./docs/concepts/identity-and-grants.md) |
+| Know what works and what does not | [Alpha status](./docs/alpha-status.md) |
 | Run the shell locally | [Run the shell](./docs/tutorials/run-the-shell.md) |
 | Write an applet and open it in kernl | [Write an applet](./docs/tutorials/write-an-applet.md) |
 | Write an applet that runs well under kernl | [Applets under kernl](./docs/concepts/applets-under-kernl.md) |
-| Embed the shell core in your own page | [Embed `@kernl/core`](./docs/how-tos/embed-kernl-core.md) |
-| Add a messaging provider | [How-to](./docs/how-tos/add-a-messaging-provider.md) |
-| Add a bridge backend | [How-to](./docs/how-tos/add-a-bridge-backend.md) |
-| Look up an error reason | [Errors](./docs/reference/errors.md) |
-| Browse the API | [Reference](./docs/reference/api.md) |
+| Build a page that runs an applet | [Embed kernl in a page](./docs/tutorials/embed-a-host-page.md) |
+| Embed the shell core in your own page | [Embed kernl core](./docs/how-tos/embed-kernl-core.md) |
+| Understand the layering | [Architecture](./docs/concepts/architecture.md) |
+| Understand what protects the user | [Guard](./docs/concepts/guard.md) |
+| Understand grants and identity | [Identity and grants](./docs/concepts/identity-and-grants.md) |
+| Add a messaging provider | [Add a messaging provider](./docs/how-tos/add-a-messaging-provider.md) |
+| Add a bridge backend | [Add a bridge backend](./docs/how-tos/add-a-bridge-backend.md) |
+| Fix a failure | [Troubleshooting](./docs/guides/troubleshooting.md) |
+| Look up an error reason | [Error reasons](./docs/reference/errors.md) |
+| Browse the API | [API reference](./docs/reference/api.md) |
+| See why each choice was made | [Decisions](./DECISIONS.md) |
 
 ## Relationship to the ecosystem
 

@@ -48,10 +48,10 @@ The window manager contracts come from `@kehto/wm`. A narrow-viewport layout wit
 
 ## 7. Conformance
 
-- Run `@napplet/conformance` against the shell's bridge in `pnpm test`: envelope validators per NAP domain, manifest validation and the reference mock shell's expectations of a host. Today conformance is checked by the `features/` scenarios and review only ([Spec conformance](./policies/spec-conformance.md)).
+- Run `@napplet/conformance` against the shell's bridge in `pnpm test`: envelope validators per NAP domain, manifest validation and the reference mock shell's expectations of a host. Today conformance is checked by the `packages/*/features/` scenarios and review only ([Spec conformance](./policies/spec-conformance.md)).
 
 ## Not planned
 
-- A global configuration flag that loosens a mitigation for every applet. `SOUL.md` opinion three rules it out.
+- A flag in the hosted shell that turns a mitigation off or loosens it for every applet without the user. `SOUL.md` opinion three rules it out. `KernlOptions.guard.profile` lets an embedding host pick the starting limits only.
 - A second event library beside applesauce. `DECISIONS.md` [D-002](./decisions.md#d-002) rules it out.
 - A "recommended" messaging provider. [D-009](./decisions.md#d-009) rules it out.

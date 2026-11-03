@@ -2,12 +2,12 @@
 
 kernl has four packages under the `@kernl` scope, not yet published to npm (see [Install](#install)). Three are pure contracts and engines with zero framework dependencies; one composes them with kehto and applesauce. The shell app at `apps/web` is not published.
 
-| Package | Version | Role | Depends on |
-| --- | --- | --- | --- |
-| [`@kernl/guard`](./guard.md) | `0.1.0` | Ingress flood control, visibility gate, focus-aware firewall, CSP profile, mitigation descriptions. | `@kehto/firewall` |
-| [`@kernl/messaging`](./messaging.md) | `0.1.0` | Messaging provider contract, registry, composite direct-message adapter. | `@napplet/core` (types, peer) |
-| [`@kernl/bridges`](./bridges.md) | `0.1.0` | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy. | nothing |
-| [`@kernl/core`](./core.md) | `0.1.0` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts, persistence. | the three above, `@kehto/*`, `applesauce-*`, `rxjs` |
+| Package | Version | Role | Dependencies | Peer dependencies |
+| --- | --- | --- | --- | --- |
+| [`@kernl/guard`](./guard.md) | `0.1.0` | Ingress flood control, visibility gate, focus-aware firewall, CSP profile, nested-frame lock, mitigation descriptions. | `@kehto/firewall` | `@napplet/core` |
+| [`@kernl/messaging`](./messaging.md) | `0.1.0` | Messaging provider contract, registry, composite direct-message adapter, in-memory backend. | none | `@napplet/core` (the `Dm*` wire types) |
+| [`@kernl/bridges`](./bridges.md) | `0.1.0` | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy. | none | none |
+| [`@kernl/core`](./core.md) | `0.1.0` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts, persistence. | the three above, `@kehto/*`, `applesauce-*`, `rxjs` | `@napplet/core`, `@napplet/nap`, `@napplet/shim`, `nostr-tools` (required by kehto and applesauce; never imported) |
 
 ## Shared rules
 

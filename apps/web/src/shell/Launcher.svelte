@@ -20,7 +20,10 @@
     on: boolean;
   }
 
+  // The address the shell resolves stays in state; the field only ever shows what the person
+  // typed, and is cleared once an applet is found, so a raw address is never echoed back (D-006).
   let address = $state(initialAddress);
+  let typed = $state('');
   let summary = $state.raw<AppletSummary | null>(null);
   let choices = $state<Choice[]>([]);
   let busy = $state(false);
@@ -30,27 +33,43 @@
   const missing = $derived(choices.filter((choice) => choice.required && !choice.on));
   const listWords = (words: readonly string[]): string => (words.length < 2 ? words.join('') : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`);
 
+  /** Exact reasons first, then reason prefixes; anything else gets one generic sentence, never the raw reason. */
   const ERRORS: Readonly<Record<string, string>> = {
     'invalid:pointer': 'That does not look like an applet address.',
+    'invalid:unresolved': 'The applet could not be prepared. Look it up again.',
+    'invalid:frame-detached': 'The applet window closed before the applet could start.',
     'unavailable:preview-offline': 'The preview runs offline. Pick one of the sample applets below.',
+    'unavailable:manifest': 'No applet was found at that address. Check it and try again.',
+    'unavailable:blob': 'The applet was found, but its file could not be downloaded right now. Try again later.',
+    'unavailable:frame-lock': 'This applet could not be sealed safely, so the shell did not open it.',
     'denied:blocked': 'You blocked this applet. Unblock it from its grants first.',
+    'denied:signed-out': 'Sign in to open applets.',
   };
+  const PREFIXES: readonly (readonly [string, string])[] = [
+    ['invalid:', 'This applet did not pass the shell\'s checks, so it was not opened.'],
+    ['unavailable:', 'The applet cannot be reached right now. Try again later.'],
+    ['denied:', 'The shell refused to open this applet.'],
+    ['timeout', 'Looking up the applet took too long. Try again.'],
+  ];
+  const GENERIC_ERROR = 'Could not open the applet. Try again, or try another address.';
 
   const explain = (reason: unknown): string => {
     const message = reason instanceof Error ? reason.message : String(reason);
-    return ERRORS[message] ?? ERRORS[message.split(' ')[0] ?? ''] ?? `Could not open the applet (${message}).`;
+    const code = message.split(' ')[0] ?? '';
+    return ERRORS[message] ?? ERRORS[code] ?? PREFIXES.find(([prefix]) => code.startsWith(prefix))?.[1] ?? GENERIC_ERROR;
   };
 
-  async function resolve(target = address): Promise<void> {
-    address = target;
+  async function resolve(target = typed): Promise<void> {
+    address = target.trim();
     error = null;
     busy = true;
     try {
-      const found = await kernl.resolve(kernl.decodePointer(target));
+      const found = await kernl.resolve(kernl.decodePointer(address));
       const record = kernl.grants.get(found.identity);
       const input = { requires: found.requires, optional: found.optional, baseline: kernl.grants.baselineDomains(), granted: record?.domains ?? [], firstRun: record === undefined };
       choices = domainChoices(input).map((choice) => ({ ...choice, on: choice.granted || choice.preset }));
       summary = found;
+      typed = '';
     } catch (reason) {
       error = explain(reason);
     } finally {
@@ -125,11 +144,11 @@
     <form class="address" onsubmit={(event) => (event.preventDefault(), resolve())}>
       <label class="shell-field">
         <span>Applet address</span>
-        <input class="shell-input mono" type="text" bind:value={address} placeholder="Paste an applet address" autocomplete="off" spellcheck="false" />
+        <input class="shell-input mono" type="text" bind:value={typed} placeholder="Paste an address" autocomplete="off" spellcheck="false" />
       </label>
       {#if error}<p class="shell-error" role="alert">{error}</p>{/if}
       <div class="shell-actions">
-        <button type="submit" class="shell-button primary" disabled={busy || !address.trim()}>{busy ? 'Checking…' : 'Look up'}</button>
+        <button type="submit" class="shell-button primary" disabled={busy || !typed.trim()}>{busy ? 'Checking…' : 'Look up'}</button>
       </div>
     </form>
     {#if samples.length}

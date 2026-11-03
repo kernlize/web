@@ -89,7 +89,7 @@
   {/if}
 
   {#if consent.current}
-    <ConsentDialog prompt={consent.current} appletTitle={consentTitle} onanswer={(allowed) => consent.answer(allowed)} />
+    <ConsentDialog prompt={consent.current} appletTitle={consentTitle} accountKey={session?.pubkey} onanswer={(allowed) => consent.answer(allowed)} />
   {/if}
   <Notices {notices} />
 </div>

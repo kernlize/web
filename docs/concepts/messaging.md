@@ -2,6 +2,8 @@
 
 No encrypted messaging protocol is inherently superior. Each one trades metadata exposure, forward secrecy and reach against the others, and the right trade depends on who the user is writing to. kernl therefore supports several and ranks none ([D-009](../decisions.md#d-009)). A provider describes its own properties truthfully; the shell shows the description and lets the user choose.
 
+In this alpha no real messaging backend ships. The live shell supplies none, so every provider is unavailable there; only the offline preview sends messages, over the in-memory backend, and they go nowhere ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)).
+
 ## The provider contract
 
 A `MessagingProvider` in `@kernl/messaging` is a pluggable module with one contract:

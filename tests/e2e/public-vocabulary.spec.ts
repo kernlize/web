@@ -1,34 +1,11 @@
-import type { Frame, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
+import { expectClean } from './vocabulary';
 
 // DECISIONS D-006: the public site and the shell never name a protocol. The build-time scan reads files;
 // this reads what a person can perceive in a real browser, including text that scripts render,
 // accessible names, and the values of fields the shell fills in. Addresses are not exempt: the shell
 // shows servers by a display name and keeps pairing codes out of the page (QR and clipboard only).
-const DENYLIST = /\b(nostr|nip-?\d+|napplets?|relays?|pubkeys?|npub\w*|nsec\w*|naddr\w*|nevent\w*|bunker)\b/i;
-
-async function perceivable(frame: Frame | Page): Promise<string> {
-  return frame.evaluate(() => {
-    const attributes = ['title', 'aria-label', 'placeholder', 'alt', 'aria-description'];
-    const parts = [document.title, document.body.innerText];
-    for (const element of document.querySelectorAll('*')) {
-      for (const name of attributes) {
-        const value = element.getAttribute(name);
-        if (value) parts.push(value);
-      }
-      if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) parts.push(element.value);
-    }
-    return parts.join('\n');
-  });
-}
-
-async function expectClean(page: Page, where: string): Promise<void> {
-  for (const frame of page.frames()) {
-    const text = await perceivable(frame);
-    const hit = DENYLIST.exec(text);
-    expect(hit?.[0], `${where} (${frame === page.mainFrame() ? 'page' : 'applet frame'})`).toBeUndefined();
-  }
-}
+// The live shell, with its real default servers, is walked in public-vocabulary-live.spec.ts.
 
 for (const path of ['/', '/why/', '/guard/', '/messaging/', '/bridges/', '/developers/', '/app/']) {
   test(`${path} names no protocol`, async ({ page }) => {

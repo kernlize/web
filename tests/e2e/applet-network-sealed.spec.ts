@@ -1,7 +1,8 @@
+import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { expect, test, type Request } from '@playwright/test';
-import { APPLET_HTML, STUN_URL, type EscapeResults } from './applet-escape-probe.js';
+import { APPLET_HTML, HINT_HOSTS, NAVIGATE_URL, STUN_URL, type EscapeResults } from './applet-escape-probe.js';
 
 /**
  * Proves in a real browser that an applet frame, built by kernl's own
@@ -19,11 +20,30 @@ import { APPLET_HTML, STUN_URL, type EscapeResults } from './applet-escape-probe
  * artefact of the network. It imports `test` from Playwright rather than
  * `./fixtures` because the policy reports each refused attempt as a console
  * error, which is the behaviour under test.
+ *
+ * The host page mounts the frame with kernl's own `mountApplet`, bundled from
+ * the built core for the browser: an empty frame is attached first, then
+ * `mountApplet` hardens it (sandbox replaced with exactly `allow-scripts`, the
+ * controller-deny allow policy) and only then assigns `srcdoc`. The bridge and
+ * origin registry are inert stand-ins; they only observe, and the sealing under
+ * test does not depend on them.
  */
 
 const HOST_URL = 'https://kernl-host.test/';
 const ROOT = resolve(import.meta.dirname, '../..');
 const DENIED = 'threw TypeError: denied:nested-frame';
+
+/** What each of the further frame routes must come to: refused, unsupported by this browser, or a node that never became a frame. */
+const MORE_FRAME_OUTCOMES: Record<string, RegExp> = {
+  customizedBuiltInConstructor: /^threw /,
+  customizedBuiltInCreateElement: /^threw /,
+  xsltTransformToFragment: /^(threw |no node$)/,
+  xhtmlPrefixedImportNode: /^(threw |no node$)/,
+  xhtmlPrefixedAdoptNode: /^(threw |no node$)/,
+};
+
+/** Every insertion route must be refused by the insertion lock, or be unsupported by the browser. */
+const INSERTION_OUTCOME = new RegExp(`^(${DENIED}|threw TypeError: unsupported)$`);
 
 type Core = typeof import('@kernl/core');
 type AppletSummary = import('@kernl/core').AppletSummary;
@@ -42,12 +62,20 @@ function plan(indexHtml: string) {
   return core.planMount({ summary: summaryFor('escape'), indexHtml, adapter: adapter as never, guardProfile: 'strict', windowId: 'escape-1' });
 }
 
+/** `mountApplet` from the built core, bundled for the browser with the esbuild binary the workspace already has. */
+function bundleMount(): string {
+  const entry = `export { mountApplet } from ${JSON.stringify(resolve(ROOT, 'packages/core/dist/index.js'))};`;
+  const bundled = execFileSync(resolve(ROOT, 'node_modules/.bin/esbuild'), ['--bundle', '--format=iife', '--global-name=kernlMount', '--platform=browser', '--log-level=error'], { input: entry, encoding: 'utf8' });
+  return bundled.replace(/<\/script/gi, '<\\/script');
+}
+
 test.beforeAll(async () => {
   core = (await import(pathToFileURL(resolve(ROOT, 'packages/core/dist/index.js')).href)) as Core;
-  const { srcdoc, sandbox } = plan(APPLET_HTML);
+  const mountPlan = plan(APPLET_HTML);
   hostHtml = `<!doctype html>
 <html><head>${core.KERNL_FRAME_POLICY_META}<title>Host</title></head>
 <body>
+<script>${bundleMount()}</script>
 <script>
 window.control = new Promise((done) => {
   const types = [];
@@ -57,10 +85,16 @@ window.control = new Promise((done) => {
   peer.createOffer().then((offer) => peer.setLocalDescription(offer));
   setTimeout(() => done(types), 5000);
 });
+const plan = ${JSON.stringify(mountPlan).replace(/</g, '\\u003c')};
 const frame = document.createElement('iframe');
-frame.setAttribute('sandbox', ${JSON.stringify(sandbox)});
-frame.srcdoc = ${JSON.stringify(srcdoc).replace(/</g, '\\u003c')};
 document.body.append(frame);
+const noop = () => {};
+window.mounted = kernlMount.mountApplet(plan, frame, {
+  bridge: { observeFrame: () => noop, revokeNapplet: noop },
+  originRegistry: { register: noop, setEnvironment: noop, unregister: noop },
+  guard: { setVisibility: noop, forget: noop },
+});
+window.hardened = { sandbox: frame.getAttribute('sandbox'), allow: frame.getAttribute('allow') };
 </script>
 </body></html>`;
 });
@@ -81,6 +115,7 @@ test('the frame lock runs after the kehto prelude and before the applet script',
 });
 
 test('an applet frame cannot reach the network on its own, directly or through a child frame', async ({ page }) => {
+  test.setTimeout(90_000);
   const outbound: string[] = [];
   const routed: string[] = [];
   const failed: string[] = [];
@@ -98,21 +133,31 @@ test('an applet frame cannot reach the network on its own, directly or through a
 
   await page.goto(HOST_URL);
   const applet = page.frameLocator('iframe[sandbox="allow-scripts"]');
-  await expect(applet.locator('#results')).not.toHaveText('pending', { timeout: 30_000 });
+  await expect(applet.locator('#results')).not.toHaveText('pending', { timeout: 60_000 });
   const results = JSON.parse((await applet.locator('#results').textContent()) ?? '{}') as EscapeResults;
   const control = (await page.evaluate(() => (window as unknown as { control: Promise<string[]> }).control)) as string[];
   const stunReachable = control.includes('srflx');
-  test.info().annotations.push({ type: 'stun', description: stunReachable ? 'reachable from the host page' : 'unreachable; candidate checks rest on absent constructors' });
-  test.info().annotations.push({ type: 'frames', description: JSON.stringify({ written: results.written, ...results.frames }) });
+  test.info().annotations.push({ type: 'stun', description: stunReachable ? 'reachable from the host page' : 'unreachable from the host page; the candidate checks were skipped' });
+  test.info().annotations.push({ type: 'frames', description: JSON.stringify({ written: results.written, ...results.frames, ...results.moreFrames }) });
+  test.info().annotations.push({ type: 'hints', description: JSON.stringify(results.hints) });
+
+  const hardened = await page.evaluate(() => (window as unknown as { hardened: { sandbox: string; allow: string } }).hardened);
+  expect(hardened.sandbox).toBe('allow-scripts');
+  expect(hardened.allow).toBe(core.CONTROLLER_DENY_POLICY);
 
   expect(results.written).toEqual({ whole: DENIED, split: DENIED });
   for (const [routeName, outcome] of Object.entries(results.frames)) expect(outcome, routeName).toBe(DENIED);
   expect(Object.keys(results.frames)).toHaveLength(15);
-  expect(results.childRealms).toBe(0);
-  expect(results.childReports).toEqual([]);
+  // Soft, so one escaped route still lets every other check below report.
+  expect(Object.keys(results.moreFrames).sort()).toEqual(Object.keys(MORE_FRAME_OUTCOMES).sort());
+  for (const [routeName, outcome] of Object.entries(results.moreFrames)) expect.soft(outcome, routeName).toMatch(MORE_FRAME_OUTCOMES[routeName] ?? /^never$/);
+  expect(Object.keys(results.insertions).length).toBeGreaterThanOrEqual(13);
+  for (const [routeName, outcome] of Object.entries(results.insertions)) expect.soft(outcome, routeName).toMatch(INSERTION_OUTCOME);
+  expect.soft(results.childRealms, 'child frames that came to exist').toBe(0);
+  expect.soft(results.childReports, 'child frames that reported back').toEqual([]);
   expect(results.topPeer).toBe('undefined');
   expect(results.topGather).toMatch(/^threw TypeError/);
-  for (const outcome of [...Object.values(results.frames), JSON.stringify(results.topGather)]) expect(outcome).not.toMatch(/srflx|relay|ESCAPED/);
+  for (const outcome of [...Object.values(results.frames), ...Object.values(results.moreFrames), ...Object.values(results.insertions), JSON.stringify(results.topGather)]) expect.soft(outcome).not.toMatch(/srflx|relay|ESCAPED/);
   expect(results.ordinaryMarkup).toBe('rendered');
 
   expect(results.fetch).toMatch(/^failed/);
@@ -135,7 +180,23 @@ test('an applet frame cannot reach the network on its own, directly or through a
       'connect-src https://example.com/beacon',
     ]),
   );
+  // Now that the results are read, the frame is asked to navigate itself; give the attempt time to reach the network if it can.
+  await page.evaluate(() => window.frames[0]?.postMessage('navigate', '*'));
+  await page.waitForTimeout(1500);
+  const appletFrame = page.frames().find((frame) => frame !== page.mainFrame());
+  expect(appletFrame?.url() ?? '', 'the frame did not land on the address it asked for').not.toContain(new URL(NAVIGATE_URL).host);
   // Chromium reports a refused image as a request that failed with `csp`; it never reaches the network layer, which is where the route sits.
   expect(routed).toEqual([]);
+  expect(outbound.filter((url) => url.startsWith(NAVIGATE_URL)), 'self-navigation').toEqual([]);
+  // Preconnect and DNS prefetch never become requests; a prefetch does, and the policy refuses it like the image (the `csp` check below).
+  const [preconnect, dnsPrefetch] = HINT_HOSTS;
+  expect(outbound.filter((url) => url.includes(`//${preconnect}`) || url.includes(`//${dnsPrefetch}`)), 'connection hints').toEqual([]);
+  expect(routed.filter((url) => HINT_HOSTS.some((hintHost) => url.includes(hintHost))), 'resource hints that reached the network').toEqual([]);
   expect(failed).toEqual(outbound.map((url) => `${url} csp`));
+
+  // The control: candidate gathering only proves something when the host page itself reaches STUN.
+  test.skip(!stunReachable, 'The host page could not reach the public STUN server, so absent candidates prove nothing about the frame.');
+  expect(stunReachable).toBe(true);
+  expect(results.childReports.flatMap((report) => report.types ?? [])).toEqual([]);
+  expect(Array.isArray(results.topGather) ? results.topGather : []).not.toContain('srflx');
 });

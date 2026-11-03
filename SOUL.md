@@ -46,7 +46,7 @@ Concretely:
 - Hidden and minimised applets are watched: their activity is reported, and one that keeps downloading past its allowance is closed. (Holding their traffic back needs a pre-dispatch hook kehto does not yet offer; see D-012.)
 - Replay and cross-window identity checks are on.
 - Artifact bytes are cached only after hash verification, and re-verified on every read.
-- A mitigation is loosened per applet by the user, never globally by a developer flag.
+- In the hosted shell, a mitigation is loosened per applet by the user, never by a developer flag. An embedding host may choose the starting profile, which changes limits only; the sandbox, the frame lock and consent are fixed.
 
 The test for "within reason" is: does a competent developer, reading our docs, still have a clear path to build the applet they wanted? If yes, the mitigation stays on.
 
@@ -56,7 +56,7 @@ Nostr is kernl's identity and resolution layer. It is how the user is known, how
 
 Concretely:
 
-- A bridge is a shell-owned service that resolves a protocol-specific locator to bytes or a conversation, behind the same consent and quota model as everything else.
+- A bridge is a shell-owned service that resolves a protocol-specific locator to bytes or a conversation, behind the same grant and quota model as everything else. (Per-request consent for bridges is planned; see the roadmap.)
 - Bridges are named by what they do for the user ("downloads", "mail"), not by the protocol they speak.
 - Public-facing surfaces, the website above all, do not name protocols. The protocol is the plumbing. The person is the point.
 

@@ -98,7 +98,7 @@ These three booleans are what the user reads about the bridge: `describeBridge` 
 
 `BridgeRegistry.resolve` checks `availability()`, then calls the registry's `authorize` hook if one was given, before any bridge runs; a denial rejects with `denied:bridge`. The composed shell wires no `BridgeAuthorizer`: `createKernl` uses `createDefaultBridges()` without `authorize`, so a request from an applet that holds the `resource` grant reaches your bridge without a per-request prompt. A host that wants one passes `authorize` to `createBridgeRegistry` in the sample above; a consent prompt per host in the shell is on the [Roadmap](../roadmap.md#_6-guard) ([Alpha status](../alpha-status.md#what-does-not-work-yet)).
 
-The guard's `resource:bytes` rate and hidden-window allowance apply to `resource.*` envelopes. A `job` result reaches kehto's resource service as a `202 Accepted` JSON body through `createBridgeResourceResolver`; the applet that asked receives it. The shell has no downloads list yet, so nothing shows job state to the user; that UI is roadmap work. Every outcome is also reported to `onResolve` as a `BridgeResolveEvent`.
+The guard's `resource:bytes` rate and hidden-window allowance apply to `resource.*` envelopes. A `job` result reaches kehto's resource service as a `202 Accepted` JSON body through `createBridgeResourceResolver`; the applet that asked receives it. The shell has no downloads list yet, so nothing shows job state to the user; that UI is roadmap work. Every outcome is also reported to the registry's `onResolve` as a `BridgeResolveEvent`, when your registry passes one, as the sample does; the shell's default registry passes none, and no outcome reaches the guard panel.
 
 ## 5. Specify and document
 

@@ -2,6 +2,10 @@
 
 Messaging provider contract, registry, composite direct-message backend and an in-memory backend for the kernl shell. Pure: no relay code, no signer, no kehto dependency. Providers receive their backend constructor from the shell.
 
+::: warning No real messaging backend ships
+This package ships no backend that sends anything over a network; the only backend in it is `createMemoryBackend`. The live shell supplies no backend through `KernlOptions.messagingBackends`, so all three providers report themselves unavailable there ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)). The offline preview (`?preview=1`) runs the same providers over the in-memory backend with a scripted correspondent, so messages sent there go nowhere.
+:::
+
 | Field | Value |
 | --- | --- |
 | Package | `@kernl/messaging` |

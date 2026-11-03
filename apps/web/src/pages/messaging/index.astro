@@ -3,7 +3,7 @@ import Site from '../../layouts/Site.astro';
 import { href } from '../../lib/site';
 
 const description =
-  'kernl supports several private-message providers and ranks none. Each is described by what it protects: forward secrecy, metadata, groups, what the other needs.';
+  'kernl describes several private-message providers and ranks none. Each is described by what it protects. In this alpha sending works only in the preview; the real backends are not connected yet.';
 
 interface Provider {
   name: string;
@@ -14,7 +14,7 @@ interface Provider {
 const providers: readonly Provider[] = [
   {
     name: 'Private messages',
-    summary: 'The default. Each message is wrapped so the network cannot see who wrote it or what it says.',
+    summary: 'The default. Each message is meant to be wrapped so the network cannot see who wrote it or what it says.',
     rows: [
       ['Forward secrecy', 'No', 'off'],
       ['Heals after a key leak', 'No', 'off'],
@@ -57,7 +57,19 @@ const providers: readonly Provider[] = [
       <div class="section-head">
         <p class="label">Messaging</p>
         <h1 id="msg-title">Described, not ranked.</h1>
-        <p class="lede">Private messaging in kernl works across several providers. <strong>None of them is "the best".</strong> The shell tells you plainly what each one protects, and you pick the one the person you are writing to can read.</p>
+        <p class="lede">kernl is built to offer private messaging through several providers. <strong>None of them is "the best".</strong> The shell tells you plainly what each one protects, and you pick the one the person you are writing to can read.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="status-title">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="label">Where it stands</p>
+        <h2 id="status-title">Described and selectable; sending waits for backends.</h2>
+      </div>
+      <div class="note reveal">
+        <p>kernl is alpha software. Every provider below is described and you can choose one in the shell. Sending works in the <a href={href('app/?preview=1')}>preview</a>, which keeps everything in your browser tab. In the live shell no provider has a backend yet, so each one shows as unavailable and a send fails with a plain reason instead of pretending.</p>
       </div>
     </div>
   </section>
@@ -101,7 +113,7 @@ const providers: readonly Provider[] = [
         <div><dt>Experimental</dt><dd>The provider is still changing and may lose history between versions. kernl says so before you enable it.</dd></div>
       </dl>
       <div class="note reveal">
-        <p>Applets see one messaging surface that spans every provider you enabled. The choice of provider stays with you, is shown on every conversation, and can be changed. More in the <a href={href('docs/')}>documentation</a>.</p>
+        <p>Applets are given one messaging surface that spans every provider you enable. The choice of provider stays with you, is shown on every conversation, and can be changed. More in the <a href={href('docs/')}>documentation</a>.</p>
       </div>
     </div>
   </section>

@@ -27,7 +27,7 @@ kernl never re-implements a kehto primitive because it was easier than reading k
 
 ## What conformance is checked by
 
-- **Gherkin scenarios** in `features/` for every protocol-visible behaviour, named after the clause they implement where one exists.
+- **Gherkin scenarios** in `packages/*/features/` for every protocol-visible behaviour, named after the clause they implement where one exists.
 - **Review.** A change that touches an envelope shape, a domain's semantics or the handshake cites the clause in its description. A reviewer checks the clause, not the summary.
 
 `@napplet/conformance` (envelope validators per NAP domain, manifest validation and the reference mock shell's expectations of a host) is not part of the test suite yet; running it against the shell's bridge is on the [Roadmap](../roadmap.md#_7-conformance).

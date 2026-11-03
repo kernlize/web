@@ -12,7 +12,7 @@ kernl is a first draft. This page says what runs, what is a contract without an 
 | Composition | `@kernl/core` | `createKernl` over one applesauce `EventStore`, `RelayPool` and `AccountManager`, with kehto's real `createShellBridge` exercised end to end in `kernl.feature`: an applet is decoded, resolved, planned and mounted, binds its port through the guarded `handleWindowMessage`, completes `shell.ready`, is answered by the theme, identity and resource services, and is quarantined and revoked when it floods. Relay tiers, the applesauce adapters, the guard pipeline and runtime firewall rules, grants over `bridge.runtime.aclState`, consent summaries, the default registries and the layouts each have their own feature file. |
 | Shell UI | `apps/web` | Landing site at `/` and the shell at `/app/`: sign-in (browser extension, remote signer, read-only, password-protected local account), open by address with the required and optional domains as choices, windows, a grants panel per window, a shell-wide guard panel with the event log, the provider picker, and the offline preview behind `?preview=1` ([D-011](./decisions.md#d-011)), hosted at [kernlize.github.io/app/?preview=1](https://kernlize.github.io/app/?preview=1). |
 
-"Works" means the behaviour has a scenario in `features/`, the scenario passes, and the page describing it exists. It does not mean the API is stable. Every package is `0.1.0`; on 0.x a breaking change is a minor bump.
+"Works" means the behaviour has a scenario in `packages/*/features/`, the scenario passes, and the page describing it exists. It does not mean the API is stable. Every package is `0.1.0`; on 0.x a breaking change is a minor bump.
 
 ## Messaging providers in the live shell
 

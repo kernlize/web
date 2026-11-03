@@ -21,7 +21,7 @@ Locator parsing, the bridge contract, the registry that routes and authorises, a
 
 ## Purpose
 
-A bridge resolves a protocol-specific locator to bytes, a job or a conversation on the user's behalf, behind the same consent and quota as everything else, and is named by what it does rather than by its protocol. The HTTP bridge is complete; the torrent, NZB, Soulseek and mail bridges are complete up to the backend interface they call and report `unavailable` until one is supplied. The concepts are in [Bridges](../concepts/bridges.md); the opinion is [D-010](../decisions.md#d-010).
+A bridge resolves a protocol-specific locator to bytes, a job or a conversation on the user's behalf, behind the same grant and quota as everything else (the composed shell wires no per-request consent), and is named by what it does rather than by its protocol. The HTTP bridge is complete; the torrent, NZB, Soulseek and mail bridges are complete up to the backend interface they call and report `unavailable` until one is supplied. The concepts are in [Bridges](../concepts/bridges.md); the opinion is [D-010](../decisions.md#d-010).
 
 ## Exports
 
@@ -49,7 +49,7 @@ A bridge resolves a protocol-specific locator to bytes, a job or a conversation 
 
 | Export | Signature | Description |
 | --- | --- | --- |
-| `createBridgeRegistry` | `(options?: BridgeRegistryOptions) => BridgeRegistry` | Owns every bridge, routes a locator to the bridge serving its scheme, runs the consent hook, reports every outcome. |
+| `createBridgeRegistry` | `(options?: BridgeRegistryOptions) => BridgeRegistry` | Owns every bridge, routes a locator to the bridge serving its scheme, runs the `authorize` hook when one is given, reports every outcome to `onResolve` when one is given. |
 | `BridgeRegistryOptions` | interface | `{ authorize?: BridgeAuthorizer; onResolve?: (event: BridgeResolveEvent) => void }`. Without `authorize` every request is allowed. |
 | `BridgeResolveEvent` | interface | `{ bridge: string; scheme: string; ok: boolean; reason?: string }`. `bridge` is `none` when no bridge serves the scheme or the string did not parse. |
 | `BridgeRegistry` | interface | `register(bridge)` (throws `invalid:duplicate-bridge <id>`, `invalid:scheme-taken <scheme>`), `list()`, `forScheme(scheme)` (case-insensitive, trailing colon allowed), `resolve(uri, context)` (rejects with `invalid:`, `unavailable:` or `denied:` reasons). |

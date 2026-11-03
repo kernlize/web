@@ -1,4 +1,12 @@
 // D-006: the public site never names a protocol. Scans built output for the denylist; URLs are addresses, not prose, and are skipped.
+//
+// Script bundles (`_astro/*.js`) are deliberately not scanned. The shell's strings live there next to
+// library identifiers, import specifiers and wire field names that never reach a person, and a minified
+// bundle no longer marks which literals are Svelte template text, so a scan would be all noise or would
+// need an allowlist that hides real hits. What the shell renders is checked where it is perceived instead:
+// tests/e2e/public-vocabulary.spec.ts (preview) and tests/e2e/public-vocabulary-live.spec.ts (the live
+// shell, with the real default servers) read text, accessible names, hints and field values in a real
+// browser against apps/web/src/shell/vocabulary.ts. That browser test is the authority for the shell.
 import { existsSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';

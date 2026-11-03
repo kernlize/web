@@ -1,6 +1,6 @@
 # Bridges
 
-Nostr is kernl's identity and resolution layer. It is not the only protocol kernl speaks. A bridge is a shell-owned service that resolves a protocol-specific locator to bytes, a job or a conversation, behind the same consent and quota model as everything else. Bridges are named by what they do for the user, never by the protocol they speak ([D-010](../decisions.md#d-010)).
+Nostr is kernl's identity and resolution layer. It is not the only protocol kernl speaks. A bridge is a shell-owned service that resolves a protocol-specific locator to bytes, a job or a conversation, behind the same grant and quota as everything else: an applet needs the `resource` grant, and the guard's rates apply to its requests. There is no per-request bridge consent in this draft. Bridges are named by what they do for the user, never by the protocol they speak ([D-010](../decisions.md#d-010)).
 
 ## Locators
 
@@ -52,7 +52,7 @@ The user sees a bridge before they use it, and what they see is its `BridgeExpos
 
 `describeBridge(bridge)` returns, in order: `Used for` (the label), `Status` (`ready`, or `not available` followed by a `Reason` row with the bare reason such as `no-backend`), then the three exposure rows as `yes`/`no`. No row names a protocol. These are descriptions, not scores; like messaging providers, bridges are not ranked. See `describe.feature`.
 
-## The registry and consent
+## The registry and its authorize hook
 
 The shell holds one `BridgeRegistry`, built with `createBridgeRegistry({ authorize?, onResolve? })`:
 
@@ -68,7 +68,7 @@ The shell holds one `BridgeRegistry`, built with `createBridgeRegistry({ authori
 | authorise | `denied:bridge` | the bridge id |
 | resolve | whatever the bridge threw (`denied:…`, `unavailable:…`, `invalid:…`); a non-`Error` rejection is reported as its text | the bridge id |
 
-Every outcome, successful or not, is reported to `onResolve` as `{ bridge, scheme, ok, reason? }`. The authoriser is a `BridgeAuthorizer`: `(locator, bridge, context) => boolean | Promise<boolean>`. Without one, every request is allowed. The composed shell has none: `createKernl` builds its registry with `createDefaultBridges()` and no `authorize`, so a `resource` request from an applet that holds the `resource` grant is checked by the HTTP bridge's policy and nothing else. There is no per-host consent prompt and no per-host grant in this draft ([Alpha status](../alpha-status.md#what-does-not-work-yet)); wiring one is on the [Roadmap](../roadmap.md#_6-guard). A host can pass its own registry with an `authorize` hook in `KernlOptions.bridges`. See `registry.feature`.
+Every outcome, successful or not, is reported to `onResolve` as `{ bridge, scheme, ok, reason? }`, when the registry was given one. The composed shell gives none, so bridge outcomes reach neither the guard panel nor any other surface the user sees. The authoriser is a `BridgeAuthorizer`: `(locator, bridge, context) => boolean | Promise<boolean>`. Without one, every request is allowed. The composed shell has none: `createKernl` builds its registry with `createDefaultBridges()` and no `authorize`, so a `resource` request from an applet that holds the `resource` grant is checked by the HTTP bridge's policy and nothing else. There is no per-host consent prompt and no per-host grant in this draft ([Alpha status](../alpha-status.md#what-does-not-work-yet)); wiring one is on the [Roadmap](../roadmap.md#_6-guard). A host can pass its own registry with an `authorize` hook in `KernlOptions.bridges`. See `registry.feature`.
 
 ## The HTTP bridge
 
@@ -139,7 +139,7 @@ kehto's resource service takes a `fetch(url, init)` function. `createBridgeResou
 
 ## Why bridges are shell-owned
 
-An applet could, in principle, be given a WebRTC or WebSocket path and speak these protocols itself. kernl does not allow that, because the CSP [never loosens](./guard.md#why-csp-never-loosens). Routing every protocol through a shell service means every protocol gets the same grant, the same quota, the same exposure description and the same revocation, and a consent prompt per request can be added in one place. The applet asks for a locator; the user decides; the shell does the talking.
+An applet could, in principle, be given a WebRTC or WebSocket path and speak these protocols itself. kernl does not allow that, because the CSP [never loosens](./guard.md#why-csp-never-loosens). Routing every protocol through a shell service means every protocol gets the same grant, the same quota, the same exposure description and the same revocation, and a consent prompt per request, which this draft does not have, could be added in one place. The applet asks for a locator; the user's `resource` grant decides whether it may; the shell does the talking.
 
 ## Related
 

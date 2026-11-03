@@ -51,7 +51,7 @@ Every relay connection, event store, signer, account and loader goes through app
 | `RelayPool` | Every relay connection. | `createRelayPoolHooks` and `createRelayPoolLike` (`applesauce/relay-hooks.ts`) for `ShellAdapter.relayPool`; `createAppletRelayBackend`, `createDmRelayPool` and `createOutboxRelayPool` (`applesauce/relay-backend.ts`) for the relay, dm and outbox services. All of them route through `selectRelayTier`. |
 | `AccountManager` | The signed-in accounts and their signers. | `createKernlAccounts` (`applesauce/accounts.ts`) refuses plaintext-key account types; `createAuthHooks` and `wrapAccountSigner` (`applesauce/auth-hooks.ts`) give kehto a signer that never reveals the account. |
 
-`nostr-tools` remains a transitive peer of kehto and applesauce. kernl source never imports it, and `scripts/check-dependency-rules.mjs` fails the build if it does.
+`nostr-tools` is a peer dependency of `@kernl/core`, because kehto and applesauce require it. kernl source never imports it, and `scripts/check-dependency-rules.mjs` fails the build if it does.
 
 ## The kernl packages
 

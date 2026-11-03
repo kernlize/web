@@ -53,13 +53,14 @@ export const sidebar = [
     text: 'Tutorials',
     items: [
       { text: 'Run the shell', link: '/tutorials/run-the-shell' },
-      { text: 'Embed kernl in a page', link: '/tutorials/embed-a-host-page' },
       { text: 'Write an applet', link: '/tutorials/write-an-applet' },
+      { text: 'Embed kernl in a page', link: '/tutorials/embed-a-host-page' },
     ],
   },
   {
     text: 'How-tos',
     items: [
+      { text: 'How-to index', link: '/how-tos/' },
       { text: 'Change the guard profile', link: '/how-tos/change-guard-profile' },
       { text: 'Add a messaging provider', link: '/how-tos/add-a-messaging-provider' },
       { text: 'Add a bridge backend', link: '/how-tos/add-a-bridge-backend' },
@@ -122,7 +123,7 @@ export default defineConfig({
       { text: 'Start', link: '/' },
       { text: 'Concepts', link: '/concepts/architecture' },
       { text: 'Tutorials', link: '/tutorials/run-the-shell' },
-      { text: 'How-tos', link: '/how-tos/change-guard-profile' },
+      { text: 'How-tos', link: '/how-tos/' },
       { text: 'Packages', link: '/packages/' },
       { text: 'API', link: '/reference/api' },
     ],

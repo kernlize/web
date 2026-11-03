@@ -5,8 +5,8 @@ Rules the repository enforces mechanically. Each policy names the script that ch
 | Policy | Checked by | Decision |
 | --- | --- | --- |
 | [Public vocabulary](./public-vocabulary.md) | `pnpm check:vocabulary` (`scripts/check-public-vocabulary.mjs`) | [D-006](../decisions.md#d-006) |
-| [Security posture](./security-posture.md) | `features/` scenarios, `pnpm check:deps`, Playwright in `pnpm test:e2e` | [D-001](../decisions.md#d-001), [D-002](../decisions.md#d-002), [D-003](../decisions.md#d-003) |
-| [Spec conformance](./spec-conformance.md) | `features/` scenarios; review. Running `@napplet/conformance` in the suite is [roadmap](../roadmap.md#_7-conformance) work. | `AGENTS.md` "Spec before code" |
+| [Security posture](./security-posture.md) | `packages/*/features/` scenarios, `pnpm check:deps`, Playwright in `pnpm test:e2e` | [D-001](../decisions.md#d-001), [D-002](../decisions.md#d-002), [D-003](../decisions.md#d-003) |
+| [Spec conformance](./spec-conformance.md) | `packages/*/features/` scenarios; review. Running `@napplet/conformance` in the suite is [roadmap](../roadmap.md#_7-conformance) work. | `AGENTS.md` "Spec before code" |
 
 Two further gates apply to everything, including these pages:
 

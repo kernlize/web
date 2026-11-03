@@ -97,7 +97,7 @@ export async function openApplet(address: string, container: HTMLElement): Promi
 }
 ```
 
-`createKernl({ host })` creates one `EventStore`, one `RelayPool` and one `AccountManager`, the guard pipeline in `strict`, the default messaging and bridge registries, kehto's services and the shell bridge ([`@kernl/core`](../packages/core.md#composition)). Pass any of them in `KernlOptions` to use your own. Wire `handleWindowMessage` to `window` exactly once: it is how an applet's `hello` reaches the guard and then kehto.
+`createKernl({ host })` creates one `EventStore`, one `RelayPool` and one `AccountManager`, the guard pipeline in `strict`, the default messaging and bridge registries, kehto's services and the shell bridge ([`@kernl/core`](../packages/core.md#composition)). Pass any of them in `KernlOptions` to use your own. `guard: { profile }` starts the guard in `balanced` or `relaxed` instead; that changes limits only, and the sandbox, the CSP, the frame lock and consent stay as they are ([Change the guard profile](./change-guard-profile.md#what-a-profile-cannot-change)). Wire `handleWindowMessage` to `window` exactly once: it is how an applet's `hello` reaches the guard and then kehto.
 
 ## 3. The mount flow
 

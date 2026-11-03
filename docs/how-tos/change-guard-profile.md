@@ -1,6 +1,6 @@
 # Change the guard profile
 
-The shell boots in `strict`. In this draft a user can switch the whole shell to `balanced` or `relaxed`; the choice applies to every window and is not remembered, so every boot starts in `strict` again. Loosening one applet at a time, remembered, is what [D-003](../decisions.md#d-003) asks for and is planned ([Roadmap](../roadmap.md#_6-guard)). No developer flag or configuration file loosens the guard.
+The hosted shell boots in `strict`. In this draft a user can switch the whole shell to `balanced` or `relaxed`; the choice applies to every window and is not remembered, so every boot starts in `strict` again. Loosening one applet at a time, remembered, is what [D-003](../decisions.md#d-003) asks for and is planned ([Roadmap](../roadmap.md#_6-guard)). An embedding host may choose the starting profile with `createKernl({ host, guard: { profile } })`, which changes limits only; the sandbox, the CSP, the frame lock and consent are fixed ([What a profile cannot change](#what-a-profile-cannot-change)).
 
 ## In the shell
 
@@ -49,6 +49,7 @@ function guardFor(profile: GuardProfile, onEvent: (event: GuardEvent) => void) {
 ## What a profile cannot change
 
 - The Content Security Policy. `createAppletCsp(profile)` returns the same policy for every profile; see [why](../concepts/guard.md#why-csp-never-loosens) and `csp.feature`, scenario "the relaxed profile does not loosen the CSP".
+- The sandbox, the frame lock and consent. `planMount` passes the profile only to `createAppletCsp`; `sandbox="allow-scripts"`, the nested-frame lock and the destructive-signing gate never read it.
 - Whether a mitigation is enabled. Every profile enables all eleven; `describeMitigations(config)` only changes the `limit` text.
 - Grants. A profile is about rate, not authority. [Grant and revoke](./grant-and-revoke.md) covers authority.
 

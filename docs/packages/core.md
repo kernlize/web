@@ -325,7 +325,7 @@ Signatures are abbreviated; the generated reference has the full ones.
 ## Scope
 
 - Composes; does not re-implement a kehto primitive. Local layers exist only where `ShellAdapter` or `createRuntime` has no hook, and each is named in [Alpha status](../alpha-status.md#upstream-gaps).
-- Imports events, relays, signing and accounts from applesauce only. `nostr-tools` is a transitive peer and `pnpm check:deps` fails if it is imported.
+- Imports events, relays, signing and accounts from applesauce only. `nostr-tools` is a peer dependency, required by kehto and applesauce, and `pnpm check:deps` fails if it is imported.
 - Holds no UI. `apps/web` supplies the iframe, the visibility, the prompts and the notices through `KernlHost`.
 - Serialises no private key. `PasswordAccount` is the only persisted form of a local key and it is applesauce's.
 

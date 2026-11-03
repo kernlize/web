@@ -7,3 +7,4 @@ import './ingress.js';
 import './visibility.js';
 import './firewall.js';
 import './frame-lock.js';
+import './insertion-lock.js';

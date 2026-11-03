@@ -34,7 +34,7 @@ Without `?preview=1`, `https://kernlize.github.io/app/` is the live shell: every
 ## 1. Clone, install and build
 
 ```bash
-git clone <kernl source repository URL> kernl
+git clone https://github.com/kernlize/web.git kernl
 cd kernl
 pnpm install
 pnpm build

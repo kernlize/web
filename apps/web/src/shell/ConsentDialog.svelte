@@ -7,10 +7,12 @@
   interface Props {
     prompt: ConsentPrompt;
     appletTitle: string;
+    /** The active account's key; records it signs read "your account". */
+    accountKey?: string | undefined;
     onanswer: (allowed: boolean) => void;
   }
 
-  const { prompt, appletTitle, onanswer }: Props = $props();
+  const { prompt, appletTitle, accountKey, onanswer }: Props = $props();
   const summary = $derived(prompt.summary);
   let denyButton = $state<HTMLButtonElement | null>(null);
   let advanced = $state(false);
@@ -46,7 +48,7 @@
     <details bind:open={advanced}>
       <summary>Advanced: the exact record</summary>
       <dl class="record">
-        {#each eventDetails(summary.event) as row, index (index)}
+        {#each eventDetails(summary.event, accountKey) as row, index (index)}
           <div><dt>{row.label}</dt><dd>{row.value}</dd></div>
         {/each}
       </dl>

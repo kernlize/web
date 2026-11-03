@@ -6,7 +6,7 @@
   import { toggleTheme } from '../lib/theme';
   import { observe } from './observe.svelte';
   import Overlay from './Overlay.svelte';
-  import { serverAddress, serverName } from './servers';
+  import { serverAddress, serverLabel } from './servers';
 
   interface Props {
     kernl: ShellKernl;
@@ -49,8 +49,8 @@
           <h4>{tier.label}</h4>
           <p>{tier.help}</p>
           <ul class="shell-list urls">
-            {#each tiers.value[tier.id] as url (url)}
-              {@const name = serverName(url)}
+            {#each tiers.value[tier.id] as url, index (url)}
+              {@const name = serverLabel(url, tier.label, index)}
               <li data-address={url}><span class="server">{name}</span><button type="button" class="shell-button quiet" onclick={() => kernl.relays.remove(tier.id, url)} aria-label="Remove {name} from {tier.label}">Remove</button></li>
             {:else}
               <li class="shell-muted">None configured.</li>

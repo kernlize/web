@@ -7,6 +7,7 @@
   import { abbreviate } from './contract';
   import { observe } from './observe.svelte';
   import PairingCode from './PairingCode.svelte';
+  import { namesProtocol } from './vocabulary';
 
   const { kernl, mode }: { kernl: ShellKernl; mode: BootMode } = $props();
 
@@ -39,7 +40,7 @@
     if (network && mode === 'preview') return 'This needs the network. The preview runs offline.';
     if (network) return 'The signer did not answer. Check that it is open, then try again.';
     // Library errors can name the protocol; the user sees plain words (D-006).
-    if (/nostr|bunker|nip-?\d|npub|nsec|pubkey/i.test(message)) return 'That did not work. Check what you entered and try again.';
+    if (namesProtocol(message)) return 'That did not work. Check what you entered and try again.';
     return message;
   }
 
