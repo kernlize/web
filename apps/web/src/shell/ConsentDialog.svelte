@@ -2,6 +2,7 @@
   import type { ConsentPrompt } from './contract';
   import { shortId } from './contract';
   import { trapFocus } from './focus-trap';
+  import { eventDetails } from './event-details';
 
   interface Props {
     prompt: ConsentPrompt;
@@ -43,8 +44,12 @@
       {/each}
     </dl>
     <details bind:open={advanced}>
-      <summary>Advanced</summary>
-      <pre>{JSON.stringify(summary.event, null, 2)}</pre>
+      <summary>Advanced: the exact record</summary>
+      <dl class="record">
+        {#each eventDetails(summary.event) as row, index (index)}
+          <div><dt>{row.label}</dt><dd>{row.value}</dd></div>
+        {/each}
+      </dl>
     </details>
     <div class="shell-actions">
       <button type="button" class="shell-button" bind:this={denyButton} onclick={() => onanswer(false)}>Deny</button>
@@ -134,14 +139,32 @@
     color: var(--ink-muted);
   }
 
-  pre {
+  .record {
     margin: 0.5rem 0 0;
     max-height: 12rem;
     overflow: auto;
+    font-family: var(--font-mono);
     font-size: 0.75rem;
     background: var(--bg-sunken);
     border-radius: 8px;
     padding: 0.75rem;
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .record div {
+    display: grid;
+    grid-template-columns: 7rem 1fr;
+    gap: 0.75rem;
+  }
+
+  .record dt {
+    color: var(--ink-muted);
+  }
+
+  .record dd {
+    margin: 0;
+    overflow-wrap: anywhere;
   }
 
   .shell-actions {

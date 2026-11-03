@@ -96,7 +96,7 @@ Published packages have zero framework dependencies, matching kehto's rule. The 
 
 **Context.** The GitHub organisation is `kernlize`; the repository is `kernlize/web`. No custom domain is decided.
 
-**Decision.** URLs in package metadata point at `https://github.com/kernlize/web`. The Pages artifact is built with a configurable `SITE_BASE` (default `/`) and `SITE_URL`; the Pages workflow sets them to `/web/` and `https://kernlize.github.io/web/`. When a domain is chosen, only the workflow environment changes.
+**Decision.** URLs in package metadata point at `https://github.com/kernlize/web`. The Pages artifact is built with a configurable `SITE_BASE` (default `/`) and `SITE_URL`; the Pages workflow reads both from repository variables and falls back to `/web/` and `https://kernlize.github.io/web/`. When a domain is chosen, only the variables change. See D-013 for why production should be a domain root.
 
 **Consequences.** Absolute URLs in `llms.txt`, sitemap, canonical tags and JSON-LD are derived from `SITE_URL` at build time.
 
@@ -141,3 +141,15 @@ Published packages have zero framework dependencies, matching kehto's rule. The 
 **Consequences.** Deferral while hidden is advisory in this draft: the applet's envelope has already reached the runtime by the time the gate observes it, so the gate's effect is the tightened budget and the event trail, not a held queue. The upstream request that would make it a true pre-dispatch hook is recorded with D-001's gaps.
 
 **Reversal cost.** Low; the pipeline sits behind `createGuardPipeline` and shrinks when kehto exposes a pre-dispatch hook.
+
+## D-013 · The site is served at a domain root
+
+**Context.** D-007 sets an agent-readiness score of 84 or higher. Measured with amiagentready on 2026-11-03, the scanner works on the **origin**: it scores the domain's homepage whatever path it is given, and reads `robots.txt` and `llms.txt` from the domain root. The scoring is reproducible from its response: each scored check contributes its weight, pass at full, warn at half, fail at zero.
+
+**Measurement.** The Pages artifact served at the root of a temporary public origin, through `scripts/serve-pages.mjs`, scored **92** (12 pass, 2 warn, 0 fail; WebMCP detected). The two warns are "online booking" (kernl has none) and "schema coverage" (asks for local-business types such as opening hours and ratings, which do not apply). The same origin hosts `/docs/`, so the one score covers the website and the docs.
+
+**Decision.** Production serves the Pages artifact at the root of its own domain, and the host answers `Accept: text/markdown` with the page's Markdown twin (`Vary: Accept`), as `scripts/serve-pages.mjs` does. The Pages workflow reads `SITE_URL` and `SITE_BASE` from repository variables, so a custom domain needs no code change.
+
+**Consequences.** Served from the project subpath `kernlize.github.io/web/` (D-008's default), the score drops to about 82 because the origin has no `robots.txt` or `llms.txt`. A static host without content negotiation scores 90 at a root. Both regressions are visible in `docs/how-tos/deploy.md`.
+
+**Reversal cost.** Low; only deployment configuration.

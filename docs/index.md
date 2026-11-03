@@ -44,3 +44,7 @@ kernl does not fork kehto. When kehto lacks a hook kernl needs, kernl composes a
 Protocol vocabulary is used freely in these pages because they are written for developers. The public website and the shell UI follow a different rule, described in [Public vocabulary](./policies/public-vocabulary.md).
 
 Agents reading this site should start at [Agent access](./agent-access.md).
+
+## Licence and cost
+
+kernl is free software under the MIT licence. Every package and the shell cost $0; there is no paid tier and no account to buy. The source, these docs and the decisions behind both live at [kernlize/web](https://github.com/kernlize/web).

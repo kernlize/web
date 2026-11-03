@@ -47,6 +47,7 @@ function resolveFile(pathname) {
   let filePath = resolve(artifactRoot, normalized);
   const inside = relative(artifactRoot, filePath);
   if (inside.startsWith('..') || inside.includes(`..${sep}`)) return { status: 403 };
+  if (!existsSync(filePath) && existsSync(`${filePath}.html`)) filePath = `${filePath}.html`;
   if (!existsSync(filePath)) return { status: 404 };
   if (statSync(filePath).isDirectory()) {
     if (!pathname.endsWith('/')) return { redirect: `${pathname}/` };
@@ -54,6 +55,17 @@ function resolveFile(pathname) {
   }
   if (!existsSync(filePath) || !statSync(filePath).isFile()) return { status: 404 };
   return { filePath };
+}
+
+/**
+ * Swap an HTML page for its Markdown twin when the client asks for Markdown.
+ * Every built page has a sibling `index.md` (or `<name>.md` in the docs), so agents
+ * sending `Accept: text/markdown` get the same content without HTML.
+ */
+function negotiate(filePath, accept) {
+  if (!filePath.endsWith('.html') || !/\btext\/markdown\b/.test(accept || '')) return filePath;
+  const twin = filePath.replace(/\.html$/, '.md');
+  return existsSync(twin) ? twin : filePath;
 }
 
 function handleRequest(request, response) {
@@ -75,8 +87,12 @@ function handleRequest(request, response) {
     sendText(response, result.status, result.status === 403 ? 'Forbidden\n' : 'Not found\n');
     return;
   }
-  response.writeHead(200, { 'content-type': contentTypes.get(extname(result.filePath)) || 'application/octet-stream' });
-  createReadStream(result.filePath).pipe(response);
+  const filePath = negotiate(result.filePath, request.headers.accept);
+  response.writeHead(200, {
+    'content-type': contentTypes.get(extname(filePath)) || 'application/octet-stream',
+    vary: 'Accept',
+  });
+  createReadStream(filePath).pipe(response);
 }
 
 if (!existsSync(artifactRoot)) {

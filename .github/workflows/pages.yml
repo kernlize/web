@@ -14,10 +14,12 @@ permissions:
   pages: write
   id-token: write
 
+# D-013: production should be a domain root. Set the SITE_URL and SITE_BASE repository variables
+# (for example https://kernl.example/ and /) once a domain is chosen; the fallbacks serve the project subpath.
 env:
-  SITE_URL: https://kernlize.github.io/web/
-  SITE_BASE: /web/
-  VITEPRESS_BASE: /web/docs/
+  SITE_URL: ${{ vars.SITE_URL || 'https://kernlize.github.io/web/' }}
+  SITE_BASE: ${{ vars.SITE_BASE || '/web/' }}
+  VITEPRESS_BASE: ${{ vars.SITE_BASE || '/web/' }}docs/
 
 jobs:
   build:

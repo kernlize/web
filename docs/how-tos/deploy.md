@@ -10,7 +10,21 @@ kernl deploys as one static artifact: the landing site at the root, the shell at
 | `SITE_BASE` | Astro site | Path prefix the site is served under. | `/` | `/web/` |
 | `VITEPRESS_BASE` | Docs site | Path prefix the docs are served under. Always `SITE_BASE` plus `docs/`. | `/docs/` | `/web/docs/` |
 
-When a custom domain is chosen, only these values change (D-008). Nothing in the source references a host.
+The Pages workflow reads `SITE_URL` and `SITE_BASE` from repository variables (`vars.SITE_URL`, `vars.SITE_BASE`) and falls back to the project subpath. When a custom domain is chosen, set those two variables; nothing in the source references a host (D-008).
+
+## Serve at a domain root
+
+Agent-readiness scanners such as amiagentready score the **origin**: they read the domain's homepage, `robots.txt` and `llms.txt` at the root, whatever path they are given (D-013). Measured on 2026-11-03:
+
+| Hosting | `robots.txt` / `llms.txt` at the root | `Accept: text/markdown` | Score |
+| --- | --- | --- | --- |
+| Domain root, host negotiates Markdown (`scripts/serve-pages.mjs`) | yes | yes | **92** |
+| Domain root, plain static host | yes | no | 90 |
+| Project subpath `kernlize.github.io/web/` | no | no | about 82 |
+
+So production should be a domain root. With GitHub Pages that means a custom domain (set the variables to `https://<domain>/` and `/`). Content negotiation needs a host or edge rule that, for a request with `Accept: text/markdown`, serves the page's `.md` twin with `Vary: Accept`. `scripts/serve-pages.mjs` implements the rule and is the reference.
+
+To re-measure a build without deploying it, serve `.pages/` with `scripts/serve-pages.mjs`, expose it on a temporary public URL, and request `https://amiagentready.com/api/scan?url=<url>`. Add a query string to bypass the scanner's cache.
 
 ## Build locally
 

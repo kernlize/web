@@ -6,6 +6,33 @@ import { absoluteUrl, href, NAV, REPO_URL, SITE_NAME } from '../lib/site';
 const description =
   'kernl is a shell that runs small applets in a sealed sandbox. Your identity, contacts, messages and files stay yours; applets borrow them only while you watch.';
 
+const faq = [
+  {
+    q: 'What is an applet?',
+    a: 'A small, self-contained program published as a single verified file. kernl checks its content hash before it runs and gives it a sealed window with no network of its own.',
+  },
+  {
+    q: 'What can an applet see?',
+    a: 'Only what you grant, for as long as you grant it. By default it sees your theme, its own storage and which account is signed in. Network access, messages, notifications and files are each a separate grant you can take back.',
+  },
+  {
+    q: 'Does kernl hold my keys?',
+    a: 'No applet ever does. You can sign in with a browser extension or a remote signer so your key never enters the shell, or create a local account whose key is encrypted with a password you choose.',
+  },
+  {
+    q: 'What does kernl cost?',
+    a: 'Nothing. kernl is free and open source under the MIT licence. There is no account to buy and no paid tier.',
+  },
+  {
+    q: 'Can I try it without signing in?',
+    a: 'Yes. The preview runs the whole shell in your browser with sample applets and a throwaway account. Nothing leaves the tab.',
+  },
+  {
+    q: 'Is it ready for daily use?',
+    a: 'Not yet. kernl is alpha software. The sandbox, the guard and private messaging work; downloads, sharing and mail are waiting for their backends, and the shell says so.',
+  },
+];
+
 const jsonLd = [
   {
     '@context': 'https://schema.org',
@@ -15,7 +42,13 @@ const jsonLd = [
     description,
     applicationCategory: 'Shell',
     operatingSystem: 'Web browser',
-    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    isAccessibleForFree: true,
+    offers: { '@type': 'Offer', name: 'kernl', price: '0.00', priceCurrency: 'USD', availability: 'https://schema.org/OnlineOnly', url: absoluteUrl(href('app/')) },
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faq.map((item) => ({ '@type': 'Question', name: item.q, acceptedAnswer: { '@type': 'Answer', text: item.a } })),
   },
   {
     '@context': 'https://schema.org',
@@ -125,6 +158,36 @@ const pages = [{ path: '', label: 'Home' }, ...NAV].map((page) => ({
       </div>
     </div>
   </section>
+  <section class="section" aria-labelledby="cost-title">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="label">What it costs</p>
+        <h2 id="cost-title">Free. $0, no tier, no catch.</h2>
+      </div>
+      <div class="grid cols-3 reveal">
+        <div class="card"><p class="label">Price</p><h3>$0</h3><p>No subscription and no paid features. The whole shell is the free version.</p></div>
+        <div class="card"><p class="label">Licence</p><h3>MIT</h3><p>Read it, fork it, run your own copy. The source is public and so are the decisions behind it.</p></div>
+        <div class="card"><p class="label">To try it</p><h3>No sign-up</h3><p><a href={href('app/?preview=1')}>Open the preview</a> and use the shell with sample applets, entirely in your browser.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="faq-title">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="label">Questions</p>
+        <h2 id="faq-title">Asked often, answered plainly.</h2>
+      </div>
+      <div class="faq reveal">
+        {faq.map((item) => (
+          <details>
+            <summary><h3>{item.q}</h3></summary>
+            <p>{item.a}</p>
+          </details>
+        ))}
+      </div>
+    </div>
+  </section>
 </Site>
 
 <script is:inline define:vars={{ appHref, pages }}>
@@ -169,6 +232,51 @@ const pages = [{ path: '', label: 'Home' }, ...NAV].map((page) => ({
 </script>
 
 <style>
+  .faq {
+    display: grid;
+    gap: 0;
+    max-width: 48rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .faq details {
+    border-bottom: 1px solid var(--line);
+    padding-block: 1.1rem;
+  }
+
+  .faq summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .faq summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .faq summary::after {
+    content: '+';
+    font-family: var(--font-mono);
+    color: var(--accent);
+  }
+
+  .faq details[open] summary::after {
+    content: '−';
+  }
+
+  .faq summary h3 {
+    margin: 0;
+    font-size: 1.15rem;
+  }
+
+  .faq details p {
+    margin: 0.75rem 0 0;
+    color: var(--ink-muted);
+    max-width: 42rem;
+  }
+
   .hero {
     padding-block: clamp(3rem, 8vw, 7rem) clamp(3rem, 6vw, 5rem);
   }

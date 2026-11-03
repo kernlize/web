@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitepress';
 import { collectPage, markdownAlternate, writeAgentOutput } from './agent-output';
+import { structuredData } from './structured-data';
 
 const base = process.env.VITEPRESS_BASE ?? '/docs/';
 
@@ -77,7 +78,7 @@ export default defineConfig({
   ignoreDeadLinks: [/^\/api\//],
   head: [['meta', { name: 'color-scheme', content: 'dark light' }]],
   transformPageData: collectPage,
-  transformHead: ({ pageData }) => markdownAlternate(pageData, base),
+  transformHead: ({ pageData }) => [...markdownAlternate(pageData, base), ...structuredData(pageData)],
   buildEnd: (siteConfig) => writeAgentOutput(siteConfig, sidebar),
   themeConfig: {
     search: { provider: 'local' },

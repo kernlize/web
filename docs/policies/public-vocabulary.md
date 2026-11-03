@@ -16,7 +16,12 @@ The public website and the shell UI never name a protocol. The person is the poi
 | `npub` | "address" |
 | `nsec` | "secret key", in the one place the shell must warn about it |
 
-The check runs over rendered HTML, so copy in Svelte components, Astro pages, JSON-LD and `alt` text is all covered. It does not run over `docs/`.
+Two checks enforce it:
+
+- **Build time.** `scripts/check-public-vocabulary.mjs` reads every HTML, Markdown, text, JSON and XML file in the Pages artifact outside `docs/`, so Astro pages, JSON-LD, `llms.txt` and the Markdown twins are covered.
+- **In a browser.** `tests/e2e/public-vocabulary.spec.ts` loads every public page and walks the shell (sign-in, launcher, applet summary, a running applet's frame, the consent dialog with its record view open, and the guard, messages, grants and settings panels). It reads what a person can perceive: rendered text, `title`, `aria-label`, `placeholder` and `alt`. Copy rendered by scripts, which the file scan cannot see, is covered here.
+
+Identifiers inside JavaScript bundles are not copy and are not checked. The consent dialog's record view shows every field of the event it will sign, with plain labels ("Signed by", "Type", "Labels") instead of wire field names.
 
 ## Why
 
@@ -33,6 +38,7 @@ Three reasons, in the order `SOUL.md` ranks them.
 - **These docs.** Written for developers, who need the names. Every page here uses them.
 - **Code, specs, commit messages, issues.** `napplet` is the protocol term and stays in identifiers and in `features/`.
 - **`specification` fields.** `SecurityProperties.specification` and a bridge's protocol are shown in the docs, never in the picker.
+- **Addresses.** Server URLs a user adds, edits or removes are data, and their hostnames belong to whoever runs the server. Both checks ignore `http(s)://` and `ws(s)://` URLs.
 - **The secret-key warning.** The one place the shell mentions `nsec` is the warning that it will never ask for one.
 
 ## The words we use
