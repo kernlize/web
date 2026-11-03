@@ -1,0 +1,47 @@
+---
+import { href, NAV, relativePath } from '../lib/site';
+
+interface Props {
+  pathname: string;
+}
+
+const here = relativePath(Astro.props.pathname);
+---
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="wordmark" href={href('')} aria-label="kernl home">
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <rect x="1.5" y="1.5" width="17" height="17" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.5" />
+        <rect x="11.5" y="1.5" width="2.5" height="17" fill="var(--accent)" />
+      </svg>
+      kernl
+    </a>
+    <nav class="site-nav" aria-label="Site">
+      <ul>
+        {NAV.map((link) => (
+          <li>
+            <a href={href(link.path)} aria-current={here === link.path ? 'page' : undefined}>{link.label}</a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+    <button class="theme-toggle" type="button" aria-label="Switch colour theme" data-theme-toggle>
+      <svg class="sun" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <circle cx="8" cy="8" r="3.2" fill="currentColor" />
+        <g stroke="currentColor" stroke-width="1.3" stroke-linecap="round">
+          <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.1 3.1l1.4 1.4M11.5 11.5l1.4 1.4M3.1 12.9l1.4-1.4M11.5 4.5l1.4-1.4" />
+        </g>
+      </svg>
+      <svg class="moon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <path d="M10.5 1.8a6.3 6.3 0 1 0 3.7 9.9A6.3 6.3 0 0 1 10.5 1.8z" fill="currentColor" />
+      </svg>
+    </button>
+  </div>
+</header>
+
+<script>
+  import { startThemeToggle } from '../lib/theme';
+  const toggle = document.querySelector<HTMLButtonElement>('[data-theme-toggle]');
+  if (toggle) startThemeToggle(toggle);
+</script>

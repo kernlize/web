@@ -1,0 +1,21 @@
+{
+  "name": "@kernl/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build && node scripts/agent-output.mjs",
+    "preview": "astro preview --host 127.0.0.1",
+    "check": "astro check"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.12",
+    "@astrojs/sitemap": "^3.7.4",
+    "@astrojs/svelte": "^9.1.2",
+    "astro": "^7.4.5",
+    "linkedom": "^0.18.15",
+    "svelte": "^5.57.3",
+    "typescript": "^5.9.3"
+  }
+}

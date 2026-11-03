@@ -1,0 +1,139 @@
+---
+import Site from '../../layouts/Site.astro';
+import { href } from '../../lib/site';
+
+const description =
+  'kernl supports several private-message providers and ranks none. Each is described by what it protects: forward secrecy, metadata, groups, what the other needs.';
+
+interface Provider {
+  name: string;
+  summary: string;
+  rows: readonly [string, string, 'on' | 'off' | 'mid'][];
+}
+
+const providers: readonly Provider[] = [
+  {
+    name: 'Private messages',
+    summary: 'The default. Each message is wrapped so the network cannot see who wrote it or what it says.',
+    rows: [
+      ['Forward secrecy', 'No', 'off'],
+      ['Heals after a key leak', 'No', 'off'],
+      ['Metadata protection', 'Partial', 'mid'],
+      ['Other person needs this app', 'No', 'on'],
+      ['Groups', 'Yes', 'on'],
+      ['Experimental', 'No', 'on'],
+    ],
+  },
+  {
+    name: 'Legacy messages',
+    summary: 'The original format, kept so old conversations still open. The content is hidden; who talks to whom and when is not.',
+    rows: [
+      ['Forward secrecy', 'No', 'off'],
+      ['Heals after a key leak', 'No', 'off'],
+      ['Metadata protection', 'None', 'off'],
+      ['Other person needs this app', 'No', 'on'],
+      ['Groups', 'No', 'off'],
+      ['Experimental', 'No', 'on'],
+    ],
+  },
+  {
+    name: 'Ratchet sessions',
+    summary: 'Keys change with every message, so a leak today does not expose yesterday. Both sides need an app that speaks it.',
+    rows: [
+      ['Forward secrecy', 'Yes', 'on'],
+      ['Heals after a key leak', 'Yes', 'on'],
+      ['Metadata protection', 'Partial', 'mid'],
+      ['Other person needs this app', 'Yes', 'off'],
+      ['Groups', 'No', 'off'],
+      ['Experimental', 'Yes', 'off'],
+    ],
+  },
+];
+---
+
+<Site title="Messaging" description={description}>
+  <section class="section" aria-labelledby="msg-title">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="label">Messaging</p>
+        <h1 id="msg-title">Described, not ranked.</h1>
+        <p class="lede">Private messaging in kernl works across several providers. <strong>None of them is "the best".</strong> The shell tells you plainly what each one protects, and you pick the one the person you are writing to can read.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="providers-title">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="label">Providers</p>
+        <h2 id="providers-title">The same six questions, asked of each.</h2>
+      </div>
+      <div class="grid cols-3">
+        {providers.map((provider) => (
+          <article class="card reveal">
+            <h3>{provider.name}</h3>
+            <p>{provider.summary}</p>
+            <dl class="props">
+              {provider.rows.map(([term, value, tone]) => (
+                <div>
+                  <dt>{term}</dt>
+                  <dd><span class:list={['pill', tone === 'on' && 'on', tone === 'off' && 'off']}>{value}</span></dd>
+                </div>
+              ))}
+            </dl>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="terms-title">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="label">The words</p>
+        <h2 id="terms-title">What the rows mean.</h2>
+      </div>
+      <dl class="terms reveal">
+        <div><dt>Forward secrecy</dt><dd>If your keys leak today, messages from before today stay unreadable.</dd></div>
+        <div><dt>Heals after a key leak</dt><dd>Once both of you keep writing, a leaked key stops being useful to whoever has it.</dd></div>
+        <div><dt>Metadata protection</dt><dd>How much someone watching the network learns about who talks to whom and when. "Partial" means the sender and timing are hidden but delivery is not.</dd></div>
+        <div><dt>Other person needs this app</dt><dd>Whether your correspondent must use an app that speaks the same provider.</dd></div>
+        <div><dt>Experimental</dt><dd>The provider is still changing and may lose history between versions. kernl says so before you enable it.</dd></div>
+      </dl>
+      <div class="note reveal">
+        <p>Applets see one messaging surface that spans every provider you enabled. The choice of provider stays with you, is shown on every conversation, and can be changed. More in the <a href={href('docs/')}>documentation</a>.</p>
+      </div>
+    </div>
+  </section>
+</Site>
+
+<style>
+  .terms {
+    display: grid;
+    gap: 1rem;
+    margin: 0 0 2rem;
+  }
+
+  .terms > div {
+    display: grid;
+    gap: 0.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--line);
+  }
+
+  @media (min-width: 720px) {
+    .terms > div {
+      grid-template-columns: 16rem 1fr;
+      gap: 2rem;
+    }
+  }
+
+  .terms dt {
+    font-weight: 600;
+  }
+
+  .terms dd {
+    margin: 0;
+    color: var(--ink-muted);
+  }
+</style>

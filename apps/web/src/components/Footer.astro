@@ -1,0 +1,21 @@
+---
+import { APPLET_FORMAT_URL, href, REPO_URL, TOOLKIT_URL } from '../lib/site';
+---
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div>
+      <p><strong>kernl</strong> is alpha software, MIT licensed, built in the open.</p>
+      <p>The person at the keyboard is the only principal who matters.</p>
+    </div>
+    <nav aria-label="Footer">
+      <ul>
+        <li><a href={href('docs/')}>Documentation</a></li>
+        <li><a href={REPO_URL}>Source</a></li>
+        <li><a href={TOOLKIT_URL}>kehto toolkit</a></li>
+        <li><a href={APPLET_FORMAT_URL}>The applet format</a></li>
+        <li><a href={href('llms.txt')}>llms.txt</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>

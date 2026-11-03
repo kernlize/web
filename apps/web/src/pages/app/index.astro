@@ -1,0 +1,28 @@
+---
+import Site from '../../layouts/Site.astro';
+
+const description =
+  'The kernl shell. Open an applet by its address and run it in a sealed sandbox, with your identity, contacts and messages on loan only while you watch.';
+---
+
+<Site title="Shell" description={description} bare>
+  <section class="shell" aria-labelledby="shell-title">
+    <h1 id="shell-title" class="visually-hidden">kernl shell</h1>
+    <div id="shell-root"></div>
+  </section>
+</Site>
+
+<style>
+  .shell {
+    min-height: calc(100dvh - 3.75rem);
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+</style>

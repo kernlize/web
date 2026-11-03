@@ -1,0 +1,67 @@
+---
+import Site from '../../layouts/Site.astro';
+import { href } from '../../lib/site';
+
+const description =
+  'Bridges let kernl reach other networks for you. Web fetch works today; downloads, sharing and mail have their contracts in place and wait for their backends.';
+---
+
+<Site title="Bridges" description={description}>
+  <section class="section" aria-labelledby="bridges-title">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="label">Bridges</p>
+        <h1 id="bridges-title">Named by what they do for you.</h1>
+        <p class="lede">A bridge is a service the shell owns that turns a link into bytes or a conversation on another network. Every bridge sits behind <strong>the same consent and quota rules</strong> as everything else an applet can ask for.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="status-title">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="label">Status</p>
+        <h2 id="status-title">What works today, and what is waiting.</h2>
+      </div>
+      <div class="grid cols-2">
+        <article class="card reveal">
+          <p class="label"><span class="pill on">Works today</span></p>
+          <h3>Web fetch</h3>
+          <p>Fetches a web address for an applet, through the shell, with a policy that refuses private and local addresses so an applet cannot use you to look inside your own network.</p>
+        </article>
+        <article class="card reveal">
+          <p class="label"><span class="pill off">Needs a backend</span></p>
+          <h3>Downloads</h3>
+          <p>Understands the links people already share for large files and newsgroup posts. The parsing and the contract exist; the part that actually moves bytes does not yet.</p>
+        </article>
+        <article class="card reveal">
+          <p class="label"><span class="pill off">Needs a backend</span></p>
+          <h3>Sharing</h3>
+          <p>Person-to-person file sharing between people who choose each other. Same story: the contract is in place and tested, the backend is on the roadmap.</p>
+        </article>
+        <article class="card reveal">
+          <p class="label"><span class="pill off">Needs a backend</span></p>
+          <h3>Mail</h3>
+          <p>Turns a mail link into a conversation. The locator is parsed and the contract is defined; sending and receiving wait for a backend you would run or trust.</p>
+        </article>
+      </div>
+      <div class="note reveal" style="margin-top: 2rem">
+        <p>A bridge without a backend reports itself as unavailable, and the shell shows exactly that. It will not pretend, and an applet cannot tell the difference between "unavailable" and "you said no".</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="rules-title">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="label">The rules</p>
+        <h2 id="rules-title">Every bridge, the same way.</h2>
+      </div>
+      <ol class="steps reveal">
+        <li><h3>An applet asks; the shell resolves</h3><p>The applet never touches the other network. It hands the shell a link and gets back bytes or a conversation, or a reason.</p></li>
+        <li><h3>You see the request</h3><p>Each request shows up in the <a href={href('guard/')}>guard</a> with what it is for, and counts against the applet's budget.</p></li>
+        <li><h3>Named for people</h3><p>"Downloads", "sharing", "mail". Not the name of the wire format underneath. If you care which one it is, the documentation says.</p></li>
+      </ol>
+    </div>
+  </section>
+</Site>

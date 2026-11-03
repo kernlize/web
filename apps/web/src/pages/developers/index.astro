@@ -1,0 +1,79 @@
+---
+import Site from '../../layouts/Site.astro';
+import { APPLET_FORMAT_URL, href, REPO_URL, TOOLKIT_URL } from '../../lib/site';
+
+const description =
+  'How to build for kernl: write an applet in the open applet format, learn what the sealed sandbox and strict guard mean for your code, and read the docs first.';
+---
+
+<Site title="Developers" description={description}>
+  <section class="section" aria-labelledby="dev-title">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="label">Developers</p>
+        <h1 id="dev-title">Build something people can run without trusting you.</h1>
+        <p class="lede">An applet for kernl is a small, self-contained web page in the open applet format. It gets a sealed window, asks for what it needs, and reaches the world through the shell. <strong>That constraint is the feature.</strong></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="start-title">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="label">Start here</p>
+        <h2 id="start-title">Three places to read.</h2>
+      </div>
+      <div class="grid cols-3">
+        <article class="card reveal">
+          <p class="label">Docs</p>
+          <h3><a href={href('docs/')}>kernl documentation</a></h3>
+          <p>Concepts, how-tos and the reference for every package: the guard and its profiles, messaging providers, bridges and the shell's composition root.</p>
+        </article>
+        <article class="card reveal">
+          <p class="label">Toolkit</p>
+          <h3><a href={TOOLKIT_URL}>kehto</a></h3>
+          <p>The open, unopinionated toolkit kernl is built on. If you want to build a different shell with different opinions, start there.</p>
+        </article>
+        <article class="card reveal">
+          <p class="label">Format</p>
+          <h3><a href={APPLET_FORMAT_URL}>The applet format's site</a></h3>
+          <p>How applets are packaged, addressed and verified, and the message domains an applet can ask a shell for. kernl hosts this format without changing it.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="expect-title">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="label">What to expect</p>
+        <h2 id="expect-title">What your applet gets, and does not.</h2>
+      </div>
+      <ol class="steps reveal">
+        <li><h3>A sealed window</h3><p>Your code runs in a frame with no origin and a policy that blocks every direct network call. Draw, compute, and talk to the shell over its message port.</p></li>
+        <li><h3>Grants, not permissions</h3><p>Ask for the domains you need. The shell narrows what it advertises to what the user has granted, shows every write as what it changes, and lets the user take a grant back.</p></li>
+        <li><h3>The strict profile</h3><p>Rate limits, size caps, hidden-window deferral and focus-aware tightening are on. Design for them: batch requests, do less when hidden, and expect a refusal to carry a stable reason you can show.</p></li>
+        <li><h3>Verified bytes</h3><p>Your applet is identified by the hash of its content. Ship a new version and it is a new identity with fresh grants. That is deliberate.</p></li>
+        <li><h3>Messaging across providers</h3><p>One messaging surface spans every provider the user enabled. You do not pick the provider; the user does, and your applet works either way.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="source-title">
+    <div class="wrap">
+      <div class="grid cols-2">
+        <div class="reveal">
+          <p class="label">Source</p>
+          <h2 id="source-title">MIT, in the open.</h2>
+          <p>Four small packages and one app. Behaviour is specified in scenarios before it is implemented, and coverage is complete. Decisions, and the reasons for them, are written down in the repository.</p>
+          <p><a class="button primary" href={REPO_URL}>github.com/kernlize/web</a></p>
+        </div>
+        <div class="reveal">
+          <p class="label">For agents</p>
+          <h2>Read this site as text.</h2>
+          <p>Every page has a Markdown twin at <code>index.md</code> next to it, listed in <a href={href('llms.txt')}>llms.txt</a>. The full text is in <a href={href('llms-full.txt')}>llms-full.txt</a>, and the docs publish their own.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</Site>

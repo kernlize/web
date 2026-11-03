@@ -1,0 +1,134 @@
+---
+/* A sealed applet window, the guard rail, and the network beyond it. Drawn by hand; see styles below for motion. */
+---
+
+<figure class="hero-figure" aria-labelledby="hero-figure-caption">
+  <svg viewBox="0 0 640 400" role="img" aria-labelledby="hero-figure-title">
+    <title id="hero-figure-title">A sealed applet window on the left, a guard rail in the middle, and the network on the right. Three lines leave the window; one passes, one is slowed, one is cut.</title>
+    <defs>
+      <pattern id="seal" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <line x1="0" y1="0" x2="0" y2="6" stroke="var(--line-strong)" stroke-width="1" />
+      </pattern>
+    </defs>
+
+    <g class="window">
+      <rect x="28" y="60" width="296" height="280" rx="14" fill="var(--bg-raised)" stroke="var(--line-strong)" stroke-width="1.5" />
+      <rect x="20" y="52" width="312" height="296" rx="18" fill="none" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 5" />
+      <rect x="28" y="60" width="296" height="34" rx="14" fill="url(#seal)" opacity="0.5" />
+      <line x1="28" y1="94" x2="324" y2="94" stroke="var(--line-strong)" stroke-width="1" />
+      <circle cx="48" cy="77" r="4" fill="var(--line-strong)" />
+      <circle cx="64" cy="77" r="4" fill="var(--line-strong)" />
+      <text x="304" y="81" text-anchor="end" class="svg-label">applet</text>
+      <rect x="52" y="122" width="150" height="14" rx="3" fill="var(--line-strong)" />
+      <rect x="52" y="148" width="220" height="8" rx="3" fill="var(--line)" />
+      <rect x="52" y="164" width="196" height="8" rx="3" fill="var(--line)" />
+      <rect x="52" y="180" width="232" height="8" rx="3" fill="var(--line)" />
+      <rect x="52" y="214" width="104" height="72" rx="6" fill="var(--bg-sunken)" stroke="var(--line)" />
+      <rect x="172" y="214" width="112" height="72" rx="6" fill="var(--bg-sunken)" stroke="var(--line)" />
+      <rect x="52" y="304" width="88" height="14" rx="7" fill="var(--line)" />
+    </g>
+
+    <g class="flows" fill="none" stroke-width="1.5" stroke-linecap="round">
+      <path class="flow pass" d="M324 150 H352" stroke="var(--ink-muted)" />
+      <path class="flow pass" d="M376 150 C 420 150, 440 120, 496 116" stroke="var(--ink-muted)" />
+      <path class="flow slow" d="M324 212 H352" stroke="var(--ink-muted)" />
+      <path class="flow slow" d="M376 212 C 430 212, 450 196, 532 198" stroke="var(--ink-muted)" />
+      <path class="flow cut" d="M324 274 H352" stroke="var(--ink-muted)" />
+      <path class="ghost" d="M376 274 C 430 274, 450 304, 500 306" stroke="var(--line)" stroke-dasharray="2 6" />
+    </g>
+
+    <g class="rail">
+      <rect x="352" y="40" width="24" height="320" rx="12" fill="var(--bg-sunken)" stroke="var(--accent)" stroke-width="1.5" />
+      <circle class="lamp" cx="364" cy="58" r="4.5" fill="var(--accent)" />
+      <circle cx="364" cy="150" r="7" fill="var(--bg)" stroke="var(--ok)" stroke-width="1.5" />
+      <path d="M360.5 150.5 l2.3 2.3 l4.5 -5" fill="none" stroke="var(--ok)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      <circle cx="364" cy="212" r="7" fill="var(--bg)" stroke="var(--accent)" stroke-width="1.5" />
+      <path d="M361.5 209 v6 M366.5 209 v6" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" />
+      <circle cx="364" cy="274" r="7" fill="var(--bg)" stroke="var(--accent)" stroke-width="1.5" />
+      <path d="M360.8 270.8 l6.4 6.4 M367.2 270.8 l-6.4 6.4" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" />
+    </g>
+
+    <g class="network" stroke="var(--line-strong)" stroke-width="1">
+      <path d="M496 116 L560 94 L612 150 L578 232 L532 198 L496 116 M532 198 L500 306 L578 232 L612 320 L500 306" fill="none" />
+      <g fill="var(--bg)" stroke="var(--ink-muted)" stroke-width="1.5">
+        <circle cx="496" cy="116" r="7" />
+        <circle cx="560" cy="94" r="5" />
+        <circle cx="612" cy="150" r="6" />
+        <circle cx="578" cy="232" r="7" />
+        <circle cx="532" cy="198" r="7" />
+        <circle cx="500" cy="306" r="5" />
+        <circle cx="612" cy="320" r="6" />
+      </g>
+    </g>
+
+    <g class="captions">
+      <text x="176" y="376" text-anchor="middle" class="svg-label">sealed window</text>
+      <text x="364" y="376" text-anchor="middle" class="svg-label accent">guard</text>
+      <text x="556" y="376" text-anchor="middle" class="svg-label">network</text>
+    </g>
+  </svg>
+  <figcaption id="hero-figure-caption" class="label">Pass, slow down, or cut off. Each line is a decision you can see.</figcaption>
+</figure>
+
+<style>
+  .hero-figure {
+    margin: 0;
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .hero-figure svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .svg-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    fill: var(--ink-muted);
+  }
+
+  .svg-label.accent {
+    fill: var(--accent);
+  }
+
+  .flow {
+    stroke-dasharray: 6 8;
+    animation: flow 1.6s linear infinite;
+  }
+
+  .flow.slow {
+    stroke-dasharray: 3 14;
+    animation-duration: 3.4s;
+  }
+
+  .flow.cut {
+    animation-duration: 2s;
+  }
+
+  .lamp {
+    animation: lamp 2.8s ease-in-out infinite;
+  }
+
+  @keyframes flow {
+    to {
+      stroke-dashoffset: -28;
+    }
+  }
+
+  @keyframes lamp {
+    50% {
+      opacity: 0.35;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .flow,
+    .lamp {
+      animation: none;
+    }
+  }
+</style>

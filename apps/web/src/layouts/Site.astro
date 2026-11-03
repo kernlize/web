@@ -1,0 +1,74 @@
+---
+import '../styles/global.css';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import { absoluteUrl, href, markdownTwin, SITE_NAME } from '../lib/site';
+
+interface Props {
+  title: string;
+  description: string;
+  jsonLd?: readonly Record<string, unknown>[];
+  bare?: boolean;
+}
+
+const { title, description, jsonLd = [], bare = false } = Astro.props;
+const pathname = Astro.url.pathname;
+const canonical = absoluteUrl(pathname);
+const ogImage = absoluteUrl(href('og.png'));
+const fullTitle = title === SITE_NAME ? `${SITE_NAME} · a shell for applets you don't have to trust` : `${title} · ${SITE_NAME}`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" type="text/markdown" href={markdownTwin(pathname)} />
+    <link rel="icon" href={href('favicon.svg')} type="image/svg+xml" />
+    <link rel="sitemap" href={href('sitemap-index.xml')} />
+    <meta property="og:site_name" content={SITE_NAME} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="kernl: a sealed window, a guard rail, and the network beyond it" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+    <meta name="theme-color" content="#0c0e11" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    />
+    {jsonLd.map((item) => <script type="application/ld+json" set:html={JSON.stringify(item)} />)}
+    <script is:inline>
+      document.documentElement.classList.add('js');
+      try {
+        const stored = localStorage.getItem('kernl-theme');
+        if (stored === 'light' || stored === 'dark') document.documentElement.dataset.theme = stored;
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#content">Skip to content</a>
+    <Header pathname={pathname} />
+    <main id="content">
+      <slot />
+    </main>
+    {!bare && <Footer />}
+    <script>
+      import { startReveal } from '../lib/reveal';
+      startReveal();
+    </script>
+  </body>
+</html>

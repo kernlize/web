@@ -1,0 +1,111 @@
+---
+import Site from '../../layouts/Site.astro';
+import { href, TOOLKIT_URL } from '../../lib/site';
+
+const description =
+  'The five opinions behind kernl, in plain words: one place for your things, a shell that contains applets, protections on by default, many networks, no ranking.';
+---
+
+<Site title="Why" description={description}>
+  <section class="section" aria-labelledby="why-title">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="label">Why</p>
+        <h1 id="why-title">Five opinions, held on your behalf.</h1>
+        <p class="lede">kernl is built on <a href={TOOLKIT_URL}>kehto</a>, a toolkit that deliberately decides nothing. kernl decides everything kehto left open, and every decision breaks the same way: <strong>towards the person at the keyboard</strong>.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap">
+    <section class="opinion reveal" aria-labelledby="op-1">
+      <div>
+        <p class="number">01</p>
+        <h2 id="op-1">Everything in one place, reached one way.</h2>
+      </div>
+      <div>
+        <p>Your messages, contacts, files and account live in one store inside the shell, read through one connection and signed by one account manager. kernl does not hedge that with a second library doing the same job, because every extra copy is another thing to protect.</p>
+        <ul>
+          <li>Applets never get a handle on the store. Services read from it for them.</li>
+          <li>Your keys are never raw bytes outside the signer that holds them.</li>
+          <li>One path in and out means one place to watch.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="opinion reveal" aria-labelledby="op-2">
+      <div>
+        <p class="number">02</p>
+        <h2 id="op-2">The shell exists to empower you and to contain the applet.</h2>
+      </div>
+      <div>
+        <p>A shell has two jobs. It gives you a place where your identity and your things are yours and portable. And it gives an untrusted program a place to run where the worst it can do is bounded. kernl cannot protect you from everything. It does all of it that it can.</p>
+        <ul>
+          <li>Applets run in a sealed frame with no network of their own.</li>
+          <li>They never hold keys and never see text you did not ask to show them.</li>
+          <li>Every write the shell makes for an applet is shown to you as what it changes, not as code.</li>
+          <li>An applet's identity is bound to the exact bytes you verified. If they change, its grants end.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="opinion reveal" aria-labelledby="op-3">
+      <div>
+        <p class="number">03</p>
+        <h2 id="op-3">Protections are on by default. You loosen them, not the developer.</h2>
+      </div>
+      <div>
+        <p>When the toolkit offers a privacy or safety mitigation, kernl turns it on, in its strict setting, and documents how to ease it. You matter more than the applet developer does. Within reason: an applet interface so tight that nothing can be written protects nobody.</p>
+        <ul>
+          <li>The <a href={href('guard/')}>guard</a> ships strict, with focus-aware tightening.</li>
+          <li>Hidden and minimised applets have their traffic deferred.</li>
+          <li>A protection is loosened per applet, by you. Never globally, never by a flag.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="opinion reveal" aria-labelledby="op-4">
+      <div>
+        <p class="number">04</p>
+        <h2 id="op-4">One account, many networks, no brand names.</h2>
+      </div>
+      <div>
+        <p>Your account is how you are known, how applets are found and verified, and how you reach other people. It is not the only network kernl speaks. Downloads, sharing and mail plug in as <a href={href('bridges/')}>bridges</a>, behind the same consent and quota rules as everything else.</p>
+        <ul>
+          <li>Bridges are named by what they do for you, not by the wire format they speak.</li>
+          <li>This site does not name protocols. The protocol is the plumbing. The person is the point.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="opinion reveal" aria-labelledby="op-5">
+      <div>
+        <p class="number">05</p>
+        <h2 id="op-5">No private-messaging system is "the best".</h2>
+      </div>
+      <div>
+        <p>kernl supports any reasonable private-messaging provider through one interface. You pick the one your correspondent can read, and the shell makes that choice visible and reversible.</p>
+        <ul>
+          <li>The shell does not rank providers. It <a href={href('messaging/')}>describes them</a>: forward secrecy or not, what the network can see, whether the other person needs the same app.</li>
+          <li>Applets see one messaging surface that spans every provider you enabled.</li>
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <section class="section" aria-labelledby="ties-title">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="label">When two of these conflict</p>
+        <h2 id="ties-title">The tie-breakers, in order.</h2>
+      </div>
+      <ol class="steps reveal">
+        <li><h3>Your safety and agency</h3><p>Always first.</p></li>
+        <li><h3>Doing what the open format actually says</h3><p>Conformance with the upstream specification, not a convenient reading of it.</p></li>
+        <li><h3>The applet developer's ability to build</h3><p>A competent developer, reading the docs, must still have a clear path.</p></li>
+        <li><h3>Documentation accuracy</h3><p>A feature without docs is not shipped.</p></li>
+        <li><h3>Performance, then code size</h3><p>In that order, and last.</p></li>
+      </ol>
+    </div>
+  </section>
+</Site>

@@ -1,0 +1,58 @@
+---
+import Site from '../../layouts/Site.astro';
+import { href } from '../../lib/site';
+
+const description =
+  'What the kernl guard does between an applet and your network: a sealed sandbox, verified bytes, rate limits, flood control and consent, loosened only by you.';
+---
+
+<Site title="Guard" description={description}>
+  <section class="section" aria-labelledby="guard-title">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="label">Guard</p>
+        <h1 id="guard-title">Everything between an applet and the world.</h1>
+        <p class="lede">The guard is the set of protections that sit between an applet and you. It is <strong>on from the first second</strong>, in its strict setting. It tells you when it acts and why, and only you can loosen it, one applet at a time.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="list-title">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="label">What it does</p>
+        <h2 id="list-title">Eleven protections, in plain words.</h2>
+      </div>
+      <ol class="steps reveal">
+        <li><h3>A sealed sandbox</h3><p>Each applet runs in a frame with no address of its own and a policy that forbids every network call. The only way out is through the shell.</p></li>
+        <li><h3>Identity bound to the bytes, with revocation</h3><p>An applet's identity is tied to the exact code you verified and to the live connection it runs over. If either changes, every grant it held ends at once and the frame is removed.</p></li>
+        <li><h3>Verified before it runs, re-checked from cache</h3><p>Applet code is checked against its content hash before the first run. Cached copies are checked again on every read, so a tampered cache cannot slip past.</p></li>
+        <li><h3>Replay detection</h3><p>A message the shell has already handled is not handled twice, and a message meant for one window cannot be replayed into another.</p></li>
+        <li><h3>Behavioural rate limits</h3><p>Each kind of request has its own budget per applet. An applet that asks too often is made to wait, and you can see the counter.</p></li>
+        <li><h3>Focus-aware tightening</h3><p>An applet you are not looking at gets a smaller budget. The shell decides what is focused; the applet is never asked.</p></li>
+        <li><h3>Hidden-window deferral</h3><p>Traffic from a hidden or minimised applet waits until you bring it back. When you do, the queue drains in order.</p></li>
+        <li><h3>Flood control and quarantine</h3><p>An applet that floods the shell is queued, then quarantined. Quarantine lasts until you lift it.</p></li>
+        <li><h3>Size caps</h3><p>Requests for files and subscriptions have a maximum size. Oversized ones are refused rather than buffered.</p></li>
+        <li><h3>Device permissions denied</h3><p>Camera, microphone, location and the rest are off for every applet. There is no prompt to be tricked into.</p></li>
+        <li><h3>Consent for destructive changes</h3><p>Anything that deletes, publishes or sends on your behalf is shown to you as what it changes, and waits for your yes.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="see-title">
+    <div class="wrap">
+      <div class="grid cols-2">
+        <div class="reveal">
+          <p class="label">What you see</p>
+          <h2 id="see-title">Every refusal has a reason.</h2>
+          <p>The guard emits an event for every request it slows, defers, refuses or quarantines, with a stable reason you can read. Nothing is silently dropped.</p>
+        </div>
+        <div class="reveal">
+          <p class="label">Loosening it</p>
+          <h2>Per applet. By you.</h2>
+          <p>Three profiles exist: strict, balanced and relaxed. The shell boots strict. You can ease one applet from the grants panel; no configuration file or developer flag can ease them all. The <a href={href('docs/')}>documentation</a> lists each limit by profile.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</Site>

@@ -1,0 +1,238 @@
+---
+import Site from '../layouts/Site.astro';
+import HeroFigure from '../components/HeroFigure.astro';
+import { absoluteUrl, href, NAV, REPO_URL, SITE_NAME } from '../lib/site';
+
+const description =
+  'kernl is a shell that runs small applets in a sealed sandbox. Your identity, contacts, messages and files stay yours; applets borrow them only while you watch.';
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: 'kernl',
+    url: absoluteUrl(href('')),
+    description,
+    applicationCategory: 'Shell',
+    operatingSystem: 'Web browser',
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareSourceCode',
+    name: 'kernl',
+    codeRepository: REPO_URL,
+    programmingLanguage: 'TypeScript',
+    license: 'https://opensource.org/license/mit',
+  },
+];
+
+const appHref = href('app/');
+const pages = [{ path: '', label: 'Home' }, ...NAV].map((page) => ({
+  title: page.label,
+  url: absoluteUrl(href(page.path)),
+  markdown: absoluteUrl(href(`${page.path}index.md`)),
+}));
+---
+
+<Site title={SITE_NAME} description={description} jsonLd={jsonLd}>
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <p class="label">A shell for applets · alpha</p>
+        <h1 id="hero-title">Run things you don't have to trust.</h1>
+        <p class="lede">
+          kernl runs small, self-contained applets in a sealed sandbox. <strong>Your identity, contacts, messages and files are yours</strong> and travel with you. An applet borrows them only with your say-so, and only while you watch.
+        </p>
+        <form
+          class="open-form"
+          action={appHref}
+          method="get"
+          toolname="open-applet"
+          tooldescription="Open an applet in the kernl shell by its address"
+          data-open-applet
+        >
+          <label for="address">Applet address</label>
+          <div class="open-row">
+            <input id="address" name="address" type="text" required autocomplete="off" spellcheck="false" placeholder="paste an applet address" toolparamdescription="The applet address to open" />
+            <button class="button primary" type="submit">Open</button>
+          </div>
+          <p class="hint">Opens in the shell at <a href={appHref}>/app/</a>. Nothing runs until you say so.</p>
+        </form>
+      </div>
+      <HeroFigure />
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="gets-title">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="label">What an applet gets</p>
+        <h2 id="gets-title">A window, a loan, and a line it cannot cross alone.</h2>
+      </div>
+      <div class="grid cols-3">
+        <article class="card reveal">
+          <p class="label">Sealed</p>
+          <h3>A window of its own</h3>
+          <p>Each applet runs in a sealed frame with no address of its own and no way to call out. It can draw and compute; it cannot reach anything you did not hand it.</p>
+        </article>
+        <article class="card reveal">
+          <p class="label">Borrowed</p>
+          <h3>Your things, on loan</h3>
+          <p>Contacts, messages, files and your account are read by the shell on the applet's behalf. A grant is something you gave and can take back, and the shell shows what each one changes.</p>
+        </article>
+        <article class="card reveal">
+          <p class="label">Watched</p>
+          <h3>A network it reaches through you</h3>
+          <p>Everything an applet sends or fetches goes through the guard. You can see it, slow it down, or cut it off, per applet, at any time.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="opinions-title">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="label">Five opinions</p>
+        <h2 id="opinions-title">kernl is opinionated so you don't have to be.</h2>
+        <p class="lede">It is built on <a href="https://github.com/kehto/web">kehto</a>, an open toolkit that leaves every choice open. kernl makes the choices, in your favour, and writes down why.</p>
+      </div>
+      <ol class="steps reveal">
+        <li><h3>Everything in one place, reached one way</h3><p>One store, one connection, one account manager. There is no second copy of your world for an applet to get at.</p></li>
+        <li><h3>The shell empowers you and contains the applet</h3><p>Those are its only two jobs, in that order.</p></li>
+        <li><h3>Protections are on by default</h3><p>You loosen them per applet. A developer flag never can.</p></li>
+        <li><h3>One account, many networks, no brand names</h3><p>Downloads, sharing and mail plug in as bridges named by what they do for you.</p></li>
+        <li><h3>No private-messaging system is "the best"</h3><p>The shell describes each provider truthfully and lets you choose the one your correspondent can read.</p></li>
+      </ol>
+      <p class="after"><a class="button" href={href('why/')}>Read the five opinions</a></p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="honest-title">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="label">Where it stands</p>
+        <h2 id="honest-title">Alpha, and said so.</h2>
+      </div>
+      <div class="grid cols-2 reveal">
+        <div class="note">
+          <p>kernl is alpha software. The sandbox, the guard and private messaging work today. Bridges for downloads, sharing and mail have their contracts in place and wait for backends; the shell shows them as unavailable rather than pretending.</p>
+        </div>
+        <div>
+          <p>Applets are verified by content hash before they run and re-checked on every read from cache. If the bytes change, the applet's grants die with them.</p>
+          <p><a class="button" href={href('developers/')}>Build on it</a> <a class="button" href={REPO_URL}>Read the source</a></p>
+        </div>
+      </div>
+    </div>
+  </section>
+</Site>
+
+<script is:inline define:vars={{ appHref, pages }}>
+  const form = document.querySelector('[data-open-applet]');
+  const openUrl = (address) => `${appHref}?open=${encodeURIComponent(address.trim())}`;
+  form?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    location.assign(openUrl(new FormData(form).get('address') ?? ''));
+  });
+
+  // WebMCP imperative API: document.modelContext.registerTool per the explainer
+  // (https://github.com/webmachinelearning/webmcp/blob/main/README.md, "Imperative Tool Registration").
+  // Early Chrome builds expose the same object on navigator; the declarative form attributes above
+  // (toolname, tooldescription, toolparamdescription) follow declarative-api-explainer.md in that repo.
+  const context = document.modelContext ?? navigator.modelContext;
+  if (typeof context?.registerTool === 'function') {
+    context.registerTool({
+      name: 'open_applet',
+      description: 'Open an applet in the kernl shell by its address. Navigates this tab to the shell.',
+      inputSchema: {
+        type: 'object',
+        properties: { address: { type: 'string', description: 'The applet address to open' } },
+        required: ['address'],
+        additionalProperties: false,
+      },
+      execute({ address }) {
+        const url = openUrl(String(address));
+        location.assign(url);
+        return { opened: url };
+      },
+    });
+    context.registerTool({
+      name: 'list_pages',
+      description: 'List the pages of this site with their URLs and Markdown copies.',
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+      annotations: { readOnlyHint: true },
+      execute() {
+        return { pages };
+      },
+    });
+  }
+</script>
+
+<style>
+  .hero {
+    padding-block: clamp(3rem, 8vw, 7rem) clamp(3rem, 6vw, 5rem);
+  }
+
+  .hero-grid {
+    display: grid;
+    gap: 2.5rem;
+    align-items: center;
+  }
+
+  @media (min-width: 960px) {
+    .hero-grid {
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+      gap: 4rem;
+    }
+  }
+
+  .hero-copy .label {
+    margin-bottom: 1.25rem;
+  }
+
+  .open-form {
+    margin-top: 2rem;
+    display: grid;
+    gap: 0.5rem;
+    max-width: 34rem;
+  }
+
+  .open-form label {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+  }
+
+  .open-row {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .open-row input {
+    flex: 1 1 14rem;
+    min-width: 0;
+    font: inherit;
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    padding: 0.75rem 1rem;
+    border-radius: 999px;
+    border: 1px solid var(--line-strong);
+    background: var(--bg-raised);
+    color: var(--ink);
+  }
+
+  .open-row input::placeholder {
+    color: var(--ink-muted);
+  }
+
+  .hint {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--ink-muted);
+  }
+
+  .after {
+    margin-top: 2rem;
+  }
+</style>
