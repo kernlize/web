@@ -10,7 +10,6 @@ import type { GuardConfig, GuardEvent, GuardProfile, MitigationDescription, Wind
 import type { MessagingRegistry } from '@kernl/messaging';
 import type { BridgeRegistry } from '@kernl/bridges';
 
-// ─── Identity and applets ───
 
 /** The two values an applet's grants are keyed on. Both come from verification, never from the applet. */
 export interface AppletIdentity {
@@ -79,7 +78,6 @@ export interface AppletHandle {
   close(): void;
 }
 
-// ─── Grants ───
 
 /** One applet's standing with the user. */
 export interface GrantRecord {
@@ -108,7 +106,6 @@ export interface Grants {
   readonly changes$: Observable<GrantRecord>;
 }
 
-// ─── Consent ───
 
 /** One line of a change the user is asked to approve. */
 export interface ConsentLine {
@@ -133,9 +130,8 @@ export interface ConsentPrompt {
   resolve(allowed: boolean): void;
 }
 
-// ─── Relays ───
 
-/** The three tiers kehto's relay config knows, plus the applet-catalogue tier kernl adds. */
+/** Relay tiers: the three kehto knows plus the applet catalogue. */
 export type RelayTier = 'discovery' | 'apps' | 'outbox' | 'super';
 
 export interface RelayTiers {
@@ -145,7 +141,6 @@ export interface RelayTiers {
   readonly changes$: Observable<Readonly<Record<RelayTier, readonly string[]>>>;
 }
 
-// ─── Session ───
 
 export interface Session {
   readonly accountId: string;
@@ -155,7 +150,6 @@ export interface Session {
   readonly readOnly: boolean;
 }
 
-// ─── Host ───
 
 /** Minimal synchronous key-value store. `localStorage` satisfies it; tests use a Map. */
 export interface StorageLike {
@@ -182,7 +176,6 @@ export interface KernlHost {
   now?(): number;
 }
 
-// ─── Options and the shell ───
 
 export interface KernlOptions {
   readonly host: KernlHost;
