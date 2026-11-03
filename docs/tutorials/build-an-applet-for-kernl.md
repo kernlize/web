@@ -29,17 +29,17 @@ Put a domain in `requires` only if your applet is useless without it. Every requ
 
 The shell boots every applet in `strict`. The numbers are in [Guard](../concepts/guard.md#profiles); the behaviours you will notice:
 
-**Deferral when hidden.** When your window is minimised or on an inactive workspace, envelopes in most classes are queued, not dispatched, and drained when the window is visible again. Your `await` resolves late, not with an error. Design for it: do not time out a request after a few seconds, and do not assume a subscription delivers while you are hidden. Up to 200 envelopes are held; more are rejected with `flood:hidden`.
+**Deferral when hidden.** When your window is minimised or on an inactive workspace, every envelope except `control` traffic (`shell.*`, `theme.*`, `identity.*`, `relay.close`, `storage.get`, …) is held, not dispatched, and released oldest first when the window is visible again. Your `await` resolves late, not with an error. Design for it: do not time out a request after a few seconds, and do not assume a subscription delivers while you are hidden. Up to 200 envelopes are held; the 201st is rejected with `defer:queue-full`.
 
-**Hidden resource allowance.** A hidden window may make 8 `resource.*` requests before it is quarantined. Fetch what you need while visible.
+**Hidden resource allowance.** A hidden window may make 8 `resource.*` requests; the ninth quarantines the window with `flood:hidden-resource` until the user releases it. The count resets as soon as the window is visible again. Fetch what you need while visible.
 
-**Rate limits by operation class.** Each class (`relay:subscribe`, `relay:publish`, `outbox:publish`, `resource:bytes`, `storage:write`, `dm:send`, `intent:invoke` and others) has its own token bucket per window. While unfocused, capacity is multiplied by 0.25. A rejected envelope carries a stable reason such as `rate:relay:publish`.
+**Rate limits by operation class.** Each class has its own token bucket, keyed by your applet's `dTag`, so two windows of your applet share one budget. In `strict`: 30 `relay.subscribe` and 20 `relay.publish` per minute, 5 deletions (kind 5) per minute, 20 `dm.send` and 10 `intent.*` per minute, 120 `resource.*` and 60 `storage.set`/`storage.remove` per 10 seconds. While your window is not focused, capacity is multiplied by 0.25. A rejected envelope carries a stable reason such as `rate:relay:publish`.
 
-**Ingress flood control.** More than 8 messages per second queues; a queue over 64 rejects; 300 messages in 10 seconds quarantines the window until the user intervenes. Batch your writes and coalesce your subscriptions.
+**Ingress flood control.** Each window may send 8 messages per second; the ninth inside the same second is queued (`flood:burst`) and released as the budget refills, `control` and `resource.*` envelopes first. Once 64 messages are queued, further ones are rejected with `flood:queue-full`; 300 messages inside any rolling 10 seconds quarantines the window with `flood:quarantine` until the user intervenes. Batch your writes and coalesce your subscriptions.
 
-**Envelope caps.** `resource.*` envelopes over 64 KiB and `relay.subscribe`/`outbox.subscribe` envelopes over 256 KiB are rejected before parsing. Large filters are a smell; split them.
+**Envelope caps.** `resource.*` envelopes over 64 KiB and `relay.subscribe`/`outbox.subscribe` (including `outbox.query`) envelopes over 256 KiB are rejected with `size:<class>` before parsing. Large filters are a smell; split them.
 
-**Init-burst guard.** A burst of operations during initialisation is blocked by kehto's firewall. Load lazily: request the first screen, render, then fetch the rest.
+**No init-burst exemption.** kehto's own init-burst guard is not what runs here: kernl enforces the same 8 messages per second from the first message your applet sends. Load lazily: request the first screen, render, then fetch the rest.
 
 **Consent for destructive kinds.** Publishing kind 0, 3, 5 or 10002 shows the user a diff of what changes and waits. Expect the publish to take as long as a person takes to read, and expect `denied:` if they refuse.
 
@@ -50,20 +50,25 @@ None of this changes the wire format. A rejection is a normal NAP error envelope
 You can exercise the guard without the full shell. `@kernl/guard` is pure, and the mock shell in `@napplet/conformance` can be wrapped with it:
 
 ```ts
-import { createIngressGuard, createVisibilityGate, profiles } from '@kernl/guard';
+import { createGuardConfig, createIngressGuard, createVisibilityGate, type GuardEvent } from '@kernl/guard';
 
-const config = profiles.strict;
-const guard = createIngressGuard(config, { now: () => performance.now() });
-const gate = createVisibilityGate(config);
+const events: GuardEvent[] = [];
+const config = createGuardConfig('strict');
+const guard = createIngressGuard({ config, onEvent: (event) => events.push(event) });
+const gate = createVisibilityGate({ config, onEvent: (event) => events.push(event) });
 
 gate.setVisibility('w1', { visible: false, focused: false });
-guard.admit('w1', 'my-applet', { type: 'relay.subscribe', size: 512 }, gate.getVisibility('w1'));
-// → 'defer'
+if (gate.shouldDefer('w1', 'relay:subscribe')) gate.defer('w1', { type: 'relay.subscribe', size: 512 });
+// held; gate.drain('w1') returns it once the window is visible again
 
 gate.setVisibility('w1', { visible: true, focused: true });
-for (let i = 0; i < 9; i += 1) guard.admit('w1', 'my-applet', { type: 'relay.publish', kind: 1 }, gate.getVisibility('w1'));
-// the ninth call within one second → 'defer' (queued), not 'pass'
+for (let i = 0; i < 9; i += 1) {
+  guard.admit('w1', 'my-applet', { type: 'relay.publish', kind: 1 }, gate.getVisibility('w1'));
+}
+// the ninth call inside one second returns 'defer' and emits { disposition: 'defer', reason: 'flood:burst' }
 ```
+
+Pass `now: () => clock` to both factories to drive time from the test instead of the wall clock. `createFocusFirewall({ config })` adds the per-class rates on top; its `observe()` returns kehto's `EvaluateResult`.
 
 Scenarios worth writing for your own applet:
 

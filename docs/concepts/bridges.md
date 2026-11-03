@@ -4,24 +4,25 @@ Nostr is kernl's identity and resolution layer. It is not the only protocol kern
 
 ## Locators
 
-A `Locator` is a parsed address: a lowercase `scheme` without the colon, the `raw` string, and scheme-specific `fields`.
+A `Locator` is a parsed address: a lowercase `scheme` without the colon, the `raw` string, and scheme-specific `fields`, each a string or a list of strings. `parseLocator(uri)` produces it.
 
-| Scheme | Fields | Example |
+| Scheme | Fields | Notes |
 | --- | --- | --- |
-| `https` | `host`, `path` | `https://example.org/file.bin` |
-| `magnet` | `infoHash`, `displayName`, `trackers` (list) | `magnet:?xt=urn:btih:…&dn=…&tr=…` |
-| `nzb` | `url` | `nzb:https://indexer.example/get/…` |
-| `slsk` | `user`, `path` | `slsk://user/path/to/file` |
-| `mailto` | `address`, `subject` | `mailto:someone@example.org?subject=Hello` |
+| `https`, `http`, `ws`, `wss` | `origin`, `host` (with port when present), `path` (pathname plus query, no fragment) | `HTTPS://Example.com:8443/a/b?c=1#frag` gives scheme `https`, origin `https://example.com:8443`, host `example.com:8443`, path `/a/b?c=1`. A web URL whose path ends in `.nzb` is parsed as an `nzb` locator instead. |
+| `magnet` | `infoHash` (40 lowercase hex; a 32-character base32 hash is normalised to hex), `name` (from `dn`, absent when not given), `trackers` (list from every `tr`), `webSeeds` (list from every `ws`) | A magnet without a `urn:btih:` hash of either length fails with `invalid:magnet-missing-hash`. |
+| `nzb` | `url` (the `http:` or `https:` document URL), `name` (the URL's `name` query parameter, else its last path segment, decoded) | Two spellings: `nzb://` followed by the URL-encoded document URL, or any web URL ending in `.nzb`. A wrapped URL with another scheme fails with `invalid:locator`. |
+| `slsk` | `user`, `path` (both decoded) | `slsk://user/path/to/file`. Both parts are required; `slsk://ada`, `slsk://ada/` and `slsk:///path` fail with `invalid:locator`. |
+| `mailto` | `address` (the decoded address part as written), `addresses` (list split on `,` and trimmed), `subject` and `body` (only when present) | `mailto:?subject=Hello` fails with `invalid:locator`. |
+| anything else | none | `ftp://files.example/pub/x` is a locator with scheme `ftp` and no fields; the registry will report `unavailable:no-bridge` for it. |
 
-`parseLocator(uri)` rejects anything else with `invalid:scheme` and rejects a well-formed scheme with missing fields with `invalid:<field>`. Plain `http:` is not a scheme kernl resolves.
+Strings without a scheme (`just words`, `/relative/path`, `1abc:not-scheme`, the empty string) fail with `invalid:locator`. `isNzbUrl(url)` is the test the parser uses for the `.nzb` route. `formatLocator(locator)` returns a label without the scheme: the magnet `name` or else the hash, the NZB `name`, the last segment of the Soulseek path or else the user, the mail addresses joined with `, `, the web `host`, or the raw string after its scheme for unknown schemes. See `locators.feature`.
 
 ## The bridge contract
 
 ```ts
 interface Bridge {
   readonly id: string;                 // 'http' | 'torrent' | 'nzb' | 'soulseek' | 'mail'
-  readonly label: string;              // 'downloads' | 'mail'
+  readonly label: string;              // 'downloads' | 'sharing' | 'mail'
   readonly schemes: readonly string[];
   readonly exposure: BridgeExposure;
   availability(): BridgeAvailability;
@@ -39,53 +40,93 @@ interface Bridge {
 
 ## Exposure descriptions
 
-The user sees a bridge before they use it, and what they see is its `BridgeExposure`: three booleans, rendered as plain sentences.
+The user sees a bridge before they use it, and what they see is its `BridgeExposure`: three booleans, rendered as plain sentences by `describeBridge`.
 
-| Field | Question it answers |
-| --- | --- |
-| `revealsAddress` | Does the remote party learn the user's network address? |
-| `encryptedInTransit` | Is the transfer encrypted on the wire? |
-| `publicActivity` | Can other participants see what the user is fetching? |
+| Field | Row label | Question it answers |
+| --- | --- | --- |
+| `revealsAddress` | Shares your network address | Does the remote party learn the user's network address? |
+| `encryptedInTransit` | Encrypted in transit | Is the transfer encrypted on the wire? |
+| `publicActivity` | Activity visible to others | Can other participants see what the user is fetching? |
 
-The HTTP bridge declares `revealsAddress: true`, `encryptedInTransit: true` (it refuses plain `http:`) and `publicActivity: false`. A torrent bridge would declare `publicActivity: true` because a swarm is public by construction. These are descriptions, not scores; like messaging providers, bridges are not ranked.
+`describeBridge(bridge)` returns, in order: `Used for` (the label), `Status` (`ready`, or `not available` followed by a `Reason` row with the bare reason such as `no-backend`), then the three exposure rows as `yes`/`no`. No row names a protocol. These are descriptions, not scores; like messaging providers, bridges are not ranked. See `describe.feature`.
 
 ## The registry and consent
 
-The shell holds one `BridgeRegistry`:
+The shell holds one `BridgeRegistry`, built with `createBridgeRegistry({ authorize?, onResolve? })`:
 
-- `register(bridge)` adds a bridge; `forScheme(scheme)` finds the one that serves a scheme.
-- `resolve(uri, context)` parses, routes, authorises and resolves. It rejects with `invalid:` from the parser, `unavailable:` from a bridge without a backend, or `denied:` from the authoriser.
+- `register(bridge)` adds a bridge. A second bridge with the same id throws `invalid:duplicate-bridge <id>`; a bridge claiming a scheme another bridge serves throws `invalid:scheme-taken <scheme>`. Schemes are compared lowercase with any trailing colon removed.
+- `forScheme(scheme)` finds the bridge that serves a scheme, with the same normalisation (`NZB:` finds the `nzb` bridge).
+- `resolve(uri, context)` parses, routes, checks availability, authorises and resolves, in that order, and stops at the first failure.
 
-The authoriser is a `BridgeAuthorizer`: `(locator, bridge, context) => boolean | Promise<boolean>`. kernl's shell wires a consent prompt here that shows the user the locator, the bridge's label and exposure, and which applet asked. Allowing a request from an applet is a grant keyed by that applet's identity and the locator's host, and it is listed and revocable like every other grant.
+| Step | Failure reason | `BridgeResolveEvent.bridge` |
+| --- | --- | --- |
+| parse | `invalid:locator`, `invalid:magnet-missing-hash` | `none`, scheme `""` |
+| route | `unavailable:no-bridge` | `none` |
+| availability | `unavailable:<reason>` from the bridge | the bridge id |
+| authorise | `denied:bridge` | the bridge id |
+| resolve | whatever the bridge threw (`denied:…`, `unavailable:…`, `invalid:…`); a non-`Error` rejection is reported as its text | the bridge id |
+
+Every outcome, successful or not, is reported to `onResolve` as `{ bridge, scheme, ok, reason? }`. The authoriser is a `BridgeAuthorizer`: `(locator, bridge, context) => boolean | Promise<boolean>`. Without one, every request is allowed. kernl's shell wires a consent prompt here that shows the user the locator's label, the bridge's description rows and which applet asked. Allowing a request from an applet is a grant keyed by that applet's identity and the locator's host, and it is listed and revocable like every other grant. See `registry.feature`.
 
 ## The HTTP bridge
 
-The HTTP bridge is complete in this draft and serves the `resource` NAP domain. Its `HttpPolicy` is fixed:
+`createHttpBridge({ policy?, fetch?, resolveHost? })` is complete and serves the `resource` NAP domain. Its id is `http`, its label `downloads`, and its `HttpPolicy` is `DEFAULT_HTTP_POLICY` with any `policy` overrides merged in:
 
-| Field | Value | Why |
+| Field | Default | Why |
 | --- | --- | --- |
-| `allowedSchemes` | `['https']` | Plain HTTP would make `encryptedInTransit` a lie. |
-| `maxRedirects` | 3 | Enough for a CDN hop; too few for a redirect loop to be useful. |
-| `maxBytes` | 10 MiB | Larger payloads belong to a `job` bridge, not to an applet's memory. |
-| `timeoutMs` | 20 000 | A slow origin should fail visibly, not hold the window's resource budget. |
+| `allowedSchemes` | `['https:']` (`URL.protocol` form, colon included) | Plain HTTP would make `encryptedInTransit` a lie. |
+| `maxRedirects` | `3` | Enough for a CDN hop; too few for a redirect loop to be useful. |
+| `maxBytes` | `10485760` (10 MiB) | Larger payloads belong to a `job` bridge, not to an applet's memory. |
+| `timeoutMs` | `20000` | A slow origin should fail visibly, not hold the window's resource budget. |
 | `allowPrivateHosts` | `[]` | Private-address block on by default. |
 
-The private-address block refuses hosts that resolve to loopback, link-local, RFC 1918, unique-local or metadata ranges, and re-checks after every redirect so a public hostname cannot bounce the request to a private one. A hostname listed in `allowPrivateHosts` is exempt; the list is empty unless the user adds to it, and adding is a shell setting, not an applet request.
+The bridge's `schemes` and `exposure` follow the policy: with the default it serves `https` only and declares `revealsAddress: true`, `encryptedInTransit: true`, `publicActivity: false`. A shell that adds `'http:'` to `allowedSchemes` gets a bridge that serves `https` and `http` and declares `encryptedInTransit: false` (`http-bridge.feature`, scenario "the shell can admit the unencrypted scheme and the bridge says so").
 
-The bridge streams the `Response` and counts bytes as they arrive; crossing `maxBytes` aborts the stream and rejects with `denied:max-bytes`. The guard's `hiddenResourceAllowance` and `maxResourceEnvelopeBytes` apply before the request reaches the bridge.
+Before every request, including every redirect hop, the bridge checks the URL. A scheme outside the policy fails with `denied:scheme <protocol>`. A host that `isBlockedHostname` or `isPrivateAddress` recognises fails with `denied:private-address <host>`, unless it is listed in `allowPrivateHosts`. When `resolveHost` is supplied, the host's addresses are checked too and a private one fails with `denied:private-address <host> -> <ip>`. The fetch API cannot pin a connection to a validated address, so the resolver check narrows the DNS-rebinding window without closing it; the shell closes it by also fetching through a guard that resolves names once.
 
-## Backend interfaces
+| Check | Blocked |
+| --- | --- |
+| `isPrivateAddress`, IPv4 | `0.0.0.0/8`, `10.0.0.0/8`, `100.64.0.0/10`, `127.0.0.0/8`, `169.254.0.0/16`, `172.16.0.0/12`, `192.168.0.0/16`, `224.0.0.0/3` (multicast, reserved and broadcast) |
+| `isPrivateAddress`, IPv6 | `::` and `::1`, `fe80::/10`, `fc00::/7`, `ff00::/8`; brackets are stripped; an IPv4-mapped address (`::ffff:127.0.0.1`) is judged as its IPv4 part |
+| `isBlockedHostname` | `localhost` and any name under `.localhost`, `.local` or `.internal`, case-insensitively, trailing dot ignored |
 
-Four bridges ship as parsers plus a backend interface and no backend. Without a backend, `availability()` returns `{ available: false, reason: 'unavailable:no-backend' }` and the shell shows the bridge greyed with that reason. Nothing pretends to work.
+Strings that are neither a valid IPv4 nor a valid IPv6 literal (`1.2.3`, `256.1.1.1`, `1::2::3`, `example.com`) are not addresses and pass `isPrivateAddress`; a hostname is judged by `isBlockedHostname` and, if a resolver is present, by what it resolves to.
 
-| Bridge id | Label | Scheme | Backend interface | Method |
-| --- | --- | --- | --- | --- |
-| `torrent` | `downloads` | `magnet` | `TorrentBackend` | `add(infoHash, trackers, context) → { id, name }` |
-| `nzb` | `downloads` | `nzb` | `NzbBackend` | `add(url, context) → { id, name }` |
-| `soulseek` | `downloads` | `slsk` | `SoulseekBackend` | `download(user, path, context) → { id, name }` |
-| `mail` | `mail` | `mailto` | `MailBackend` | `open(address, subject, context) → { id }` |
+Redirects (`301`, `302`, `303`, `307`, `308`) are followed manually, so each hop passes the same checks. More than `maxRedirects` hops fails with `denied:too-many-redirects`; a redirect without a usable `Location` fails with `invalid:redirect`. Requests race `AbortSignal.timeout(timeoutMs)` and the caller's signal: the time limit fails with `unavailable:timeout`, a caller cancel with `unavailable:aborted`, any other fetch failure with `unavailable:network <message>`. Caller headers are forwarded on every hop.
 
-Supplying one is a shell change plus a docs change; see [Add a bridge backend](../how-tos/add-a-bridge-backend.md). The order in which backends are planned is in the [Roadmap](../roadmap.md).
+A response whose `content-length` exceeds `maxBytes` fails with `denied:too-large` before the body is read. Otherwise the `Response` is returned with its status and headers, and its body is streamed through a counter that errors the stream with `denied:too-large` the moment the limit is crossed. The guard's `hiddenResourceAllowance`, `maxResourceEnvelopeBytes` and `resource:bytes` rate apply before the request reaches the bridge.
+
+## Backend-driven bridges
+
+Four bridges are complete up to the backend interface they call, and ship without a backend. Without one, `availability()` returns `{ available: false, reason: 'no-backend' }`, `describeBridge` shows `Status: not available` and `Reason: no-backend`, and `resolve()` rejects with `unavailable:no-backend`. Nothing pretends to work.
+
+| Bridge id | Label | Scheme | Reveals address | Encrypted in transit | Public activity | Backend interface | Call made |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `torrent` | `downloads` | `magnet` | yes | no | yes | `TorrentBackend` | `add(infoHash, trackers, context) → { id, name }` |
+| `nzb` | `downloads` | `nzb` | yes | yes | no | `NzbBackend` | `add(url, context) → { id, name }` |
+| `soulseek` | `sharing` | `slsk` | yes | no | yes | `SoulseekBackend` | `download(user, path, context) → { id, name }` |
+| `mail` | `mail` | `mailto` | no | yes | no | `MailBackend` | `open(address, subject \| undefined, context) → { id }` |
+
+The first three return `{ kind: 'job', id, label: name }`; the mail bridge returns `{ kind: 'conversation', id, participants: addresses }`. Fields are read from the locator before the backend is called; a locator missing one rejects with `invalid:locator-missing-<field>` (`backend-bridges.feature`, scenario "a locator missing a required field is rejected before the backend is called"). Supplying a backend is a shell change plus a docs change; see [Add a bridge backend](../how-tos/add-a-bridge-backend.md). The order in which backends are planned is in the [Roadmap](../roadmap.md).
+
+## The resource resolver
+
+kehto's resource service takes a `fetch(url, init)` function. `createBridgeResourceResolver(registry, { requesterFor? })` returns one over the registry. The requester is `init.requester` when the service names it, else `requesterFor(init)` when the shell supplied a way to derive it (for example from the window id), else `'shell'`. `init.signal` and `init.headers` reach the bridge. A `bytes` result is returned as its `Response`; a `job` or `conversation` result becomes `Response.json(result, { status: 202 })` so the caller can show progress; a failure rejects with the registry's prefixed reason, which the service maps to its error envelope. See `resource-resolver.feature`.
+
+## Error reasons
+
+| Reason | Thrown by |
+| --- | --- |
+| `invalid:locator` | `parseLocator` for anything that is not a locator or a malformed web, NZB, Soulseek or mail locator |
+| `invalid:magnet-missing-hash` | `parseLocator` for a magnet without a `urn:btih:` hash |
+| `invalid:locator-missing-<field>` | a backend-driven bridge whose locator lacks `infoHash`, `url`, `user`, `path` or `address` |
+| `invalid:duplicate-bridge <id>`, `invalid:scheme-taken <scheme>` | `BridgeRegistry.register` |
+| `invalid:redirect` | HTTP bridge, redirect without a usable `Location` |
+| `unavailable:no-bridge` | `BridgeRegistry.resolve`, no bridge serves the scheme |
+| `unavailable:no-backend` | a backend-driven bridge without a backend (`availability().reason` is the bare `no-backend`) |
+| `unavailable:timeout`, `unavailable:aborted`, `unavailable:network <message>` | HTTP bridge |
+| `denied:bridge` | `BridgeRegistry.resolve`, the authoriser said no |
+| `denied:scheme <protocol>`, `denied:private-address <host>`, `denied:private-address <host> -> <ip>`, `denied:too-many-redirects`, `denied:too-large` | HTTP bridge |
 
 ## Why bridges are shell-owned
 

@@ -4,10 +4,10 @@ A provider is a package change plus a docs page. This how-to adds a provider cal
 
 ## 1. Describe it truthfully
 
-Start with the properties, because they are the contract with the user. Every field is required and the shell shows all of them.
+Start with the properties, because they are the contract with the user. Every field is required and the shell shows all of them through `describeProvider`.
 
 ```ts
-import type { SecurityProperties } from '@kernl/messaging';
+import type { ProviderDefinition, SecurityProperties } from '@kernl/messaging';
 
 export const EXAMPLE_PROPERTIES: SecurityProperties = {
   forwardSecrecy: false,
@@ -18,79 +18,117 @@ export const EXAMPLE_PROPERTIES: SecurityProperties = {
   specification: 'https://example.org/spec',
   experimental: true,
 };
+
+export const EXAMPLE_DEFINITION: ProviderDefinition = {
+  id: 'example',
+  name: 'Example messages',
+  description: 'Messages readable by other people using this shell.',
+  properties: EXAMPLE_PROPERTIES,
+};
 ```
 
-If you are unsure whether a property holds, it does not. A provider that overstates its protection fails the review, however good its code is.
+If you are unsure whether a property holds, it does not. A provider that overstates its protection fails the review, however good its code is. `name` and `description` are shown in the public UI, so they follow the [public vocabulary](../policies/public-vocabulary.md): no protocol names. `specification` is where the protocol name goes; `describeProvider` never renders it.
 
 ## 2. Implement the backend
 
-A `MessagingBackend` has six methods and an optional `close`. Ids you return are provider-local; the composite prefixes them. Timestamps and types come from `@napplet/core`.
+A `MessagingBackend` has six methods and an optional `close`. Ids you return are provider-local; the composite prefixes them with `example:`. Wire types come from `@napplet/core`. The backend talks to whatever the shell hands it; here that is a small `ExampleDeps` object so the sample stays free of any relay library.
 
 ```ts
+import type { DmMessage, DmSendRequest, DmSendResult } from '@napplet/core';
 import type { MessagingBackend } from '@kernl/messaging';
-import type { EventStore } from 'applesauce-core';
-import type { RelayPool } from 'applesauce-relay';
 
 export interface ExampleDeps {
-  store: EventStore;
-  pool: RelayPool;
-  ownerPubkey: string;
-  sign: (template: EventTemplate) => Promise<NostrEvent>;
+  readonly ownerPubkey: string;
+  readonly publish: (request: DmSendRequest) => Promise<DmMessage>;
+  readonly history: (conversationId: string) => readonly DmMessage[];
+  readonly onIncoming: (listener: (message: DmMessage) => void) => () => void;
 }
 
 export function createExampleBackend(deps: ExampleDeps): MessagingBackend {
+  const subscriptions = new Map<string, () => void>();
+  let count = 0;
   return {
-    status: () => ({ available: true, ownerPubkey: deps.ownerPubkey, implementations: ['example'], capabilities: ['send', 'subscribe'] }),
-    conversations: async (query) => { /* read from deps.store */ },
-    messages: async (query) => { /* read from deps.store, page by query.cursor */ },
-    send: async (request) => { /* build, sign through deps.sign, publish through deps.pool */ },
-    subscribe: async (request, onMessage) => { /* subscribe on deps.store, return { subscriptionId } */ },
-    unsubscribe: async (subscriptionId) => ({ ok: true }),
-    close: () => { /* drop subscriptions */ },
+    status: () => ({ available: true, ownerPubkey: deps.ownerPubkey, implementations: ['example'], capabilities: ['send', 'receive', 'subscribe', 'history'] }),
+    conversations: () => ({ conversations: [] }),
+    messages: (query) => ({ messages: [...deps.history(query.conversationId)] }),
+    async send(request): Promise<DmSendResult> {
+      if (request.recipients.length === 0) throw new Error('invalid:no-recipients');
+      return { ok: true, message: await deps.publish(request) };
+    },
+    subscribe(request, onMessage) {
+      count += 1;
+      const subscriptionId = `example-${count}`;
+      subscriptions.set(
+        subscriptionId,
+        deps.onIncoming((message) => {
+          if (request.conversationId === undefined || message.conversationId === request.conversationId) onMessage(message);
+        }),
+      );
+      return { subscriptionId };
+    },
+    unsubscribe(subscriptionId) {
+      const stop = subscriptions.get(subscriptionId);
+      stop?.();
+      return { ok: subscriptions.delete(subscriptionId) };
+    },
+    close() {
+      for (const stop of subscriptions.values()) stop();
+      subscriptions.clear();
+    },
   };
 }
 ```
 
 Rules the backend must keep:
 
-- Read from the shared `EventStore`; do not open a second relay connection outside the shared `RelayPool`.
+- Read from the shell's shared `EventStore`; do not open a second relay connection outside the shared `RelayPool`. The shell passes both to your deps.
 - Sign only through the function the shell injects. Never touch key bytes.
 - Reject with stable reasons: `denied:`, `invalid:`, `unavailable:`.
-- Return `{ close() }`-style handles for anything long-lived.
+- `subscribe` returns `{ subscriptionId }`; `unsubscribe` of an unknown id returns `{ ok: false }`; `close` drops every subscription. Every method except `send` may be synchronous.
+- Page with `cursor` and `limit`. The composite passes your cursor through when you are the only enabled provider, so make it a string you can resume from.
 
-## 3. Implement the provider
+Use `createMemoryBackend` as the reference for the semantics the features expect, and as the backend in your own tests.
+
+## 3. Build the provider with `defineProvider`
+
+The registry calls `createBackend()` once per enable and `available()` whenever it needs to know. Both are injected, so this package never learns what a session is:
 
 ```ts
-import type { MessagingProvider } from '@kernl/messaging';
+import { defineProvider, type ProviderDeps } from '@kernl/messaging';
 
-export function createExampleProvider(deps: () => ExampleDeps | undefined): MessagingProvider {
+export function exampleDeps(resolve: () => ExampleDeps | undefined): ProviderDeps {
   return {
-    id: 'example',
-    name: 'Example messages',
-    description: 'Messages readable by other people using this shell.',
-    properties: EXAMPLE_PROPERTIES,
-    availability: () => (deps() ? { available: true } : { available: false, reason: 'unavailable:example-runtime' }),
-    createBackend: () => createExampleBackend(deps()!),
+    createBackend: () => {
+      const deps = resolve();
+      if (!deps) throw new Error('unavailable:signed-out');
+      return createExampleBackend(deps);
+    },
+    available: () => (resolve() ? { available: true } : { available: false, reason: 'signed-out' }),
   };
 }
+
+const provider = defineProvider(EXAMPLE_DEFINITION, exampleDeps(() => currentSessionDeps()));
 ```
 
-`name` and `description` are shown in the public UI, so they follow the [public vocabulary](../policies/public-vocabulary.md): no protocol names. `specification` is where the protocol name goes.
+The `reason` is a bare word. The registry prefixes it: `enable('example')` throws `unavailable:signed-out`, and `list()` reports `{ available: false, reason: 'signed-out' }` so the picker can grey the provider and say why.
+
+The three built-ins (`createPrivateMessagesProvider`, `createLegacyMessagesProvider`, `createRatchetMessagesProvider`) are exactly this shape: a fixed definition in the package, `ProviderDeps` from the shell. If your provider ships in `@kernl/messaging`, add `createExampleMessagesProvider(deps: ProviderDeps)` next to them in `packages/messaging/src/providers/` and export it from `providers/index.ts`.
 
 ## 4. Register it
 
-In `@kernl/core`, `createKernl` builds the registry. Add the provider where the three existing ones are registered:
+In `@kernl/core`, `createKernl` builds the registry and registers the three existing providers. Add yours there:
 
 ```ts
-registry.register(createExampleProvider(() => exampleDeps));
+registry.register(provider);
 ```
 
-Registration does not enable. The user enables it in the provider picker, which calls `registry.enable('example')`; `availability()` is checked there and an `unavailable:` reason is shown if it fails.
+Registration does not enable, unless the user's saved preferences already list `example`; then it is enabled on registration if `available()` agrees, and left disabled otherwise. The user enables it in the provider picker, which calls `registry.enable('example')`. Registering the same id twice throws `invalid:duplicate-provider`. See `registry.feature`, scenarios "a registered provider starts disabled" and "saved preferences enable providers as they register".
 
 ## 5. Specify and document
 
-- Add `packages/messaging/features/providers/example.feature` with scenarios for: properties are reported verbatim; ids are namespaced `example:<innerId>`; sending without a conversation and with `provider: 'example'` routes here; disabling closes the backend. Step definitions go in `features/steps/`.
-- Add a row to the providers table in [Messaging](../concepts/messaging.md) and a line to `packages/messaging` on the [package page](../packages/messaging.md).
+- Add the provider to the `Scenario Outline` in `packages/messaging/features/providers.feature` ("the built-in providers carry fixed copy and properties") with its name, description, six properties and specification, and a scenario that `describeProvider` rows name no protocol. Step definitions live in `packages/messaging/features/steps/`.
+- If the backend lives in a package, give it a feature file modelled on `memory-backend.feature`: sends create conversations, delivered messages are unread, subscriptions filter by conversation, cursors resume.
+- Add a row to the providers table in [Messaging](../concepts/messaging.md#the-three-providers) and a line to the providers table on the [package page](../packages/messaging.md#providers).
 - Add a changeset for `@kernl/messaging` (and `@kernl/core` if you touched registration).
 
-`pnpm test` must stay at 100% coverage over `packages/*/src`, and `pnpm docs:check` must pass. A provider without the feature file or the docs row is not shipped.
+`pnpm test` must stay at 100% coverage over `packages/*/src`, and `pnpm docs:check` must pass. A provider without the feature rows or the docs rows is not shipped.
