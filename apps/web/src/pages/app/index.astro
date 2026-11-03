@@ -1,14 +1,21 @@
 ---
 import Site from '../../layouts/Site.astro';
+import Shell from '../../shell/Shell.svelte';
 
 const description =
   'The kernl shell. Open an applet by its address and run it in a sealed sandbox, with your identity, contacts and messages on loan only while you watch.';
 ---
 
 <Site title="Shell" description={description} bare>
+  <Fragment slot="head">
+    <meta http-equiv="Content-Security-Policy" content="frame-src 'none'" />
+  </Fragment>
   <section class="shell" aria-labelledby="shell-title">
     <h1 id="shell-title" class="visually-hidden">kernl shell</h1>
-    <div id="shell-root"></div>
+    <div id="shell-root">
+      <Shell client:only="svelte" />
+      <noscript><p>The shell needs scripts to run applets. Enable them and reload.</p></noscript>
+    </div>
   </section>
 </Site>
 

@@ -44,6 +44,7 @@ const fullTitle = title === SITE_NAME ? `${SITE_NAME} · a shell for applets you
     <meta name="twitter:image" content={ogImage} />
     <meta name="theme-color" content="#0c0e11" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)" />
+    <slot name="head" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

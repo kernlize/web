@@ -9,6 +9,15 @@
     "preview": "astro preview --host 127.0.0.1",
     "check": "astro check"
   },
+  "dependencies": {
+    "@kernl/bridges": "workspace:^",
+    "@kernl/core": "workspace:^",
+    "@kernl/guard": "workspace:^",
+    "@kernl/messaging": "workspace:^",
+    "applesauce-accounts": "^7.0.2",
+    "applesauce-signers": "^7.0.1",
+    "rxjs": "^7.8.2"
+  },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
     "@astrojs/sitemap": "^3.7.4",
