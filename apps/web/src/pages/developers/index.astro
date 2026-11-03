@@ -52,7 +52,7 @@ const description =
       <ol class="steps reveal">
         <li><h3>A sealed window</h3><p>Your code runs in a frame with no origin and a policy that blocks every direct network call. Draw, compute, and talk to the shell over its message port.</p></li>
         <li><h3>Grants, not permissions</h3><p>Ask for the domains you need. The shell narrows what it advertises to what the user has granted, shows every write as what it changes, and lets the user take a grant back.</p></li>
-        <li><h3>The strict profile</h3><p>Rate limits, size caps, hidden-window deferral and focus-aware tightening are on. Design for them: batch requests, do less when hidden, and expect a refusal to carry a stable reason you can show.</p></li>
+        <li><h3>The strict profile</h3><p>Rate limits, size caps, a hidden-window download allowance and focus-aware tightening are on. Design for them: batch requests, do less when hidden, and expect a refusal to carry a stable reason you can show.</p></li>
         <li><h3>Verified bytes</h3><p>Your applet is identified by the hash of its content. Ship a new version and it is a new identity with fresh grants. That is deliberate.</p></li>
         <li><h3>Messaging across providers</h3><p>One messaging surface spans every provider the user enabled. You do not pick the provider; the user does, and your applet works either way.</p></li>
       </ol>

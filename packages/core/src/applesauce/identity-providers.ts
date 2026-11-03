@@ -66,6 +66,28 @@ function mutedPubkeys(event: NostrEvent): string[] {
 }
 
 /**
+ * The applesauce address loader kernl uses for replaceable and addressable
+ * events the store does not hold: it asks the pointer's relays, then the
+ * discovery tier, and adds what it finds to the store.
+ *
+ * @param store - The shell's single event store.
+ * @param pool - The shared applesauce pool.
+ * @param tiers - Relay tiers; the discovery tier is the lookup fallback.
+ * @returns A loader for {@link createIdentityProviders} and `lookupReplaceable`.
+ * @example
+ * ```ts
+ * const loader = createReplaceableLoader(eventStore, pool, tiers);
+ * const lookupBefore = lookupReplaceable(eventStore, { loader, relays: () => tiers.get().outbox });
+ * ```
+ */
+export function createReplaceableLoader(store: EventStore, pool: ApplesaucePool, tiers: RelayTiers): AddressPointerLoader {
+  return createAddressLoader((relays, filters) => pool.request(relays, filters), {
+    eventStore: store,
+    lookupRelays: tiers.changes$.pipe(map((config) => [...config.discovery])),
+  });
+}
+
+/**
  * Host-backed identity lookups for kehto's `createIdentityService`.
  *
  * Profile, follows, relays and mutes are read from the shell's `EventStore`
@@ -85,10 +107,7 @@ function mutedPubkeys(event: NostrEvent): string[] {
  * ```
  */
 export function createIdentityProviders(store: EventStore, pool: ApplesaucePool, tiers: RelayTiers, options: IdentityProviderOptions = {}): IdentityProviders {
-  const loader = options.loader ?? createAddressLoader((relays, filters) => pool.request(relays, filters), {
-    eventStore: store,
-    lookupRelays: tiers.changes$.pipe(map((config) => [...config.discovery])),
-  });
+  const loader = options.loader ?? createReplaceableLoader(store, pool, tiers);
 
   async function replaceable(kind: number, pubkey: string): Promise<NostrEvent | undefined> {
     const cached = store.getReplaceable(kind, pubkey);

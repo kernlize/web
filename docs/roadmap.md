@@ -8,8 +8,8 @@ None is filed yet. Each item shrinks kernl when it lands; see [Alpha status](./a
 
 - Forward `getFocusContext`, `onFirewallEvent` and `firewallPersistence` through `ShellAdapter` so the runtime's own firewall can be focus-aware without a second engine in front of it.
 - Let the host choose the ACL default policy in `createRuntime`, so a restrictive shell does not have to write every capability explicitly.
-- Offer a pre-dispatch hook on port traffic, so the visibility gate can hold a hidden applet's envelopes instead of observing them after dispatch.
-- Expose a setter for the runtime firewall's `unfocusedMultiplier`, so the profile's focus tightening applies before dispatch as well as after.
+- Offer a hook that can hold or drop port traffic, so the visibility gate can hold a hidden applet's envelopes instead of only observing them before dispatch.
+- Expose a setter for the runtime firewall's `unfocusedMultiplier`. Together with the forwarded `getFocusContext`, it lets the runtime refuse an unfocused window at the profile's tightened budget instead of treating every window as focused.
 
 ## 2. Bridge backends
 

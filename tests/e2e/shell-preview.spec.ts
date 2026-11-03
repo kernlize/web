@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test';
+import type { FrameLocator, Page } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 const base = process.env.PLAYWRIGHT_BASE_URL ?? '';
 
@@ -37,25 +38,78 @@ test('the preview shell signs in, runs a sample applet, shows the guard and send
   await expect(page.locator('.messages li:not(.mine)')).toHaveCount(3, { timeout: 5000 });
 });
 
-test('the preview applet asks before publishing and the guard logs a flood', async ({ page }) => {
+async function runPulse(page: Page): Promise<FrameLocator> {
   await page.goto(`${base}/app/?preview=1`);
   await page.getByRole('button', { name: 'Try the preview' }).click();
   await page.getByRole('button', { name: 'Open an applet' }).click();
   await page.getByRole('listitem').filter({ hasText: 'Pulse' }).getByRole('button', { name: 'Open' }).click();
   await page.getByRole('checkbox', { name: /network/ }).check();
   await page.getByRole('button', { name: 'Run' }).click();
-
   const applet = page.frameLocator('iframe[data-window-id]');
   await expect(applet.getByRole('heading', { name: 'Pulse' })).toBeVisible();
+  return applet;
+}
+
+test('the preview asks only before destructive publishes, as the live shell does, and logs a flood', async ({ page }) => {
+  const applet = await runPulse(page);
+
   await applet.getByRole('button', { name: 'Publish a note' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Publish a note' });
+  await expect(applet.locator('#log li').first()).toContainText('Publish a note: done');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+
+  await applet.getByRole('button', { name: 'Delete a note' }).click();
+  const dialog = page.getByRole('dialog', { name: /^Delete/ });
   await expect(dialog).toBeVisible();
+  await expect(dialog.getByText('destructive')).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Deny' })).toBeFocused();
   await dialog.getByRole('button', { name: 'Allow' }).click();
   await expect(applet.locator('#log li').first()).toContainText('done');
 
+  await applet.getByRole('button', { name: 'Update your profile' }).click();
+  await expect(page.getByRole('dialog', { name: 'Update your profile' })).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: 'Deny' }).click();
+  await expect(applet.locator('#log li').first()).toContainText('you said no');
+
   await applet.getByRole('button', { name: 'Flood the shell' }).click();
   await expect(page.getByRole('button', { name: /^Guard/ })).not.toContainText('· 0');
   await page.getByRole('button', { name: /^Guard/ }).click();
-  await expect(page.getByRole('dialog').getByText(/Applet Pulse was slowed/).first()).toBeVisible();
+  await expect(page.getByRole('dialog').getByText(/Applet Pulse went over/).first()).toBeVisible();
+  // Observe-only: the guard reports the burst, the applet keeps running.
+  await expect(page.locator('section.window')).toHaveAttribute('data-status', 'running');
+});
+
+test('preview applets have no WebRTC constructors and carry the guard CSP', async ({ page }) => {
+  await runPulse(page);
+  const frame = page.frames().find((candidate) => candidate !== page.mainFrame());
+  expect(frame).toBeDefined();
+  const leftovers = await frame!.evaluate(() =>
+    Object.getOwnPropertyNames(window).filter((name) => /^(RTC|webkitRTC|mozRTC)/.test(name) && (window as unknown as Record<string, unknown>)[name] !== undefined),
+  );
+  expect(leftovers).toEqual([]);
+  const policy = await frame!.evaluate(() => document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.getAttribute('content') ?? '');
+  expect(policy).toContain("default-src 'none'");
+  expect(policy).toContain("connect-src 'none'");
+  const srcdoc = (await page.locator('iframe[data-window-id]').getAttribute('srcdoc')) ?? '';
+  expect(srcdoc.indexOf('Content-Security-Policy')).toBeLessThan(srcdoc.indexOf('RTC'));
+});
+
+test('the guard profile starts strict again after a reload', async ({ page }) => {
+  await page.goto(`${base}/app/?preview=1`);
+  await page.getByRole('button', { name: 'Try the preview' }).click();
+  await page.getByRole('button', { name: /^Guard/ }).click();
+  await page.getByRole('radio', { name: /relaxed/ }).check();
+  await expect(page.getByRole('button', { name: /^Guard/ })).toContainText('relaxed');
+  await page.reload();
+  await page.getByRole('button', { name: 'Try the preview' }).click();
+  await expect(page.getByRole('button', { name: /^Guard/ })).toContainText('strict');
+});
+
+test('the default window shows the whole sample applet', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const applet = await runPulse(page);
+  const last = applet.getByRole('button', { name: 'Open a link' });
+  const frameBox = await page.locator('iframe[data-window-id]').boundingBox();
+  const buttonBox = await last.boundingBox();
+  expect(frameBox && buttonBox).toBeTruthy();
+  expect(buttonBox!.y + buttonBox!.height).toBeLessThanOrEqual(frameBox!.y + frameBox!.height);
 });

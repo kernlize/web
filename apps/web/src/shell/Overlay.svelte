@@ -43,6 +43,7 @@
     max-height: calc(100% - 1rem);
     display: grid;
     grid-template-rows: auto 1fr;
+    grid-template-columns: minmax(0, 1fr);
     background: var(--bg-raised);
     border: 1px solid var(--line-strong);
     border-radius: var(--radius);
@@ -71,6 +72,36 @@
   .body {
     padding: 1rem 1.25rem 1.25rem;
     overflow: auto;
+    min-width: 0;
+  }
+
+  /* Narrow screens: every panel is a full-screen sheet over the desktop. */
+  @media (max-width: 720px) {
+    .backdrop {
+      padding: 0;
+      place-items: stretch;
+      overflow: hidden;
+    }
+
+    .panel,
+    .panel.wide {
+      width: 100%;
+      max-height: none;
+      height: 100%;
+      min-height: 0;
+      border-radius: 0;
+      border-width: 0;
+      animation: none;
+    }
+
+    header {
+      padding: 0.75rem 1rem 0.6rem;
+    }
+
+    .body {
+      padding: 0.75rem 1rem 1.5rem;
+      min-height: 0;
+    }
   }
 
   @keyframes rise {

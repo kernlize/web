@@ -1,3 +1,4 @@
+import { isReplaceable } from 'applesauce-core/helpers';
 import type { NostrEvent } from '@napplet/core';
 import type { AppletIdentity, ConsentLine, ConsentSummary } from '../types.js';
 
@@ -116,30 +117,72 @@ function isListKind(kind: number): boolean {
   return (kind >= 10000 && kind <= 10099) || (kind >= 30000 && kind <= 30099);
 }
 
-/** Kinds {@link describeChange} names explicitly as destructive; list kinds are added by range. */
-const DESTRUCTIVE_KINDS: ReadonlySet<number> = new Set([0, 3, 5, 10002]);
+/** Deletion request: erases the events and addresses it names. */
+const DELETION = 5;
+/** Request to vanish: asks services to erase everything the account published. */
+const VANISH = 62;
+/** The `relay` tag value a request to vanish uses to address every service. */
+const ALL_SERVICES = 'ALL_RELAYS';
 
 /**
- * Whether {@link describeChange} rates a kind `destructive`: profiles, follows,
- * deletions, the connections list and every list kind.
+ * Whether {@link describeChange} rates a kind `destructive`: every replaceable
+ * and addressable kind (signing one overwrites the version before it),
+ * deletions, and requests to vanish.
  *
  * @param kind - The kind of the event about to be signed.
  * @returns True when signing it replaces or erases part of the account's public record.
  * @example
  * ```ts
  * isDestructiveKind(0); // true
+ * isDestructiveKind(30311); // true
  * isDestructiveKind(1); // false
  * ```
  */
 export function isDestructiveKind(kind: number): boolean {
-  return DESTRUCTIVE_KINDS.has(kind) || isListKind(kind);
+  return isReplaceable(kind) || kind === DELETION || kind === VANISH;
+}
+
+function nameOf(event: NostrEvent): string | undefined {
+  return tagValues(event, 'title')[0] ?? tagValues(event, 'd')[0];
 }
 
 function listTitle(event: NostrEvent): string {
-  const identifier = tagValues(event, 'd')[0];
-  const title = tagValues(event, 'title')[0];
-  const name = title ?? identifier;
+  const name = nameOf(event);
   return name ? `Change the list "${name}"` : 'Change a list';
+}
+
+function replaceTitle(event: NostrEvent): string {
+  const name = nameOf(event);
+  const label = `Replace your ${kindLabel(event.kind)}`;
+  return name ? `${label} "${name}"` : label;
+}
+
+function recordLines(event: NostrEvent, before: NostrEvent | undefined): ConsentLine[] {
+  const lines = changeLines(listItems(before), listItems(event), 'Entries', (item) => item);
+  if (before !== undefined && before.content !== event.content) lines.push({ label: 'Content', after: 'Replaced' });
+  return lines;
+}
+
+function coordinate(address: string): string {
+  const [kind, pubkey = '', identifier = ''] = address.split(':');
+  return `${kind}:${abbreviate(pubkey)}:${identifier}`;
+}
+
+function deletion(event: NostrEvent, applet: AppletIdentity): ConsentSummary {
+  const lines: ConsentLine[] = [
+    ...tagValues(event, 'e').map((id) => ({ label: 'Delete', before: abbreviate(id) })),
+    ...tagValues(event, 'a').map((address) => ({ label: 'Delete every version of', before: coordinate(address) })),
+  ];
+  const noun = lines.length === 1 ? 'event' : 'events';
+  return destructive(event, applet, `Delete ${lines.length} ${noun}`, lines);
+}
+
+function vanish(event: NostrEvent, applet: AppletIdentity): ConsentSummary {
+  const services = tagValues(event, 'relay');
+  const everywhere = services.length === 0 || services.includes(ALL_SERVICES);
+  const lines: ConsentLine[] = [{ label: 'Erase', before: 'Everything this account has published' }];
+  lines.push({ label: 'Services asked', after: everywhere ? 'Every service' : describeItems(services, (item) => item) });
+  return destructive(event, applet, 'Ask services to erase your account', lines);
 }
 
 function kindLabel(kind: number): string {
@@ -159,9 +202,11 @@ function destructive(event: NostrEvent, applet: AppletIdentity, title: string, l
  * Describe a write the shell is asked to sign as what it changes.
  *
  * Profiles diff field by field; follow, relay and list changes count what was
- * added and removed and name the first few entries by hex prefix; deletions
- * list what disappears. Those kinds are `destructive` because they replace or
- * erase the account's public record. Everything else is `routine` and shows
+ * added and removed and name the first few entries by hex prefix; any other
+ * replaceable or addressable record diffs its tags and says when its content
+ * is replaced, without copying it; deletions list the events and addresses
+ * that disappear; a request to vanish names the services asked. Those kinds
+ * are `destructive` because they replace or erase the account's public record. Everything else is `routine` and shows
  * a content preview. Nothing here is protocol vocabulary the user has to know,
  * and nothing secret is copied out of the event.
  *
@@ -181,17 +226,17 @@ export function describeChange(event: NostrEvent, before: NostrEvent | undefined
       return destructive(event, applet, 'Update your profile', profileLines(event, before));
     case 3:
       return destructive(event, applet, 'Change who you follow', changeLines(tagValues(before, 'p'), tagValues(event, 'p'), 'Follows', abbreviate));
-    case 5: {
-      const ids = tagValues(event, 'e');
-      const noun = ids.length === 1 ? 'event' : 'events';
-      return destructive(event, applet, `Delete ${ids.length} ${noun}`, ids.map((id) => ({ label: 'Delete', before: abbreviate(id) })));
-    }
+    case DELETION:
+      return deletion(event, applet);
+    case VANISH:
+      return vanish(event, applet);
     case 10002:
       return destructive(event, applet, 'Change your connections list', changeLines(relayEntries(before), relayEntries(event), 'Connections', (item) => item));
     default:
       if (isListKind(event.kind)) {
         return destructive(event, applet, listTitle(event), changeLines(listItems(before), listItems(event), 'Entries', (item) => item));
       }
+      if (isReplaceable(event.kind)) return destructive(event, applet, replaceTitle(event), recordLines(event, before));
       return {
         title: `Publish a ${kindLabel(event.kind)}`,
         severity: 'routine',

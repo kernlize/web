@@ -44,7 +44,8 @@ export interface Booted {
   readonly fallbackReason?: string;
 }
 
-export const DEFAULT_WINDOW_SIZE = { width: 720, height: 480 } as const;
+/** Fits the sample applets without clipping; the window store clamps it to the desktop. */
+export const DEFAULT_WINDOW_SIZE = { width: 720, height: 660 } as const;
 export const RECENT_KEY = 'kernl:recent:v1';
 export const LAYOUT_KEY = 'kernl:layout:v1';
 

@@ -1,9 +1,20 @@
-import { expect } from 'vitest';
+import { expect, vi } from 'vitest';
 import { Given, Then, When, type DataTable } from 'quickpickle';
+import { NEVER, Observable, of, throwError } from 'rxjs';
 import { EventStore } from 'applesauce-core';
+import type { AddressPointerLoader, LoadableAddressPointer } from 'applesauce-loaders/loaders';
 import type { ConsentRequest } from '@kehto/runtime';
 import type { NostrEvent } from '@napplet/core';
-import { createConsentHandler, describeChange, lookupReplaceable, type AppletIdentity, type ConsentPrompt, type ConsentSummary } from '@kernl/core';
+import {
+  createConsentHandler,
+  describeChange,
+  isDestructiveKind,
+  lookupReplaceable,
+  type AppletIdentity,
+  type ConsentPrompt,
+  type ConsentSummary,
+  type LookupReplaceableOptions,
+} from '@kernl/core';
 import { scratch, signEvent, splitList, type CoreWorld } from './world.js';
 
 const HASH = 'ab'.repeat(32);
@@ -87,6 +98,39 @@ When('the shell describes signing a kind {int} list {string} titled {string} wit
   describe(world, await signEvent({ kind, tags: listTags(identifier, title, entries) }));
 });
 
+When('the shell describes signing a kind 5 event deleting {string} and addresses {string}', async (world: CoreWorld, seeds: string, addresses: string) => {
+  const ids = splitList(seeds).map((seed) => ['e', hex(seed)]);
+  const coordinates = splitList(addresses).map((address) => {
+    const [kind, seed, identifier] = address.split(':') as [string, string, string];
+    return ['a', `${kind}:${hex(seed)}:${identifier}`];
+  });
+  describe(world, await signEvent({ kind: 5, tags: [...ids, ...coordinates] }));
+});
+
+When('the shell describes signing a kind 62 request naming services {string}', async (world: CoreWorld, services: string) => {
+  describe(world, await signEvent({ kind: 62, tags: splitList(services).map((url) => ['relay', url]) }));
+});
+
+async function record(kind: number, identifier: string, content: string, entries: string): Promise<NostrEvent> {
+  return signEvent({ kind, content, tags: listTags(identifier, '', entries) });
+}
+
+Given('the current kind {int} record {string} has content {string} and entries {string}', async (world: CoreWorld, kind: number, identifier: string, content: string, entries: string) => {
+  scratch(world).before = await record(kind, identifier, content, entries);
+});
+
+When('the shell describes signing a kind {int} record {string} with content {string} and entries {string}', async (world: CoreWorld, kind: number, identifier: string, content: string, entries: string) => {
+  describe(world, await record(kind, identifier, content, entries));
+});
+
+Then('kinds {string} are destructive', (_world: CoreWorld, kinds: string) => {
+  expect(splitList(kinds).filter((kind) => !isDestructiveKind(Number(kind)))).toEqual([]);
+});
+
+Then('kinds {string} are routine', (_world: CoreWorld, kinds: string) => {
+  expect(splitList(kinds).filter((kind) => isDestructiveKind(Number(kind)))).toEqual([]);
+});
+
 function summary(world: CoreWorld): ConsentSummary {
   return scratch(world).summary as ConsentSummary;
 }
@@ -111,18 +155,73 @@ interface HandlerScratch {
   prompts: ConsentPrompt[];
   answers: boolean[];
   handle: (request: ConsentRequest) => void;
+  asked: LoadableAddressPointer[];
 }
 
 function handler(world: CoreWorld): HandlerScratch {
   return scratch(world).handler as HandlerScratch;
 }
 
-function installHandler(world: CoreWorld, store: EventStore): void {
+/** How long the never-answering network is given before the lookup gives up, so scenarios stay fast. */
+const SHORT_TIMEOUT_MS = 20;
+
+function installHandler(world: CoreWorld, store: EventStore, network?: (pointer: LoadableAddressPointer) => Observable<NostrEvent>): void {
   const prompts: ConsentPrompt[] = [];
+  const asked: LoadableAddressPointer[] = [];
   const windows = new Map([['w1', applet(world)]]);
-  const handle = createConsentHandler({ presentConsent: (prompt) => void prompts.push(prompt) }, lookupReplaceable(store), (windowId) => windows.get(windowId));
-  scratch(world).handler = { prompts, answers: [], handle } satisfies HandlerScratch;
+  let options: LookupReplaceableOptions = {};
+  if (network) {
+    const loader = ((pointer: LoadableAddressPointer) => {
+      asked.push(pointer);
+      return network(pointer);
+    }) as AddressPointerLoader;
+    options = { loader, timeoutMs: SHORT_TIMEOUT_MS };
+  }
+  const handle = createConsentHandler({ presentConsent: (prompt) => void prompts.push(prompt) }, lookupReplaceable(store, options), (windowId) => windows.get(windowId));
+  scratch(world).handler = { prompts, answers: [], handle, asked } satisfies HandlerScratch;
 }
+
+Given('a consent handler with an empty store and a network holding follow lists {string} then {string}', async (world: CoreWorld, older: string, newer: string) => {
+  const follows = (seeds: string, created_at: number) => signEvent({ kind: 3, created_at, tags: splitList(seeds).map((seed) => ['p', hex(seed)]) });
+  const versions = [await follows(newer, 1_700_000_100), await follows(older, 1_700_000_000)];
+  installHandler(world, new EventStore(), () => of(...versions));
+});
+
+Given('a consent handler with an empty store and a network that never answers', (world: CoreWorld) => {
+  installHandler(world, new EventStore(), () => NEVER);
+});
+
+Given('a consent handler with an empty store and a network that fails', (world: CoreWorld) => {
+  installHandler(world, new EventStore(), () => throwError(() => new Error('relay down')));
+});
+
+Then('the network was asked for kind {int} with no identifier', (world: CoreWorld, kind: number) => {
+  const pointer = handler(world).asked.at(-1);
+  expect(pointer?.kind).toBe(kind);
+  expect(pointer && 'identifier' in pointer).toBe(false);
+});
+
+Then('the network was asked for kind {int} with identifier {string}', async (world: CoreWorld, kind: number, identifier: string) => {
+  await vi.waitFor(() => expect(handler(world).asked.at(-1)).toMatchObject({ kind, identifier }));
+});
+
+Then('the network was not asked', (world: CoreWorld) => {
+  expect(handler(world).asked).toEqual([]);
+});
+
+When('kehto requests consent from window {string} to sign a kind 3 event following {string}', async (world: CoreWorld, windowId: string, seeds: string) => {
+  request(world, windowId, await signEvent({ kind: 3, tags: splitList(seeds).map((seed) => ['p', hex(seed)]) }));
+});
+
+async function lastPrompt(world: CoreWorld): Promise<ConsentPrompt> {
+  const { prompts } = handler(world);
+  await vi.waitFor(() => expect(prompts.length).toBeGreaterThan(0));
+  return prompts.at(-1) as ConsentPrompt;
+}
+
+Then('the asked summary is {string}', async (world: CoreWorld, severity: string) => {
+  expect((await lastPrompt(world)).summary.severity).toBe(severity);
+});
 
 Given('a consent handler with a store holding the current profile {string}', async (world: CoreWorld, content: string) => {
   const store = new EventStore();
@@ -160,23 +259,22 @@ When('kehto requests firewall consent from window {string}', (world: CoreWorld, 
   request(world, windowId, undefined, 'firewall-policy');
 });
 
-Then('the host was asked {string} for applet {string}', (world: CoreWorld, title: string, dTag: string) => {
-  const prompt = handler(world).prompts.at(-1);
-  expect(prompt?.summary.title).toBe(title);
-  expect(prompt?.summary.applet.dTag).toBe(dTag);
+Then('the host was asked {string} for applet {string}', async (world: CoreWorld, title: string, dTag: string) => {
+  const prompt = await lastPrompt(world);
+  expect(prompt.summary.title).toBe(title);
+  expect(prompt.summary.applet.dTag).toBe(dTag);
 });
 
-Then('the asked summary lines are:', (world: CoreWorld, table: DataTable) => {
-  const prompt = handler(world).prompts.at(-1);
-  expectLines(prompt?.summary.lines ?? [], table);
+Then('the asked summary lines are:', async (world: CoreWorld, table: DataTable) => {
+  expectLines((await lastPrompt(world)).summary.lines, table);
 });
 
 Then('the host was not asked', (world: CoreWorld) => {
   expect(handler(world).prompts).toEqual([]);
 });
 
-When('the host answers true', (world: CoreWorld) => {
-  handler(world).prompts.at(-1)?.resolve(true);
+When('the host answers true', async (world: CoreWorld) => {
+  (await lastPrompt(world)).resolve(true);
 });
 
 Then('kehto received true', (world: CoreWorld) => {

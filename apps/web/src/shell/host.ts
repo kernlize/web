@@ -27,6 +27,14 @@ export function pickStorage(): StorageLike {
   }
 }
 
+const REVOKE_REASONS: Readonly<Record<string, string>> = {
+  quarantine: 'The guard stopped it because it kept flooding the shell.',
+  host: 'The shell closed it.',
+};
+
+/** Plain words for a revocation reason; reasons the shell does not know pass through. */
+const revokeReason = (reason: string): string => REVOKE_REASONS[reason] ?? reason;
+
 /** The UI's side of the contract: dialogs, toasts, link confirmation and window visibility. */
 export function createHost(deps: HostDeps): KernlHost {
   return {
@@ -40,8 +48,9 @@ export function createHost(deps: HostDeps): KernlHost {
     getVisibility: (windowId) => deps.windows.visibilityOf(windowId),
     onRevoked(windowId, reason) {
       const title = deps.windows.get(windowId)?.plan.summary.title ?? 'An applet';
-      deps.windows.markRevoked(windowId, reason);
-      deps.notices.push({ title: `${title} was stopped`, body: reason, tone: 'warning', windowId });
+      const words = revokeReason(reason);
+      deps.windows.markRevoked(windowId, words);
+      deps.notices.push({ title: `${title} was stopped`, body: words, tone: 'warning', windowId });
     },
   };
 }

@@ -19,8 +19,8 @@ const OP_WORDS: Readonly<Record<OpClass, string>> = {
 
 const VERBS: Readonly<Record<GuardEvent['disposition'], string>> = {
   pass: 'was allowed',
-  defer: 'was slowed',
-  reject: 'was refused',
+  defer: 'went over its allowance',
+  reject: 'went over a limit',
   quarantine: 'was quarantined',
   flag: 'was flagged',
 };
@@ -37,7 +37,7 @@ function because(event: GuardEvent): string {
   return reason;
 }
 
-/** "Applet Notes was slowed: too many network reads". */
+/** "Applet Notes went over its allowance: too many network reads". kernl reports these; the rates that refuse requests run inside the runtime. */
 export function describeGuardEvent(event: GuardEvent, title: string): string {
   return `Applet ${title} ${VERBS[event.disposition]}: ${because(event)}`;
 }

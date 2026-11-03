@@ -1,4 +1,4 @@
-import { expect } from 'vitest';
+import { expect, vi } from 'vitest';
 import { After, Given, Then, When, type DataTable } from 'quickpickle';
 import { EventStore } from 'applesauce-core';
 import { AccountManager, type IAccount } from 'applesauce-accounts';
@@ -33,7 +33,7 @@ interface HostRecord {
 
 
 
-interface KernlScratch {
+export interface KernlScratch {
   kernl: Kernl;
   host: KernlHost;
   record: HostRecord;
@@ -51,7 +51,7 @@ interface KernlScratch {
   rogue?: { windowId: string; channel: MessageChannel };
 }
 
-function k(world: CoreWorld): KernlScratch {
+export function k(world: CoreWorld): KernlScratch {
   const value = scratch(world).kernl as KernlScratch | undefined;
   if (!value) throw new Error('create a shell first');
   return value;
@@ -61,7 +61,7 @@ function vector(world: CoreWorld): ManifestVector {
   return scratch(world).manifest as ManifestVector;
 }
 
-async function settle(): Promise<void> {
+export async function settle(): Promise<void> {
   for (let i = 0; i < 8; i += 1) await new Promise((resolve) => setTimeout(resolve, 5));
 }
 
@@ -494,6 +494,11 @@ Given('the shell is signed in and its store holds the profile {string}', async (
   k(world).kernl.eventStore.add(profile);
 });
 
+Given('the shell is signed in and only the network holds the profile {string}', async (world: CoreWorld, content: string) => {
+  await k(world).kernl.login(await passwordAccount('alice'));
+  scratch(world).pool.events.push(await passwordSigner.signEvent({ kind: 0, tags: [], content, created_at: 1_700_000_000 }));
+});
+
 Given('a mounted applet granted {string} that has said hello', async (world: CoreWorld, domain: string) => {
   const { kernl } = k(world);
   const summary = await kernl.resolve(kernl.decodePointer(`${vector(world).pubkey}:35129:chat`));
@@ -554,7 +559,8 @@ function onlyPrompt(world: CoreWorld): ConsentPrompt {
   return prompts[0] as ConsentPrompt;
 }
 
-Then('the host was asked {string} marked {string} for applet {string}', (world: CoreWorld, title: string, severity: string, dTag: string) => {
+Then('the host was asked {string} marked {string} for applet {string}', async (world: CoreWorld, title: string, severity: string, dTag: string) => {
+  await vi.waitFor(() => expect(k(world).record.prompts.length).toBeGreaterThan(0), { timeout: 2000 });
   const { summary } = onlyPrompt(world);
   expect(summary).toMatchObject({ title, severity, applet: { dTag, hash: vector(world).hash } });
   expect(summary.event.sig).toBe('');

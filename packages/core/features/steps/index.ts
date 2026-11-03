@@ -12,3 +12,4 @@ import './layouts.js';
 import './guard-pipeline.js';
 import './services.js';
 import './kernl.js';
+import './quarantine.js';

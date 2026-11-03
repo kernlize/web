@@ -23,6 +23,11 @@ Feature: HTTP bridge
       | 172.31.255.255     | blocked |
       | 172.32.0.1         | allowed |
       | 192.168.1.1        | blocked |
+      | 192.0.0.170        | blocked |
+      | 198.18.0.1         | blocked |
+      | 198.19.255.255     | blocked |
+      | 198.17.255.255     | allowed |
+      | 198.20.0.1         | allowed |
       | 224.0.0.1          | blocked |
       | 255.255.255.255    | blocked |
       | 8.8.8.8            | allowed |
@@ -34,18 +39,40 @@ Feature: HTTP bridge
       | ::1                | blocked |
       | [::1]              | blocked |
       | 0:0:0:0:0:0:0:1    | blocked |
-      | ::2                | allowed |
+      | ::2                | blocked |
+      | ::8.8.8.8          | allowed |
       | fe80::1            | blocked |
       | FE80::             | blocked |
       | febf::1            | blocked |
-      | fec0::1            | allowed |
+      | fec0::1            | blocked |
+      | fe7f::1            | allowed |
       | fc00::1            | blocked |
       | fd12:3456::1       | blocked |
       | fb00::1            | allowed |
       | ff02::1            | blocked |
       | 2001:db8::1        | allowed |
       | ::ffff:127.0.0.1   | blocked |
+      | ::ffff:7f00:1      | blocked |
+      | [::ffff:7f00:1]    | blocked |
+      | ::FFFF:A9FE:A9FE   | blocked |
+      | 0:0:0:0:0:ffff:c0a8:101 | blocked |
       | ::ffff:8.8.8.8     | allowed |
+      | ::ffff:808:808     | allowed |
+      | ::ffff:0:127.0.0.1 | blocked |
+      | ::ffff:0:808:808   | allowed |
+      | ::ffff:1.2.3       | allowed |
+      | 64:ff9b::127.0.0.1 | blocked |
+      | 64:ff9b::a00:5     | blocked |
+      | 64:ff9b::808:808   | allowed |
+      | 64:ff9b:1::808:808 | blocked |
+      | 2002:7f00:1::      | blocked |
+      | 2002:808:808::     | blocked |
+      | 2001:0:4136:e378:8000:63bf:3fff:fdd2 | blocked |
+      | 100::1             | blocked |
+      | 100:0:0:1::1       | allowed |
+      | fe80::1%eth0       | blocked |
+      | 2001:4860:4860::8888 | allowed |
+      | 2001:db8::127.0.0.1 | allowed |
       | 1::2::3            | allowed |
       | 1:2:3              | allowed |
       | 1:2:3:4:5:6:7:8::  | allowed |
@@ -101,6 +128,30 @@ Feature: HTTP bridge
       | https://[fe80::1]/secret     |
       | https://169.254.169.254/meta |
       | https://db.internal/         |
+      | https://[::ffff:127.0.0.1]/admin |
+      | https://[::ffff:7f00:1]/admin    |
+      | https://[::ffff:169.254.169.254]/meta |
+      | https://[::127.0.0.1]/admin      |
+      | https://[64:ff9b::10.0.0.1]/     |
+      | https://[2002:7f00:1::]/         |
+      | https://198.18.0.1/              |
+
+  Scenario: an IPv4-mapped loopback is denied under the form the URL normalises it to
+    Given a web bridge
+    When the web bridge resolves "https://[::ffff:127.0.0.1]/admin"
+    Then the web request fails with "denied:private-address ::ffff:7f00:1"
+    And no request was sent
+
+  Scenario: a hostname resolving to a mapped or translated private address is denied
+    Given a web bridge whose resolver maps "sneaky.example" to "::ffff:10.0.0.5"
+    When the web bridge resolves "https://sneaky.example/"
+    Then the web request fails with "denied:private-address sneaky.example -> ::ffff:10.0.0.5"
+    And no request was sent
+
+  Scenario: a NAT64 address for a public host is fetched
+    Given a web bridge whose resolver maps "v4only.example" to "64:ff9b::5db8:d822"
+    When the web bridge resolves "https://v4only.example/"
+    Then the web response status is 200
 
   Scenario: a hostname resolving to a private address is denied
     Given a web bridge whose resolver maps "intranet.example" to "10.0.0.5"

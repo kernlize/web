@@ -32,9 +32,9 @@ A NIP-5D shell has two jobs. It gives the user a place where their identity, rel
 Concretely:
 
 - Applets run in an opaque-origin `srcdoc` iframe with `sandbox="allow-scripts"` and a zero-network Content Security Policy. Everything reaches the network through a shell service the user can see, rate-limit and revoke.
-- Applets never hold keys, never see `window.nostr`, and never see plaintext the user did not ask to show them.
-- Every write the shell signs on an applet's behalf is shown to the user as what it changes, not as JSON.
-- Identity is bound to a verified artifact hash and a live message port. When either changes, the applet's grants die with it.
+- Applets never hold keys, are never given `window.nostr` by the shell, and never see plaintext the user did not ask to show them. Browser extensions that inject into every frame are outside the shell's control, and the docs say so.
+- Every write the shell signs on an applet's behalf that replaces or erases part of the user's public record is shown to the user as what it changes, not as JSON, and waits for their answer.
+- Identity is bound to a verified artifact hash and a live message port. When either changes, the shell closes the applet; grants stay with that exact artifact, and changed bytes start with none.
 
 ### 3. When kehto offers a mitigation, kernl turns it on
 

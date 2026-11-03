@@ -70,7 +70,7 @@
         {/each}
       </ol>
     {:else}
-      <p class="shell-muted">Nothing yet. The guard only speaks when it holds something back.</p>
+      <p class="shell-muted">Nothing yet. The guard records every refusal, report and quarantine here.</p>
     {/if}
   </section>
 </Overlay>
@@ -126,6 +126,11 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
+  }
+
+  .mitigation .meta .shell-badge {
+    white-space: normal;
+    max-width: 100%;
   }
 
   .count {

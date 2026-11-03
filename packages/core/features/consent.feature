@@ -1,7 +1,9 @@
 Feature: Consent summaries
   Every write the shell signs on an applet's behalf is shown as what it
-  changes, not as JSON. Profile, follow, relay and list changes are
-  destructive; everything else is routine with a preview.
+  changes, not as JSON. Every replaceable and addressable write, deletions
+  and requests to vanish are destructive; everything else is routine with a
+  preview. A replacing write is described against the current version, from
+  the store or the network, and says so when that version cannot be loaded.
 
   Background:
     Given the applet asking is "chat"
@@ -76,6 +78,58 @@ Feature: Consent summaries
     When the shell describes signing a kind 5 event deleting "e1"
     Then the summary is "destructive" titled "Delete 1 event"
 
+  Scenario: deletions by address list the coordinates that disappear
+    When the shell describes signing a kind 5 event deleting "e1" and addresses "30023:a1:post,30311:b2:"
+    Then the summary is "destructive" titled "Delete 3 events"
+    And the summary lines are:
+      | label                   | before              | after |
+      | Delete                  | e1e1e1e1…           |       |
+      | Delete every version of | 30023:a1a1a1a1…:post |       |
+      | Delete every version of | 30311:b2b2b2b2…:     |       |
+    When the shell describes signing a kind 5 event deleting "" and addresses "30023:a1:post"
+    Then the summary is "destructive" titled "Delete 1 event"
+
+  Scenario: a request to vanish asks services to erase the account
+    When the shell describes signing a kind 62 request naming services "ALL_RELAYS"
+    Then the summary is "destructive" titled "Ask services to erase your account"
+    And the summary lines are:
+      | label          | before                                | after         |
+      | Erase          | Everything this account has published |               |
+      | Services asked |                                       | Every service |
+    When the shell describes signing a kind 62 request naming services ""
+    Then the summary lines are:
+      | label          | before                                | after         |
+      | Erase          | Everything this account has published |               |
+      | Services asked |                                       | Every service |
+    When the shell describes signing a kind 62 request naming services "wss://a.example,wss://b.example"
+    Then the summary lines are:
+      | label          | before                                | after                            |
+      | Erase          | Everything this account has published |                                  |
+      | Services asked |                                       | wss://a.example, wss://b.example |
+
+  Scenario: any other replaceable or addressable record is destructive and diffed
+    When the shell describes signing a kind 17375 record "" with content "sealed" and entries "mint:m1"
+    Then the summary is "destructive" titled "Replace your kind 17375 event"
+    And the summary lines are:
+      | label         | before | after      |
+      | Entries added |        | 1: mint:m1 |
+    Given the current kind 30311 record "stream" has content "old" and entries "status:live"
+    When the shell describes signing a kind 30311 record "stream" with content "new" and entries "status:ended"
+    Then the summary is "destructive" titled "Replace your kind 30311 event \"stream\""
+    And the summary lines are:
+      | label           | before         | after           |
+      | Entries added   |                | 1: status:ended |
+      | Entries removed | 1: status:live |                 |
+      | Content         |                | Replaced        |
+    When the shell describes signing a kind 30311 record "stream" with content "old" and entries "status:live"
+    Then the summary lines are:
+      | label  | before | after             |
+      | Change |        | No entries change |
+
+  Scenario: every replaceable and addressable kind, deletions and vanishing are destructive
+    Then kinds "0,3,10000,10002,17375,19999,30000,30311,39999,5,62" are destructive
+    And kinds "1,4,7,1059,9735,20000,29999,40000" are routine
+
   Scenario: relay list changes keep their read and write markers
     Given the current relay list is "wss://a.example=read,wss://b.example="
     When the shell describes signing a kind 10002 event with relays "wss://a.example=write,wss://b.example="
@@ -125,6 +179,45 @@ Feature: Consent summaries
     Then the asked summary lines are:
       | label         | before | after   |
       | Entries added |        | 1: p:x2 |
+
+  Scenario: a current version the store does not hold is loaded from the network
+    Given a consent handler with an empty store and a network holding follow lists "a9" then "a1,a2,a3"
+    When kehto requests consent from window "w1" to sign a kind 3 event following "a1"
+    Then the asked summary lines are:
+      | label           | before                    | after |
+      | Follows removed | 2: a2a2a2a2…, a3a3a3a3… |       |
+    And the network was asked for kind 3 with no identifier
+
+  Scenario: a current version nobody can load is reported and the write stays destructive
+    Given a consent handler with an empty store and a network that never answers
+    When kehto requests consent from window "w1" to sign a kind 3 event following "a1"
+    Then the asked summary is "destructive"
+    And the asked summary lines are:
+      | label           | before | after                                          |
+      | Current version |        | could not be loaded; this replaces it entirely |
+      | Follows added   |        | 1: a1a1a1a1…                                   |
+    When kehto requests consent from window "w1" to sign a kind 30311 list "" with entries "p:x1"
+    Then the network was asked for kind 30311 with identifier ""
+
+  Scenario: a failing network and a store-only lookup report the same unknown version
+    Given a consent handler with an empty store and a network that fails
+    When kehto requests consent from window "w1" to sign a kind 0 event with content '{"name":"bob"}'
+    Then the asked summary lines are:
+      | label           | before | after                                          |
+      | Current version |        | could not be loaded; this replaces it entirely |
+      | Name            |        | bob                                            |
+    Given a consent handler with an empty store
+    When kehto requests consent from window "w1" to sign a kind 3 event following "a1"
+    Then the asked summary lines are:
+      | label           | before | after                                          |
+      | Current version |        | could not be loaded; this replaces it entirely |
+      | Follows added   |        | 1: a1a1a1a1…                                   |
+
+  Scenario: a routine write from a known window is asked about without a lookup
+    Given a consent handler with an empty store and a network that never answers
+    When kehto requests consent from window "w1" to sign a kind 1 event with content 'hi'
+    Then the host was asked "Publish a note" for applet "chat"
+    And the network was not asked
 
   Scenario: requests without an event or from an unknown window are refused without asking
     Given a consent handler with an empty store

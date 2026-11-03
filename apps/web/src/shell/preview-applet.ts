@@ -97,8 +97,9 @@ interface Action {
 }
 
 const ACTIONS: readonly Action[] = [
-  { id: 'publish', label: 'Publish a note', hint: 'asks you first', domain: 'relay' },
-  { id: 'delete', label: 'Delete a note', hint: 'asks you first, marked destructive', domain: 'relay' },
+  { id: 'publish', label: 'Publish a note', hint: 'routine: goes out without a prompt', domain: 'relay' },
+  { id: 'profile', label: 'Update your profile', hint: 'asks you first: it replaces your profile', domain: 'relay' },
+  { id: 'delete', label: 'Delete a note', hint: 'asks you first: it cannot be undone', domain: 'relay' },
   { id: 'notify', label: 'Send a notification', hint: 'needs the notifications grant', domain: 'notify' },
   { id: 'flood', label: 'Flood the shell', hint: '40 network reads at once; watch the guard', domain: 'relay' },
   { id: 'link', label: 'Open a link', hint: 'the shell confirms before leaving' },
@@ -128,7 +129,8 @@ window.addEventListener('message', (event) => {
 let count = 0;
 const handlers = {
   publish: () => send('publish', { text: document.getElementById('note').value || 'Hello from the preview applet.' }),
-  delete: () => send('delete', { text: 'Hello from the preview applet.' }),
+  profile: () => send('profile', { text: 'Preview account' }),
+  delete: () => send('delete'),
   notify: () => send('notify', { text: 'The preview applet says hello.' }),
   flood: () => { for (let i = 0; i < 40; i += 1) send('subscribe', { seq: ++count }); log('Sent 40 network reads at once.'); },
   link: () => send('link', { url: 'https://kernlize.github.io/docs/' }),
@@ -138,6 +140,19 @@ document.querySelectorAll('[data-action]').forEach((button) => {
 });
 send('hello');
 `;
+
+/**
+ * kehto's prelude removes every WebRTC constructor before applet code runs, since a peer
+ * connection would be a network path around the shell. The preview has no kehto prelude,
+ * so it carries the same sweep as the first script after the CSP.
+ */
+const RTC_SWEEP = `(() => {
+  const names = new Set(Object.getOwnPropertyNames(window).filter((name) => /^(RTC|webkitRTC|mozRTC)/.test(name)));
+  for (const name of ['webkitRTCPeerConnection', 'mozRTCPeerConnection', 'webkitRTCSessionDescription', 'mozRTCSessionDescription', 'webkitRTCIceCandidate', 'mozRTCIceCandidate']) names.add(name);
+  for (const name of names) {
+    try { Object.defineProperty(window, name, { value: undefined, writable: false, configurable: false, enumerable: false }); } catch {}
+  }
+})();`;
 
 const STYLE = `
 :root { color-scheme: light dark; }
@@ -167,6 +182,7 @@ export function renderPreviewApplet(input: PreviewAppletInput): string {
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="${escapeHtml(input.csp)}">
+<script>${RTC_SWEEP}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(input.title)}</title>
 <style>${STYLE}</style>

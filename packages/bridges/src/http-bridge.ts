@@ -41,7 +41,9 @@ const BLOCKED_IPV4: readonly (readonly [base: number, bits: number])[] = [
   [0x7f000000, 8], // 127.0.0.0/8
   [0xa9fe0000, 16], // 169.254.0.0/16
   [0xac100000, 12], // 172.16.0.0/12
+  [0xc0000000, 24], // 192.0.0.0/24
   [0xc0a80000, 16], // 192.168.0.0/16
+  [0xc6120000, 15], // 198.18.0.0/15
   [0xe0000000, 3], // 224.0.0.0/3
 ];
 
@@ -49,8 +51,20 @@ function isPrivateIpv4(value: number): boolean {
   return BLOCKED_IPV4.some(([base, bits]) => value >>> (32 - bits) === base >>> (32 - bits));
 }
 
+/** Rewrites a dotted IPv4 tail (`::ffff:127.0.0.1`) as the two hex groups it stands for. */
+function withHexTail(ip: string): string | undefined {
+  if (!ip.includes('.')) return ip;
+  const split = ip.lastIndexOf(':');
+  const value = ipv4Value(ip.slice(split + 1));
+  if (value === undefined) return undefined;
+  return `${ip.slice(0, split + 1)}${(value >>> 16).toString(16)}:${(value & 0xffff).toString(16)}`;
+}
+
+/** The 128 bits of an IPv6 address as 32 lowercase hex digits, expanding `::` and a dotted tail. */
 function ipv6Hex(ip: string): string | undefined {
-  const halves = ip.split('::');
+  const text = withHexTail(ip);
+  if (text === undefined) return undefined;
+  const halves = text.split('::');
   if (halves.length > 2) return undefined;
   const head = halves[0] ? halves[0].split(':') : [];
   const tail = halves[1] ? halves[1].split(':') : [];
@@ -61,29 +75,57 @@ function ipv6Hex(ip: string): string | undefined {
   return groups.map((group) => group.toLowerCase().padStart(4, '0')).join('');
 }
 
-const BLOCKED_IPV6 = [/^0{31}[01]$/, /^fe[89ab]/, /^f[cd]/, /^ff/];
+/**
+ * IPv6 prefixes (as hex digits) whose low 32 bits are an IPv4 address the
+ * packet ends up at: IPv4-compatible `::/96`, IPv4-mapped `::ffff:0:0/96`,
+ * IPv4-translated `::ffff:0:0:0/96` and the well-known NAT64 prefix
+ * `64:ff9b::/96`. They are judged by the embedded IPv4 address, so NAT64
+ * addresses a DNS64 resolver synthesises for public hosts stay reachable.
+ */
+const EMBEDDED_IPV4_PREFIXES: readonly string[] = ['0'.repeat(24), `${'0'.repeat(20)}ffff`, `${'0'.repeat(16)}ffff0000`, `0064ff9b${'0'.repeat(16)}`];
 
 /**
- * Tells whether a literal IP address belongs to a range the bridge never contacts:
- * unspecified, loopback, private, shared, link-local, unique-local, multicast or
- * reserved, for both IPv4 and IPv6 (including IPv4-mapped IPv6 addresses).
+ * IPv6 ranges blocked outright: link-local and deprecated site-local
+ * (`fe80::/10`, `fec0::/10`), unique-local `fc00::/7`, multicast `ff00::/8`,
+ * discard-only `100::/64`, local-use NAT64 `64:ff9b:1::/48`, and the two
+ * tunnelling prefixes that carry an IPv4 address the bridge cannot vouch for,
+ * 6to4 `2002::/16` and Teredo `2001::/32`. Both tunnels are deprecated, so
+ * blocking them entirely is the safer choice over judging the embedded address.
+ */
+const BLOCKED_IPV6 = [/^fe[89a-f]/, /^f[cd]/, /^ff/, /^010{14}/, /^0064ff9b0001/, /^2002/, /^20010000/];
+
+function isPrivateIpv6(hex: string): boolean {
+  if (EMBEDDED_IPV4_PREFIXES.some((prefix) => hex.startsWith(prefix))) return isPrivateIpv4(Number.parseInt(hex.slice(24), 16));
+  return BLOCKED_IPV6.some((range) => range.test(hex));
+}
+
+/**
+ * Tells whether a literal IP address belongs to a range the bridge never contacts.
+ *
+ * IPv4: this network, private, shared, loopback, link-local, IETF protocol
+ * assignments, benchmarking, multicast and reserved. IPv6 is parsed to its
+ * full 128 bits first, so every spelling of an address, including the hex
+ * form `new URL` normalises `[::ffff:127.0.0.1]` to (`::ffff:7f00:1`), is
+ * judged the same way: an address that embeds an IPv4 destination (mapped,
+ * compatible, translated, NAT64) is judged by that destination, and
+ * link-local, site-local, unique-local, multicast, discard, local NAT64, 6to4
+ * and Teredo ranges are blocked outright. A zone suffix (`%eth0`) is ignored.
  *
  * @param ip - A literal IPv4 or IPv6 address, with or without brackets.
  * @returns True when the address is blocked; false for public addresses and for strings that are not an IP.
  * @example
  * ```ts
  * isPrivateAddress('169.254.169.254'); // true
- * isPrivateAddress('[fe80::1]'); // true
+ * isPrivateAddress('[::ffff:7f00:1]'); // true
  * isPrivateAddress('93.184.216.34'); // false
  * ```
  */
 export function isPrivateAddress(ip: string): boolean {
-  const bare = ip.replace(/^\[|\]$/g, '');
-  if (bare.includes(':') && bare.includes('.')) return isPrivateAddress(bare.slice(bare.lastIndexOf(':') + 1));
+  const bare = ip.replace(/^\[|\]$/g, '').replace(/%.*$/, '');
   const value = ipv4Value(bare);
   if (value !== undefined) return isPrivateIpv4(value);
   const hex = ipv6Hex(bare);
-  return hex !== undefined && BLOCKED_IPV6.some((range) => range.test(hex));
+  return hex !== undefined && isPrivateIpv6(hex);
 }
 
 /**
@@ -141,8 +183,8 @@ function limitBody(response: Response, maxBytes: number): Response {
  * On a server, redirects arrive as 3xx with a location and are followed.
  *
  * The fetch API cannot pin a connection to a validated address, so the resolver
- * check narrows the DNS-rebinding window without closing it; the shell closes it
- * by also fetching through a guard that resolves names once.
+ * check narrows the DNS-rebinding window without closing it. kernl's shell wires
+ * no resolver today, so hostnames are judged as literals only.
  *
  * @param options - Policy overrides, a fetch implementation and an optional host resolver.
  * @returns A bridge with id `http` labelled `downloads`.

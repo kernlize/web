@@ -45,21 +45,25 @@ The practical effect for an applet: `requires` in the manifest is honoured as a 
 
 ## Consent for destructive writes
 
-Most writes an applet asks the shell to sign are additive: a note, a reaction, a list item. Some replace or erase the account's public record, and kernl asks before signing those. The check is kernl's, not kehto's: kehto's runtime has no consent step for destructive signing. `createKernl` builds one gate with `createSigningConsent` (`consent/handler.ts`) and puts both routes an applet's write can take through it:
+Most writes an applet asks the shell to sign are additive: a note, a reaction, a comment. Some replace or erase the account's public record, and kernl asks before signing those. The check is kernl's, not kehto's: kehto's runtime has no consent step for destructive signing. `createKernl` builds one gate with `createSigningConsent` (`consent/handler.ts`) and puts both routes an applet's write can take through it:
 
 - **`relay.publish`.** kehto signs through `ShellAdapter.auth.getSigner(windowId)`; the signer kernl returns for a window awaits the gate in `signEvent` before the account signs.
 - **`outbox.publish`.** kehto's outbox service signs without naming the window, so kernl gates `outbox.publish` in the service wrapper (`kernl-services.ts`) before the message reaches the service; a refusal is answered as `outbox.publish.result` with `ok: false`.
 
-For a kind `isDestructiveKind` accepts, the gate runs `describeChange(draft, before, applet)` (`consent/describe-change.ts`), with `before` the current version of the replaceable event from the `EventStore`:
+`isDestructiveKind` accepts every replaceable kind (0, 3, 10000–19999), because signing one overwrites the version before it; every addressable kind (30000–39999), for the same reason; kind 5, a deletion; and kind 62, a request to vanish. For those, the gate first looks up the current version: `lookupReplaceable` reads the `EventStore` and, on a miss, asks the user's outbox and discovery relays through the applesauce address loader, waiting at most `CURRENT_VERSION_TIMEOUT_MS` (4000 ms). It then runs `describeChange(draft, before, applet)` (`consent/describe-change.ts`):
 
 | Kind | Severity | What the user sees |
 | --- | --- | --- |
 | `0` | `destructive` | "Update your profile": one line per changed field, with the value before and after. |
 | `3` | `destructive` | "Change who you follow": follows added and removed, counted, the first three named by abbreviated key. |
-| `5` | `destructive` | "Delete N events": one line per event id. |
+| `5` | `destructive` | "Delete N events": one line per event id (`e` tag), and one "Delete every version of" line per address (`a` tag). |
+| `62` | `destructive` | "Ask services to erase your account": everything the account published, and which services are asked. |
 | `10002` | `destructive` | "Change your connections list": relays added and removed with their read/write markers. |
 | 10000–10099, 30000–30099 | `destructive` | "Change the list …": entries added and removed. |
+| any other replaceable or addressable kind | `destructive` | "Replace your kind N event": tags added and removed, and "Content: Replaced" when the content changes, without copying it. |
 | everything else | `routine` | No prompt; the event is signed without asking. |
+
+When no current version is found, in the store or on the network within the timeout, a replaceable or addressable summary starts with "Current version: could not be loaded; this replaces it entirely" (`UNKNOWN_CURRENT_VERSION`), so the user is not shown a first version that seems to remove nothing.
 
 The gate calls `host.presentConsent({ summary, resolve })` and waits. *Allow* signs the event. Deny or dismiss rejects with `denied:consent`: nothing is signed and nothing is published. The core never times a prompt out. A destructive write from a window kernl did not mount is refused with `denied:unknown-applet`, one while nobody is signed in with `denied:signed-out`, and a write whose kind is not a number with `invalid:event-kind`.
 
@@ -71,11 +75,11 @@ Three limits are deliberate:
 
 kehto's own `ConsentRequest` is a different thing: the runtime raises it, without an event, when a firewall policy is `prompt`. `createConsentHandler` is registered for it and refuses those without asking; a future request that carries an event, from a window the shell can name, would be described and put to the user. kernl's runtime rules set policy `allow`, so the firewall path is not expected.
 
-Deletions are not rate-limited more tightly than other publishes before dispatch: kind 5 shares the `relay:write` budget in kehto's runtime firewall. The guard's separate `relay:publish:delete` bucket runs only in the reactive layer, where an overrun becomes a guard event ([Guard](./guard.md#where-enforcement-happens)).
+Deletions are not rate-limited more tightly than other publishes before dispatch: kind 5 shares the `relay:write` budget in kehto's runtime firewall. The guard's separate `relay:publish:delete` bucket runs only in kernl's own focus firewall, which observes each envelope before dispatch but cannot hold it, so an overrun becomes a guard event ([Guard](./guard.md#where-enforcement-happens)).
 
 ## What the applet learns
 
-The applet learns its own narrowed environment through `shell.init`. It does not learn why a domain is missing, whether other applets have it, or what the user's other grants are. It never sees `window.nostr`, a key, the `EventStore`, or plaintext the user did not ask the shell to show it.
+The applet learns its own narrowed environment through `shell.init`. It does not learn why a domain is missing, whether other applets have it, or what the user's other grants are. The shell never gives it `window.nostr`, a key, the `EventStore`, or plaintext the user did not ask the shell to show it.
 
 ## Related
 

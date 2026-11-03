@@ -2,14 +2,18 @@
   import type { IAccount } from 'applesauce-accounts';
   import { ExtensionAccount, NostrConnectAccount, PasswordAccount, PrivateKeyAccount, ReadonlyAccount } from 'applesauce-accounts/accounts';
   import { NostrConnectSigner, PasswordSigner } from 'applesauce-signers';
+  import { NEVER } from 'rxjs';
   import type { BootMode, ShellKernl } from './contract';
   import { abbreviate } from './contract';
   import { observe } from './observe.svelte';
+  import PairingCode from './PairingCode.svelte';
 
   const { kernl, mode }: { kernl: ShellKernl; mode: BootMode } = $props();
 
   type Method = 'remote' | 'readonly' | 'create' | 'unlock';
   const MIN_PASSWORD = 12;
+  /** The scheme of a signer-issued pairing code; checked, never shown. */
+  const REMOTE_SCHEME = 'bunker';
 
   const accounts = observe(kernl.accounts.accounts$, kernl.accounts.accounts);
   $effect(() => accounts.stop);
@@ -19,8 +23,8 @@
   let error = $state<string | null>(null);
   let password = $state('');
   let confirm = $state('');
-  let remoteUri = $state('');
-  let pairingUri = $state('');
+  let remoteCode = $state('');
+  let pairingCode = $state('');
   let readonlyId = $state('');
   let unlocking = $state.raw<PasswordAccount | null>(null);
   let pairing: AbortController | null = null;
@@ -31,7 +35,11 @@
 
   function explain(reason: unknown): string {
     const message = reason instanceof Error ? reason.message : String(reason);
-    if (mode === 'preview' && /pool|subscription|publish|relay/i.test(message)) return 'This needs the network. The preview runs offline.';
+    const network = /pool|subscription|publish|relay|connect|timeout/i.test(message);
+    if (network && mode === 'preview') return 'This needs the network. The preview runs offline.';
+    if (network) return 'The signer did not answer. Check that it is open, then try again.';
+    // Library errors can name the protocol; the user sees plain words (D-006).
+    if (/nostr|bunker|nip-?\d|npub|nsec|pubkey/i.test(message)) return 'That did not work. Check what you entered and try again.';
     return message;
   }
 
@@ -73,21 +81,30 @@
 
   const connectRemote = (): Promise<void> =>
     attempt(async () => {
-      const uri = remoteUri.trim();
-      if (!uri.startsWith('bunker://')) throw new Error('Paste the bunker:// address your signer shows.');
-      const signer = await NostrConnectSigner.fromBunkerURI(uri, {});
+      const code = remoteCode.trim();
+      if (!code.startsWith(`${REMOTE_SCHEME}://`)) throw new Error('That is not a pairing code. Copy the whole code from your signer app and paste it again.');
+      const signer = await NostrConnectSigner.fromBunkerURI(code, {});
       await adopt(new NostrConnectAccount(await signer.getPublicKey(), signer));
     });
 
   const pair = (): Promise<void> =>
     attempt(async () => {
       pairing?.abort();
-      pairing = new AbortController();
+      const controller = new AbortController();
+      pairing = controller;
       const tiers = kernl.relays.get();
       const relays = tiers.outbox.length ? tiers.outbox : tiers.discovery;
-      const signer = new NostrConnectSigner({ relays });
-      pairingUri = signer.getNostrConnectURI({ name: 'kernl', url: location.origin });
-      await signer.waitForSigner(pairing.signal);
+      // The preview has no network: its signer listens on nothing, so the code shows but nobody answers.
+      const offline = mode === 'preview' ? { subscriptionMethod: () => NEVER, publishMethod: async () => undefined } : {};
+      const signer = new NostrConnectSigner({ relays, ...offline });
+      pairingCode = signer.getNostrConnectURI({ name: 'kernl', url: location.origin });
+      try {
+        await signer.waitForSigner(controller.signal);
+      } catch (reason) {
+        // Back was pressed: the person stopped waiting, which is not an error.
+        if (controller.signal.aborted) return;
+        throw reason;
+      }
       await adopt(new NostrConnectAccount(await signer.getPublicKey(), signer));
     });
 
@@ -119,7 +136,7 @@
 
   function cancel(): void {
     pairing?.abort();
-    pairingUri = '';
+    pairingCode = '';
     method = null;
     error = null;
   }
@@ -195,19 +212,16 @@
         {:else if method === 'remote'}
           <h3>Connect a remote signer</h3>
           <form onsubmit={(event) => (event.preventDefault(), connectRemote())}>
-            <label class="shell-field"><span>Signer address</span><input class="shell-input mono" type="text" bind:value={remoteUri} placeholder="bunker://" autocomplete="off" spellcheck="false" /></label>
+            <label class="shell-field"><span>Pairing code from your signer app</span><input class="shell-input mono" type="text" bind:value={remoteCode} placeholder="paste the code your signer shows" autocomplete="off" spellcheck="false" /></label>
             <div class="shell-actions">
-              <button type="submit" class="shell-button primary" disabled={busy || !remoteUri.trim()}>Connect</button>
+              <button type="submit" class="shell-button primary" disabled={busy || !remoteCode.trim()}>Connect</button>
               <button type="button" class="shell-button" onclick={pair} disabled={busy}>Or pair from the signer</button>
               <button type="button" class="shell-button quiet" onclick={cancel}>Back</button>
             </div>
           </form>
-          {#if pairingUri}
-            <label class="shell-field">
-              <span>Pairing address for your signer app</span>
-              <textarea class="shell-textarea mono" readonly rows="3" value={pairingUri}></textarea>
-            </label>
-            <p class="shell-muted">Waiting for the signer to accept…</p>
+          {#if pairingCode}
+            <PairingCode code={pairingCode} />
+            <p class="shell-muted">{mode === 'preview' ? 'The preview runs offline, so no signer can answer here.' : 'Waiting for the signer to accept…'}</p>
           {/if}
         {:else if method === 'readonly'}
           <h3>Read-only</h3>

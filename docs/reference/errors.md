@@ -26,7 +26,7 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 | `denied:plaintext-key-persistence` | `@kernl/core` | `KernlAccountManager.addAccount` | The account type stores a raw secret key (`PLAINTEXT_KEY_ACCOUNT_TYPES`). |
 | `invalid:relay-url` | `@kernl/core` | `RelayTiers.add` | The URL is not `ws://` or `wss://`. |
 | `denied:read-only` | `@kernl/core` | the outbox service's signer | The session cannot sign, so an outbox publish is refused. |
-| `denied:consent` | `@kernl/core` | `createSigningConsent`, through the window signer (`relay.publish`) or the outbox gate (`outbox.publish`) | An applet window asked to sign a destructive kind (0, 3, 5, 10002, the list kinds) and the user denied or dismissed `host.presentConsent`. Nothing was signed or published. |
+| `denied:consent` | `@kernl/core` | `createSigningConsent`, through the window signer (`relay.publish`) or the outbox gate (`outbox.publish`) | An applet window asked to sign a destructive kind (any replaceable or addressable kind, 5 or 62) and the user denied or dismissed `host.presentConsent`. Nothing was signed or published. |
 | `denied:unknown-applet` | `@kernl/core` | `createSigningConsent` | A destructive write from a window the shell did not mount. |
 | `denied:signed-out` | `@kernl/core` | `createSigningConsent` | A destructive write (in practice an `outbox.publish`) while nobody is signed in. |
 | `invalid:event-kind` | `@kernl/core` | `createSigningConsent` | The event's `kind` is not a number. |
@@ -59,7 +59,7 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 
 The guard reports each non-pass decision as a `GuardEvent` with a `disposition` (`defer`, `reject`, `quarantine`, `flag`) and one of these reasons. They reach the user through `kernl.guard.events$` and the shell's guard panel. The numbers are per profile; see [Guard](../concepts/guard.md#profiles).
 
-For an applet's port traffic these layers run after kehto dispatched the envelope ([D-012](../decisions.md#d-012)): an event records what happened, and only a `quarantine` changes anything, by revoking the binding. `defer` and `reject` hold or drop only the window-level `hello`.
+For an applet's port traffic these layers observe each envelope just before kehto dispatches it but cannot hold it ([D-012](../decisions.md#d-012)): an event records what happened, and only a `quarantine` changes anything, by revoking the binding, which also stops the envelope that crossed the limit. `defer` and `reject` hold or drop only the window-level `hello`.
 
 | Reason | Emitted by | Disposition | Meaning |
 | --- | --- | --- | --- |

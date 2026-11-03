@@ -7,6 +7,7 @@ import { createGuardConfig, describeMitigations, type GuardEvent } from '@kernl/
 import type { AppletIdentity, GuardFacade, Kernl, KernlOptions, Session } from './types.js';
 import { createKernlAccounts } from './applesauce/accounts.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
+import { createReplaceableLoader } from './applesauce/identity-providers.js';
 import { createRelayTiers } from './relays/tiers.js';
 import { decodePointer } from './applets/pointer.js';
 import { defaultFetchBlob, openDefaultArtifactCache } from './applets/resolve.js';
@@ -99,7 +100,10 @@ export function createKernl(options: KernlOptions): Kernl {
   });
 
   const identityOf = (windowId: string): AppletIdentity | undefined => handles.get(windowId)?.summary.identity;
-  const lookupBefore = lookupReplaceable(eventStore);
+  const lookupBefore = lookupReplaceable(eventStore, {
+    loader: createReplaceableLoader(eventStore, pool, tiers),
+    relays: () => [...tiers.get().outbox, ...tiers.get().discovery],
+  });
   const consent = createSigningConsent({ host, lookupBefore, resolveApplet: identityOf, pubkey: () => accounts.active?.pubkey });
   const services = createKernlServices({
     pool,

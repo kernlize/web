@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import type { Booted, MountPlan, Session, StorageLike } from './contract';
   import GrantsPanel from './GrantsPanel.svelte';
   import type { GuardLog } from './guard-log.svelte';
@@ -8,6 +9,7 @@
   import MessagesPanel from './MessagesPanel.svelte';
   import { observe } from './observe.svelte';
   import SettingsPanel from './SettingsPanel.svelte';
+  import StatusBar from './StatusBar.svelte';
   import WindowLayer from './WindowLayer.svelte';
   import type { WindowStore } from './window-store.svelte';
 
@@ -31,7 +33,6 @@
   const profile = observe(kernl.guard.profile$, kernl.guard.config.profile);
   $effect(() => profile.stop);
 
-  const minimised = $derived(windows.windows.filter((win) => win.minimised));
   const grantsWindow = $derived(overlay?.kind === 'grants' ? windows.get(overlay.windowId) : undefined);
 
   export function openLauncher(address?: string): void {
@@ -59,9 +60,11 @@
   $effect(() => {
     const element = desk;
     if (!element) return;
+    // setArea reads and rewrites every window's rect. Run untracked, or this effect would
+    // depend on the rects it writes and re-run without end once a window is open.
     const measure = (): void => {
       const box = element.getBoundingClientRect();
-      windows.setArea({ x: 0, y: 0, width: Math.floor(box.width), height: Math.floor(box.height) });
+      untrack(() => windows.setArea({ x: 0, y: 0, width: Math.floor(box.width), height: Math.floor(box.height) }));
     };
     measure();
     const observer = new ResizeObserver(measure);
@@ -81,33 +84,7 @@
 </script>
 
 <div class="desktop">
-  <header class="status-bar" tabindex="-1">
-    <span class="wordmark" aria-hidden="true">kernl</span>
-    <button type="button" class="shell-button primary" onclick={() => openLauncher()} aria-keyshortcuts="Alt+/">Open an applet</button>
-    <div class="workspace" aria-label="Workspace">
-      <span class="shell-muted">Workspace 1 · {windows.windows.length} {windows.windows.length === 1 ? 'window' : 'windows'}</span>
-      <button type="button" class="shell-button quiet" onclick={() => windows.setLayout(windows.layout === 'floating' ? 'tiled' : 'floating')} aria-label="Layout: {windows.layout}. Switch to {windows.layout === 'floating' ? 'tiled' : 'floating'}">{windows.layout}</button>
-      {#if minimised.length}
-        <ul class="dock" aria-label="Minimised windows">
-          {#each minimised as win (win.id)}
-            <li><button type="button" class="shell-button quiet" onclick={() => windows.focus(win.id)}>{win.plan.summary.title}</button></li>
-          {/each}
-        </ul>
-      {/if}
-    </div>
-    <div class="right">
-      {#if booted.mode === 'preview'}<span class="shell-badge warn" title="Nothing here reaches the network">preview</span>{/if}
-      <button type="button" class="shell-button quiet" onclick={() => open('guard')} aria-label="Guard: {profile.value}, {guardLog.total} events">Guard · {profile.value} · {guardLog.total}</button>
-      <button type="button" class="shell-button quiet" onclick={() => open('messages')} aria-label="Messages, {unread} unread">Messages{#if unread} <span class="count">{unread}</span>{/if}</button>
-      <details class="account">
-        <summary class="shell-button quiet">{session.label}{#if session.readOnly} <span class="shell-badge">read-only</span>{/if}</summary>
-        <div class="menu">
-          <button type="button" class="shell-button quiet" onclick={() => open('settings')}>Settings</button>
-          <button type="button" class="shell-button quiet" onclick={onsignout}>Sign out</button>
-        </div>
-      </details>
-    </div>
-  </header>
+  <StatusBar {windows} {session} mode={booted.mode} profile={profile.value} guardEvents={guardLog.total} {unread} onlauncher={() => openLauncher()} onpanel={open} {onsignout} />
 
   <div class="desk" bind:this={desk} role="presentation">
     <div class="wallpaper" onpointerdown={() => windows.blur()}></div>
@@ -140,88 +117,7 @@
     inset: 0;
     display: grid;
     grid-template-rows: auto 1fr;
-  }
-
-  .status-bar {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.4rem 0.75rem;
-    min-height: 3rem;
-    background: color-mix(in srgb, var(--bg) 92%, transparent);
-    border-bottom: 1px solid var(--line);
-    z-index: 100;
-    position: relative;
-  }
-
-  .wordmark {
-    font-family: var(--font-mono);
-    font-weight: 500;
-    letter-spacing: -0.02em;
-  }
-
-  .workspace {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-family: var(--font-mono);
-    font-size: 0.78rem;
-    min-width: 0;
-    flex: 1;
-  }
-
-  .dock {
-    list-style: none;
-    margin: 0;
-    padding: 0 0 0 0.5rem;
-    display: flex;
-    gap: 0.25rem;
-    border-left: 1px solid var(--line);
-    overflow-x: auto;
-  }
-
-  .right {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-  }
-
-  .count {
-    background: var(--accent);
-    color: var(--accent-ink);
-    border-radius: 999px;
-    padding: 0 0.4rem;
-    font-size: 0.7rem;
-  }
-
-  .account {
-    position: relative;
-  }
-
-  .account summary {
-    list-style: none;
-  }
-
-  .account summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .menu {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 0.25rem);
-    display: grid;
-    gap: 0.1rem;
-    min-width: 10rem;
-    padding: 0.3rem;
-    background: var(--bg-raised);
-    border: 1px solid var(--line-strong);
-    border-radius: 12px;
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
-  }
-
-  .menu .shell-button {
-    justify-content: flex-start;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .desk {
@@ -246,6 +142,8 @@
     place-items: center;
     pointer-events: none;
     font-size: 0.95rem;
+    padding: 0 1rem;
+    text-align: center;
   }
 
   kbd {
@@ -256,9 +154,4 @@
     padding: 0.05rem 0.35rem;
   }
 
-  @media (max-width: 720px) {
-    .workspace > .shell-muted {
-      display: none;
-    }
-  }
 </style>

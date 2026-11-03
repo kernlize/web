@@ -22,8 +22,10 @@ function mitigation(id: string, provider: Provider, title: string, summary: stri
  * mitigation is enabled in every profile; only the `limit` text changes.
  * Each summary claims only what is enforced where D-012 places it: limits
  * the runtime applies before an applet's request is handled are described as
- * refusals, and what kernl observes afterwards is described as reported or,
- * for quarantine, as closing the applet.
+ * refusals. kernl sees each request just before the runtime handles it but
+ * cannot hold it back, so what kernl measures is described as reported; the
+ * one exception is quarantine, which closes the applet before the request
+ * that crossed the limit is handled, so that request is described as dropped.
  *
  * @param config - The guard configuration whose limits appear in the text.
  * @returns One description per mitigation, in the order the UI shows them.
@@ -41,7 +43,7 @@ export function describeMitigations(config: GuardConfig): readonly MitigationDes
       'zero-network-sandbox',
       'kehto',
       'Applets cannot reach the network on their own',
-      'Every applet runs in a sealed frame with no direct network access. Anything it sends or receives goes through the shell, where you can see it, slow it down or stop it.',
+      'Every applet runs in a sealed frame with no direct network access. Anything it sends or receives goes through the shell, where you can see it, revoke what you granted, or close the applet.',
     ),
     mitigation(
       'bound-identity',
@@ -72,28 +74,28 @@ export function describeMitigations(config: GuardConfig): readonly MitigationDes
       'focus-tightening',
       'kernl',
       'Applets you are not using are measured against a smaller budget',
-      'When an applet window is not the one you are working in, the shell counts its requests against a smaller allowance and tells you when it goes over. Going over is reported, not refused: the shell counts these requests after they have been handled. The budget above still applies.',
+      'When an applet window is not the one you are working in, the shell counts its requests against a smaller allowance and tells you when it goes over. Going over is reported, not refused: the shell counts each request as it arrives but cannot hold it back, so it is still handled. The budget above still applies.',
       `${limits.unfocusedMultiplier * 100}% of the focused budget`,
     ),
     mitigation(
       'hidden-deferral',
       'kernl',
       'Hidden applets that keep downloading are stopped',
-      'While an applet is minimised or hidden, the shell counts its downloads. One that downloads past its allowance is quarantined: the shell closes it and tells you. Other requests from a hidden applet are recorded, not held back.',
+      'While an applet is minimised or hidden, the shell counts its downloads. One that downloads past its allowance is quarantined: the download that crossed the allowance is dropped, and the shell closes the applet and tells you. Other requests from a hidden applet are recorded, not held back.',
       `${limits.hiddenResourceAllowance} downloads while hidden`,
     ),
     mitigation(
       'ingress-flood',
       'kernl',
       'Applets that flood the shell are put in quarantine',
-      'The shell counts every message an applet sends. Bursts above the per-second rate are reported to you. An applet that keeps flooding is quarantined: the shell closes it and tells you.',
+      'The shell counts every message an applet sends. Bursts above the per-second rate are reported to you. An applet that keeps flooding is quarantined: the message that crossed the limit is dropped, and the shell closes the applet and tells you.',
       `${limits.ingressBurst} messages per second, ${limits.quarantineThreshold} per 10s`,
     ),
     mitigation(
       'size-caps',
       'kernl',
       'Oversized requests are reported',
-      'The shell measures download and long-running query requests against a maximum size and tells you when an applet sends one that is too large. Such a request is not stopped: the shell measures it after it has been handled.',
+      'The shell measures download and long-running query requests against a maximum size and tells you when an applet sends one that is too large. Such a request is not stopped: the shell measures it as it arrives but cannot hold it back, so it is still handled.',
       `downloads ${kib(limits.maxResourceEnvelopeBytes)}, queries ${kib(limits.maxSubscribeEnvelopeBytes)}`,
     ),
     mitigation(
@@ -106,7 +108,7 @@ export function describeMitigations(config: GuardConfig): readonly MitigationDes
       'destructive-consent',
       'kernl',
       'Deleting or overwriting asks you first',
-      'Before the shell signs a profile, contact-list, deletion, connection-list or other list change for an applet, it shows you what changes and waits for your answer.',
+      "Before the shell signs anything for an applet that overwrites or erases part of your account's public record (your profile, contacts, connections, lists or any other record a new version replaces, a deletion, or a request to erase your account), it shows you what changes compared with the current version and waits for your answer. If the current version cannot be loaded, it says so.",
     ),
   ];
 }

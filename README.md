@@ -27,7 +27,7 @@ The person at the keyboard is the only principal that matters.
 > The source is private during alpha; the [site and docs](https://kernlize.github.io/) are public, and the `@kernl/*` packages are not on npm yet. The badges above are measured values from `pnpm check` and a live agent-readiness scan, not live CI status: package coverage is statement, branch, function and line coverage over `packages/*/src`, and the slop gate is the `aislop` score (100 means no findings).
 
 <p align="center">
-  <img src=".github/assets/shell.png" alt="The kernl shell in its tiled layout: two sandboxed preview applets side by side, one granted network access and one not, with the guard indicator reading strict." width="880" />
+  <img src=".github/assets/shell.png" alt="The kernl preview shell in its tiled layout: the Notes and Pulse sample applets side by side, Notes granted network access and Pulse not, each listing actions such as Publish a note (no prompt), Update your profile and Delete a note (ask first), with the guard indicator reading strict and no events." width="880" />
 </p>
 
 ## What it is
@@ -48,15 +48,15 @@ The full reasoning is in [`SOUL.md`](./SOUL.md). Each concrete choice is in [`DE
 
 ## What it does
 
-- **Runs applets in a sealed frame.** `srcdoc`, `sandbox="allow-scripts"` and nothing else, a zero-network policy, identity bound to the verified bytes and a single message port. When any of that changes, the binding is revoked and the frame removed; grants stay keyed by the applet's identity, so the same build gets them back when it is opened again.
-- **Asks before it signs anything destructive.** When an applet asks to sign a profile edit, a follow change, a deletion, a connection-list change or a list change, kernl's consent gate (in the signer it hands kehto, and in front of the outbox service) shows it as before → after, with the raw event behind a disclosure, and waits. A refusal fails with `denied:consent` and nothing is signed. Routine writes are signed without a prompt, and no answer is remembered.
-- **Guards by default.** Eleven protections ship on, in the strict profile, with a readable list of what is on and why. Before an applet's message is dispatched, kehto's runtime firewall enforces the per-class rates kernl installs. kernl's flood control, hidden-window and focus tracking and size caps watch the same traffic after dispatch: they report what they see and quarantine a flooding applet, but they do not hold or drop single messages ([D-012](./DECISIONS.md)). The profile is shell-wide and resets to strict on boot; per-applet profiles are planned.
+- **Runs applets in a sealed frame.** `srcdoc`, `sandbox="allow-scripts"` and nothing else, a zero-network policy, WebRTC removed before applet code runs, identity bound to the verified bytes and a single message port. A browser test (`tests/e2e/applet-network-sealed.spec.ts`) proves an applet frame cannot fetch, open a socket or peer connection, load an image or frame, or send a beacon. When any of that changes, the binding is revoked and the frame removed; grants stay keyed by the applet's identity, so the same build gets them back when it is opened again.
+- **Asks before it signs anything destructive.** When an applet asks to sign anything that replaces a previous version (a profile, follows, connections, lists, any other replaceable or addressable record), a deletion or a request to erase the account, kernl's consent gate (in the signer it hands kehto, and in front of the outbox service) looks up the current version, locally and then on the network for up to 4 seconds, shows the change as before → after, with the raw event behind a disclosure, and waits. If the current version cannot be loaded, the prompt says so. A refusal fails with `denied:consent` and nothing is signed. Routine writes are signed without a prompt, and no answer is remembered.
+- **Guards by default.** Eleven protections ship on, in the strict profile, with a readable list of what is on and why. kehto's runtime firewall refuses messages over the per-class rates kernl installs at mount. kernl's flood control, hidden-window and focus tracking and size caps see each message just before it is dispatched but cannot hold it back: they report what they see, and an applet that floods the shell, or keeps downloading while hidden, is quarantined, which stops the message that crossed the limit and closes the applet ([D-012](./DECISIONS.md)). The profile is shell-wide and resets to strict on boot; per-applet profiles are planned.
 - **Messages across providers (preview only in this alpha).** One Direct Messenger surface over several private-message providers, each described by its properties and none ranked. In the live shell all three providers are unavailable because no backend is supplied; only the offline preview sends messages. See [`docs/alpha-status.md`](./docs/alpha-status.md).
-- **Bridges other networks.** Web fetch works today behind an SSRF policy, with caveats: from the browser shell it works for `https` origins that permit cross-origin reads, redirects are refused because the browser hides their target, and hostnames are checked as literals only. Downloads, sharing and mail have their contracts and wait for backends.
-- **Previews without an account.** `/app/?preview=1` runs the whole shell offline with sample applets that exercise consent, notifications and the guard.
+- **Bridges other networks.** Web fetch works today behind an SSRF policy, with caveats: from the browser shell it works for `https` origins that permit cross-origin reads, redirects are refused because the browser hides their target, and hostnames are checked as literals only (IPv4, and IPv6 parsed in full, including addresses that embed IPv4). Downloads, sharing and mail have their contracts and wait for backends.
+- **Previews without an account.** `/app/?preview=1` is a faithful offline stand-in for the live shell: the same consent rule (only destructive writes ask, decided by `@kernl/core` itself), the same observe-and-quarantine guard starting in strict, and two sample applets to exercise them. Messaging works only here in this alpha.
 
 <p align="center">
-  <img src=".github/assets/guard.png" alt="The guard panel in the preview: the strict, balanced and relaxed profiles with strict selected, all eleven protections in plain words with their strict limits and whether each is built into the toolkit or added by kernl, and an empty recent-events log." width="520" />
+  <img src=".github/assets/guard.png" alt="The full guard panel in the preview: the strict, balanced and relaxed profiles with strict selected, all eleven protections in plain words with their strict limits and whether each is built into the toolkit, added by kernl or both, saying which limits refuse a request, which only report it, and that quarantine drops the message that crossed the limit, and an empty recent-events log." width="520" />
 </p>
 
 ## Packages
@@ -84,7 +84,7 @@ scripts               build, audit and guard scripts
 
 ## Run it
 
-No install: [open the preview](https://kernlize.github.io/app/?preview=1). It runs the whole shell in your browser with sample applets and a throwaway account.
+No install: [open the preview](https://kernlize.github.io/app/?preview=1). It runs the shell in your browser, offline, with the live shell's consent and guard behaviour, two sample applets and a throwaway account.
 
 From source (Node 22 or newer, pnpm 10 via `corepack enable`):
 
@@ -130,7 +130,7 @@ Feature: Visibility gate
   # … seven more scenarios: visible windows, draining, the full queue, forgetting a window
 ```
 
-The scenarios specify the gate's own API. In the composed shell the gate holds only an applet's first window-level message; the rest of its traffic travels over a port kehto owns and is observed after dispatch.
+The scenarios specify the gate's own API. In the composed shell the gate holds only an applet's first window-level message; the rest of its traffic travels over a port kehto owns and is observed just before dispatch, without being held.
 
 Features live in `packages/*/features/` and run inside vitest through [quickpickle](https://github.com/dnotes/quickpickle). Coverage thresholds are 100% across statements, branches, functions and lines.
 
@@ -144,6 +144,7 @@ The docs are a product. Start at [`docs/index.md`](./docs/index.md), or on the s
 | Understand what protects the user | [Guard](./docs/concepts/guard.md) |
 | Understand grants and identity | [Identity and grants](./docs/concepts/identity-and-grants.md) |
 | Run the shell locally | [Run the shell](./docs/tutorials/run-the-shell.md) |
+| Write an applet and open it in kernl | [Write an applet](./docs/tutorials/write-an-applet.md) |
 | Write an applet that runs well under kernl | [Applets under kernl](./docs/concepts/applets-under-kernl.md) |
 | Embed the shell core in your own page | [Embed `@kernl/core`](./docs/how-tos/embed-kernl-core.md) |
 | Add a messaging provider | [How-to](./docs/how-tos/add-a-messaging-provider.md) |

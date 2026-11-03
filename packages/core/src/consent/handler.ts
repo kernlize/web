@@ -1,36 +1,87 @@
+import { catchError, EMPTY, lastValueFrom, takeUntil, timer, toArray } from 'rxjs';
 import type { EventStore } from 'applesauce-core';
+import { isAddressableKind, isReplaceable } from 'applesauce-core/helpers';
+import type { AddressPointerLoader } from 'applesauce-loaders/loaders';
 import type { ConsentRequest } from '@kehto/runtime';
 import type { EventTemplate, NostrEvent } from '@napplet/core';
-import type { AppletIdentity, ConsentSummary, KernlHost } from '../types.js';
+import type { AppletIdentity, ConsentLine, ConsentSummary, KernlHost } from '../types.js';
 import { describeChange, isDestructiveKind } from './describe-change.js';
 
-/** Finds the current version of a replaceable event so the summary can show a diff. */
-export type LookupBefore = (kind: number, pubkey: string, identifier?: string) => NostrEvent | undefined;
+/** Finds the current version of a replaceable event so the summary can show a diff; undefined when it cannot be found. */
+export type LookupBefore = (kind: number, pubkey: string, identifier?: string) => Promise<NostrEvent | undefined>;
 
 /** Maps a window to the verified applet running in it. */
 export type ResolveAppletIdentity = (windowId: string) => AppletIdentity | undefined;
 
+/** How long a consent prompt waits for the network to return the current version, in milliseconds. */
+export const CURRENT_VERSION_TIMEOUT_MS = 4000;
+
+/** The line a destructive summary carries when the version it replaces could not be loaded. */
+export const UNKNOWN_CURRENT_VERSION: ConsentLine = { label: 'Current version', after: 'could not be loaded; this replaces it entirely' };
+
+/** Options for {@link lookupReplaceable}. */
+export interface LookupReplaceableOptions {
+  /** Loads the current version from the network when the store has none. Without it the lookup reads the store only. */
+  readonly loader?: AddressPointerLoader;
+  /** The relays to ask, read each time a lookup runs. */
+  readonly relays?: () => readonly string[];
+  /** How long to wait for the loader; defaults to {@link CURRENT_VERSION_TIMEOUT_MS}. */
+  readonly timeoutMs?: number;
+}
+
+function newest(events: readonly NostrEvent[]): NostrEvent | undefined {
+  return events.reduce<NostrEvent | undefined>((best, event) => (!best || event.created_at > best.created_at ? event : best), undefined);
+}
+
 /**
- * A {@link LookupBefore} over the shell's event store.
+ * A {@link LookupBefore} over the shell's event store and, on a miss, the
+ * network.
+ *
+ * The store answers first. When it holds no version, the applesauce address
+ * loader asks the given relays and the lookup waits at most `timeoutMs` for
+ * an answer, then takes the newest version that arrived. A loader that fails
+ * or stays silent yields undefined, which the consent summary reports as a
+ * current version that could not be loaded.
  *
  * @param store - The event store that holds the current replaceable events.
- * @returns A lookup for {@link createConsentHandler}.
+ * @param options - Network loader, relays and timeout.
+ * @returns A lookup for {@link createConsentHandler} and {@link createSigningConsent}.
  * @example
  * ```ts
- * createConsentHandler(host, lookupReplaceable(eventStore), resolveApplet);
+ * const lookupBefore = lookupReplaceable(eventStore, { loader, relays: () => tiers.get().discovery });
+ * createConsentHandler(host, lookupBefore, resolveApplet);
  * ```
  */
-export function lookupReplaceable(store: Pick<EventStore, 'getReplaceable'>): LookupBefore {
-  return (kind, pubkey, identifier) => store.getReplaceable(kind, pubkey, identifier);
+export function lookupReplaceable(store: Pick<EventStore, 'getReplaceable'>, options: LookupReplaceableOptions = {}): LookupBefore {
+  const { loader } = options;
+  return async (kind, pubkey, identifier) => {
+    const cached = store.getReplaceable(kind, pubkey, identifier);
+    if (cached || !loader) return cached;
+    const pointer = { kind, pubkey, relays: [...(options.relays?.() ?? [])], ...(identifier === undefined ? {} : { identifier }) };
+    const loaded = await lastValueFrom(
+      loader(pointer).pipe(takeUntil(timer(options.timeoutMs ?? CURRENT_VERSION_TIMEOUT_MS)), catchError(() => EMPTY), toArray()),
+    );
+    return newest(loaded);
+  };
 }
 
 function identifierOf(event: NostrEvent): string | undefined {
+  if (!isAddressableKind(event.kind)) return undefined;
   const tag = event.tags.find((entry) => entry[0] === 'd');
-  return tag?.[1];
+  return tag?.[1] ?? '';
 }
 
-function describeAgainstCurrent(event: NostrEvent, lookupBefore: LookupBefore, applet: AppletIdentity): ConsentSummary {
-  return describeChange(event, lookupBefore(event.kind, event.pubkey, identifierOf(event)), applet);
+/**
+ * Describe a write against the version it replaces. A replaceable or
+ * addressable write whose current version cannot be found stays destructive
+ * and says so first, rather than reading as a first version that removes
+ * nothing.
+ */
+async function describeAgainstCurrent(event: NostrEvent, lookupBefore: LookupBefore, applet: AppletIdentity): Promise<ConsentSummary> {
+  if (!isReplaceable(event.kind)) return describeChange(event, undefined, applet);
+  const before = await lookupBefore(event.kind, event.pubkey, identifierOf(event));
+  const summary = describeChange(event, before, applet);
+  return before ? summary : { ...summary, lines: [UNKNOWN_CURRENT_VERSION, ...summary.lines] };
 }
 
 /**
@@ -66,10 +117,9 @@ export function createConsentHandler(
       request.resolve(false);
       return;
     }
-    host.presentConsent({
-      summary: describeAgainstCurrent(event, lookupBefore, applet),
-      resolve: (allowed) => request.resolve(allowed),
-    });
+    void describeAgainstCurrent(event, lookupBefore, applet).then((summary) =>
+      host.presentConsent({ summary, resolve: (allowed) => request.resolve(allowed) }),
+    );
   };
 }
 
@@ -112,7 +162,8 @@ function draftOf(template: SigningTemplate, kind: number, pubkey: string): Nostr
  *
  * Routine kinds pass without a prompt. A destructive kind (see
  * {@link isDestructiveKind}) is described against the account's current
- * version from the event store and put to the user through
+ * version, from the event store or the network (see {@link lookupReplaceable}),
+ * and put to the user through
  * `host.presentConsent`; the gate waits for the answer and nothing is signed
  * unless it is yes. The summary's `event` is the unsigned draft: its `id` and
  * `sig` are empty because signing has not happened yet.
@@ -134,7 +185,7 @@ export function createSigningConsent(options: SigningConsentOptions): SigningCon
     if (!applet) throw new Error('denied:unknown-applet');
     const pubkey = options.pubkey();
     if (pubkey === undefined) throw new Error('denied:signed-out');
-    const summary = describeAgainstCurrent(draftOf(template, kind, pubkey), options.lookupBefore, applet);
+    const summary = await describeAgainstCurrent(draftOf(template, kind, pubkey), options.lookupBefore, applet);
     const allowed = await new Promise<boolean>((resolve) => options.host.presentConsent({ summary, resolve }));
     if (!allowed) throw new Error('denied:consent');
   };

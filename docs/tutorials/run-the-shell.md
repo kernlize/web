@@ -14,9 +14,13 @@ Open the hosted preview:
 https://kernlize.github.io/app/?preview=1
 ```
 
-The preview runs the same shell UI over an offline stand-in for the `Kernl` contract, with two sample applets and no network ([D-011](../decisions.md#d-011)).
+The preview runs the same shell UI over an offline stand-in for the `Kernl` contract, with two sample applets and no network ([D-011](../decisions.md#d-011)). It behaves like the live shell where it stands in for it: it asks before a write only for the kinds `@kernl/core` rates destructive, using the core's own `isDestructiveKind` and `describeChange`; its guard observes and stops an applet only by quarantine; it starts in `strict` on every load; and its sample applets remove WebRTC the way kehto's prelude does. Messaging works only here, because the live shell has no messaging backend yet ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)).
 
-**You should now see** a card headed "Who is at the keyboard?" with a **Try the preview** button. Click it, then **Open an applet**; the launcher lists the sample applets *Notes* and *Pulse*, each with an **Open** button. Open one and click **Run**, and it appears in a window.
+**You should now see** a card headed "Who is at the keyboard?" with a **Try the preview** button. Click it, then **Open an applet**; under "Sample applets" the launcher lists *Notes* and *Pulse*, each with an **Open** button. Open *Notes*, turn on the *network* switch (it starts off, like every grant on a first run), and click **Run**. It appears in a window with buttons to try:
+
+- **Publish a note** goes out without a prompt: a note is routine.
+- **Update your profile** and **Delete a note** ask first: the consent dialog shows what changes, and nothing happens until you answer.
+- **Flood the shell** sends 40 network reads at once; the guard panel (*Guard · strict · N* in the bar) records the burst.
 
 Without `?preview=1`, `https://kernlize.github.io/app/` is the live shell: everything below from step 3 on works there too, against real relays.
 
@@ -61,7 +65,7 @@ The first load shows the shell with no account. `boot.ts` has called `createKern
 Under "Sign in another way", pick one:
 
 - **Use a browser extension** (button **Use**, shown only when an extension is present). The shell wraps the extension in an applesauce `ExtensionAccount`; your key stays in the extension.
-- **Connect a remote signer** (button **Connect**). Paste a `bunker://` address into "Signer address" and click **Connect**, or click **Or pair from the signer** to get a pairing address for your signer app. Either way the shell holds a `NostrConnectAccount` over an applesauce `NostrConnectSigner` that talks through the shell's own `RelayPool`.
+- **Connect a remote signer** (button **Connect**). Either paste the code your signer app shows (a `bunker://` URI) into "Pairing code from your signer app" and click **Connect**, or click **Or pair from the signer**: the shell shows a QR code to scan with your signer app and a **Copy pairing code** button for pasting it there instead (a `nostrconnect://` URI), then waits with "Waiting for the signer to accept…". Either way the shell holds a `NostrConnectAccount` over an applesauce `NostrConnectSigner` that talks through the shell's own `RelayPool`.
 - **Read-only** (button **Choose**). Paste a public key into "Account id" and click **Continue**. The session is `readOnly`, applets see the identity, and every write is refused because `createAuthHooks` returns no signer.
 - **Create a local account** (button **Create**). Choose a password, repeat it, and click **Create and sign in**. The shell generates a key inside an applesauce `PasswordSigner` and persists it as a `PasswordAccount`, whose serialised form is NIP-49 encrypted. A plaintext-key account is refused by `KernlAccountManager` with `denied:plaintext-key-persistence`.
 
@@ -80,7 +84,9 @@ const session = await kernl.login(account);
 session.readOnly; // true for a ReadonlyAccount; writes are then refused
 ```
 
-**You should now see** the desktop: an **Open an applet** button, "Workspace 1 · 0 windows", "No applets open.", and on the right *Guard · strict · 0*, **Messages** and your account name, whose menu holds **Settings** and **Sign out**.
+**You should now see** the desktop: an **Open an applet** button, "Workspace 1 · 0 windows" with a button naming the current layout (`floating` or `tiled`; click it to switch), "No applets open. Press Alt + / or use the button above.", and on the right *Guard · strict · 0*, **Messages** and your account name, whose menu holds **Settings** and **Sign out**. At 720 px wide or less the bar shows **Open** and a **Menu** button instead; the menu sheet holds the guard, messages, layout, minimised windows, **Settings** and **Sign out**, and each window fills the screen.
+
+**Settings** lists the four server tiers (Discovery, Applet catalogue, Your connections, General) by display name, so `wss://relay.damus.io` reads `damus.io`; add one by typing it into "Server address" (a bare hostname gets `wss://`). Under "Bridges" it names each bridge by what it does, *Downloads (web)*, *Downloads (from peers)*, *Downloads (archives)*, *Sharing* and *Mail*, with an "Availability" of "Ready" or "Needs a backend" and what the other side learns. "About" shows the shell's version, `kernl 0.1.0`, and whether it is live or the offline preview.
 
 ## 4. Open an applet by address
 
@@ -113,9 +119,9 @@ The window's iframe is mounted with `kernl.mount(plan, iframe)`: the frame gets 
 
 ## 5. Watch the guard
 
-The desktop bar shows *Guard · strict · N*, where N counts guard events this session. Click it to see the profile, the eleven protections with the limit each one applies in the current profile (`kernl.guard.mitigations()`), and "Recent events" (`kernl.guard.events$`). Each event is a sentence naming the applet, what happened and why, for example "Applet Notes was refused: too many publishes", which is the guard's `rate:relay:publish`. A quarantined applet has its binding revoked and its frame removed; the window shows "This applet was stopped." and a notice says so.
+The desktop bar shows *Guard · strict · N*, where N counts guard events this session. Click it to see the profile, the eleven protections with the limit each one applies in the current profile (`kernl.guard.mitigations()`), and "Recent events" (`kernl.guard.events$`). Each event is a sentence naming the applet, what happened and why, for example "Applet Notes went over a limit: too many publishes", which is the guard's `rate:relay:publish`. A quarantined applet has its binding revoked and its frame removed; the window shows "This applet was stopped." and a notice says so.
 
-Changing the profile here calls `kernl.guard.setProfile(profile)`, which rebuilds the guard for every window and is not remembered across reloads. [Change the guard profile](../how-tos/change-guard-profile.md) has the details and the numbers.
+Changing the profile here calls `kernl.guard.setProfile(profile)`. kernl's own counting switches at once; windows already open keep the refusal rates they were mounted with until you open them again, and the choice is not remembered across reloads. [Change the guard profile](../how-tos/change-guard-profile.md) has the details and the numbers.
 
 **You should now see** the guard panel with `strict (default)` selected and, for a quiet applet, no events.
 

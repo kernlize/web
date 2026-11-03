@@ -7,7 +7,7 @@ const repoRoot = resolve(new URL('..', import.meta.url).pathname);
 const artifactRoot = resolve(repoRoot, process.env.PAGES_OUT_DIR || '.pages');
 const previewPath = withSlashes(process.env.PAGES_PREVIEW_PATH || '/');
 const host = process.env.HOST || '127.0.0.1';
-const port = Number.parseInt(process.env.PORT || process.env.PAGES_PREVIEW_PORT || '4178', 10) || 4178;
+const port = Number.parseInt(process.env.PORT || process.env.PAGES_PORT || process.env.PAGES_PREVIEW_PORT || '4178', 10) || 4178;
 
 const contentTypes = new Map([
   ['.css', 'text/css; charset=utf-8'],

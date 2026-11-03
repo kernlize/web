@@ -1,10 +1,12 @@
 <script lang="ts">
-  import { describeBridge } from '@kernl/bridges';
-  import pkg from '../../package.json';
+  // The shell's version is the core's: apps/web is a private workspace that stays at 0.0.0.
+  import core from '../../../../packages/core/package.json';
+  import { bridgeName, bridgeRows } from './bridge-names';
   import type { BootMode, RelayTier, ShellKernl } from './contract';
   import { toggleTheme } from '../lib/theme';
   import { observe } from './observe.svelte';
   import Overlay from './Overlay.svelte';
+  import { serverAddress, serverName } from './servers';
 
   interface Props {
     kernl: ShellKernl;
@@ -29,10 +31,10 @@
   function add(tier: RelayTier): void {
     error = null;
     try {
-      kernl.relays.add(tier, drafts[tier]);
+      kernl.relays.add(tier, serverAddress(drafts[tier]));
       drafts[tier] = '';
     } catch (reason) {
-      error = reason instanceof Error && reason.message === 'invalid:url' ? 'Enter a secure network address (wss://…).' : String(reason);
+      error = reason instanceof Error && reason.message.startsWith('invalid:') ? 'Enter a server address such as server.example.' : 'That server could not be added.';
     }
   }
 </script>
@@ -48,13 +50,14 @@
           <p>{tier.help}</p>
           <ul class="shell-list urls">
             {#each tiers.value[tier.id] as url (url)}
-              <li><code>{url}</code><button type="button" class="shell-button quiet" onclick={() => kernl.relays.remove(tier.id, url)} aria-label="Remove {url} from {tier.label}">Remove</button></li>
+              {@const name = serverName(url)}
+              <li data-address={url}><span class="server">{name}</span><button type="button" class="shell-button quiet" onclick={() => kernl.relays.remove(tier.id, url)} aria-label="Remove {name} from {tier.label}">Remove</button></li>
             {:else}
               <li class="shell-muted">None configured.</li>
             {/each}
           </ul>
           <form class="add" onsubmit={(event) => (event.preventDefault(), add(tier.id))}>
-            <input class="shell-input mono" type="url" bind:value={drafts[tier.id]} placeholder="wss://" aria-label="Add a server to {tier.label}" />
+            <label class="shell-field"><span>Server address</span><input class="shell-input mono" type="text" inputmode="url" autocomplete="off" spellcheck="false" bind:value={drafts[tier.id]} placeholder="server.example" /></label>
             <button type="submit" class="shell-button" disabled={!drafts[tier.id].trim()}>Add</button>
           </form>
         </div>
@@ -68,9 +71,9 @@
     <ul class="shell-list bridges">
       {#each kernl.bridges.list() as bridge (bridge.id)}
         <li class="shell-card">
-          <h4>{bridge.label} <span class="shell-badge">{bridge.schemes.join(', ')}</span></h4>
+          <h4>{bridgeName(bridge)}</h4>
           <dl class="shell-rows">
-            {#each describeBridge(bridge) as row (row.label)}
+            {#each bridgeRows(bridge) as row (row.label)}
               <div><dt>{row.label}</dt><dd>{row.value}</dd></div>
             {/each}
           </dl>
@@ -85,7 +88,7 @@
   <section class="shell-section">
     <h3>About</h3>
     <dl class="shell-rows">
-      <div><dt>Shell</dt><dd>kernl {pkg.version}</dd></div>
+      <div><dt>Shell</dt><dd>kernl {core.version}</dd></div>
       <div><dt>Mode</dt><dd>{mode === 'preview' ? 'preview, offline' : 'live'}</dd></div>
       <div><dt>Source</dt><dd>Private during alpha. <a href="https://kernlize.github.io/docs/decisions">Decisions</a> are public.</dd></div>
     </dl>
@@ -120,7 +123,7 @@
     max-width: none;
   }
 
-  .urls code {
+  .urls .server {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -129,6 +132,7 @@
   .add {
     display: grid;
     grid-template-columns: 1fr auto;
+    align-items: end;
     gap: 0.5rem;
   }
 </style>

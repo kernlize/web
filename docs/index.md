@@ -16,7 +16,7 @@ kehto ships `@kehto/{acl,firewall,runtime,shell,services,nip,wm}` and deliberate
 | --- | --- |
 | Event layer | [applesauce](https://applesauce.build) v7 only. One `EventStore`, one `RelayPool`, one `AccountManager` per shell. `nostr-tools` is never imported by kernl source. |
 | Containment | Opaque-origin `srcdoc` iframe, `sandbox="allow-scripts"`, zero-network CSP, every network path through a shell service the user can see, rate-limit and revoke. |
-| Mitigations | Every kehto mitigation ships on, in the `strict` [guard](./concepts/guard.md) profile. kehto's runtime firewall enforces the profile's rates before dispatch; kernl's own layers watch port traffic after dispatch, report what they see and quarantine floods. Only the user loosens the profile: shell-wide in this draft, reset to `strict` on every boot, per applet later. A developer flag never loosens it. |
+| Mitigations | Every kehto mitigation ships on, in the `strict` [guard](./concepts/guard.md) profile. kehto's runtime firewall refuses requests over the profile's rates; kernl's own layers observe every port message just before dispatch, report what they see and quarantine floods, which stops the message that crossed the limit. Only the user loosens the profile: shell-wide in this draft, reset to `strict` on every boot, per applet later. A developer flag never loosens it. |
 | Protocols | One identity layer, many [bridges](./concepts/bridges.md) named by what they do for the user, never by the wire format. |
 | Messaging | Any reasonable private-messaging protocol, exposed through one contract. [Providers](./concepts/messaging.md) describe their security properties truthfully and the shell does not rank them. |
 
@@ -26,7 +26,7 @@ kernl does not fork kehto ([D-001](./decisions.md#d-001)). When kehto lacks a ho
 
 **Use the shell.** Try the hosted preview at [kernlize.github.io/app/?preview=1](https://kernlize.github.io/app/?preview=1), which needs no install and no account, or open the live shell, sign in with a browser extension or a remote signer, and open an applet by its address. Start with [Run the shell](./tutorials/run-the-shell.md), then read [Grant and revoke](./how-tos/grant-and-revoke.md) to understand what the shell asks you and why.
 
-**Build an applet for it.** Applets are ordinary NIP-5D napplets; kernl adds nothing to the wire format. What kernl changes is the posture: fewer domains advertised until granted, budgets that tighten while hidden or unfocused, and quarantine for floods. [Applets under kernl](./concepts/applets-under-kernl.md) tells you what to expect and how to test against it.
+**Build an applet for it.** Applets are ordinary NIP-5D napplets; kernl adds nothing to the wire format. What kernl changes is the posture: fewer domains advertised until granted, rate limits, closer watch while hidden or unfocused, and quarantine for floods. [Write an applet](./tutorials/write-an-applet.md) builds, tests, publishes and opens one; [Applets under kernl](./concepts/applets-under-kernl.md) tells you what to expect and how to test against it.
 
 **Extend the shell.** [Embed kernl core](./how-tos/embed-kernl-core.md) in your own page, add a [messaging provider](./how-tos/add-a-messaging-provider.md) or a [bridge backend](./how-tos/add-a-bridge-backend.md), or change how the guard is composed. Start with [Architecture](./concepts/architecture.md) and the [package pages](./packages/index.md).
 

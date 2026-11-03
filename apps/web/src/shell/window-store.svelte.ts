@@ -7,6 +7,8 @@ import { cascade, clampRect, dwindle, type Rect } from './layout';
 export type LayoutMode = 'floating' | 'tiled';
 
 export const TITLE_BAR_HEIGHT = 36;
+/** At or below this desktop width every window fills the desktop; the topmost one shows. */
+export const COMPACT_WIDTH = 720;
 
 export interface ShellWindow {
   readonly id: string;
@@ -48,13 +50,15 @@ export class WindowStore {
 
   readonly visible = $derived(this.windows.filter((window) => !window.minimised && !window.revoked));
   readonly tiles = $derived(dwindle(this.area, this.visible.length));
+  readonly compact = $derived(this.area.width <= COMPACT_WIDTH);
 
   get(id: string): ShellWindow | undefined {
     return this.windows.find((window) => window.id === id);
   }
 
-  /** The chrome rectangle, floating or tiled. */
+  /** The chrome rectangle: the whole desktop on narrow screens, else floating or tiled. */
   rectOf(window: ShellWindow): Rect {
+    if (this.compact) return this.area;
     if (this.layout === 'floating') return window.rect;
     const index = this.visible.indexOf(window);
     return this.tiles[index] ?? window.rect;

@@ -12,7 +12,7 @@
   const { win, windows, ongrants }: Props = $props();
   const rect = $derived(windows.rectOf(win));
   const focused = $derived(windows.focusedId === win.id);
-  const floating = $derived(windows.layout === 'floating');
+  const floating = $derived(windows.layout === 'floating' && !windows.compact);
   const title = $derived(win.plan.summary.title);
 
   type Mode = 'move' | 'resize';
@@ -56,6 +56,7 @@
   class:focused
   class:hidden={win.minimised}
   class:revoked={Boolean(win.revoked)}
+  class:compact={windows.compact}
   aria-label="{title} window"
   data-window-id={win.id}
   data-status={win.status}
@@ -89,7 +90,7 @@
       <div class="stopped">
         <p><strong>This applet was stopped.</strong></p>
         <p class="shell-muted">{win.revoked}</p>
-        <button type="button" class="shell-button" onclick={() => windows.close(win.id)}>Close win</button>
+        <button type="button" class="shell-button" onclick={() => windows.close(win.id)}>Close window</button>
       </div>
     {:else if win.status === 'mounting'}
       <p class="shell-muted starting">Starting {title}…</p>
@@ -118,6 +119,26 @@
     box-shadow: 0 16px 44px rgba(0, 0, 0, 0.4);
   }
 
+  .window.compact {
+    border-radius: 0;
+    border-width: 0;
+    box-shadow: none;
+  }
+
+  .window.compact .title-bar {
+    border-radius: 0;
+    cursor: default;
+  }
+
+  .window.compact .shell-badge,
+  .window.compact .status {
+    display: none;
+  }
+
+  .window.compact .buttons {
+    margin-left: auto;
+  }
+
   .window.hidden {
     display: none;
   }
@@ -140,6 +161,7 @@
   }
 
   .title {
+    min-width: 0;
     font-weight: 600;
     font-size: 0.92rem;
     overflow: hidden;

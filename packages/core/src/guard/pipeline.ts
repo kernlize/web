@@ -29,7 +29,7 @@ export interface GuardPipelineOptions {
   readonly now?: () => number;
   /** Receives every guard event from every layer. */
   readonly onEvent?: (event: GuardEvent) => void;
-  /** Called once when a window crosses the quarantine threshold; kernl revokes it here. */
+  /** Called once when a window crosses the quarantine threshold; kernl revokes it here, before the triggering envelope is dispatched. */
   readonly onQuarantine?: (windowId: string, napplet: string) => void;
   /** Visibility for a window the pipeline has not been told about yet. */
   readonly getVisibility?: (windowId: string) => WindowVisibility;
@@ -58,9 +58,13 @@ export interface GuardPipeline {
    */
   handleWindowMessage(event: MessageEvent, resolveWindow: (event: MessageEvent) => WindowResolution | null, forward: (event: MessageEvent) => void): PipelineDisposition;
   /**
-   * Observe one envelope that already travelled over a bound port. Nothing can
-   * be held or dropped here; counters advance, events are emitted and a
-   * quarantine triggers `onQuarantine`.
+   * Observe one envelope that arrived over a bound port. kehto calls this
+   * synchronously just before it dispatches the envelope to the runtime, and
+   * ignores the return value, so nothing can be held or delayed here:
+   * counters advance and events are emitted. A quarantine triggers
+   * `onQuarantine`, and when that revokes the binding (as `createKernl` does)
+   * kehto no longer finds the window's session and drops this envelope
+   * instead of dispatching it.
    */
   observe(windowId: string, napplet: string, message: unknown): GuardDisposition;
   setVisibility(windowId: string, visibility: WindowVisibility): void;
@@ -97,11 +101,15 @@ function toEnvelope(data: unknown): GuardEnvelope {
  * What is enforced where (D-001): kehto binds NAP traffic to a `MessagePort`
  * the bridge owns, so the only window-level message the pipeline can hold or
  * drop is `napplet.hello`. Port traffic reaches the pipeline through
- * `ShellAdapter.onNappletMessage`, which is observe-only, so for it the guard
- * is reactive: rejections and flags become events for the user, and a
- * quarantine asks the shell to revoke the window. Pre-dispatch limits for port
- * traffic come from the runtime firewall configured by
- * `applyRuntimeFirewallRules`.
+ * `ShellAdapter.onNappletMessage`, which kehto calls synchronously before it
+ * dispatches each envelope but treats as observe-only: its answer cannot hold,
+ * delay or refuse the envelope. Rejections and flags therefore become events
+ * for the user while the envelope is still handled. Quarantine is the one
+ * disposition with an effect on the envelope itself: the shell revokes the
+ * window inside the callback, kehto then finds no session for it, and the
+ * envelope that crossed the limit is dropped along with everything after it.
+ * Pre-dispatch limits for port traffic come from the runtime firewall
+ * configured by `applyRuntimeFirewallRules`.
  *
  * @param options - Configuration, clock, event sink and quarantine callback.
  * @returns The pipeline.

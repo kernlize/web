@@ -106,6 +106,16 @@ Feature: The composed shell
     And the shell guard events included "flood:quarantine"
     And the shell has 0 applets
 
+  Scenario: the guard sees each message before it is handled, and quarantine drops the one that crossed the limit
+    Given a kernl shell over that host and pool
+    And a mounted applet
+    When the applet sends its hello through the shell
+    And the applet asks "shell.ready" over its port
+    And the applet sends "storage.get" one message at a time until the guard quarantines it
+    Then the host was told the window was revoked for "quarantine"
+    And every message before it was answered
+    And the message that crossed the limit was never answered
+
   Scenario: a granted applet fetches resources through the bridges
     Given a kernl shell over that host and pool with fake bridges
     When the shell resolves the manifest address
@@ -138,6 +148,28 @@ Feature: The composed shell
     When the host answers the consent prompt with yes
     Then the applet's publish succeeded
     And the fake pool published a kind 0 event
+
+  Scenario: a profile the store does not hold is loaded from the network before the user is asked
+    Given a kernl shell over that host and pool
+    And the shell is signed in and only the network holds the profile '{"name":"alice","about":"hi"}'
+    And a mounted applet granted "relay" that has said hello
+    When the applet publishes a kind 0 event with content '{"name":"bob"}' over its port
+    Then the host was asked "Update your profile" marked "destructive" for applet "chat"
+    And the consent prompt lines are:
+      | label | before | after |
+      | Name  | alice  | bob   |
+      | About | hi     |       |
+
+  Scenario: a profile nobody can load is reported before the user is asked
+    Given a kernl shell over that host and pool
+    And the shell is signed in
+    And a mounted applet granted "relay" that has said hello
+    When the applet publishes a kind 0 event with content '{"name":"bob"}' over its port
+    Then the host was asked "Update your profile" marked "destructive" for applet "chat"
+    And the consent prompt lines are:
+      | label           | before | after                                          |
+      | Current version |        | could not be loaded; this replaces it entirely |
+      | Name            |        | bob                                            |
 
   Scenario: an applet's profile change the user refuses is never signed or published
     Given a kernl shell over that host and pool

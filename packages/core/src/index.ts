@@ -32,6 +32,7 @@ export { createAppletRelayBackend, createDmRelayPool, createOutboxRelayPool, typ
 export { createAuthHooks, isReadOnlyAccount, wrapAccountSigner } from './applesauce/auth-hooks.js';
 export {
   createIdentityProviders,
+  createReplaceableLoader,
   type IdentityProfile,
   type IdentityProviderOptions,
   type IdentityProviders,
@@ -73,10 +74,13 @@ export { createEnvironmentResolver, createGrants, type GrantsOptions, type Kernl
 
 export { abbreviate, describeChange, isDestructiveKind } from './consent/describe-change.js';
 export {
+  CURRENT_VERSION_TIMEOUT_MS,
+  UNKNOWN_CURRENT_VERSION,
   createConsentHandler,
   createSigningConsent,
   lookupReplaceable,
   type LookupBefore,
+  type LookupReplaceableOptions,
   type ResolveAppletIdentity,
   type SigningConsent,
   type SigningConsentOptions,

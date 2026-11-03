@@ -34,6 +34,13 @@
   const providerOf = (id: string): string => providers.find((entry) => entry.provider.id === id.split(':')[0])?.provider.name ?? id.split(':')[0] ?? '';
   const nameOf = (conversation: DmConversation): string => conversation.participants.map((peer) => peer.label ?? abbreviate(peer.pubkey)).join(', ');
   const timeOf = (seconds: number): string => new Date(seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const UNAVAILABLE: Readonly<Record<string, string>> = {
+    'no-ratchet-runtime': 'Needs a component this build does not include yet.',
+    'no-runtime': 'Needs a component this build does not include yet.',
+    'not-implemented': 'Not built into the shell yet.',
+    'needs-local-key-signer': 'Needs an account whose key is kept in this browser.',
+  };
+  const unavailableWhy = (reason: string): string => UNAVAILABLE[reason] ?? 'Not available with this account or build.';
   const explain = (reason: unknown): string => (reason instanceof Error ? reason.message : String(reason));
 
   async function refresh(): Promise<void> {
@@ -114,7 +121,7 @@
             </div>
             <p>{entry.provider.description}</p>
             {#if !entry.availability.available}
-              <p class="reason">Reason: {entry.availability.reason}</p>
+              <p class="reason">{unavailableWhy(entry.availability.reason)}</p>
             {/if}
             <dl class="shell-rows">
               {#each describeProvider(entry.provider) as row (row.label)}
@@ -196,6 +203,13 @@
   .columns {
     display: grid;
     gap: 1.5rem;
+    align-items: start;
+  }
+
+  /* Without this the sections stretch to the taller column and spread their rows apart. */
+  .columns > .shell-section {
+    align-content: start;
+    margin-top: 0;
   }
 
   @media (min-width: 760px) {
@@ -217,8 +231,8 @@
   }
 
   .reason {
-    font-family: var(--font-mono);
-    font-size: 0.78rem;
+    font-size: 0.85rem;
+    color: var(--ink-muted);
   }
 
   .threads {

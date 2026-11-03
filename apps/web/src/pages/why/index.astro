@@ -58,8 +58,8 @@ const description =
         <p>When the toolkit offers a privacy or safety mitigation, kernl turns it on, in its strict setting, and documents how to ease it. You matter more than the applet developer does. Within reason: an applet interface so tight that nothing can be written protects nobody.</p>
         <ul>
           <li>The <a href={href('guard/')}>guard</a> ships strict, with focus-aware tightening.</li>
-          <li>Hidden and minimised applets have their traffic deferred.</li>
-          <li>A protection is loosened per applet, by you. Never globally, never by a flag.</li>
+          <li>Hidden and minimised applets are measured against a smaller budget, and one that keeps downloading while hidden is stopped.</li>
+          <li>A protection is loosened by you, never by a developer or a flag. Today that choice covers the whole shell until you reload; loosening one applet at a time is planned.</li>
         </ul>
       </div>
     </section>

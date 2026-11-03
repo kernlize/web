@@ -34,7 +34,6 @@ import { renderPreviewApplet, sampleSummary } from './preview-applet';
 import { createPreviewMessaging } from './preview-messaging';
 import { BASELINE_DOMAINS, createPreviewGrants, createPreviewRelays } from './preview-state';
 
-const PROFILE_KEY = 'kernl:preview:guard-profile:v1';
 const PREVIEW_OWNER = 'e8f1a4b7c9d2e5f8a1b4c7d0e3f6a9b2c5d8e1f4a7b0c3d6e9f2a5b8c1d4e7f0';
 
 interface Mounted {
@@ -42,6 +41,8 @@ interface Mounted {
   readonly frame: FrameLike;
   readonly handle: AppletHandle;
   readonly status$: BehaviorSubject<AppletStatus>;
+  /** Stop the applet for a reason the user is told about, as the live mount does. */
+  readonly revoke: (reason: string) => void;
 }
 
 interface PreviewMessage {
@@ -50,9 +51,12 @@ interface PreviewMessage {
   readonly url?: string;
 }
 
+const SAMPLE_NOTE_ID = 'c0ffee00'.repeat(8);
+
 const ENVELOPES: Readonly<Record<string, { type: string; kind?: number }>> = {
   hello: { type: 'shell.ready' },
   publish: { type: 'relay.publish', kind: 1 },
+  profile: { type: 'relay.publish', kind: 0 },
   delete: { type: 'relay.publish', kind: 5 },
   notify: { type: 'notify.show' },
   subscribe: { type: 'relay.subscribe' },
@@ -63,19 +67,15 @@ function isPreviewMessage(data: unknown): data is PreviewMessage {
   return typeof data === 'object' && data !== null && typeof (data as PreviewMessage).kernlPreview === 'string';
 }
 
-function readProfile(host: KernlHost): GuardProfile {
-  const stored = host.storage.getItem(PROFILE_KEY);
-  return stored === 'balanced' || stored === 'relaxed' ? stored : 'strict';
-}
-
 interface PreviewGuard extends GuardFacade {
   ingress(): IngressGuard;
   gate(): VisibilityGate;
 }
 
-function createPreviewGuard(host: KernlHost): PreviewGuard {
+/** Like the live shell (D-003): every page load starts strict, and a change lasts until reload. */
+function createPreviewGuard(): PreviewGuard {
   const events$ = new Subject<GuardEvent>();
-  const profile$ = new BehaviorSubject<GuardProfile>(readProfile(host));
+  const profile$ = new BehaviorSubject<GuardProfile>('strict');
   const emit = (event: GuardEvent): void => events$.next(event);
   let config = createGuardConfig(profile$.value);
   let ingress = createIngressGuard({ config, onEvent: emit });
@@ -89,7 +89,6 @@ function createPreviewGuard(host: KernlHost): PreviewGuard {
       config = createGuardConfig(profile);
       ingress = createIngressGuard({ config, onEvent: emit });
       gate = createVisibilityGate({ config, onEvent: emit });
-      host.storage.setItem(PROFILE_KEY, profile);
       profile$.next(profile);
     },
     events$,
@@ -102,7 +101,6 @@ function createPreviewGuard(host: KernlHost): PreviewGuard {
 
 interface Actions {
   perform(entry: Mounted, message: PreviewMessage): void;
-  reply(entry: Mounted, ok: boolean, text: string): void;
 }
 
 /** What the preview applet may ask for, gated by the grants in its mount plan. */
@@ -111,11 +109,21 @@ function createActions(host: KernlHost, pubkeyOf: () => string): Actions {
     entry.frame.contentWindow?.postMessage({ kernlPreview: 'result', ok, text }, '*');
   };
 
-  const consent = (entry: Mounted, summary: Omit<ConsentSummary, 'applet' | 'event'>, content: string, kind: number): void => {
+  /**
+   * The live shell's rule, from the core itself: only destructive kinds wait for the user, routine
+   * publishes go straight out. Imported on first use so the core stays out of the shell's first chunk.
+   */
+  const publish = async (entry: Mounted, draft: { kind: number; content: string; tags: string[][] }): Promise<void> => {
+    const { describeChange, isDestructiveKind } = await import('@kernl/core');
     const now = Math.floor(Date.now() / 1000);
-    const event = { id: '0'.repeat(64), pubkey: pubkeyOf(), created_at: now, kind, tags: [], content, sig: '' };
+    const event = { id: '0'.repeat(64), pubkey: pubkeyOf(), created_at: now, sig: '', ...draft };
+    const summary: ConsentSummary = describeChange(event, undefined, entry.plan.summary.identity);
+    if (!isDestructiveKind(draft.kind)) {
+      reply(entry, true, `${summary.title}: done (preview).`);
+      return;
+    }
     host.presentConsent({
-      summary: { ...summary, applet: entry.plan.summary.identity, event },
+      summary,
       resolve: (allowed) => reply(entry, allowed, allowed ? `${summary.title}: done (preview).` : `${summary.title}: you said no.`),
     });
   };
@@ -134,10 +142,13 @@ function createActions(host: KernlHost, pubkeyOf: () => string): Actions {
         reply(entry, true, 'Connected to the shell.');
         return;
       case 'publish':
-        if (needs('relay')) consent(entry, { title: 'Publish a note', severity: 'routine', lines: [{ label: 'Note', after: text }] }, text, 1);
+        if (needs('relay')) void publish(entry, { kind: 1, content: text, tags: [] });
+        return;
+      case 'profile':
+        if (needs('relay')) void publish(entry, { kind: 0, content: JSON.stringify({ name: text }), tags: [] });
         return;
       case 'delete':
-        if (needs('relay')) consent(entry, { title: 'Delete a note', severity: 'destructive', lines: [{ label: 'Note', before: text, after: 'removed' }] }, text, 5);
+        if (needs('relay')) void publish(entry, { kind: 5, content: '', tags: [['e', SAMPLE_NOTE_ID]] });
         return;
       case 'notify':
         if (needs('notify')) {
@@ -156,13 +167,20 @@ function createActions(host: KernlHost, pubkeyOf: () => string): Actions {
     }
   };
 
-  return { perform, reply };
+  return { perform };
 }
 
-/** Mount order: sandbox, register, srcdoc. Closing removes the frame and forgets the window in the guard. */
-function createMounter(guard: PreviewGuard, mounted: Map<string, Mounted>): (plan: MountPlan, frame: FrameLike) => AppletHandle {
+/** Mount order: sandbox, register, srcdoc. Closing or revoking removes the frame and forgets the window in the guard. */
+function createMounter(host: KernlHost, guard: PreviewGuard, mounted: Map<string, Mounted>): (plan: MountPlan, frame: FrameLike) => AppletHandle {
   return (plan, frame) => {
     const status$ = new BehaviorSubject<AppletStatus>('mounting');
+    const teardown = (status: AppletStatus): void => {
+      status$.next(status);
+      mounted.delete(plan.windowId);
+      guard.ingress().forget(plan.windowId);
+      guard.gate().forget(plan.windowId);
+      frame.remove();
+    };
     const handle: AppletHandle = {
       windowId: plan.windowId,
       summary: plan.summary,
@@ -172,16 +190,17 @@ function createMounter(guard: PreviewGuard, mounted: Map<string, Mounted>): (pla
       },
       setVisibility: (visibility: WindowVisibility) => guard.gate().setVisibility(plan.windowId, visibility),
       close() {
-        if (status$.value === 'closed') return;
-        status$.next('closed');
-        mounted.delete(plan.windowId);
-        guard.ingress().forget(plan.windowId);
-        guard.gate().forget(plan.windowId);
-        frame.remove();
+        if (status$.value === 'closed' || status$.value === 'revoked') return;
+        teardown('closed');
       },
     };
+    const revoke = (reason: string): void => {
+      if (status$.value === 'closed' || status$.value === 'revoked') return;
+      teardown('revoked');
+      host.onRevoked(plan.windowId, reason);
+    };
     frame.setAttribute('sandbox', plan.sandbox);
-    mounted.set(plan.windowId, { plan, frame, handle, status$ });
+    mounted.set(plan.windowId, { plan, frame, handle, status$, revoke });
     frame.srcdoc = plan.srcdoc;
     return handle;
   };
@@ -201,7 +220,7 @@ function sessionOf(account: IAccount): Session {
 export function createPreviewKernl(host: KernlHost): ShellKernl {
   const accounts = new AccountManager();
   registerCommonAccountTypes(accounts);
-  const guard = createPreviewGuard(host);
+  const guard = createPreviewGuard();
   const grants = createPreviewGrants(host.storage);
   const relays = createPreviewRelays(host.storage);
   const messaging = createPreviewMessaging(host.storage, PREVIEW_OWNER);
@@ -216,8 +235,8 @@ export function createPreviewKernl(host: KernlHost): ShellKernl {
     return [...new Set([...BASELINE_DOMAINS, ...granted])];
   };
 
-  const { perform, reply } = createActions(host, () => session$.value?.pubkey ?? PREVIEW_OWNER);
-  const mount = createMounter(guard, mounted);
+  const { perform } = createActions(host, () => session$.value?.pubkey ?? PREVIEW_OWNER);
+  const mount = createMounter(host, guard, mounted);
 
   return {
     accounts,
@@ -280,9 +299,11 @@ export function createPreviewKernl(host: KernlHost): ShellKernl {
       if (!entry || !isPreviewMessage(event.data)) return;
       const envelope = ENVELOPES[event.data.kernlPreview] ?? { type: 'generic' };
       const visibility = host.getVisibility(entry.plan.windowId);
+      // Observe-only, as the live shell is for applet traffic (D-012): the guard records what it
+      // sees and holds nothing back; only a quarantine stops the applet.
       const disposition = guard.ingress().admit(entry.plan.windowId, entry.plan.summary.identity.dTag, envelope, visibility);
-      if (disposition === 'pass') perform(entry, event.data);
-      else if (event.data.kernlPreview !== 'subscribe') reply(entry, false, `The guard held that request (${disposition}).`);
+      if (disposition === 'quarantine') entry.revoke('quarantine');
+      else perform(entry, event.data);
     },
     destroy() {
       for (const entry of mounted.values()) entry.handle.close();
