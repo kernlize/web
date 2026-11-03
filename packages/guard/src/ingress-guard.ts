@@ -21,7 +21,15 @@ export interface IngressGuardOptions {
   readonly drainBatch?: number;
 }
 
-/** Messages per window are counted over this rolling window for quarantine. */
+/**
+ * Messages per window are counted over this rolling window for quarantine.
+ *
+ * @example
+ * ```ts
+ * const guard = createIngressGuard({ config: createGuardConfig('strict') });
+ * QUARANTINE_WINDOW_MS; // 10000: more than quarantineThreshold messages in this window quarantines the frame
+ * ```
+ */
 export const QUARANTINE_WINDOW_MS = 10_000;
 
 const BURST_WINDOW_MS = 1000;

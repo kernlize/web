@@ -54,7 +54,7 @@ Code, features, step definitions and docs change in the same PR.
 - TypeScript strict, ESM only, `verbatimModuleSyntax`, 2-space indent.
 - Kebab-case filenames, PascalCase types, camelCase functions, UPPER_SNAKE constants.
 - Published packages have zero framework dependencies and import nothing from `nostr-tools` directly.
-- Subscriptions return `{ close() }`. Errors carry a stable, prefixed reason (`denied:`, `invalid:`, `unavailable:`).
+- Streams from `@kernl/core` are rxjs Observables (unsubscribe the `Subscription`); `MessagingBackend.subscribe` returns `{ subscriptionId }`, released with `unsubscribe(id)`. Errors carry a stable, prefixed reason (`denied:`, `invalid:`, `unavailable:`).
 - No decorative comments. A comment explains a decision a reader could not infer, and cites the spec clause or `DECISIONS.md` entry when one exists.
 - Functions under 120 lines, files under 600, nesting under 4, at most 5 parameters. These are the slop gate's limits.
 

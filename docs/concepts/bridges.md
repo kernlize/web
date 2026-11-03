@@ -50,7 +50,7 @@ The user sees a bridge before they use it, and what they see is its `BridgeExpos
 | `encryptedInTransit` | Encrypted in transit | Is the transfer encrypted on the wire? |
 | `publicActivity` | Activity visible to others | Can other participants see what the user is fetching? |
 
-`describeBridge(bridge)` returns, in order: `Used for` (the label), `Status` (`ready`, or `not available` followed by a `Reason` row with the bare reason such as `no-backend`), then the three exposure rows as `yes`/`no`. No row names a protocol. These are descriptions, not scores; like messaging providers, bridges are not ranked. See `describe.feature`.
+`describeBridge(bridge)` returns, in order: `Used for` (the label), `Status` (`ready`, or `not available` followed by a `Reason` row with the bare reason such as `no-backend`), then the three exposure rows as `yes`/`no`. A bridge whose availability is `{ available: true, handoff: true }` gets two more rows after `Status: ready`: `Handled by: an app on your device` and `Sent through kernl: no`. The exposure rows stay as they are for a hand-off bridge, because the app on the device speaks the same protocol and exposes the user the same way ([Hand-off backends](#hand-off-backends)). No row names a protocol. These are descriptions, not scores; like messaging providers, bridges are not ranked. See `describe.feature`.
 
 ## The registry and its authorize hook
 
@@ -68,7 +68,7 @@ The shell holds one `BridgeRegistry`, built with `createBridgeRegistry({ authori
 | authorise | `denied:bridge` | the bridge id |
 | resolve | whatever the bridge threw (`denied:…`, `unavailable:…`, `invalid:…`); a non-`Error` rejection is reported as its text | the bridge id |
 
-Every outcome, successful or not, is reported to `onResolve` as `{ bridge, scheme, ok, reason? }`, when the registry was given one. The composed shell gives none, so bridge outcomes reach neither the guard panel nor any other surface the user sees. The authoriser is a `BridgeAuthorizer`: `(locator, bridge, context) => boolean | Promise<boolean>`. Without one, every request is allowed. The composed shell has none: `createKernl` builds its registry with `createDefaultBridges()` and no `authorize`, so a `resource` request from an applet that holds the `resource` grant is checked by the HTTP bridge's policy and nothing else. There is no per-host consent prompt and no per-host grant in this draft ([Alpha status](../alpha-status.md#what-does-not-work-yet)); wiring one is on the [Roadmap](../roadmap.md#_6-guard). A host can pass its own registry with an `authorize` hook in `KernlOptions.bridges`. See `registry.feature`.
+Every outcome, successful or not, is reported to `onResolve` as `{ bridge, scheme, ok, reason? }`, when the registry was given one. The composed shell gives none, so bridge outcomes reach neither the guard panel nor any other surface the user sees. The authoriser is a `BridgeAuthorizer`: `(locator, bridge, context) => boolean | Promise<boolean>`. Without one, every request is allowed. The composed shell has none: `createKernl` builds its registry with `createDefaultBridges({ handoff: (uri) => host.openLink(uri) })` and no `authorize`, so a `resource` request from an applet that holds the `resource` grant is checked by the HTTP bridge's policy and nothing else. There is no per-host consent prompt and no per-host grant in this draft ([Alpha status](../alpha-status.md#what-does-not-work-yet)); wiring one is on the [Roadmap](../roadmap.md#_6-guard). A host can pass its own registry with an `authorize` hook in `KernlOptions.bridges`. See `registry.feature`.
 
 ## The HTTP bridge
 
@@ -106,16 +106,50 @@ A response whose `content-length` exceeds `maxBytes` fails with `denied:too-larg
 
 ## Backend-driven bridges
 
-Four bridges are complete up to the backend interface they call, and ship without a backend. Without one, `availability()` returns `{ available: false, reason: 'no-backend' }`, `describeBridge` shows `Status: not available` and `Reason: no-backend`, and `resolve()` rejects with `unavailable:no-backend`. Nothing pretends to work.
+Four bridges are complete up to the backend interface they call. Each takes its backend as an optional argument.
 
 | Bridge id | Label | Scheme | Reveals address | Encrypted in transit | Public activity | Backend interface | Call made |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `torrent` | `downloads` | `magnet` | yes | no | yes | `TorrentBackend` | `add(infoHash, trackers, context) → { id, name }` |
+| `torrent` | `downloads` | `magnet` | yes | no | yes | `TorrentBackend` | `add(infoHash, trackers, context, name?) → { id, name }` |
 | `nzb` | `downloads` | `nzb` | yes | yes | no | `NzbBackend` | `add(url, context) → { id, name }` |
 | `soulseek` | `sharing` | `slsk` | yes | no | yes | `SoulseekBackend` | `download(user, path, context) → { id, name }` |
-| `mail` | `mail` | `mailto` | no | yes | no | `MailBackend` | `open(address, subject \| undefined, context) → { id }` |
+| `mail` | `mail` | `mailto` | no | yes | no | `MailBackend` | `open(address, subject \| undefined, context, body?) → { id }` |
 
-The first three return `{ kind: 'job', id, label: name }`; the mail bridge returns `{ kind: 'conversation', id, participants: addresses }`. Fields are read from the locator before the backend is called; a locator missing one rejects with `invalid:locator-missing-<field>` (`backend-bridges.feature`, scenario "a locator missing a required field is rejected before the backend is called"). Supplying a backend is a shell change plus a docs change; see [Add a bridge backend](../how-tos/add-a-bridge-backend.md). The order in which backends are planned is in the [Roadmap](../roadmap.md).
+The first three return `{ kind: 'job', id, label: name }`; the mail bridge returns `{ kind: 'conversation', id, participants: addresses }`. Fields are read from the locator before the backend is called; a locator missing one rejects with `invalid:locator-missing-<field>` (`backend-bridges.feature`, scenario "a locator missing a required field is rejected before the backend is called").
+
+Every backend interface extends `BackendTraits`, whose one field is `handoff?: true`. A bridge reports:
+
+| Backend | `availability()` | `resolve()` |
+| --- | --- | --- |
+| none | `{ available: false, reason: 'no-backend' }` | rejects with `unavailable:no-backend` |
+| one that moves data itself | `{ available: true }` | calls the backend |
+| one with `handoff: true` | `{ available: true, handoff: true }` | calls the backend, which opens an app on the device |
+
+Nothing pretends to work: a bridge without a backend says so in its status and reason.
+
+### Hand-off backends
+
+`createHandoffBackends(open)` returns `{ torrent, soulseek, mail, nzb }`, one backend for each bridge, all with `handoff: true`. Each rebuilds the locator's canonical address from the fields kernl parsed, so the address it opens carries only what kernl understood, and passes it to `open` once:
+
+| Backend | Opens | Result |
+| --- | --- | --- |
+| `torrent` | `magnet:?xt=urn:btih:<infoHash>`, then `&dn=<name>` when a name was given and one `&tr=<tracker>` per tracker, each value URL-encoded. Web seeds are dropped. | job labelled with the name, else the hash |
+| `soulseek` | `slsk://<user>/<path>`, with the user and each path segment URL-encoded | job labelled with the last path segment, else the user |
+| `mail` | `mailto:<address>`, then `?subject=…&body=…` for those present | conversation with the parsed addresses |
+| `nzb` | the document's `https` URL itself, so the device's NZB client or browser takes it. A document served over plain `http` is refused with `invalid:nzb-not-https` and nothing is opened. | job labelled with the last path segment, else the host |
+
+The four share one counter, so successive hand-offs get ids `handoff:1`, `handoff:2` and so on. The backend awaits `open` before it reports the result. `HandoffOpener` is `(uri: string) => void | Promise<void>`. See `handoff-backends.feature`.
+
+`createDefaultBridges` takes an optional `handoff` opener. With one, it builds the torrent, NZB, Soulseek and mail bridges over `createHandoffBackends(handoff)`; without one, those four report `no-backend` as before. `createKernl` passes `host.openLink`, so all four are available in the live shell. The shell's `openLink` asks the user to confirm before leaving kernl ("Leave kernl and open this link?") and then opens the address in a new browsing context with `noopener,noreferrer`, which the browser hands to whatever app the device registers for the scheme. If the user declines, nothing is opened, but `openLink` does not report the refusal, so the bridge still returns its job or conversation.
+
+What the user is exposed to:
+
+- **kernl's network sees nothing.** For a hand-off, kernl makes no connection: no swarm, indexer, news server, peer or mail provider is contacted by the shell or by any applet. The address is the only thing that leaves kernl, and it leaves to the device, not to the network.
+- **The device app's behaviour is outside kernl.** The torrent client, the Soulseek client, the mail program or the NZB downloader then does what it does, with its own settings and its own network. The exposure rows describe what that protocol normally exposes, which is why they stay the same as for an in-shell backend, but kernl cannot see, limit or revoke what the app does. If no app is registered for the scheme, the browser decides what happens.
+
+### In-shell backends
+
+A backend that moves the data inside the shell, such as a WebTorrent client, replaces the hand-off backend for its bridge: build the bridge with your backend in place of the hand-off one. The bridge then reports `{ available: true }`, the `Handled by` and `Sent through kernl` rows disappear, and the traffic is the shell's. Supplying one is a shell change plus a docs change; see [Add a bridge backend](../how-tos/add-a-bridge-backend.md). The order in which in-shell backends are planned is in the [Roadmap](../roadmap.md#_2-bridge-backends).
 
 ## The resource resolver
 
@@ -128,6 +162,7 @@ kehto's resource service takes a `fetch(url, init)` function. `createBridgeResou
 | `invalid:locator` | `parseLocator` for anything that is not a locator or a malformed web, NZB, Soulseek or mail locator |
 | `invalid:magnet-missing-hash` | `parseLocator` for a magnet without a `urn:btih:` hash |
 | `invalid:locator-missing-<field>` | a backend-driven bridge whose locator lacks `infoHash`, `url`, `user`, `path` or `address` |
+| `invalid:nzb-not-https` | the NZB hand-off backend, for a document not served over `https` |
 | `invalid:duplicate-bridge <id>`, `invalid:scheme-taken <scheme>` | `BridgeRegistry.register` |
 | `invalid:redirect` | HTTP bridge, redirect without a usable `Location` |
 | `unavailable:no-bridge` | `BridgeRegistry.resolve`, no bridge serves the scheme |

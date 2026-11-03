@@ -29,7 +29,7 @@ export function unavailableWhy(reason: string): string {
 /** A refused messaging action in plain words. The raw reason is never shown. */
 export function messagingError(reason: unknown): string {
   const message = reason instanceof Error ? reason.message : String(reason);
-  const code = message.split(' ')[0] ?? '';
+  const [code = ''] = message.split(' ');
   const known = ERROR_WORDS[code];
   if (known) return known;
   if (code.startsWith('unavailable:')) return unavailableWhy(code.slice('unavailable:'.length));

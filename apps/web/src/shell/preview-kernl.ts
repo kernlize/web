@@ -1,6 +1,15 @@
 import { AccountManager, type IAccount } from 'applesauce-accounts';
 import { registerCommonAccountTypes } from 'applesauce-accounts/accounts';
-import { createBridgeRegistry, createHttpBridge, createMailBridge, createNzbBridge, createSoulseekBridge, createTorrentBridge } from '@kernl/bridges';
+import {
+  createBridgeRegistry,
+  createHandoffBackends,
+  createHttpBridge,
+  createMailBridge,
+  createNzbBridge,
+  createSoulseekBridge,
+  createTorrentBridge,
+  type BridgeRegistry,
+} from '@kernl/bridges';
 import {
   createAppletCsp,
   createGuardConfig,
@@ -121,7 +130,7 @@ interface Actions {
 }
 
 /** What the preview applet may ask for, gated by the grants in its mount plan. */
-function createActions(host: KernlHost, pubkeyOf: () => string): Actions {
+function createActions(host: KernlHost, bridges: BridgeRegistry, pubkeyOf: () => string): Actions {
   const reply = (entry: Mounted, ok: boolean, text: string): void => {
     entry.frame.contentWindow?.postMessage({ kernlPreview: 'result', ok, text }, '*');
   };
@@ -143,6 +152,17 @@ function createActions(host: KernlHost, pubkeyOf: () => string): Actions {
       summary,
       resolve: (allowed) => reply(entry, allowed, allowed ? `${summary.title}: done (preview).` : `${summary.title}: you said no.`),
     });
+  };
+
+  /** A shared download resolves through the same hand-off bridges the live shell uses (D-010). */
+  const handOff = async (entry: Mounted, url: string): Promise<void> => {
+    const { dTag, hash } = entry.plan.summary.identity;
+    try {
+      await bridges.resolve(url, { requester: { dTag, hash } });
+      reply(entry, true, 'Handed to an app on your device.');
+    } catch {
+      reply(entry, false, 'The download could not be handed off.');
+    }
   };
 
   const perform = (entry: Mounted, message: PreviewMessage): void => {
@@ -183,6 +203,9 @@ function createActions(host: KernlHost, pubkeyOf: () => string): Actions {
         return;
       case 'link':
         if (message.url?.startsWith('https://')) host.openLink(message.url);
+        return;
+      case 'download':
+        void handOff(entry, message.url ?? '');
         return;
       default:
         reply(entry, false, `Unknown request ${message.kernlPreview}.`);
@@ -247,7 +270,16 @@ export function createPreviewKernl(host: KernlHost): ShellKernl {
   const relays = createPreviewRelays(host.storage);
   const messaging = createPreviewMessaging(host.storage, PREVIEW_OWNER);
   const bridges = createBridgeRegistry();
-  for (const bridge of [createHttpBridge(), createTorrentBridge(), createNzbBridge(), createSoulseekBridge(), createMailBridge()]) bridges.register(bridge);
+  // The same confirm-before-leaving opener as the live shell's createKernl wiring.
+  const handoff = createHandoffBackends((uri) => host.openLink(uri));
+  for (const bridge of [
+    createHttpBridge(),
+    createTorrentBridge(handoff.torrent),
+    createNzbBridge(handoff.nzb),
+    createSoulseekBridge(handoff.soulseek),
+    createMailBridge(handoff.mail),
+  ])
+    bridges.register(bridge);
   const session$ = new BehaviorSubject<Session | null>(null);
   const mounted = new Map<string, Mounted>();
   let windowCount = 0;
@@ -257,7 +289,7 @@ export function createPreviewKernl(host: KernlHost): ShellKernl {
     return [...new Set([...baselineDomains(), ...granted])];
   };
 
-  const { perform } = createActions(host, () => session$.value?.pubkey ?? PREVIEW_OWNER);
+  const { perform } = createActions(host, bridges, () => session$.value?.pubkey ?? PREVIEW_OWNER);
   const mount = createMounter(host, guard, mounted);
 
   return {

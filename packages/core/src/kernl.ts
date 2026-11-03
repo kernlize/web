@@ -81,7 +81,8 @@ export function createKernl(options: KernlOptions): Kernl {
   const accounts = options.accounts ?? createKernlAccounts(host.storage);
   const tiers = createRelayTiers(host.storage, options.relays ?? {});
   const messaging = options.messaging ?? createDefaultMessaging({ storage: host.storage, ...(options.messagingBackends ? { backends: options.messagingBackends } : {}) });
-  const bridges = options.bridges ?? createDefaultBridges();
+  // host.openLink asks before leaving kernl, so every hand-off is confirmed by the user (D-010).
+  const bridges = options.bridges ?? createDefaultBridges({ handoff: (uri) => host.openLink(uri) });
 
   const handles = new Map<string, MountedApplet>();
   const guardEvents$ = new Subject<GuardEvent>();

@@ -25,7 +25,9 @@
     "@astrojs/svelte": "^9.1.2",
     "astro": "^7.4.5",
     "linkedom": "^0.18.15",
+    "quickpickle": "^1.11.2",
     "svelte": "^5.57.3",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.0"
   }
 }

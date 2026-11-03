@@ -22,7 +22,7 @@ Concretely:
 
 - One `EventStore` per shell. Applets never get a reference to it; services read from it on their behalf.
 - One `RelayPool`. All kehto relay surfaces are adapters over that pool.
-- One `AccountManager`. Signers are applesauce signers. kernl never touches raw key bytes outside an applesauce signer class.
+- One `AccountManager`. Signers are applesauce signers. kernl never keeps or persists raw key bytes outside an applesauce signer class; the one place the shell generates a new key hands it straight to a password-encrypted signer.
 - `nostr-tools` appears only where applesauce or kehto require it as a peer, never as a direct import in kernl source.
 
 ### 2. The shell exists to empower the user and to contain the applet
@@ -42,11 +42,11 @@ If kehto ships an experimental privacy or security mitigation, kernl enables it 
 
 Concretely:
 
-- The behavioural firewall ships enabled, in its strict profile, with focus-aware tightening.
+- The behavioural firewall ships enabled, in its strict profile. Focus-aware tightening is reported, not yet refused, because kehto's runtime does not receive focus (D-012).
 - Hidden and minimised applets are watched: their activity is reported, and one that keeps downloading past its allowance is closed. (Holding their traffic back needs a pre-dispatch hook kehto does not yet offer; see D-012.)
 - Replay and cross-window identity checks are on.
 - Artifact bytes are cached only after hash verification, and re-verified on every read.
-- In the hosted shell, a mitigation is loosened per applet by the user, never by a developer flag. An embedding host may choose the starting profile, which changes limits only; the sandbox, the frame lock and consent are fixed.
+- In the hosted shell, only the user loosens a mitigation, never a developer flag. Today that is one shell-wide profile; per-applet loosening is planned (D-003, roadmap). An embedding host may choose the starting profile, which changes limits only; the sandbox, the frame lock and consent are fixed.
 
 The test for "within reason" is: does a competent developer, reading our docs, still have a clear path to build the applet they wanted? If yes, the mitigation stays on.
 

@@ -16,8 +16,10 @@ const yesNo = (flag: boolean): string => (flag ? 'yes' : 'no');
  * @param provider - The provider to describe.
  * @returns Label/value pairs in a fixed order.
  * @example
+ * ```ts
  * describeProvider(privateProvider)[0];
  * // { label: 'Forward secrecy', value: 'no' }
+ * ```
  */
 export function describeProvider(provider: MessagingProvider): readonly ProviderDescriptionRow[] {
   const p = provider.properties;

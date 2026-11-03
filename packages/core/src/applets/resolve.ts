@@ -11,7 +11,14 @@ import type { NostrEvent, NostrFilter } from '@napplet/core';
 import type { AppletPointer, AppletSummary, RelayTiers } from '../types.js';
 import { asFilters, type ApplesaucePool } from '../applesauce/relay-hooks.js';
 
-/** Milliseconds a blob server gets before the next one is tried. */
+/**
+ * Milliseconds a blob server gets before the next one is tried.
+ *
+ * @example
+ * ```ts
+ * await fetch(`${server}/${sha256}`, { signal: AbortSignal.timeout(BLOB_TIMEOUT_MS) }); // 20 s per server
+ * ```
+ */
 export const BLOB_TIMEOUT_MS = 20_000;
 
 function filterFor(pointer: AppletPointer): NostrFilter {

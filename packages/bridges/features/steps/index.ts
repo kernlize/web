@@ -4,3 +4,4 @@ import './http-bridge';
 import './backend-bridges';
 import './resource-resolver';
 import './describe';
+import './handoff-backends';

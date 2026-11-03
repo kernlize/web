@@ -14,6 +14,12 @@ export interface MasterStackOptions extends LayoutOptions {
 
 /**
  * Windows keep the rectangles they have. The strategy for a free-floating desktop.
+ *
+ * @example
+ * ```ts
+ * floatingLayout.arrange(windows, { x: 0, y: 0, w: 1200, h: 800 });
+ * // every window keeps the rect it already had
+ * ```
  */
 export const floatingLayout: LayoutStrategy = {
   arrange: (windows) => windows.map(({ id, rect }) => ({ id, rect: { ...rect } })),

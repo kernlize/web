@@ -146,3 +146,32 @@ test('the default window shows the whole sample applet', async ({ page }) => {
   expect(frameBox && buttonBox).toBeTruthy();
   expect(buttonBox!.y + buttonBox!.height).toBeLessThanOrEqual(frameBox!.y + frameBox!.height);
 });
+
+test('a shared download is handed to an app on the device only after the shell asks to leave', async ({ page }) => {
+  const applet = await runPulse(page);
+  const asked: string[] = [];
+  page.on('dialog', (dialog) => {
+    asked.push(`${dialog.type()}:${dialog.message()}`);
+    void dialog.dismiss();
+  });
+  await applet.getByRole('button', { name: 'Download a shared file' }).click();
+  await expect(applet.locator('#log li').first()).toContainText('Handed to an app on your device.');
+  expect(asked).toHaveLength(1);
+  expect(asked[0]).toMatch(/^confirm:Leave kernl and open this link\?/);
+  expect(asked[0]).toContain(`magnet:?xt=urn:btih:${'ab'.repeat(20)}&dn=Sample`);
+});
+
+test('settings say downloads, sharing and mail open an app on the device', async ({ page }) => {
+  await page.goto(`${base}/app/?preview=1`);
+  await page.getByRole('button', { name: 'Try the preview' }).click();
+  await page.locator('details.account summary').click();
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await expect(page.getByText('Ready (opens an app on your device)')).toHaveCount(4);
+});
+
+test('an empty desktop reads as two sentences and the sign-in choices follow the preview', async ({ page }) => {
+  await page.goto(`${base}/app/?preview=1`);
+  await expect(page.getByRole('heading', { name: 'Sign in another way' })).toBeVisible();
+  await page.getByRole('button', { name: 'Try the preview' }).click();
+  await expect(page.locator('.desktop .empty p')).toHaveText(/^No applets open\. (Press|Use)/);
+});

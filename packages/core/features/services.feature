@@ -103,3 +103,17 @@ Feature: Shell services and adapter
     Then the bridges are "http,torrent,nzb,soulseek,mail"
     And bridge for scheme "magnet" is unavailable because "no-backend"
     And bridge for scheme "https" is available
+
+  Scenario Outline: with a hand-off opener the default bridges open an app on the device
+    Given the default bridge registry with a hand-off opener
+    Then bridge for scheme "<scheme>" hands off to the device
+    And bridge for scheme "https" is available
+    When the default bridges resolve "<uri>"
+    Then the hand-off opener was called once with "<opened>"
+
+    Examples:
+      | scheme | uri                                                                     | opened                                                                  |
+      | magnet | magnet:?xt=urn:btih:ABCDEF0123456789ABCDEF0123456789ABCDEF01&dn=Mix     | magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01&dn=Mix     |
+      | nzb    | https://indexer.example/get/1.nzb                                       | https://indexer.example/get/1.nzb                                       |
+      | slsk   | slsk://ada/Music/01.flac                                                | slsk://ada/Music/01.flac                                                |
+      | mailto | mailto:ada@example.com?subject=Hi                                       | mailto:ada@example.com?subject=Hi                                       |

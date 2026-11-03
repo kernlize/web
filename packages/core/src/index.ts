@@ -6,11 +6,24 @@
  */
 import { renderNappletFramePolicyMeta } from '@kehto/shell';
 
+/**
+ * The published name of this package.
+ *
+ * @example
+ * ```ts
+ * PACKAGE_NAME; // '@kernl/core'
+ * ```
+ */
 export const PACKAGE_NAME = '@kernl/core';
 
 /**
  * The `<meta>` element the host page puts in its `<head>` so applet frames can
  * never navigate away from their verified `srcdoc`. Rendered once by kehto.
+ *
+ * @example
+ * ```ts
+ * document.head.insertAdjacentHTML('afterbegin', KERNL_FRAME_POLICY_META);
+ * ```
  */
 export const KERNL_FRAME_POLICY_META: string = renderNappletFramePolicyMeta();
 

@@ -3,6 +3,11 @@
  * for the kernl shell.
  *
  * @packageDocumentation
+ *
+ * @example
+ * ```ts
+ * PACKAGE_NAME; // '@kernl/messaging'
+ * ```
  */
 export const PACKAGE_NAME = '@kernl/messaging';
 

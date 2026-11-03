@@ -21,10 +21,18 @@ export function bridgeName(bridge: Pick<Bridge, 'id' | 'label'>): string {
   return NAMES[bridge.id] ?? `${bridge.label.charAt(0).toUpperCase()}${bridge.label.slice(1)}`;
 }
 
+/** Rows the Availability sentence already says. */
+const FOLDED = new Set(['Used for', 'Reason', 'Handled by']);
+
+function statusOf(bridge: Bridge): string {
+  const availability = bridge.availability();
+  if (!availability.available) return REASONS[availability.reason] ?? 'Not available';
+  return availability.handoff ? 'Ready (opens an app on your device)' : 'Ready';
+}
+
 /** describeBridge's rows in words: the name replaces "Used for", and availability reads as a sentence. */
 export function bridgeRows(bridge: Bridge): readonly DescriptionRow[] {
-  const rows = describeBridge(bridge).filter((row) => row.label !== 'Used for' && row.label !== 'Reason');
-  const availability = bridge.availability();
-  const status = availability.available ? 'Ready' : (REASONS[availability.reason] ?? 'Not available');
+  const rows = describeBridge(bridge).filter((row) => !FOLDED.has(row.label));
+  const status = statusOf(bridge);
   return rows.map((row) => (row.label === 'Status' ? { label: 'Availability', value: status } : row));
 }

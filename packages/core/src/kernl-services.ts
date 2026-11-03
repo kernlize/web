@@ -44,7 +44,15 @@ export function isTheme(value: Record<string, unknown> | undefined): value is Re
   return typeof background === 'string' && typeof text === 'string' && typeof primary === 'string';
 }
 
-/** Protocols an applet may ask the shell to open. */
+/**
+ * Protocols an applet may ask the shell to open.
+ *
+ * @example
+ * ```ts
+ * LINK_PROTOCOLS.includes(new URL('mailto:a@example.com').protocol); // true
+ * LINK_PROTOCOLS.includes('javascript:'); // false
+ * ```
+ */
 export const LINK_PROTOCOLS: readonly string[] = Object.freeze(['https:', 'mailto:']);
 
 /** What the services need from the rest of the shell. */

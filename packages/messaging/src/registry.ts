@@ -30,6 +30,7 @@ export interface MessagingRegistryOptions {
  * @param options - Saved preferences and a change listener.
  * @returns A `MessagingRegistry`.
  * @example
+ * ```ts
  * const registry = createMessagingRegistry({
  *   preferences: load(),
  *   onChange: (prefs) => save(prefs),
@@ -37,6 +38,7 @@ export interface MessagingRegistryOptions {
  * registry.register(createPrivateMessagesProvider(deps));
  * registry.enable('private');
  * registry.setDefault('private');
+ * ```
  */
 export function createMessagingRegistry(options: MessagingRegistryOptions = {}): MessagingRegistry {
   const providers = new Map<string, MessagingProvider>();

@@ -4,6 +4,8 @@ engines:
   lint: true
   code-quality: true
   ai-slop: true
+  # Architecture rules need a layer map this four-package repo does not have;
+  # package boundaries are enforced by scripts/check-dependency-rules.mjs.
   architecture: false
   security: true
 quality:
@@ -12,6 +14,8 @@ quality:
   maxNesting: 4
   maxParams: 5
 lint:
+  # Type checking runs separately and strictly in `pnpm type-check` and
+  # `astro check`; running it again here would only duplicate that gate.
   typecheck: false
 security:
   # Dependency advisories are tracked by a separate, non-blocking CI job.

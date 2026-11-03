@@ -180,7 +180,7 @@
 
     {#if method === null}
       <section class="shell-section">
-        <h3>Sign in another way</h3>
+        <h3>{mode === 'preview' || remembered.length ? 'Sign in another way' : 'Sign in'}</h3>
         <ul class="shell-list">
           {#if hasExtension}
             <li class="shell-card row">

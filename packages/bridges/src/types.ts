@@ -10,7 +10,8 @@ export interface Locator {
 
 /** Why a bridge cannot serve right now. */
 export type BridgeAvailability =
-  | { readonly available: true }
+  /** `handoff` is true when resolving opens an app on the user's device instead of kernl doing the transfer. */
+  | { readonly available: true; readonly handoff?: true }
   | { readonly available: false; readonly reason: string };
 
 /** What a bridge produced. Bytes for downloads, a handle for long-running jobs, a conversation for mail. */
@@ -72,22 +73,31 @@ export interface HttpPolicy {
   readonly allowPrivateHosts: readonly string[];
 }
 
-/** A backend that can download torrents. kernl ships the contract, not an implementation. */
-export interface TorrentBackend {
-  add(infoHash: string, trackers: readonly string[], context: BridgeContext): Promise<{ id: string; name: string }>;
+/** Traits every backend may declare. */
+export interface BackendTraits {
+  /**
+   * True when the backend hands the locator to an app on the user's device rather than
+   * moving data itself. kernl then makes no connection for the resolution.
+   */
+  readonly handoff?: true;
+}
+
+/** A backend that can download torrents. */
+export interface TorrentBackend extends BackendTraits {
+  add(infoHash: string, trackers: readonly string[], context: BridgeContext, name?: string): Promise<{ id: string; name: string }>;
 }
 
 /** A backend that can fetch and process NZB jobs. */
-export interface NzbBackend {
+export interface NzbBackend extends BackendTraits {
   add(url: string, context: BridgeContext): Promise<{ id: string; name: string }>;
 }
 
 /** A backend that can request a file from a Soulseek peer. */
-export interface SoulseekBackend {
+export interface SoulseekBackend extends BackendTraits {
   download(user: string, path: string, context: BridgeContext): Promise<{ id: string; name: string }>;
 }
 
 /** A backend that can open or create a mail conversation. */
-export interface MailBackend {
-  open(address: string, subject: string | undefined, context: BridgeContext): Promise<{ id: string }>;
+export interface MailBackend extends BackendTraits {
+  open(address: string, subject: string | undefined, context: BridgeContext, body?: string): Promise<{ id: string }>;
 }

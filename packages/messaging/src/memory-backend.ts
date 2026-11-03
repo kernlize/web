@@ -98,11 +98,13 @@ function page<T>(items: readonly T[], cursor: string | undefined, limit: number)
  * @param options - Owner key, availability and clock.
  * @returns A backend that also exposes `deliver()`.
  * @example
+ * ```ts
  * const backend = createMemoryBackend({ owner: 'me', now: () => 1_700_000_000 });
  * await backend.send({ recipients: ['alice'], content: 'hi' });
  * backend.deliver({ senderPubkey: 'alice', content: 'hello' });
  * (await backend.conversations()).conversations[0];
  * // { id: 'direct:alice', kind: 'direct', participants: [{ pubkey: 'alice' }], unread: 1, updatedAt: 1700000000 }
+ * ```
  */
 export function createMemoryBackend(options: MemoryBackendOptions = {}): MemoryBackend {
   const owner = options.owner ?? 'owner';

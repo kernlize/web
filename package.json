@@ -15,7 +15,7 @@
     "docs:dev": "pnpm --filter @kernl/docs dev",
     "docs:api": "typedoc",
     "docs:build": "pnpm docs:api && pnpm --filter @kernl/docs build",
-    "docs:check": "pnpm docs:build && node scripts/audit-docs.mjs && node scripts/check-doc-samples.mjs",
+    "docs:check": "node scripts/check-jsdoc.mjs && pnpm docs:build && node scripts/audit-docs.mjs && node scripts/check-doc-samples.mjs",
     "site:dev": "pnpm --filter @kernl/web dev",
     "site:build": "pnpm build && pnpm docs:check && pnpm --filter @kernl/web build && node scripts/build-pages.mjs",
     "site:preview": "node scripts/serve-pages.mjs",

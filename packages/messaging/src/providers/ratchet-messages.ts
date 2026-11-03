@@ -9,10 +9,12 @@ import { defineProvider, type ProviderDeps } from './define.js';
  * @param deps - Backend constructor and availability check supplied by the shell.
  * @returns A `MessagingProvider` with id `ratchet`.
  * @example
+ * ```ts
  * registry.register(createRatchetMessagesProvider({
  *   createBackend: () => ratchetAdapter,
  *   available: () => (runtime ? { available: true } : { available: false, reason: 'no-ratchet-runtime' }),
  * }));
+ * ```
  */
 export function createRatchetMessagesProvider(deps: ProviderDeps): MessagingProvider {
   return defineProvider(

@@ -11,6 +11,12 @@ import { applyNappletRules, type GuardConfig, type OpClass } from '@kernl/guard'
  * no runtime counterpart: deletions share `relay:write` with other publishes,
  * `control` envelopes need no capability, and `generic` becomes the per-applet
  * global rate.
+ *
+ * @example
+ * ```ts
+ * RUNTIME_OP_CLASSES['relay:publish']; // 'relay:write'
+ * RUNTIME_OP_CLASSES.control; // null
+ * ```
  */
 export const RUNTIME_OP_CLASSES: Readonly<Record<OpClass, string | null>> = Object.freeze({
   'relay:subscribe': 'relay:read',

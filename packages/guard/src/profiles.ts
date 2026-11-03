@@ -12,7 +12,13 @@ const KIB = 1024;
 
 /**
  * Every profile, tightest first. `strict` is the shell default (D-003); the
- * other two exist so a user can loosen one applet from the grants panel.
+ * other two let a user loosen the whole shell from the guard panel.
+ *
+ * @example
+ * ```ts
+ * GUARD_PROFILES; // ['strict', 'balanced', 'relaxed']
+ * const configs = GUARD_PROFILES.map((profile) => createGuardConfig(profile));
+ * ```
  */
 export const GUARD_PROFILES: readonly GuardProfile[] = ['strict', 'balanced', 'relaxed'];
 

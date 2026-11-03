@@ -3,6 +3,8 @@ import type {
   Bridge,
   BridgeContext,
   BridgeExposure,
+  BackendTraits,
+  BridgeAvailability,
   BridgeResult,
   Locator,
   MailBackend,
@@ -20,10 +22,15 @@ interface BridgeShape {
 
 type Resolver<B> = (backend: B, locator: Locator, context: BridgeContext) => Promise<BridgeResult>;
 
-function backedBridge<B>(shape: BridgeShape, backend: B | undefined, resolve: Resolver<B>): Bridge {
+function availabilityOf(backend: BackendTraits | undefined): BridgeAvailability {
+  if (!backend) return { available: false, reason: 'no-backend' };
+  return backend.handoff ? { available: true, handoff: true } : { available: true };
+}
+
+function backedBridge<B extends BackendTraits>(shape: BridgeShape, backend: B | undefined, resolve: Resolver<B>): Bridge {
   return {
     ...shape,
-    availability: () => (backend ? { available: true } : { available: false, reason: 'no-backend' }),
+    availability: () => availabilityOf(backend),
     resolve: (locator, context) =>
       backend ? resolve(backend, locator, context) : Promise.reject(new Error('unavailable:no-backend')),
   };
@@ -51,7 +58,12 @@ export function createTorrentBridge(backend?: TorrentBackend): Bridge {
     },
     backend,
     async (engine, locator, context) => {
-      const job = await engine.add(requireField(locator, 'infoHash'), listField(locator, 'trackers'), context);
+      const job = await engine.add(
+        requireField(locator, 'infoHash'),
+        listField(locator, 'trackers'),
+        context,
+        optionalField(locator, 'name'),
+      );
       return { kind: 'job', id: job.id, label: job.name };
     },
   );
@@ -135,7 +147,12 @@ export function createMailBridge(backend?: MailBackend): Bridge {
     },
     backend,
     async (client, locator, context) => {
-      const conversation = await client.open(requireField(locator, 'address'), optionalField(locator, 'subject'), context);
+      const conversation = await client.open(
+        requireField(locator, 'address'),
+        optionalField(locator, 'subject'),
+        context,
+        optionalField(locator, 'body'),
+      );
       return { kind: 'conversation', id: conversation.id, participants: listField(locator, 'addresses') };
     },
   );

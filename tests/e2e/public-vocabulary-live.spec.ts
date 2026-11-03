@@ -88,3 +88,10 @@ test('every reason the core gives for an unavailable provider has plain words', 
   }
   expect(messagingError(new Error('something raw:with-a-code'))).toBe('That did not work. Try again.');
 });
+
+test('with no preview and no remembered account the sign-in choices are headed "Sign in"', async ({ page }) => {
+  await offline(page);
+  await page.goto('/app/');
+  await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Sign in another way' })).toHaveCount(0);
+});

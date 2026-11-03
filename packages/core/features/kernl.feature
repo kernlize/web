@@ -16,6 +16,12 @@ Feature: The composed shell
     And the shell bridges are "http,torrent,nzb,soulseek,mail"
     And the frame policy meta locks frame navigation
 
+  Scenario: the shell's downloads, sharing and mail hand off through the host's link opener
+    Given a kernl shell over that host and pool without a blob fetcher
+    Then the shell bridge for "magnet" hands off to the device
+    When the shell bridges resolve "magnet:?xt=urn:btih:ABCDEF0123456789ABCDEF0123456789ABCDEF01&dn=Mix"
+    Then the host was asked to open "magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01&dn=Mix" once
+
   Scenario: host-supplied parts are used as they are
     Given a kernl shell over that host and pool with its own store, accounts, messaging, bridges, relays, a "balanced" guard, a theme, a clock and a blob fetcher
     Then the shell guard profile is "balanced" with mitigations described

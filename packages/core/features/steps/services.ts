@@ -341,6 +341,24 @@ Given('the default bridge registry', (world: CoreWorld) => {
   scratch(world).bridgeRegistry = createDefaultBridges();
 });
 
+Given('the default bridge registry with a hand-off opener', (world: CoreWorld) => {
+  const opened: string[] = [];
+  scratch(world).handoffOpened = opened;
+  scratch(world).bridgeRegistry = createDefaultBridges({ handoff: (uri) => void opened.push(uri) });
+});
+
+Then('bridge for scheme {string} hands off to the device', (world: CoreWorld, scheme: string) => {
+  expect((scratch(world).bridgeRegistry as BridgeRegistry).forScheme(scheme)?.availability()).toEqual({ available: true, handoff: true });
+});
+
+When('the default bridges resolve {string}', async (world: CoreWorld, uri: string) => {
+  await (scratch(world).bridgeRegistry as BridgeRegistry).resolve(uri, { requester: 'shell' });
+});
+
+Then('the hand-off opener was called once with {string}', (world: CoreWorld, uri: string) => {
+  expect(scratch(world).handoffOpened).toEqual([uri]);
+});
+
 Then('the bridges are {string}', (world: CoreWorld, ids: string) => {
   expect((scratch(world).bridgeRegistry as BridgeRegistry).list().map((bridge) => bridge.id)).toEqual(splitList(ids));
 });

@@ -82,12 +82,14 @@ function byRecentActivity(a: DmConversation, b: DmConversation): number {
  * @param getDefault - Returns the id of the provider used for sends that name none.
  * @returns A backend suitable for `createDmService`.
  * @example
+ * ```ts
  * const dm = createCompositeBackend(
  *   () => [{ id: 'private', backend: privateBackend }],
  *   () => 'private',
  * );
  * const page = await dm.conversations({ limit: 20 });
  * page.conversations[0]?.id; // 'private:direct:ab,cd'
+ * ```
  */
 export function createCompositeBackend(
   resolveEnabled: () => readonly EnabledBackend[],

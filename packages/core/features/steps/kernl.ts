@@ -201,6 +201,18 @@ Then('the shell bridges are {string}', (world: CoreWorld, ids: string) => {
   expect(k(world).kernl.bridges.list().map((bridge) => bridge.id)).toEqual(splitList(ids));
 });
 
+Then('the shell bridge for {string} hands off to the device', (world: CoreWorld, scheme: string) => {
+  expect(k(world).kernl.bridges.forScheme(scheme)?.availability()).toEqual({ available: true, handoff: true });
+});
+
+When('the shell bridges resolve {string}', async (world: CoreWorld, uri: string) => {
+  await k(world).kernl.bridges.resolve(uri, { requester: 'shell' });
+});
+
+Then('the host was asked to open {string} once', (world: CoreWorld, uri: string) => {
+  expect(k(world).record.links).toEqual([uri]);
+});
+
 Then('the frame policy meta locks frame navigation', () => {
   expect(KERNL_FRAME_POLICY_META).toContain("frame-src 'none'");
 });

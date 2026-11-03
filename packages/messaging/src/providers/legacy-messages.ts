@@ -8,10 +8,12 @@ import { defineProvider, type ProviderDeps } from './define.js';
  * @param deps - Backend constructor and availability check supplied by the shell.
  * @returns A `MessagingProvider` with id `legacy`.
  * @example
+ * ```ts
  * registry.register(createLegacyMessagesProvider({
  *   createBackend: () => nip04Adapter,
  *   available: () => ({ available: true }),
  * }));
+ * ```
  */
 export function createLegacyMessagesProvider(deps: ProviderDeps): MessagingProvider {
   return defineProvider(

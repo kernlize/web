@@ -4,6 +4,12 @@ import type { Capability } from '@kehto/runtime';
  * Which kehto capabilities a NAP domain needs, following `resolveCapabilitiesNap`.
  * `shell` and `inc` map to nothing: the handshake needs no grant and `inc`
  * reuses the relay capabilities of the messages it carries.
+ *
+ * @example
+ * ```ts
+ * DOMAIN_CAPABILITIES.relay; // ['relay:read', 'relay:write']
+ * DOMAIN_CAPABILITIES.shell; // []
+ * ```
  */
 export const DOMAIN_CAPABILITIES: Readonly<Record<string, readonly Capability[]>> = Object.freeze({
   shell: [],
@@ -32,6 +38,12 @@ export const DOMAIN_CAPABILITIES: Readonly<Record<string, readonly Capability[]>
  * the theme and scoped storage. No network, and not the identity: which
  * account is signed in is the user's to reveal, so an applet learns it only
  * after the user grants "your account" (SOUL opinion 2).
+ *
+ * @example
+ * ```ts
+ * BASELINE_DOMAINS.includes('identity'); // false: the account is the user's to reveal
+ * capabilitiesForDomains(BASELINE_DOMAINS); // the capabilities granted without asking
+ * ```
  */
 export const BASELINE_DOMAINS: readonly string[] = Object.freeze(['shell', 'inc', 'theme', 'storage']);
 

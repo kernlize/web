@@ -6,6 +6,15 @@ export interface DescriptionRow {
   readonly value: string;
 }
 
+/**
+ * A hand-off bridge opens an app on the user's device; kernl connects to nothing for it.
+ * The exposure rows that follow still hold, because that app speaks the same protocol.
+ */
+const HANDOFF_ROWS: readonly DescriptionRow[] = [
+  { label: 'Handled by', value: 'an app on your device' },
+  { label: 'Sent through kernl', value: 'no' },
+];
+
 function yesNo(value: boolean): string {
   return value ? 'yes' : 'no';
 }
@@ -25,7 +34,7 @@ function yesNo(value: boolean): string {
 export function describeBridge(bridge: Bridge): readonly DescriptionRow[] {
   const availability = bridge.availability();
   const status: DescriptionRow[] = availability.available
-    ? [{ label: 'Status', value: 'ready' }]
+    ? [{ label: 'Status', value: 'ready' }, ...(availability.handoff ? HANDOFF_ROWS : [])]
     : [
         { label: 'Status', value: 'not available' },
         { label: 'Reason', value: availability.reason },

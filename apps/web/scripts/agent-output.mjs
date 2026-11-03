@@ -1,4 +1,4 @@
-// Build-time agent output (D-007): a Markdown twin per page, /llms.txt and /llms-full.txt, derived from the rendered HTML.
+// Build-time agent output (D-007): a Markdown twin per page, /llms.txt (with /llm.txt as an identical alias for agents that ask for the singular) and /llms-full.txt, derived from the rendered HTML.
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -177,9 +177,11 @@ function renderLlmsFull(pages) {
 async function main() {
   await mkdir(DIST, { recursive: true });
   const pages = await writeTwins();
-  await writeFile(path.join(DIST, 'llms.txt'), renderLlmsTxt(pages));
+  const llms = renderLlmsTxt(pages);
+  await writeFile(path.join(DIST, 'llms.txt'), llms);
+  await writeFile(path.join(DIST, 'llm.txt'), llms);
   await writeFile(path.join(DIST, 'llms-full.txt'), renderLlmsFull(pages));
-  process.stdout.write(`agent output: ${pages.length} Markdown twins, llms.txt, llms-full.txt\n`);
+  process.stdout.write(`agent output: ${pages.length} Markdown twins, llms.txt, llm.txt, llms-full.txt\n`);
 }
 
 await main();

@@ -15,16 +15,16 @@ None is filed yet. Each item shrinks kernl when it lands; see [Alpha status](./a
 
 ## 2. Bridge backends
 
-Each backend plugs into the path the HTTP bridge already exercises end to end. Order reflects how much of the user's exposure each one changes; see [Bridges](./concepts/bridges.md).
+Today the torrent, NZB, Soulseek and mail bridges hand the locator to an app on the user's device ([Bridges](./concepts/bridges.md#hand-off-backends)). An in-shell backend replaces the hand-off for its bridge and plugs into the path the HTTP bridge already exercises end to end. In-shell transfers would put the traffic under the shell's grants, guard and revocation, and would also make it the shell's to expose, so each needs its exposure description checked. Order reflects how much of the user's exposure each one changes.
 
 | Backend | Interface | Notes |
 | --- | --- | --- |
-| Mail | `MailBackend` | Opens or creates a conversation for a `mailto:` locator. Candidate for a shell-side IMAP/JMAP client or a hand-off to a configured mail account. |
-| NZB | `NzbBackend` | Hands an `nzb:` locator to a configured downloader. The downloader runs outside the browser; the bridge reports job state. |
-| Torrent | `TorrentBackend` | Adds an info hash with its trackers. WebTorrent in the shell, or a configured external client. Marked as public activity in the exposure description. |
-| Soulseek | `SoulseekBackend` | Requests one file from one peer. Requires a daemon; the bridge reports job state. |
+| Mail | `MailBackend` | Opens or creates a conversation for a `mailto:` locator inside the shell. Candidate for a shell-side IMAP/JMAP client. Today the device's mail program opens. |
+| NZB | `NzbBackend` | Hands an `nzb:` locator to a configured downloader the shell can query. The downloader runs outside the browser; the bridge reports job state. Today the `https` document URL opens on the device. |
+| Torrent | `TorrentBackend` | Adds an info hash with its trackers. WebTorrent in the shell, or a configured external client the shell can query. Marked as public activity in the exposure description. Today the magnet link opens on the device. |
+| Soulseek | `SoulseekBackend` | Requests one file from one peer. Requires a daemon; the bridge reports job state. Today the `slsk://` address opens on the device. |
 
-The shell also needs a downloads view that shows the state of each `job` result and lets the user cancel it; there is none today.
+The shell also needs a downloads view that shows the state of each `job` result and lets the user cancel it; there is none today. A hand-off job cannot be tracked at all, because the transfer belongs to the device app.
 
 ## 3. Messaging
 

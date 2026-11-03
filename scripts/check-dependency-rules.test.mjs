@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 import {
   checkDependencyRules,
+  findAppNostrToolsImports,
   findFrameworkDependencies,
   findKehtoImports,
   findNostrToolsImports,
@@ -95,4 +96,32 @@ test('checkDependencyRules passes a clean workspace and handles a missing direct
   });
   expect(checkDependencyRules(root)).toEqual([]);
   expect(checkDependencyRules(join(root, 'missing'))).toEqual([]);
+});
+
+test('findAppNostrToolsImports flags nostr-tools in app scripts, Svelte and Astro files', () => {
+  const root = packages({
+    'src/shell/ok.ts': "import { x } from '@kernl/core';",
+    'src/shell/bad.ts': "import { nip19 } from 'nostr-tools';",
+    'src/shell/Bad.svelte': "<script lang=\"ts\">\n  import { getPublicKey } from 'nostr-tools/pure';\n</script>",
+    'src/pages/bad.astro': "---\nimport { finalizeEvent } from 'nostr-tools';\n---",
+    'src/styles/site.css': "@import 'nostr-tools';",
+  });
+  expect(findAppNostrToolsImports(join(root, 'src')).sort()).toEqual([
+    'src/pages/bad.astro imports nostr-tools; the web app never imports nostr-tools (D-002)',
+    'src/shell/Bad.svelte imports nostr-tools/pure; the web app never imports nostr-tools (D-002)',
+    'src/shell/bad.ts imports nostr-tools; the web app never imports nostr-tools (D-002)',
+  ]);
+  expect(findAppNostrToolsImports(join(root, 'missing'))).toEqual([]);
+});
+
+test('checkDependencyRules includes the web app when its source directory is given', () => {
+  const root = packages({
+    'packages/guard/package.json': manifest('@kernl/guard'),
+    'packages/guard/src/index.ts': 'export {};',
+    'apps/web/src/a.ts': "import 'nostr-tools';",
+  });
+  expect(checkDependencyRules(join(root, 'packages'))).toEqual([]);
+  expect(checkDependencyRules(join(root, 'packages'), join(root, 'apps/web/src'))).toEqual([
+    'src/a.ts imports nostr-tools; the web app never imports nostr-tools (D-002)',
+  ]);
 });

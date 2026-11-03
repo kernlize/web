@@ -76,11 +76,13 @@ async function readIfExists(file) {
 
 async function fileChecks(dir) {
   const llms = await readIfExists(path.join(dir, 'llms.txt'));
+  const llm = await readIfExists(path.join(dir, 'llm.txt'));
   const robots = await readIfExists(path.join(dir, 'robots.txt'));
   const full = await stat(path.join(dir, 'llms-full.txt')).catch(() => null);
   return [
     ['llms.txt with H1 and a section', Boolean(llms && /^# .+/m.test(llms) && /^## .+/m.test(llms))],
     ['llms-full.txt', Boolean(full?.isFile() && full.size > 0)],
+    ['llm.txt identical to llms.txt', llm !== null && llm === llms],
     ['robots.txt with Sitemap and no Disallow: /', Boolean(robots && /^Sitemap:\s*\S+/m.test(robots) && !/^Disallow:\s*\/\s*$/m.test(robots))],
     ['sitemap-index.xml', existsSync(path.join(dir, 'sitemap-index.xml'))],
   ];

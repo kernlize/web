@@ -3,7 +3,14 @@ import { denyNappletControllerAccess, type OriginRegistry, type ShellBridge } fr
 import type { WindowVisibility } from '@kernl/guard';
 import type { AppletHandle, AppletStatus, FrameLike, MountPlan } from '../types.js';
 
-/** The Permissions-Policy `denyNappletControllerAccess` sets, for frames that cannot report their own. */
+/**
+ * The Permissions-Policy `denyNappletControllerAccess` sets, for frames that cannot report their own.
+ *
+ * @example
+ * ```ts
+ * frame.setAttribute('allow', CONTROLLER_DENY_POLICY); // "gamepad 'none'; hid 'none'; usb 'none'"
+ * ```
+ */
 export const CONTROLLER_DENY_POLICY = "gamepad 'none'; hid 'none'; usb 'none'";
 
 /** What the guard needs to know about a mounted window. */

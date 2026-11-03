@@ -22,9 +22,7 @@ The person at the keyboard is the only principal that matters.
 
 </div>
 
-> **Alpha.** kernl is a first draft. The guard, the messaging and bridge contracts, the composition over kehto and the shell UI are real and tested. Torrent, NZB, Soulseek and mail backends are contracts without implementations. Read [`docs/alpha-status.md`](./docs/alpha-status.md) before relying on anything.
->
-> The source is private during alpha; the [site and docs](https://kernlize.github.io/) are public, and the `@kernl/*` packages are not on npm yet. The badges above are measured values from `pnpm check` and a live agent-readiness scan, not live CI status: package coverage is statement, branch, function and line coverage over `packages/*/src`, and the slop gate is the `aislop` score (100 means no findings).
+> **Alpha.** kernl is a first draft: the guard, the contracts, the composition over kehto and the shell are real and tested, but no messaging backend ships and downloads, sharing and mail only hand off to apps on your device. The source is private and the `@kernl/*` packages are not on npm yet; the [site and docs](https://kernlize.github.io/) are public. Read [`docs/alpha-status.md`](./docs/alpha-status.md) before relying on anything, and note that the badges are measured by `pnpm check` and an agent-readiness scan, not live CI.
 
 <p align="center">
   <img src=".github/assets/shell.png" alt="The kernl preview shell in its tiled layout: the Notes and Pulse sample applets side by side, Notes granted network access and Pulse not, each listing actions such as Publish a note (no prompt), Update your profile and Delete a note (ask first), with the guard indicator reading strict and no events." width="880" />
@@ -53,7 +51,7 @@ The full reasoning is in [`SOUL.md`](./SOUL.md). Each concrete choice is in [`DE
 - **Asks before it signs anything destructive.** A write that replaces or erases part of your public record is shown as before → after and waits for your answer; routine writes are signed without a prompt ([Consent](./docs/concepts/identity-and-grants.md#consent-for-destructive-writes)).
 - **Guards by default.** Eleven protections ship on in the strict profile: kehto's runtime firewall refuses over-rate and oversized requests before dispatch, and kernl quarantines an applet that floods ([Guard](./docs/concepts/guard.md)). The hosted shell boots strict and only you loosen it; an embedding host may choose the starting profile, which changes limits only.
 - **Messages across providers, in the preview only.** One messenger over several private-message providers, each described by its properties and none ranked. No real backend ships yet, so every provider is unavailable in the live shell ([Alpha status](./docs/alpha-status.md#messaging-providers-in-the-live-shell)).
-- **Bridges other networks.** Web fetch works behind an SSRF policy (`https` only, private addresses blocked, redirects refused in the browser); downloads, sharing and mail have contracts and wait for backends ([Bridges](./docs/concepts/bridges.md)).
+- **Bridges other networks.** Web fetch works behind an SSRF policy (`https` only, private addresses blocked, redirects refused in the browser). Downloads, sharing and mail hand the link to an app on your device after you confirm leaving kernl; kernl connects to nothing for them, and what that app does on the network is up to the app ([Bridges](./docs/concepts/bridges.md#hand-off-backends)).
 - **Previews without an account.** `/app/?preview=1` runs the shell offline with the core's own consent rule, kernl's guard in strict and two sample applets. Refusals before dispatch need kehto's runtime, so they happen only in the live shell ([Run the shell](./docs/tutorials/run-the-shell.md)).
 
 <p align="center">
@@ -66,7 +64,7 @@ The full reasoning is in [`SOUL.md`](./SOUL.md). Each concrete choice is in [`DE
 |---|---|---|
 | [`@kernl/guard`](./packages/guard) | Ingress flood control, visibility gating, focus-aware firewall, CSP profile, nested-frame lock, mitigation descriptions. Pure. | [guard](./docs/packages/guard.md) |
 | [`@kernl/messaging`](./packages/messaging) | Provider contract, registry, composite direct-message adapter, three providers. Pure. | [messaging](./docs/packages/messaging.md) |
-| [`@kernl/bridges`](./packages/bridges) | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy, backend interfaces. Pure. | [bridges](./docs/packages/bridges.md) |
+| [`@kernl/bridges`](./packages/bridges) | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy, backend interfaces, hand-off backends. Pure. | [bridges](./docs/packages/bridges.md) |
 | [`@kernl/core`](./packages/core) | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts. | [core](./docs/packages/core.md) |
 
 Published packages have zero framework dependencies and never import `nostr-tools` directly. `pnpm check:deps` (`scripts/check-dependency-rules.mjs`) enforces both.
@@ -89,10 +87,10 @@ scripts               build, audit and guard scripts
 
 No install: [open the preview](https://kernlize.github.io/app/?preview=1). It runs the shell in your browser, offline, with the live shell's consent and guard behaviour, two sample applets and a throwaway account.
 
-From source (Node 22 or newer, pnpm 10 via `corepack enable`):
+From source, for maintainers only during the alpha, because the repository is private (Node 22 or newer, pnpm 10 via `corepack enable`):
 
 ```bash
-git clone https://github.com/kernlize/web.git kernl && cd kernl   # access required during alpha
+git clone https://github.com/kernlize/web.git kernl && cd kernl   # maintainers only during alpha
 pnpm install
 pnpm build           # the site imports the built packages
 ```
@@ -153,6 +151,7 @@ The docs are a product. Start at [`docs/index.md`](./docs/index.md), or on the s
 | Need | Page |
 |---|---|
 | Know what works and what does not | [Alpha status](./docs/alpha-status.md) |
+| See what each release ships | [Changelog](./docs/changelog.md) |
 | Run the shell locally | [Run the shell](./docs/tutorials/run-the-shell.md) |
 | Write an applet and open it in kernl | [Write an applet](./docs/tutorials/write-an-applet.md) |
 | Write an applet that runs well under kernl | [Applets under kernl](./docs/concepts/applets-under-kernl.md) |

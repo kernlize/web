@@ -1,17 +1,17 @@
 # Add a bridge backend
 
-The four non-HTTP bridges are complete up to the backend interface they call. Supplying a backend turns `unavailable` into a working bridge without touching the parser or the registry, both of which the HTTP bridge already exercises. This how-to supplies a `TorrentBackend`; the others follow the same shape.
+The four non-HTTP bridges are complete up to the backend interface they call. In the composed shell each already has a backend: the hand-off backend from `createHandoffBackends`, which opens the locator in an app on the user's device and moves no data through kernl ([Bridges](../concepts/bridges.md#hand-off-backends)). Hand-off is the default. An in-shell backend, one that does the transfer inside the shell, replaces the hand-off backend for its bridge, without touching the parser or the registry, both of which the HTTP bridge already exercises. This how-to supplies an in-shell `TorrentBackend`; the others follow the same shape.
 
 ## 1. Pick the interface
 
 | Bridge | Label | Interface | Method | Locator fields used |
 | --- | --- | --- | --- | --- |
-| `torrent` | `downloads` | `TorrentBackend` | `add(infoHash, trackers, context) → Promise<{ id, name }>` | `infoHash`, `trackers` (may be empty) |
+| `torrent` | `downloads` | `TorrentBackend` | `add(infoHash, trackers, context, name?) → Promise<{ id, name }>` | `infoHash`, `trackers` (may be empty), `name` (`undefined` when absent) |
 | `nzb` | `downloads` | `NzbBackend` | `add(url, context) → Promise<{ id, name }>` | `url` |
 | `soulseek` | `sharing` | `SoulseekBackend` | `download(user, path, context) → Promise<{ id, name }>` | `user`, `path` |
-| `mail` | `mail` | `MailBackend` | `open(address, subject, context) → Promise<{ id }>` | `address`, `subject` (`undefined` when absent) |
+| `mail` | `mail` | `MailBackend` | `open(address, subject, context, body?) → Promise<{ id }>` | `address`, `subject` and `body` (`undefined` when absent) |
 
-`context` is the `BridgeContext` the registry passes through: the requester identity (or `'shell'`), an optional `AbortSignal` and optional headers. Honour the signal when it is present. The bridge reads the fields before calling you and rejects with `invalid:locator-missing-<field>` if one is missing, so inside the backend they are guaranteed strings; `trackers` is always a list.
+`context` is the `BridgeContext` the registry passes through: the requester identity (or `'shell'`), an optional `AbortSignal` and optional headers. Honour the signal when it is present. The bridge reads the fields before calling you and rejects with `invalid:locator-missing-<field>` if one is missing, so inside the backend they are guaranteed strings; `trackers` is always a list. Leave `handoff` unset: it is the trait that tells the user the bridge opens an app on the device, and an in-shell backend does not.
 
 ## 2. Implement it outside the published packages
 
@@ -42,41 +42,44 @@ Return a stable `id`: it is the job's identity in the `202` body the applet rece
 
 ## 3. Hand it to the bridge
 
-`createTorrentBridge(backend?)` takes the backend as an optional argument. Without one it reports `{ available: false, reason: 'no-backend' }` and rejects every `resolve()` with `unavailable:no-backend`; with one it reports available and routes `resolve()` to `backend.add`.
+`createTorrentBridge(backend?)` takes the backend as an optional argument. Without one it reports `{ available: false, reason: 'no-backend' }` and rejects every `resolve()` with `unavailable:no-backend`; with a hand-off backend it reports `{ available: true, handoff: true }`; with yours it reports `{ available: true }` and routes `resolve()` to `backend.add`.
 
-The shell's bridges are registered by `createDefaultBridges` in `packages/core/src/bridges/default-registry.ts`, which `createKernl` calls when `KernlOptions.bridges` is absent. Its signature is `createDefaultBridges(options?: DefaultBridgesOptions)`, where the options are the registry's `authorize` and `onResolve` plus `http` for the web bridge. It takes no backends, and a registry cannot replace a bridge it already holds (a second `torrent` throws `invalid:duplicate-bridge torrent`). So a host that supplies a backend builds the same five registrations itself, with its backend in place, and passes the registry as `KernlOptions.bridges`:
+The shell's bridges are registered by `createDefaultBridges` in `packages/core/src/bridges/default-registry.ts`, which `createKernl` calls when `KernlOptions.bridges` is absent. Its options are the registry's `authorize` and `onResolve`, `http` for the web bridge, and an optional `handoff` opener; `createKernl` passes `host.openLink` as that opener, so the four bridges hand off by default. It takes no other backends, and a registry cannot replace a bridge it already holds (a second `torrent` throws `invalid:duplicate-bridge torrent`). So a host that supplies an in-shell backend builds the same five registrations itself, with its backend in place and hand-off backends for the rest, and passes the registry as `KernlOptions.bridges`:
 
 <!-- sample:continues -->
 ```ts
 import { createKernl, type KernlHost } from '@kernl/core';
 import {
   createBridgeRegistry,
+  createHandoffBackends,
   createHttpBridge,
   createMailBridge,
   createNzbBridge,
   createSoulseekBridge,
   createTorrentBridge,
   type BridgeRegistry,
+  type HandoffOpener,
 } from '@kernl/bridges';
 
 declare const host: KernlHost;
 declare const client: WebTorrentLike;
 
-export function createBridgesWithTorrent(torrent: TorrentBackend): BridgeRegistry {
+export function createBridgesWithTorrent(torrent: TorrentBackend, open: HandoffOpener): BridgeRegistry {
+  const handoff = createHandoffBackends(open);
   const registry = createBridgeRegistry({ onResolve: (event) => console.info('bridge', event) });
   registry.register(createHttpBridge());
   registry.register(createTorrentBridge(torrent));
-  registry.register(createNzbBridge());
-  registry.register(createSoulseekBridge());
-  registry.register(createMailBridge());
+  registry.register(createNzbBridge(handoff.nzb));
+  registry.register(createSoulseekBridge(handoff.soulseek));
+  registry.register(createMailBridge(handoff.mail));
   return registry;
 }
 
-const kernl = createKernl({ host, bridges: createBridgesWithTorrent(createWebTorrentBackend(client)) });
+const kernl = createKernl({ host, bridges: createBridgesWithTorrent(createWebTorrentBackend(client), (uri) => host.openLink(uri)) });
 kernl.bridges.forScheme('magnet')?.availability(); // { available: true }
 ```
 
-The web, NZB, Soulseek and mail bridges are the same as the defaults. To ship the backend inside kernl itself, change the torrent registration in `createDefaultBridges` instead.
+The web, NZB, Soulseek and mail bridges are the same as the defaults: the web bridge as before, the other three handing off through the host's confirm-before-leaving opener. To ship the backend inside kernl itself, change the torrent registration in `createDefaultBridges` instead.
 
 Check the bridge's `exposure`. The torrent bridge declares `revealsAddress: true`, `encryptedInTransit: false`, `publicActivity: true`, which is the truth for a client in a public swarm. The factory does not take an exposure argument, so if your backend changes the truth of any field (a backend that tunnels through a seedbox does not reveal the user's address), register a bridge object with the same `resolve` and a corrected `exposure`:
 
@@ -96,14 +99,14 @@ These three booleans are what the user reads about the bridge: `describeBridge` 
 
 ## 4. What already applies, and what does not yet
 
-`BridgeRegistry.resolve` checks `availability()`, then calls the registry's `authorize` hook if one was given, before any bridge runs; a denial rejects with `denied:bridge`. The composed shell wires no `BridgeAuthorizer`: `createKernl` uses `createDefaultBridges()` without `authorize`, so a request from an applet that holds the `resource` grant reaches your bridge without a per-request prompt. A host that wants one passes `authorize` to `createBridgeRegistry` in the sample above; a consent prompt per host in the shell is on the [Roadmap](../roadmap.md#_6-guard) ([Alpha status](../alpha-status.md#what-does-not-work-yet)).
+`BridgeRegistry.resolve` checks `availability()`, then calls the registry's `authorize` hook if one was given, before any bridge runs; a denial rejects with `denied:bridge`. The composed shell wires no `BridgeAuthorizer`: `createKernl` uses `createDefaultBridges({ handoff: (uri) => host.openLink(uri) })` without `authorize`, so a request from an applet that holds the `resource` grant reaches your bridge without a per-request prompt. A host that wants one passes `authorize` to `createBridgeRegistry` in the sample above; a consent prompt per host in the shell is on the [Roadmap](../roadmap.md#_6-guard) ([Alpha status](../alpha-status.md#what-does-not-work-yet)).
 
 The guard's `resource:bytes` rate and hidden-window allowance apply to `resource.*` envelopes. A `job` result reaches kehto's resource service as a `202 Accepted` JSON body through `createBridgeResourceResolver`; the applet that asked receives it. The shell has no downloads list yet, so nothing shows job state to the user; that UI is roadmap work. Every outcome is also reported to the registry's `onResolve` as a `BridgeResolveEvent`, when your registry passes one, as the sample does; the shell's default registry passes none, and no outcome reaches the guard panel.
 
 ## 5. Specify and document
 
 - `packages/bridges/features/backend-bridges.feature` already covers the contract with a fake backend: unavailable without a backend, fields handed through, missing fields rejected. Add scenarios for what your backend adds: an aborted context cancels the job; the engine's failure reasons surface unchanged.
-- Move the backend's row from "unavailable" to "available" in [Bridges](../concepts/bridges.md#backend-driven-bridges) and strike it from the [Roadmap](../roadmap.md).
+- Say in [Bridges](../concepts/bridges.md#in-shell-backends) that the bridge now has an in-shell backend, and what it changes for the user, and strike it from the [Roadmap](../roadmap.md#_2-bridge-backends).
 - Add a changeset.
 
 The slop gate and the coverage threshold apply to the backend if it lives in `packages/`. If it lives in `apps/web`, the Playwright suite in `pnpm test:e2e` covers it.

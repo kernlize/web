@@ -18,7 +18,7 @@ ${head}</head><body>${body}</body></html>`;
 const goodBody = `<main><h1>Hi</h1><h2>Two</h2><h3>Three</h3>
 <form toolname="open-applet" tooldescription="Open"><label for="a">Address</label><input id="a" name="address" toolparamdescription="The address"><button>Go</button></form></main>`;
 
-async function fixture(indexHtml, { twins = true, robots = 'User-agent: *\nAllow: /\nSitemap: https://example.test/sitemap-index.xml\n' } = {}) {
+async function fixture(indexHtml, { twins = true, llm = 'same', robots = 'User-agent: *\nAllow: /\nSitemap: https://example.test/sitemap-index.xml\n' } = {}) {
   const dir = await mkdtemp(path.join(tmpdir(), 'audit-'));
   await mkdir(path.join(dir, 'why'));
   await writeFile(path.join(dir, 'index.html'), indexHtml);
@@ -27,7 +27,9 @@ async function fixture(indexHtml, { twins = true, robots = 'User-agent: *\nAllow
     await writeFile(path.join(dir, 'index.md'), '# kernl');
     await writeFile(path.join(dir, 'why', 'index.md'), '# Why');
   }
-  await writeFile(path.join(dir, 'llms.txt'), '# kernl\n\n> summary\n\n## Pages\n\n- [Home](https://example.test/index.md)\n');
+  const llms = '# kernl\n\n> summary\n\n## Pages\n\n- [Home](https://example.test/index.md)\n';
+  await writeFile(path.join(dir, 'llms.txt'), llms);
+  if (llm !== 'missing') await writeFile(path.join(dir, 'llm.txt'), llm === 'same' ? llms : llm);
   await writeFile(path.join(dir, 'llms-full.txt'), '# kernl\n');
   await writeFile(path.join(dir, 'robots.txt'), robots);
   await writeFile(path.join(dir, 'sitemap-index.xml'), '<sitemapindex/>');
@@ -64,4 +66,11 @@ test('rejects invalid JSON-LD and a missing index', async () => {
   expect(failing(await auditSite(await fixture(bad)))).toEqual(['JSON-LD WebApplication']);
   const empty = await mkdtemp(path.join(tmpdir(), 'audit-empty-'));
   expect(failing(await auditSite(empty))).toEqual(['index.html exists']);
+});
+
+test('the singular llm.txt must exist and match llms.txt', async () => {
+  const missing = await auditSite(await fixture(page(goodBody), { llm: 'missing' }));
+  expect(failing(missing)).toEqual(['llm.txt identical to llms.txt']);
+  const different = await auditSite(await fixture(page(goodBody), { llm: '# other\n' }));
+  expect(failing(different)).toEqual(['llm.txt identical to llms.txt']);
 });

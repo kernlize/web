@@ -13,10 +13,25 @@ export type LookupBefore = (kind: number, pubkey: string, identifier?: string) =
 /** Maps a window to the verified applet running in it. */
 export type ResolveAppletIdentity = (windowId: string) => AppletIdentity | undefined;
 
-/** How long a consent prompt waits for the network to return the current version, in milliseconds. */
+/**
+ * How long a consent prompt waits for the network to return the current version, in milliseconds.
+ *
+ * @example
+ * ```ts
+ * const lookup = lookupReplaceable(eventStore, { loader, relays: () => tiers.super, timeoutMs: CURRENT_VERSION_TIMEOUT_MS / 2 });
+ * ```
+ */
 export const CURRENT_VERSION_TIMEOUT_MS = 4000;
 
-/** The line a destructive summary carries when the version it replaces could not be loaded. */
+/**
+ * The line a destructive summary carries when the version it replaces could not be loaded.
+ *
+ * @example
+ * ```ts
+ * summary.lines[0] === UNKNOWN_CURRENT_VERSION; // true when the replaced version could not be loaded
+ * UNKNOWN_CURRENT_VERSION.label; // 'Current version'
+ * ```
+ */
 export const UNKNOWN_CURRENT_VERSION: ConsentLine = { label: 'Current version', after: 'could not be loaded; this replaces it entirely' };
 
 /** Options for {@link lookupReplaceable}. */

@@ -14,7 +14,14 @@ import { createNamespacedStore } from '../persistence/store.js';
 
 const STORAGE_KEY = 'messaging:v1';
 
-/** Why each provider is unavailable until the host supplies its backend. */
+/**
+ * Why each provider is unavailable until the host supplies its backend.
+ *
+ * @example
+ * ```ts
+ * MESSAGING_UNAVAILABLE_REASONS.private; // 'needs-local-key-signer'
+ * ```
+ */
 export const MESSAGING_UNAVAILABLE_REASONS: Readonly<Record<keyof MessagingBackendFactories, string>> = Object.freeze({
   private: 'needs-local-key-signer',
   legacy: 'not-implemented',

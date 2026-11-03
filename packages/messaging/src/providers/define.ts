@@ -27,10 +27,12 @@ export interface ProviderDefinition {
  * @param deps - Backend constructor and availability check.
  * @returns A `MessagingProvider` ready for `MessagingRegistry.register`.
  * @example
+ * ```ts
  * const provider = defineProvider(
  *   { id: 'demo', name: 'Demo', description: 'For previews.', properties },
  *   { createBackend: () => createMemoryBackend(), available: () => ({ available: true }) },
  * );
+ * ```
  */
 export function defineProvider(definition: ProviderDefinition, deps: ProviderDeps): MessagingProvider {
   return {

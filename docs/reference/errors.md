@@ -42,9 +42,10 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 | `invalid:locator` | `@kernl/bridges` | `parseLocator` | Not a locator, or a malformed web, NZB, Soulseek or mail locator. |
 | `invalid:magnet-missing-hash` | `@kernl/bridges` | `parseLocator` | A magnet without a `urn:btih:` hash. |
 | `invalid:locator-missing-<field>` | `@kernl/bridges` | the torrent, NZB, Soulseek and mail bridges | The locator lacks `infoHash`, `url`, `user`, `path` or `address`. |
+| `invalid:nzb-not-https` | `@kernl/bridges` | the NZB backend from `createHandoffBackends` | The NZB document is not served over `https`, so it is not handed off and nothing is opened. |
 | `invalid:duplicate-bridge <id>`, `invalid:scheme-taken <scheme>` | `@kernl/bridges` | `BridgeRegistry.register` | A bridge with this id, or one serving this scheme, is already registered. |
 | `unavailable:no-bridge` | `@kernl/bridges` | `BridgeRegistry.resolve` | No bridge serves the scheme. |
-| `unavailable:no-backend` | `@kernl/bridges` | the four backend-driven bridges | The bridge was created without a backend. `availability().reason` is the bare `no-backend`. |
+| `unavailable:no-backend` | `@kernl/bridges` | the four backend-driven bridges | The bridge was created without a backend. `availability().reason` is the bare `no-backend`. In the composed shell the four have hand-off backends; a registry built from `createDefaultBridges()` without a `handoff` opener reports this. |
 | `denied:bridge` | `@kernl/bridges` | `BridgeRegistry.resolve` | The registry's `authorize` hook returned false. The composed shell has none. |
 | `denied:scheme <protocol>` | `@kernl/bridges` | HTTP bridge | The URL's scheme is not in `allowedSchemes`. |
 | `denied:private-address <host>`, `denied:private-address <host> -> <ip>` | `@kernl/bridges` | HTTP bridge | The host is a blocked name or a private literal; the second form comes from a `resolveHost` result. |

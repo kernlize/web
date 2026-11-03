@@ -1,6 +1,6 @@
 # @kernl/bridges
 
-Locator parsing, the bridge contract, the registry that routes and authorises, an HTTP bridge with an SSRF policy, four backend-driven bridges for downloads, sharing and mail, the adapter that feeds a resource service, and user-facing descriptions. Zero dependencies.
+Locator parsing, the bridge contract, the registry that routes and authorises, an HTTP bridge with an SSRF policy, four backend-driven bridges for downloads, sharing and mail, hand-off backends that open an app on the user's device, the adapter that feeds a resource service, and user-facing descriptions. Zero dependencies.
 
 | Field | Value |
 | --- | --- |
@@ -21,7 +21,7 @@ Locator parsing, the bridge contract, the registry that routes and authorises, a
 
 ## Purpose
 
-A bridge resolves a protocol-specific locator to bytes, a job or a conversation on the user's behalf, behind the same grant and quota as everything else (the composed shell wires no per-request consent), and is named by what it does rather than by its protocol. The HTTP bridge is complete; the torrent, NZB, Soulseek and mail bridges are complete up to the backend interface they call and report `unavailable` until one is supplied. The concepts are in [Bridges](../concepts/bridges.md); the opinion is [D-010](../decisions.md#d-010).
+A bridge resolves a protocol-specific locator to bytes, a job or a conversation on the user's behalf, behind the same grant and quota as everything else (the composed shell wires no per-request consent), and is named by what it does rather than by its protocol. The HTTP bridge is complete. The torrent, NZB, Soulseek and mail bridges are complete up to the backend interface they call; `createHandoffBackends` supplies all four by handing the locator to an app on the user's device, and without any backend they report `unavailable`. The concepts are in [Bridges](../concepts/bridges.md); the opinion is [D-010](../decisions.md#d-010).
 
 ## Exports
 
@@ -42,7 +42,7 @@ A bridge resolves a protocol-specific locator to bytes, a job or a conversation 
 | `BridgeContext` | interface | `{ requester: { dTag; hash } \| 'shell'; signal?: AbortSignal; headers?: Readonly<Record<string, string>> }`. |
 | `BridgeResult` | union | `{ kind: 'bytes'; response: Response }`, `{ kind: 'job'; id; label }` or `{ kind: 'conversation'; id; participants: readonly string[] }`. |
 | `BridgeExposure` | interface | `{ revealsAddress; encryptedInTransit; publicActivity }`, three booleans `describeBridge` renders for the user in the shell settings. |
-| `BridgeAvailability` | union | `{ available: true }` or `{ available: false; reason: string }`. The reason is a bare word such as `no-backend`. |
+| `BridgeAvailability` | union | `{ available: true; handoff?: true }` or `{ available: false; reason: string }`. `handoff` is set when resolving opens an app on the user's device instead of kernl moving the data. The reason is a bare word such as `no-backend`. |
 | `BridgeAuthorizer` | type | `(locator, bridge, context) => boolean \| Promise<boolean>`; the registry's consent hook. The composed shell supplies none in this draft. |
 
 ### Registry
@@ -73,12 +73,23 @@ A bridge resolves a protocol-specific locator to bytes, a job or a conversation 
 | `createNzbBridge` | `(backend?: NzbBackend) => Bridge` | Id `nzb`, label `downloads`, scheme `nzb`. Exposure: reveals address, encrypted, not public. |
 | `createSoulseekBridge` | `(backend?: SoulseekBackend) => Bridge` | Id `soulseek`, label `sharing`, scheme `slsk`. Exposure: reveals address, not encrypted, public activity. |
 | `createMailBridge` | `(backend?: MailBackend) => Bridge` | Id `mail`, label `mail`, scheme `mailto`. Exposure: does not reveal address, encrypted, not public. |
-| `TorrentBackend` | interface | `add(infoHash: string, trackers: readonly string[], context: BridgeContext): Promise<{ id: string; name: string }>`. |
+| `BackendTraits` | interface | `{ handoff?: true }`. Every backend interface extends it; a hand-off backend sets it, and its bridge then reports `{ available: true, handoff: true }`. |
+| `TorrentBackend` | interface | `add(infoHash: string, trackers: readonly string[], context: BridgeContext, name?: string): Promise<{ id: string; name: string }>`. `name` is the magnet's display name when it has one. |
 | `NzbBackend` | interface | `add(url: string, context: BridgeContext): Promise<{ id: string; name: string }>`. |
 | `SoulseekBackend` | interface | `download(user: string, path: string, context: BridgeContext): Promise<{ id: string; name: string }>`. |
-| `MailBackend` | interface | `open(address: string, subject: string \| undefined, context: BridgeContext): Promise<{ id: string }>`. |
+| `MailBackend` | interface | `open(address: string, subject: string \| undefined, context: BridgeContext, body?: string): Promise<{ id: string }>`. |
 
 Without a backend each of the four reports `{ available: false, reason: 'no-backend' }` and `resolve()` rejects with `unavailable:no-backend`. A locator missing a field the backend needs rejects with `invalid:locator-missing-<field>` before the backend is called.
+
+### Hand-off backends
+
+| Export | Signature | Description |
+| --- | --- | --- |
+| `createHandoffBackends` | `(open: HandoffOpener) => HandoffBackends` | One backend per bridge, each with `handoff: true`. Each rebuilds the canonical address from the parsed fields (a `magnet:` link with hash, name and trackers; an `slsk://` address; a `mailto:` address with subject and body; the NZB document's `https` URL) and passes it to `open` once. Ids come from one shared counter, `handoff:1`, `handoff:2`, and so on. The NZB backend throws `invalid:nzb-not-https` for a document not served over `https`. |
+| `HandoffOpener` | type | `(uri: string) => void \| Promise<void>`. The shell passes `host.openLink`, which asks the user before leaving kernl. |
+| `HandoffBackends` | interface | `{ torrent: TorrentBackend; soulseek: SoulseekBackend; mail: MailBackend; nzb: NzbBackend }`. |
+
+A hand-off makes no connection from kernl; the app on the device does the transfer with its own network, which kernl cannot see or limit. See [Bridges](../concepts/bridges.md#hand-off-backends).
 
 ### Resource resolver
 
@@ -93,13 +104,13 @@ Without a backend each of the four reports `{ available: false, reason: 'no-back
 
 | Export | Signature | Description |
 | --- | --- | --- |
-| `describeBridge` | `(bridge: Bridge) => readonly DescriptionRow[]` | Rows for the user: `Used for`, `Status` (`ready` or `not available` plus a `Reason` row), `Shares your network address`, `Encrypted in transit`, `Activity visible to others`. No row names a protocol. |
+| `describeBridge` | `(bridge: Bridge) => readonly DescriptionRow[]` | Rows for the user: `Used for`, `Status` (`ready` or `not available` plus a `Reason` row; a hand-off bridge adds `Handled by: an app on your device` and `Sent through kernl: no`), `Shares your network address`, `Encrypted in transit`, `Activity visible to others`. No row names a protocol. |
 | `DescriptionRow` | interface | `{ label: string; value: string }`. |
 
 ## Example
 
 ```ts
-import { createBridgeRegistry, createBridgeResourceResolver, createHttpBridge, createTorrentBridge, formatLocator, type ResourceResolveInit } from '@kernl/bridges';
+import { createBridgeRegistry, createBridgeResourceResolver, createHandoffBackends, createHttpBridge, createTorrentBridge, formatLocator, type ResourceResolveInit } from '@kernl/bridges';
 
 declare const lookupAddresses: (host: string) => Promise<string[]>; // the shell's DNS lookup
 declare const identityFor: (init: ResourceResolveInit) => { dTag: string; hash: string } | 'shell'; // the shell's window-to-identity map
@@ -109,7 +120,10 @@ const registry = createBridgeRegistry({
   onResolve: (event) => console.log(event),
 });
 registry.register(createHttpBridge({ resolveHost: lookupAddresses }));
-registry.register(createTorrentBridge()); // unavailable until a TorrentBackend is supplied
+const handoff = createHandoffBackends((uri) => {
+  if (confirm(`Leave and open ${uri}?`)) window.open(uri, '_blank', 'noopener,noreferrer');
+});
+registry.register(createTorrentBridge(handoff.torrent)); // { available: true, handoff: true }
 
 const result = await registry.resolve('https://example.com/file.bin', { requester: 'shell' });
 if (result.kind === 'bytes') result.response.status;
@@ -120,14 +134,14 @@ const fetchLike = createBridgeResourceResolver(registry, { requesterFor: (init) 
 
 ## Scope
 
-- Does not implement any transfer protocol. Backends live in the shell app or in packages of their own.
+- Does not implement any transfer protocol. The hand-off backends only build an address and open it; backends that move data live in the shell app or in packages of their own.
 - Does not prompt. Consent is a `BridgeAuthorizer` the host can supply to the registry; `createKernl`'s default registry has none.
 - Does not apply the guard. Rate limits and the hidden-window allowance run in `@kernl/guard` before a request reaches the registry.
 - Does not know about NAP envelopes. `@kernl/core` maps `resource.*` requests onto `createBridgeResourceResolver(registry)`.
 
 ## Specification
 
-`packages/bridges/features/`: `locators.feature`, `registry.feature`, `http-bridge.feature`, `backend-bridges.feature`, `resource-resolver.feature`, `describe.feature`.
+`packages/bridges/features/`: `locators.feature`, `registry.feature`, `http-bridge.feature`, `backend-bridges.feature`, `handoff-backends.feature`, `resource-resolver.feature`, `describe.feature`.
 
 ## API reference
 

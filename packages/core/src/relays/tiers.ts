@@ -5,7 +5,15 @@ import { createNamespacedStore } from '../persistence/store.js';
 /** Relay URLs per tier, frozen. */
 export type TierMap = Readonly<Record<RelayTier, readonly string[]>>;
 
-/** Where the shell looks when the user has configured nothing. */
+/**
+ * Where the shell looks when the user has configured nothing.
+ *
+ * @example
+ * ```ts
+ * DEFAULT_RELAY_TIERS.apps; // ['wss://relay.napplet.soy']
+ * DEFAULT_RELAY_TIERS.outbox; // []
+ * ```
+ */
 export const DEFAULT_RELAY_TIERS: TierMap = Object.freeze({
   discovery: ['wss://purplepag.es', 'wss://relay.nos.social'],
   apps: ['wss://relay.napplet.soy'],

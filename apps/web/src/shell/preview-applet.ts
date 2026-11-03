@@ -93,8 +93,9 @@ export interface PreviewAppletInput {
   readonly sample: string;
 }
 
-const escapeHtml = (text: string): string =>
-  text.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char] ?? char);
+const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' } as const;
+
+const escapeHtml = (text: string): string => text.replace(/[&<>"']/g, (char) => HTML_ESCAPES[char as keyof typeof HTML_ESCAPES]);
 
 interface Action {
   readonly id: string;
@@ -109,6 +110,7 @@ const ACTIONS: readonly Action[] = [
   { id: 'delete', label: 'Delete a note', hint: 'asks you first: it cannot be undone', domain: 'relay' },
   { id: 'notify', label: 'Send a notification', hint: 'needs the notifications grant', domain: 'notify' },
   { id: 'flood', label: 'Flood the shell', hint: '40 network reads at once; watch the guard', domain: 'relay' },
+  { id: 'download', label: 'Download a shared file', hint: 'an app on your device takes it; the shell asks first' },
   { id: 'link', label: 'Open a link', hint: 'the shell confirms before leaving' },
 ];
 
@@ -156,6 +158,7 @@ const handlers = {
   vanish: () => send('vanish'),
   notify: () => send('notify', { text: 'The preview applet says hello.' }),
   flood: () => { for (let i = 0; i < 40; i += 1) send('subscribe', { seq: ++count }); log('Sent 40 network reads at once.'); },
+  download: () => send('download', { url: 'magnet:?xt=urn:btih:${'ab'.repeat(20)}&dn=Sample' }),
   link: () => send('link', { url: 'https://kernlize.github.io/docs/' }),
 };
 document.querySelectorAll('[data-action]').forEach((button) => {

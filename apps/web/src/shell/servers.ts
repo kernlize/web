@@ -24,7 +24,7 @@ export function serverName(address: string): string {
   try {
     host = new URL(address).hostname;
   } catch {
-    host = address.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').split(/[/:?#]/)[0] ?? address;
+    [host = address] = address.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').split(/[/:?#]/);
   }
   const labels = host.toLowerCase().split('.');
   const [first = '', ...rest] = labels;

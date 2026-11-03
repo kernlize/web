@@ -36,6 +36,7 @@ export interface BridgeWorld {
   webBridge?: Bridge;
   bridge?: Bridge;
   backendCalls?: unknown[][];
+  opened?: string[];
   resolver?: import('@kernl/bridges').BridgeResourceResolver;
   response?: Response;
 }

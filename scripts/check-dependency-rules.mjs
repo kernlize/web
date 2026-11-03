@@ -8,12 +8,15 @@ export const KEHTO_ALLOWANCES = { guard: ['@kehto/firewall'] };
 const LEAF_PACKAGES = ['guard', 'messaging', 'bridges'];
 const DEPENDENCY_FIELDS = ['dependencies', 'peerDependencies', 'optionalDependencies', 'devDependencies'];
 
-function sourceFiles(dir) {
+const PACKAGE_SOURCE = /\.(?:ts|mts|js|mjs)$/;
+const APP_SOURCE = /\.(?:ts|mts|js|mjs|svelte|astro)$/;
+
+function sourceFiles(dir, pattern = PACKAGE_SOURCE) {
   if (!existsSync(dir)) return [];
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
-    if (entry.isDirectory()) return sourceFiles(path);
-    return /\.(?:ts|mts|js|mjs)$/.test(entry.name) && !entry.name.endsWith('.d.ts') ? [path] : [];
+    if (entry.isDirectory()) return sourceFiles(path, pattern);
+    return pattern.test(entry.name) && !entry.name.endsWith('.d.ts') ? [path] : [];
   });
 }
 
@@ -45,6 +48,23 @@ export function findNostrToolsImports(packagesDir) {
       const offending = importSpecifiers(readFileSync(file, 'utf8')).filter((spec) => packageOf(spec) === 'nostr-tools');
       for (const spec of offending) violations.push(`${relative(packagesDir, file)} imports ${spec}; kernl source never imports nostr-tools (D-002)`);
     }
+  }
+  return violations;
+}
+
+/**
+ * Find `nostr-tools` imports in the web app's source, Svelte and Astro files included.
+ * The shell reaches the protocol only through `@kernl/*` and applesauce (D-002).
+ * @param {string} appSrcDir Absolute path of `apps/web/src`.
+ * @returns {string[]} One violation per offending import, with the path relative to the app directory.
+ * @example
+ * findAppNostrToolsImports('/repo/apps/web/src'); // []
+ */
+export function findAppNostrToolsImports(appSrcDir) {
+  const violations = [];
+  for (const file of sourceFiles(appSrcDir, APP_SOURCE)) {
+    const offending = importSpecifiers(readFileSync(file, 'utf8')).filter((spec) => packageOf(spec) === 'nostr-tools');
+    for (const spec of offending) violations.push(`${relative(join(appSrcDir, '..'), file)} imports ${spec}; the web app never imports nostr-tools (D-002)`);
   }
   return violations;
 }
@@ -93,18 +113,27 @@ function packageSlugs(packagesDir) {
 }
 
 /**
- * Run every dependency rule against a packages directory.
+ * Run every dependency rule against a packages directory and, when given, the web app's source.
  * @param {string} packagesDir Absolute path of the packages directory.
+ * @param {string} [appSrcDir] Absolute path of `apps/web/src`.
  * @returns {string[]} All violations.
  * @example
- * checkDependencyRules('/repo/packages'); // []
+ * checkDependencyRules('/repo/packages', '/repo/apps/web/src'); // []
  */
-export function checkDependencyRules(packagesDir) {
-  return [...findNostrToolsImports(packagesDir), ...findKehtoImports(packagesDir), ...findFrameworkDependencies(packagesDir)];
+export function checkDependencyRules(packagesDir, appSrcDir) {
+  return [
+    ...findNostrToolsImports(packagesDir),
+    ...findKehtoImports(packagesDir),
+    ...findFrameworkDependencies(packagesDir),
+    ...(appSrcDir ? findAppNostrToolsImports(appSrcDir) : []),
+  ];
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const violations = checkDependencyRules(resolve(new URL('../packages', import.meta.url).pathname));
+  const violations = checkDependencyRules(
+    resolve(new URL('../packages', import.meta.url).pathname),
+    resolve(new URL('../apps/web/src', import.meta.url).pathname),
+  );
   if (violations.length) {
     console.error(`[check-deps] ${violations.length} violation(s):`);
     for (const violation of violations) console.error(`  - ${violation}`);

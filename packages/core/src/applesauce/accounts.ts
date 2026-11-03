@@ -11,12 +11,24 @@ const ACTIVE_KEY = 'active-account:v1';
  * serialises the key itself and `SeedWordsAccount` the mnemonic. Neither may be
  * added to a kernl account manager: the only persisted form of a local key is
  * applesauce's `PasswordAccount`, whose `ncryptsec` is NIP-49 encrypted.
+ *
+ * @example
+ * ```ts
+ * PLAINTEXT_KEY_ACCOUNT_TYPES.includes(account.type); // true for 'nsec' and 'seed-words'
+ * ```
  */
 export const PLAINTEXT_KEY_ACCOUNT_TYPES: readonly string[] = Object.freeze(['nsec', 'seed-words']);
 
 /**
  * An `AccountManager` that refuses accounts whose persistence would write a
  * plaintext key, and persists the rest to kernl's storage.
+ *
+ * @example
+ * ```ts
+ * const manager = new KernlAccountManager();
+ * manager.addAccount(PasswordAccount.fromNcryptsec(pubkey, ncryptsec));
+ * manager.addAccount(PrivateKeyAccount.fromKey(secretKey)); // throws 'denied:plaintext-key-persistence'
+ * ```
  */
 export class KernlAccountManager extends AccountManager {
   /**

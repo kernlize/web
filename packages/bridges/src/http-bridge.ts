@@ -4,6 +4,12 @@ import type { Bridge, BridgeContext, BridgeResult, HttpPolicy, Locator } from '.
  * The limits the HTTP bridge enforces unless the shell loosens them: encrypted
  * transport only, three redirects, 10 MiB per response, 20 seconds per request,
  * and no private destinations.
+ *
+ * @example
+ * ```ts
+ * DEFAULT_HTTP_POLICY.allowedSchemes; // ['https:']
+ * const bridge = createHttpBridge({ policy: { ...DEFAULT_HTTP_POLICY, maxBytes: 1024 * 1024 } });
+ * ```
  */
 export const DEFAULT_HTTP_POLICY: HttpPolicy = {
   allowedSchemes: ['https:'],

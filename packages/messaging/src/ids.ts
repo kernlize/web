@@ -11,7 +11,9 @@ export interface NamespacedId {
  * @param innerId - The id as the provider knows it. May itself contain `:`.
  * @returns `"<providerId>:<innerId>"`.
  * @example
+ * ```ts
  * namespaceId('private', 'direct:ab,cd'); // 'private:direct:ab,cd'
+ * ```
  */
 export function namespaceId(providerId: string, innerId: string): string {
   return `${providerId}:${innerId}`;
@@ -23,8 +25,10 @@ export function namespaceId(providerId: string, innerId: string): string {
  * @param id - A composite id produced by {@link namespaceId}.
  * @returns The two halves, or `undefined` when `id` has no provider prefix.
  * @example
+ * ```ts
  * splitId('private:direct:ab,cd'); // { providerId: 'private', innerId: 'direct:ab,cd' }
  * splitId('orphan'); // undefined
+ * ```
  */
 export function splitId(id: string): NamespacedId | undefined {
   const at = id.indexOf(':');
