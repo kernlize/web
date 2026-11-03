@@ -1,0 +1,35 @@
+{
+  "name": "@kernl/messaging",
+  "version": "0.1.0",
+  "description": "Messaging provider contract, registry and composite direct-message adapter for the kernl shell",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "publishConfig": { "access": "public" },
+  "scripts": {
+    "build": "tsup",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {},
+  "peerDependencies": { "@napplet/core": ">=0.37.0 <0.38.0" },
+  "devDependencies": {
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kernlize/web.git",
+    "directory": "packages/messaging"
+  },
+  "keywords": ["kernl", "kehto", "shell", "applet", "messaging"]
+}

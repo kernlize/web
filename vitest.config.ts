@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import { defineConfig } from 'vitest/config';
 import { quickpickle } from 'quickpickle';
 
-const pkg = (name: string, file = 'index.ts') => resolve(__dirname, 'packages', name, 'src', file);
+const pkg = (name: string, file = 'index.ts') => resolve(import.meta.dirname, 'packages', name, 'src', file);
 
 export default defineConfig({
   plugins: [quickpickle({ stepTimeout: 5000 })],
