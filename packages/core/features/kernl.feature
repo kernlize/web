@@ -55,14 +55,14 @@ Feature: The composed shell
     When the shell resolves the manifest address
     Then the shell summary is "chat" requiring "relay"
     When the shell plans the summary
-    Then the shell plan is for window "applet-1" with domains "shell,identity,storage,inc,theme"
+    Then the shell plan is for window "applet-1" with domains "shell,storage,inc,theme"
     And the shell plan is missing "relay"
     When the shell mounts the plan into a fake frame
     Then the shell has 1 applets and the frame holds the plan srcdoc
     When the shell closes the mounted applet
     Then the shell has 0 applets
     When the shell plans the summary
-    Then the shell plan is for window "applet-2" with domains "shell,identity,storage,inc,theme"
+    Then the shell plan is for window "applet-2" with domains "shell,storage,inc,theme"
 
   Scenario: planning an applet that was never resolved is refused
     Given a kernl shell over that host and pool
@@ -95,11 +95,11 @@ Feature: The composed shell
     And a mounted applet
     When the applet sends its hello through the shell
     And the applet asks "shell.ready" over its port
-    Then the applet received a "shell.init" with domains "shell,identity,storage,inc,theme"
+    Then the applet received a "shell.init" with domains "shell,storage,inc,theme"
     When the applet asks "theme.get" over its port
     Then the applet received a "theme.get.result"
     When the applet asks "identity.getPublicKey" over its port
-    Then the applet received a "identity.getPublicKey.result"
+    Then the applet received no "identity.getPublicKey.result"
     When the applet floods "storage.get" over its port until the guard quarantines it
     Then the host was told the window was revoked for "quarantine"
     And the mounted frame was removed
@@ -121,12 +121,42 @@ Feature: The composed shell
     When the shell resolves the manifest address
     And the shell allows "resource" for the resolved applet
     And the shell plans the summary
-    Then the shell plan is for window "applet-1" with domains "shell,identity,storage,inc,theme,resource"
+    Then the shell plan is for window "applet-1" with domains "shell,storage,inc,theme,resource"
     When the shell mounts the plan into a fake frame
     And the applet sends its hello through the shell
     And the applet asks "resource.bytes" for "https://files.example/a.txt" over its port
     Then the applet received a "resource.bytes.result"
     And the fake bridges were asked for "https://files.example/a.txt" by applet "chat"
+
+  Scenario: an applet learns the signed-in account only after the user grants it
+    Given a kernl shell over that host and pool
+    And the shell is signed in
+    And a mounted applet granted "identity" that has said hello
+    When the applet asks "identity.getPublicKey" over its port
+    Then the applet received a "identity.getPublicKey.result"
+
+  Scenario: an oversized download request is refused before any service sees it
+    Given a kernl shell over that host and pool with fake bridges
+    And a mounted applet granted "resource" that has said hello
+    When the applet asks "resource.bytes" for an address of 65 KiB over its port
+    Then the applet received a "resource.bytes.error" naming the firewall
+    And the fake bridges were asked for nothing
+    And the shell guard events included "size:resource:bytes"
+    When the applet asks "resource.bytes" for "https://files.example/a.txt" over its port
+    Then the applet received a "resource.bytes.result"
+    And the fake bridges were asked for "https://files.example/a.txt" by applet "chat"
+
+  Scenario: a refused dispatch puts the runtime policy back as it was
+    Given a kernl shell over that host and pool
+    And the runtime firewall holds the policy "ask" for "asker"
+    When the shell refuses the current dispatch for "asker" and for "stranger"
+    Then during that dispatch the runtime firewall policies were "deny" and "deny"
+    And afterwards the runtime firewall policy for "asker" is "ask" and for "stranger" is "none"
+
+  Scenario: mounting installs the profile's rates without bypassing them
+    Given a kernl shell over that host and pool
+    And a mounted applet
+    Then the runtime firewall holds no policy for "chat" and a "resource:fetch" rate of 120 per 10000 ms
 
   Scenario: messages from windows the shell does not know go to the bridge unguarded
     Given a kernl shell over that host and pool with fake bridges
@@ -186,7 +216,7 @@ Feature: The composed shell
     And the shell is signed in
     And a mounted applet granted "relay" that has said hello
     When the applet publishes a bare kind 5 template over its port
-    Then the host was asked "Delete 0 events" marked "destructive" for applet "chat"
+    Then the host was asked "Delete 0 items" marked "destructive" for applet "chat"
     When the host answers the consent prompt with no
     Then the applet's publish failed with "denied:consent"
 

@@ -1,115 +1,86 @@
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { expect, test, type Request } from '@playwright/test';
+import { APPLET_HTML, STUN_URL, type EscapeResults } from './applet-escape-probe.js';
 
 /**
- * Proves in a real browser that an applet frame, built the way kernl builds it,
- * has no network of its own: the kehto prelude removes the peer-connection
- * globals and the guard's zero-network policy refuses every other way out.
+ * Proves in a real browser that an applet frame, built by kernl's own
+ * `planMount`, has no network of its own: the kehto prelude removes the
+ * peer-connection globals, kernl's frame lock (D-014) refuses every way to
+ * open a child frame whose fresh realm would still have them, and the guard's
+ * zero-network policy refuses every other way out.
  *
  * The spec does not use the served site. The host page is answered by a route on
  * an origin that does not exist, and any other request that reaches the network
  * layer is recorded and aborted, so it runs offline and under
- * `PLAYWRIGHT_BASE_URL` alike. It imports `test` from
- * Playwright rather than `./fixtures` because the policy reports each refused
- * attempt as a console error, which is the behaviour under test.
+ * `PLAYWRIGHT_BASE_URL` alike. Peer connections speak UDP, which no route sees,
+ * so the host page gathers candidates from a public STUN server as a control:
+ * when it reaches one, the applet's lack of candidates is evidence and not an
+ * artefact of the network. It imports `test` from Playwright rather than
+ * `./fixtures` because the policy reports each refused attempt as a console
+ * error, which is the behaviour under test.
  */
 
 const HOST_URL = 'https://kernl-host.test/';
 const ROOT = resolve(import.meta.dirname, '../..');
+const DENIED = 'threw TypeError: denied:nested-frame';
 
-/** Applet code that tries every way out it can and writes what happened into its own page. */
-const APPLET_HTML = `<!doctype html>
-<html><head><title>Escape</title></head>
-<body>
-<pre id="results">pending</pre>
-<script>
-const settle = (promise) => Promise.race([promise, new Promise((done) => setTimeout(() => done('timeout'), 1500))]);
-const attempt = (body) => { try { return body(); } catch (error) { return 'threw ' + error.name; } };
-const violations = [];
-document.addEventListener('securitypolicyviolation', (event) => violations.push(event.effectiveDirective + ' ' + event.blockedURI));
-(async () => {
-  const results = {};
-  results.fetch = await settle(fetch('https://example.com/').then(() => 'answered', (error) => 'failed ' + error.name));
-  results.webSocket = await settle(new Promise((done) => {
-    try {
-      const socket = new WebSocket('wss://example.com/');
-      socket.onopen = () => done('opened');
-      socket.onerror = () => done('failed');
-    } catch (error) {
-      done('threw ' + error.name);
-    }
-  }));
-  results.rtcPeerConnection = typeof RTCPeerConnection;
-  results.webkitRtcPeerConnection = typeof webkitRTCPeerConnection;
-  results.rtcByName = typeof globalThis['RTC' + 'PeerConnection'];
-  const rtcNames = Object.getOwnPropertyNames(globalThis).filter((name) => /RTC/.test(name));
-  results.rtcNamesSeen = rtcNames.length;
-  results.rtcStillUsable = rtcNames.filter((name) => {
-    const descriptor = Object.getOwnPropertyDescriptor(globalThis, name);
-    return globalThis[name] !== undefined || descriptor.configurable || descriptor.writable;
-  });
-  results.rtcRestore = attempt(() => { delete globalThis.RTCPeerConnection; return typeof globalThis.RTCPeerConnection; });
-  results.image = await settle(new Promise((done) => {
-    const image = document.createElement('img');
-    image.onload = () => done('loaded');
-    image.onerror = () => done('failed');
-    image.src = 'https://example.com/x.png';
-    document.body.append(image);
-  }));
-  results.nestedFrame = await settle(new Promise((done) => {
-    const frame = document.createElement('iframe');
-    frame.onload = () => done(attempt(() => frame.contentWindow.location.href));
-    frame.src = 'https://example.com/frame';
-    document.body.append(frame);
-  }));
-  results.beacon = attempt(() => navigator.sendBeacon('https://example.com/beacon', 'x'));
-  await new Promise((done) => setTimeout(done, 300));
-  results.violations = violations;
-  document.getElementById('results').textContent = JSON.stringify(results);
-})();
-</script>
-</body></html>`;
+type Core = typeof import('@kernl/core');
+type AppletSummary = import('@kernl/core').AppletSummary;
 
-interface EscapeResults {
-  fetch: string;
-  webSocket: string;
-  rtcPeerConnection: string;
-  webkitRtcPeerConnection: string;
-  rtcByName: string;
-  rtcNamesSeen: number;
-  rtcStillUsable: string[];
-  rtcRestore: string;
-  image: string;
-  nestedFrame: string;
-  beacon: boolean | string;
-  violations: string[];
-}
-
+let core: Core;
 let hostHtml = '';
 
+/** Exactly what `planMount` reads from an adapter: the grants narrow the environment to the handshake. */
+const adapter = { capabilities: { resolveEnvironment: () => ({ domains: ['shell'], services: [] }) } };
+
+function summaryFor(dTag: string): AppletSummary {
+  return { identity: { dTag, hash: 'ab'.repeat(32), pubkey: 'cd'.repeat(32) }, requires: [] } as unknown as AppletSummary;
+}
+
+function plan(indexHtml: string) {
+  return core.planMount({ summary: summaryFor('escape'), indexHtml, adapter: adapter as never, guardProfile: 'strict', windowId: 'escape-1' });
+}
+
 test.beforeAll(async () => {
-  const core = (await import(pathToFileURL(resolve(ROOT, 'packages/core/dist/index.js')).href)) as typeof import('@kernl/core');
-  const guard = (await import(pathToFileURL(resolve(ROOT, 'packages/guard/dist/index.js')).href)) as typeof import('@kernl/guard');
-  const shell = (await import(pathToFileURL(resolve(ROOT, 'packages/core/node_modules/@kehto/shell/dist/index.js')).href)) as typeof import('@kehto/shell');
-  const csp = guard.createAppletCsp('strict');
-  const srcdoc = shell.prepareNappletSrcdoc(APPLET_HTML, {
-    domains: ['shell'],
-    csp: { connectOrigins: csp.connectOrigins, directives: csp.directives as import('@kehto/shell').NappletCspDirectives },
-  });
+  core = (await import(pathToFileURL(resolve(ROOT, 'packages/core/dist/index.js')).href)) as Core;
+  const { srcdoc, sandbox } = plan(APPLET_HTML);
   hostHtml = `<!doctype html>
 <html><head>${core.KERNL_FRAME_POLICY_META}<title>Host</title></head>
 <body>
 <script>
+window.control = new Promise((done) => {
+  const types = [];
+  const peer = new RTCPeerConnection({ iceServers: [{ urls: ${JSON.stringify(STUN_URL)} }] });
+  peer.onicecandidate = (event) => (event.candidate ? types.push(event.candidate.type) : done(types));
+  peer.createDataChannel('control');
+  peer.createOffer().then((offer) => peer.setLocalDescription(offer));
+  setTimeout(() => done(types), 5000);
+});
 const frame = document.createElement('iframe');
-frame.setAttribute('sandbox', 'allow-scripts');
+frame.setAttribute('sandbox', ${JSON.stringify(sandbox)});
 frame.srcdoc = ${JSON.stringify(srcdoc).replace(/</g, '\\u003c')};
 document.body.append(frame);
 </script>
 </body></html>`;
 });
 
-test('an applet frame cannot reach the network on its own', async ({ page }) => {
+test('planMount refuses applet markup that declares a frame of its own', () => {
+  for (const markup of ['<iframe srcdoc="x"></iframe>', '<object data="x"></object>', '<embed src="x">', '<frameset></frameset>']) {
+    expect(() => plan(`<!doctype html><html><body>${markup}</body></html>`), markup).toThrow('denied:nested-frame');
+  }
+});
+
+test('the frame lock runs after the kehto prelude and before the applet script', () => {
+  const { srcdoc } = plan(APPLET_HTML);
+  const order = ['<meta http-equiv="Content-Security-Policy"', '<script data-kehto-nip5d-injection>', '<script data-kernl-frame-lock>', '<pre id="results">'].map((marker) => srcdoc.indexOf(marker));
+  expect(order.every((at) => at >= 0)).toBe(true);
+  expect([...order].sort((a, b) => a - b)).toEqual(order);
+  expect(srcdoc).toContain("frame-src 'none'; media-src 'none'");
+  expect(srcdoc).toContain("; require-trusted-types-for 'script'; trusted-types default\">");
+});
+
+test('an applet frame cannot reach the network on its own, directly or through a child frame', async ({ page }) => {
   const outbound: string[] = [];
   const routed: string[] = [];
   const failed: string[] = [];
@@ -127,8 +98,22 @@ test('an applet frame cannot reach the network on its own', async ({ page }) => 
 
   await page.goto(HOST_URL);
   const applet = page.frameLocator('iframe[sandbox="allow-scripts"]');
-  await expect(applet.locator('#results')).not.toHaveText('pending', { timeout: 15_000 });
+  await expect(applet.locator('#results')).not.toHaveText('pending', { timeout: 30_000 });
   const results = JSON.parse((await applet.locator('#results').textContent()) ?? '{}') as EscapeResults;
+  const control = (await page.evaluate(() => (window as unknown as { control: Promise<string[]> }).control)) as string[];
+  const stunReachable = control.includes('srflx');
+  test.info().annotations.push({ type: 'stun', description: stunReachable ? 'reachable from the host page' : 'unreachable; candidate checks rest on absent constructors' });
+  test.info().annotations.push({ type: 'frames', description: JSON.stringify({ written: results.written, ...results.frames }) });
+
+  expect(results.written).toEqual({ whole: DENIED, split: DENIED });
+  for (const [routeName, outcome] of Object.entries(results.frames)) expect(outcome, routeName).toBe(DENIED);
+  expect(Object.keys(results.frames)).toHaveLength(15);
+  expect(results.childRealms).toBe(0);
+  expect(results.childReports).toEqual([]);
+  expect(results.topPeer).toBe('undefined');
+  expect(results.topGather).toMatch(/^threw TypeError/);
+  for (const outcome of [...Object.values(results.frames), JSON.stringify(results.topGather)]) expect(outcome).not.toMatch(/srflx|relay|ESCAPED/);
+  expect(results.ordinaryMarkup).toBe('rendered');
 
   expect(results.fetch).toMatch(/^failed/);
   expect(results.webSocket).not.toBe('opened');
@@ -140,7 +125,6 @@ test('an applet frame cannot reach the network on its own', async ({ page }) => 
   expect(results.rtcStillUsable).toEqual([]);
   expect(results.rtcRestore).toBe('undefined');
   expect(results.image).toBe('failed');
-  expect(results.nestedFrame).not.toMatch(/example\.com/);
   // sendBeacon only reports that the beacon was queued; the policy refuses it when it is sent.
   expect(typeof results.beacon).toBe('boolean');
   expect(results.violations).toEqual(
@@ -148,7 +132,6 @@ test('an applet frame cannot reach the network on its own', async ({ page }) => 
       'connect-src https://example.com/',
       'connect-src wss://example.com/',
       'img-src https://example.com/x.png',
-      'frame-src https://example.com',
       'connect-src https://example.com/beacon',
     ]),
   );

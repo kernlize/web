@@ -117,7 +117,7 @@ status.textContent = `Shell ready. Guard profile: ${kernl.guard.config.profile}.
 
 ## 4. Sign in read-only
 
-Applets can see who is at the keyboard. A read-only account is the simplest way to have one: it needs only a public key, and every write an applet asks for is refused because there is no signer. Add to `main.ts`:
+Applets you grant *your account* (`identity`) can see who is at the keyboard. A read-only account is the simplest way to have one: it needs only a public key, and every write an applet asks for is refused because there is no signer. Add to `main.ts`:
 
 <!-- sample:continues -->
 ```ts
@@ -204,7 +204,7 @@ document.addEventListener('visibilitychange', () => {
 A page that is a complete kernl host: it verifies an applet before running it, runs it in a frame with no network of its own, keeps the guard informed, and stops the applet when the guard quarantines it. Two things this page leaves out on purpose:
 
 - **Signing.** A read-only account cannot sign, so the consent prompt never appears. With a signing account, an applet that tries to change your profile, follows, connections or lists, or to delete something, reaches `presentConsent` first, and a "no" fails the write with `denied:consent`.
-- **Grants.** The page never calls `kernl.grants.allowDomain`, so applets get only the baseline. [Grant and revoke](../how-tos/grant-and-revoke.md) shows the calls.
+- **Grants.** The page never calls `kernl.grants.allowDomain`, so applets get only the baseline (`shell`, `inc`, `theme`, `storage`) and are not told who is signed in. [Grant and revoke](../how-tos/grant-and-revoke.md) shows the calls.
 
 ## Where next
 

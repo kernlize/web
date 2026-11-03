@@ -109,7 +109,9 @@ function toEnvelope(data: unknown): GuardEnvelope {
  * window inside the callback, kehto then finds no session for it, and the
  * envelope that crossed the limit is dropped along with everything after it.
  * Pre-dispatch limits for port traffic come from the runtime firewall
- * configured by `applyRuntimeFirewallRules`.
+ * configured by `applyRuntimeFirewallRules`; `createKernl` also turns each
+ * `size:` rejection into a runtime refusal of that one envelope with
+ * `refuseCurrentDispatch`.
  *
  * @param options - Configuration, clock, event sink and quarantine callback.
  * @returns The pipeline.

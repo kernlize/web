@@ -12,6 +12,10 @@ test('the preview shell signs in, runs a sample applet, shows the guard and send
   await page.getByRole('listitem').filter({ hasText: 'Notes' }).getByRole('button', { name: 'Open' }).click();
   await expect(page.getByRole('dialog').getByRole('heading', { name: 'Notes' })).toBeVisible();
 
+  // Your account is a grant, not baseline, in both modes; Notes requires it, so it starts switched on.
+  const account = page.getByRole('checkbox', { name: /your account/ });
+  await expect(account).toBeEnabled();
+  await expect(account).toBeChecked();
   const network = page.getByRole('checkbox', { name: /network/ });
   await expect(network).not.toBeChecked();
   await network.check();
@@ -54,7 +58,7 @@ test('the preview asks only before destructive publishes, as the live shell does
   const applet = await runPulse(page);
 
   await applet.getByRole('button', { name: 'Publish a note' }).click();
-  await expect(applet.locator('#log li').first()).toContainText('Publish a note: done');
+  await expect(applet.locator('#log li').first()).toContainText('Publish a post: done');
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
   await applet.getByRole('button', { name: 'Delete a note' }).click();
@@ -91,6 +95,35 @@ test('preview applets have no WebRTC constructors and carry the guard CSP', asyn
   expect(policy).toContain("connect-src 'none'");
   const srcdoc = (await page.locator('iframe[data-window-id]').getAttribute('srcdoc')) ?? '';
   expect(srcdoc.indexOf('Content-Security-Policy')).toBeLessThan(srcdoc.indexOf('RTC'));
+  // The frame lock follows the sweep and comes before any applet script, as the live mount plan places it.
+  expect(policy).toContain("require-trusted-types-for 'script'");
+  expect(srcdoc.indexOf('RTC')).toBeLessThan(srcdoc.indexOf('data-kernl-frame-lock'));
+  expect(srcdoc.indexOf('data-kernl-frame-lock')).toBeLessThan(srcdoc.indexOf('kernlPreview'));
+});
+
+test('a running preview applet cannot open a frame of its own', async ({ page }) => {
+  await runPulse(page);
+  const frame = page.frames().find((candidate) => candidate !== page.mainFrame());
+  expect(frame).toBeDefined();
+  const attempts = await frame!.evaluate(() => {
+    const outcome = (attempt: () => unknown): string => {
+      try {
+        attempt();
+        return 'created';
+      } catch (error) {
+        return error instanceof Error ? error.message : String(error);
+      }
+    };
+    return [
+      outcome(() => document.createElement('iframe')),
+      outcome(() => document.createElementNS('http://www.w3.org/1999/xhtml', 'iframe')),
+      outcome(() => {
+        document.body.insertAdjacentHTML('beforeend', '<iframe srcdoc="x"></iframe>');
+      }),
+    ];
+  });
+  expect(attempts).toEqual(['denied:nested-frame', 'denied:nested-frame', 'denied:nested-frame']);
+  expect(await frame!.evaluate(() => document.querySelectorAll('iframe').length)).toBe(0);
 });
 
 test('the guard profile starts strict again after a reload', async ({ page }) => {

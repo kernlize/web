@@ -21,7 +21,7 @@
     return kernl.guard.mitigations();
   });
 
-  const PROVIDERS = { kehto: 'built into the toolkit', kernl: 'added by kernl', both: 'both' } as const;
+  const PROVIDERS = { kehto: 'built into the toolkit', kernl: 'added by kernl', both: 'toolkit and kernl' } as const;
   const PROFILE_HELP: Readonly<Record<GuardProfile, string>> = {
     strict: 'Every protection at its tightest. Where kernl starts.',
     balanced: 'Twice the budgets. For applets that legitimately do a lot.',
@@ -70,7 +70,7 @@
         {/each}
       </ol>
     {:else}
-      <p class="shell-muted">Nothing yet. The guard records every refusal, report and quarantine here.</p>
+      <p class="shell-muted">Nothing yet. The guard records what it reports, refuses or quarantines here. Some refusals made inside the runtime are not shown yet.</p>
     {/if}
   </section>
 </Overlay>

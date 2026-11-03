@@ -61,33 +61,41 @@ Feature: Consent summaries
       | Follows added |        | 1: a1a1a1a1… |
     When the shell describes signing a kind 10002 event with relays "wss://a.example="
     Then the summary lines are:
-      | label             | before | after              |
-      | Connections added |        | 1: wss://a.example |
+      | label             | before | after        |
+      | Connections added |        | 1: a.example |
     When the shell describes signing a kind 30000 list "friends" titled "" with entries "p:x1"
     Then the summary lines are:
-      | label         | before | after   |
-      | Entries added |        | 1: p:x1 |
+      | label         | before | after                 |
+      | Entries added |        | 1: person x1…       |
 
   Scenario: deletions list what disappears
     When the shell describes signing a kind 5 event deleting "e1,e2"
-    Then the summary is "destructive" titled "Delete 2 events"
+    Then the summary is "destructive" titled "Delete 2 items"
     And the summary lines are:
       | label  | before    | after |
       | Delete | e1e1e1e1… |       |
       | Delete | e2e2e2e2… |       |
     When the shell describes signing a kind 5 event deleting "e1"
-    Then the summary is "destructive" titled "Delete 1 event"
+    Then the summary is "destructive" titled "Delete 1 item"
 
   Scenario: deletions by address list the coordinates that disappear
     When the shell describes signing a kind 5 event deleting "e1" and addresses "30023:a1:post,30311:b2:"
-    Then the summary is "destructive" titled "Delete 3 events"
+    Then the summary is "destructive" titled "Delete 3 items"
     And the summary lines are:
-      | label                   | before              | after |
-      | Delete                  | e1e1e1e1…           |       |
-      | Delete every version of | 30023:a1a1a1a1…:post |       |
-      | Delete every version of | 30311:b2b2b2b2…:     |       |
+      | label                   | before                                  | after |
+      | Delete                  | e1e1e1e1…                               |       |
+      | Delete every version of | article "post" by person a1a1a1a1…      |       |
+      | Delete every version of | record (type 30311) by person b2b2b2b2… |       |
     When the shell describes signing a kind 5 event deleting "" and addresses "30023:a1:post"
-    Then the summary is "destructive" titled "Delete 1 event"
+    Then the summary is "destructive" titled "Delete 1 item"
+
+  Scenario: deletions that name only posts say posts
+    When the shell describes signing a kind 5 event deleting "e1,e2" of kinds "1,1"
+    Then the summary is "destructive" titled "Delete 2 posts"
+    When the shell describes signing a kind 5 event deleting "e1" of kinds "1"
+    Then the summary is "destructive" titled "Delete 1 post"
+    When the shell describes signing a kind 5 event deleting "e1,e2" of kinds "1,7"
+    Then the summary is "destructive" titled "Delete 2 items"
 
   Scenario: a request to vanish asks services to erase the account
     When the shell describes signing a kind 62 request naming services "ALL_RELAYS"
@@ -101,25 +109,25 @@ Feature: Consent summaries
       | label          | before                                | after         |
       | Erase          | Everything this account has published |               |
       | Services asked |                                       | Every service |
-    When the shell describes signing a kind 62 request naming services "wss://a.example,wss://b.example"
+    When the shell describes signing a kind 62 request naming services "wss://relay.damus.io/,wss://nos.lol,wss://relay.example"
     Then the summary lines are:
-      | label          | before                                | after                            |
-      | Erase          | Everything this account has published |                                  |
-      | Services asked |                                       | wss://a.example, wss://b.example |
+      | label          | before                                | after                                 |
+      | Erase          | Everything this account has published |                                       |
+      | Services asked |                                       | damus.io, nos.lol, relay.example |
 
   Scenario: any other replaceable or addressable record is destructive and diffed
     When the shell describes signing a kind 17375 record "" with content "sealed" and entries "mint:m1"
-    Then the summary is "destructive" titled "Replace your kind 17375 event"
+    Then the summary is "destructive" titled "Replace one of your records (type 17375)"
     And the summary lines are:
       | label         | before | after      |
-      | Entries added |        | 1: mint:m1 |
+      | Entries added |        | 1: mint m1 |
     Given the current kind 30311 record "stream" has content "old" and entries "status:live"
     When the shell describes signing a kind 30311 record "stream" with content "new" and entries "status:ended"
-    Then the summary is "destructive" titled "Replace your kind 30311 event \"stream\""
+    Then the summary is "destructive" titled "Replace one of your records (type 30311) \"stream\""
     And the summary lines are:
       | label           | before         | after           |
-      | Entries added   |                | 1: status:ended |
-      | Entries removed | 1: status:live |                 |
+      | Entries added   |                | 1: status ended |
+      | Entries removed | 1: status live |                 |
       | Content         |                | Replaced        |
     When the shell describes signing a kind 30311 record "stream" with content "old" and entries "status:live"
     Then the summary lines are:
@@ -135,18 +143,18 @@ Feature: Consent summaries
     When the shell describes signing a kind 10002 event with relays "wss://a.example=write,wss://b.example="
     Then the summary is "destructive" titled "Change your connections list"
     And the summary lines are:
-      | label               | before                     | after                      |
-      | Connections added   |                            | 1: wss://a.example (write) |
-      | Connections removed | 1: wss://a.example (read)  |                            |
+      | label               | before               | after                 |
+      | Connections added   |                      | 1: a.example (write) |
+      | Connections removed | 1: a.example (read)  |                       |
 
   Scenario: list changes are named by title or identifier
     Given the current list has entries "p:x1,t:nostr"
     When the shell describes signing a kind 30000 list "friends" titled "Friends" with entries "p:x1,p:x2"
     Then the summary is "destructive" titled "Change the list \"Friends\""
     And the summary lines are:
-      | label           | before     | after   |
-      | Entries added   |            | 1: p:x2 |
-      | Entries removed | 1: t:nostr |         |
+      | label           | before         | after                 |
+      | Entries added   |                | 1: person x2…       |
+      | Entries removed | 1: topic nostr |                       |
     When the shell describes signing a kind 10000 list "" titled "" with entries "p:x1"
     Then the summary is "destructive" titled "Change a list"
     When the shell describes signing a kind 30001 list "pins" titled "" with entries "e:x1"
@@ -154,14 +162,14 @@ Feature: Consent summaries
 
   Scenario: other kinds are routine with a preview
     When the shell describes signing a kind 1 event with content 'hello   world'
-    Then the summary is "routine" titled "Publish a note"
+    Then the summary is "routine" titled "Publish a post"
     And the summary lines are:
       | label   | before | after       |
       | Content |        | hello world |
     When the shell describes signing a kind 1 event with 200 characters of content
     Then the summary preview is 141 characters long and ends with "…"
     When the shell describes signing a kind 4242 event with content 'x'
-    Then the summary is "routine" titled "Publish a kind 4242 event"
+    Then the summary is "routine" titled "Publish a record (type 4242)"
 
   Scenario: the handler asks the host with a summary and passes the answer back
     Given a consent handler with a store holding the current profile '{"name":"alice"}'
@@ -177,8 +185,8 @@ Feature: Consent summaries
     Given a consent handler with a store holding a kind 30000 list "friends" with entries "p:x1"
     When kehto requests consent from window "w1" to sign a kind 30000 list "friends" with entries "p:x1,p:x2"
     Then the asked summary lines are:
-      | label         | before | after   |
-      | Entries added |        | 1: p:x2 |
+      | label         | before | after                 |
+      | Entries added |        | 1: person x2…       |
 
   Scenario: a current version the store does not hold is loaded from the network
     Given a consent handler with an empty store and a network holding follow lists "a9" then "a1,a2,a3"
@@ -216,7 +224,7 @@ Feature: Consent summaries
   Scenario: a routine write from a known window is asked about without a lookup
     Given a consent handler with an empty store and a network that never answers
     When kehto requests consent from window "w1" to sign a kind 1 event with content 'hi'
-    Then the host was asked "Publish a note" for applet "chat"
+    Then the host was asked "Publish a post" for applet "chat"
     And the network was not asked
 
   Scenario: requests without an event or from an unknown window are refused without asking
@@ -227,3 +235,7 @@ Feature: Consent summaries
     When kehto requests consent from window "ghost" to sign a kind 1 event with content 'hi'
     Then kehto received false
     And the host was not asked
+
+  Scenario: no summary of a replacing or erasing write speaks protocol
+    Then no consent summary for kinds "0,3,5,62,10002,17375,30311" names a protocol, a key format, a server address or a kind
+    And every one of those summaries carries the raw event for the record view

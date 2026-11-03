@@ -8,7 +8,7 @@ Feature: Mitigation descriptions
     And every guard mitigation is enabled
     And the guard mitigations are listed in this order:
       | id                   | provider |
-      | zero-network-sandbox | kehto    |
+      | zero-network-sandbox | both     |
       | bound-identity       | kehto    |
       | verified-artifacts   | kehto    |
       | replay-detection     | kehto    |
@@ -16,7 +16,7 @@ Feature: Mitigation descriptions
       | focus-tightening     | kernl    |
       | hidden-deferral      | kernl    |
       | ingress-flood        | kernl    |
-      | size-caps            | kernl    |
+      | size-caps            | both     |
       | device-denial        | kehto    |
       | destructive-consent  | kernl    |
 
@@ -26,9 +26,17 @@ Feature: Mitigation descriptions
 
   Scenario: nothing the shell only observes is described as held or blocked
     When the guard describes the mitigations for the "strict" profile
-    Then the guard mitigations "focus-tightening,hidden-deferral,ingress-flood,size-caps" never claim to hold, queue, block or refuse
+    Then the guard mitigations "focus-tightening,hidden-deferral,ingress-flood" never claim to hold, queue, block or refuse
     And the guard mitigation "focus-tightening" says "When an applet window is not the one you are working in, the shell counts its requests against a smaller allowance and tells you when it goes over. Going over is reported, not refused: the shell counts each request as it arrives but cannot hold it back, so it is still handled. The budget above still applies."
-    And the guard mitigation "size-caps" says "The shell measures download and long-running query requests against a maximum size and tells you when an applet sends one that is too large. Such a request is not stopped: the shell measures it as it arrives but cannot hold it back, so it is still handled."
+
+  Scenario: the sealed frame cannot open frames of its own (D-014)
+    When the guard describes the mitigations for the "strict" profile
+    Then the guard mitigation "zero-network-sandbox" says "Every applet runs in a sealed frame with no direct network access, and cannot open a frame of its own inside it. Anything it sends or receives goes through the shell, where you can see it, revoke what you granted, or close the applet."
+
+  Scenario: oversized requests are refused before they are handled
+    When the guard describes the mitigations for the "strict" profile
+    Then the guard mitigation "size-caps" is titled "Oversized requests are refused"
+    And the guard mitigation "size-caps" says "The shell measures download and long-running query requests against a maximum size. One that is too large is refused before it is handled, so nothing it asked for is fetched, and the shell tells you."
 
   Scenario: quarantine drops the message that crossed the limit
     When the guard describes the mitigations for the "strict" profile

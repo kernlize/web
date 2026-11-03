@@ -9,6 +9,8 @@ None is filed yet. Each item shrinks kernl when it lands; see [Alpha status](./a
 - Forward `getFocusContext`, `onFirewallEvent` and `firewallPersistence` through `ShellAdapter` so the runtime's own firewall can be focus-aware without a second engine in front of it.
 - Let the host choose the ACL default policy in `createRuntime`, so a restrictive shell does not have to write every capability explicitly.
 - Offer a hook that can hold or drop port traffic, so the visibility gate can hold a hidden applet's envelopes instead of only observing them before dispatch.
+- Release `experimental.nestedContextLock` in `@kehto/shell`, so kernl can pass the flag to `prepareNappletSrcdoc` and delete its port of the lock ([D-014](./decisions.md#d-014)).
+- Let the runtime firewall measure envelopes without an `event`, so its size matchers see downloads and queries and kernl can drop `refuseCurrentDispatch` ([D-012](./decisions.md#d-012)).
 - Expose a setter for the runtime firewall's `unfocusedMultiplier`. Together with the forwarded `getFocusContext`, it lets the runtime refuse an unfocused window at the profile's tightened budget instead of treating every window as focused.
 
 ## 2. Bridge backends

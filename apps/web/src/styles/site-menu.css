@@ -1,0 +1,67 @@
+/* Narrow screens get a disclosure menu instead of the inline links; it works without scripts. */
+.site-menu {
+  display: none;
+  position: relative;
+  margin-left: auto;
+}
+
+.site-menu > summary {
+  list-style: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-raised);
+  color: var(--ink);
+}
+
+.site-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.site-menu nav {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  min-width: 12rem;
+  padding: 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.18);
+}
+
+.site-menu ul {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.site-menu a {
+  display: block;
+  padding: 0.65rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  text-decoration: none;
+  color: var(--ink-muted);
+  border-radius: calc(var(--radius) / 2);
+}
+
+.site-menu a:hover,
+.site-menu a[aria-current='page'] {
+  color: var(--ink);
+  background: var(--accent-soft);
+}
+
+@media (max-width: 719.98px) {
+  .site-nav {
+    display: none;
+  }
+
+  .site-menu {
+    display: block;
+  }
+}

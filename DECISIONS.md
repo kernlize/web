@@ -37,7 +37,7 @@ Format: `D-NNN · title` → Context, Decision, Consequences, Reversal cost.
 
 **Consequences.** Some applets will hit limits in `strict`. The guard emits an event for every rejection and deferral so the user can see what happened and decide.
 
-**Status in the first draft.** The profile is shell-wide and not persisted: `GuardFacade.setProfile` rebuilds the single pipeline, and windows already open keep the runtime rates installed at mount. Per-applet, remembered loosening is the target this decision describes and is tracked in `docs/roadmap.md`. The default remains `strict` on every boot, so the gap errs toward the user.
+**Status in the first draft.** The profile is shell-wide and not persisted: `GuardFacade.setProfile` rebuilds the single pipeline, and windows already open keep the runtime rates installed at mount. Per-applet, remembered loosening is the target this decision describes and is tracked in `docs/roadmap.md`. The default remains `strict` on every boot, so the gap errs toward the user. kehto's experimental mitigation `experimental.nestedContextLock` is on kehto main (4d8a5693) but in no `@kehto/shell` release; kernl applies an attributed port of it to every applet until a release carries the flag (D-014).
 
 **Reversal cost.** A one-line profile change for a user; a `SOUL.md` amendment for the project.
 
@@ -49,7 +49,7 @@ Format: `D-NNN · title` → Context, Decision, Consequences, Reversal cost.
 
 | Workspace | Name | Role | Framework |
 |---|---|---|---|
-| `packages/guard` | `@kernl/guard` | Ingress flood control, visibility gate, focus-aware firewall, CSP profile, mitigation descriptions. Pure. | none |
+| `packages/guard` | `@kernl/guard` | Ingress flood control, visibility gate, focus-aware firewall, CSP profile, nested-frame lock, mitigation descriptions. Pure. | none |
 | `packages/messaging` | `@kernl/messaging` | Messaging provider contract, registry, composite NAP-DM adapter, provider descriptions. Pure. | none |
 | `packages/bridges` | `@kernl/bridges` | Locator parsing, bridge contract, registry, resource resolver with SSRF policy. Pure. | none |
 | `packages/core` | `@kernl/core` | Composition root: applesauce adapters, applet resolution and mount plan, consent summaries, layouts, persistence. Browser-agnostic. | none |
@@ -132,15 +132,22 @@ Published packages have zero framework dependencies, matching kehto's rule. The 
 
 **Reversal cost.** Low; the preview is one module behind the contract.
 
-## D-012 · Guard enforcement is layered: observed before dispatch, non-blocking; quarantine stops the triggering message
+## D-012 · Guard enforcement is layered: the runtime firewall refuses, kernl observes and reports, quarantine stops the triggering message
 
-**Context.** kehto's bridge owns the `MessagePort` an applet speaks over, and exposes applet traffic to the host only through `ShellAdapter.onNappletMessage`. kehto's `dispatchEnvelope` calls that hook synchronously for each envelope, before it resolves the window's session and dispatches the envelope to the runtime, and ignores the hook's answer. kernl cannot sit between the port and the runtime (D-001).
+**Context.** kehto's bridge owns the `MessagePort` an applet speaks over, and exposes applet traffic to the host only through `ShellAdapter.onNappletMessage`. kehto's `dispatchEnvelope` calls that hook synchronously for each envelope, before it resolves the window's session and dispatches the envelope to the runtime, and ignores the hook's answer. The runtime then evaluates its own firewall, in the same synchronous call, before handing the envelope to a service. kernl cannot sit between the port and the runtime (D-001).
 
-**Decision.** Two layers. kehto's own runtime firewall is the layer that refuses: kernl installs the guard profile's per-class rates in it when an applet is mounted (`applyRuntimeFirewallRules`, translating op classes through `RUNTIME_OP_CLASSES`), and kehto rejects over-budget envelopes before it handles them. kernl's ingress guard, visibility gate and focus firewall observe every envelope inside `onNappletMessage`, before dispatch, with the shell's focus and visibility, but cannot hold or drop it: focus tightening, size caps, bursts and a hidden window's activity are surfaced to the user as guard events and the envelope is still dispatched. A `quarantine` disposition, from a flood or from a hidden window's downloads past the allowance, revokes the applet's binding inside that same callback, so kehto finds no session for the window, the message that crossed the limit is not dispatched, and the applet is closed. The window-level `hello` is the one message kernl can hold or drop before kehto sees it.
+**Decision.** Enforcement is split by what each layer can do:
 
-**Consequences.** Deferral while hidden is advisory in this draft: the gate cannot hold a port envelope, so its effect is the tightened, reported budget, the hidden-download allowance that quarantines, and the event trail, not a held queue. The runtime firewall applies no unfocused multiplier, because kehto does not forward focus to it (D-001, gaps 1 and 4); the profile's multiplier is applied only by kernl's focus firewall, which reports. Rates are installed at mount, so a window keeps the rates it was mounted with when the profile changes. The upstream requests that would turn the observing layer into a true pre-dispatch hook are recorded with D-001's gaps.
+- **Refused before dispatch by kehto's runtime firewall: rates and the startup burst.** When an applet is mounted, kernl installs the guard profile's per-class rates and global rate in the runtime firewall (`applyRuntimeFirewallRules`, translating op classes through `RUNTIME_OP_CLASSES`), with exceed action `block`. It sets no policy, because kehto's `allow` policy makes `evaluate()` skip every rate, matcher and burst check. The runtime supplies `initElapsedMs`, so kehto's own startup burst guard also applies at kehto's default: more than 20 operations in a window's first 3 s are blocked. A refused envelope is answered with an error starting `firewall:`.
+- **Refused before dispatch: size caps.** kehto's matchers cannot see the size of a download or query request, because the runtime measures only `envelope.event`. kernl's ingress guard measures every envelope inside `onNappletMessage`; for one over its cap it emits `size:<class>`, and `createKernl` calls `refuseCurrentDispatch`, which sets the applet's runtime policy to `deny` for that one synchronous dispatch and restores the previous policy in a microtask, before the next port message can arrive. The applet receives a firewall error, nothing is fetched, and the user sees the guard event.
+- **Reported, not refused: focus tightening, bursts above kernl's per-second rate, and a hidden window's activity.** kernl's ingress guard, visibility gate and focus firewall observe every envelope inside `onNappletMessage` with the shell's focus and visibility, but cannot hold or drop it. Their findings are guard events and the envelope is still dispatched.
+- **Quarantined: floods and hidden downloads past the allowance.** A `quarantine` disposition revokes the applet's binding inside that same callback, so kehto finds no session for the window, the message that crossed the limit is not dispatched, and the applet is closed.
 
-**Reversal cost.** Low; the pipeline sits behind `createGuardPipeline` and shrinks when kehto exposes a hook that can hold or drop an envelope.
+The window-level `hello` is the one message kernl can hold or drop before kehto sees it.
+
+**Consequences.** Deferral while hidden is advisory in this draft: the gate cannot hold a port envelope, so its effect is the tightened, reported budget, the hidden-download allowance that quarantines, and the event trail, not a held queue. The runtime firewall applies no unfocused multiplier, because kehto does not forward focus to it (D-001, gaps 1 and 4); the profile's multiplier is applied only by kernl's focus firewall, which reports. The runtime's refusals reach the applet but not the host, because `ShellAdapter` does not forward `onFirewallEvent`; the guard panel shows kernl's own count of the same rates. Rates are installed at mount, so a window keeps the rates it was mounted with when the profile changes. Earlier drafts of this entry said the rates were refused while kernl also set the `allow` policy that bypassed them; `docs/alpha-status.md` records the correction. The upstream requests that would turn the observing layer into a true pre-dispatch hook are recorded with D-001's gaps.
+
+**Reversal cost.** Low; the pipeline sits behind `createGuardPipeline` and shrinks when kehto exposes a hook that can hold or drop an envelope. `refuseCurrentDispatch` goes when kehto's runtime can measure the envelopes it cannot see today.
 
 ## D-013 · The site is served at a domain root
 
@@ -157,3 +164,19 @@ Published packages have zero framework dependencies, matching kehto's rule. The 
 **Publishing is manual, by the maintainer's choice (2026-11-03).** `pnpm site:publish` builds, runs the vocabulary and agent-readiness gates, and pushes `.pages/` to the site repository. CI builds and audits on every push; it would publish only if a scoped `SITE_PUBLISH_TOKEN` were added, and none is.
 
 **Reversal cost.** Low; only deployment configuration.
+
+## D-014 · Applets cannot open nested frames: kehto's nested-context lock, ported until it ships
+
+**Context.** An independent review showed that applet code could create a child `<iframe srcdoc>` whose fresh realm still had a working `RTCPeerConnection`, and that peer connection gathered a server-reflexive candidate from a public STUN server. The published `@kehto/shell` 0.29.0 removes the peer-connection globals from the applet's own realm only. CSP cannot help: `about:srcdoc` and `about:blank` children involve no fetch, so `frame-src 'none'` and `child-src 'none'` never apply, and no shipped directive governs WebRTC. The probe in `tests/e2e/applet-network-sealed.spec.ts`, run against a srcdoc built by kehto 0.29.0 alone, reproduces it in Chromium: every scripted route it tries (`createElement`, `createElementNS`, `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `createContextualFragment`, `DOMParser` with `importNode` and `adoptNode`, `createDocument`, `createHTMLDocument`) produced a child realm that reported `host` and `srflx` candidates, and `document.write` created frames as well. kehto main (4d8a5693) closes this behind `experimental.nestedContextLock`, which no release carries yet.
+
+**Decision.** `@kernl/guard` carries an attributed, temporary port of that lock, and the mount plan always applies it (D-003):
+
+- `assertAppletHasNoFrame` scans the verified bytes before they become a srcdoc and refuses static `iframe`, `frame`, `frameset`, `object`, `embed`, `portal` and `fencedframe` markup with `denied:nested-frame`. It parses with the host's `DOMParser` when there is one and falls back to a lexical match, which may over-reject.
+- `renderFrameLockScript` installs a Trusted Types `default` policy that refuses frame markup at every HTML string sink, and pins `Document.prototype.createElement`, `createElementNS` and `DOMImplementation.prototype.createDocument` non-configurable to refuse frame tag names. `planMount` inserts it immediately after kehto's namespace prelude, so it runs before any applet script.
+- `createAppletCsp` carries `TRUSTED_TYPES_DIRECTIVES` (`require-trusted-types-for 'script'; trusted-types default`). kehto 0.29.0 throws on directives outside its baseline, so `planMount` appends them to the CSP meta kehto rendered, and refuses with `unavailable:frame-lock` if kehto's head is not where it expects.
+
+With the lock, the same probe sees every route throw `TypeError: denied:nested-frame`, no child realm, and no candidate in any realm, while the host page's control reaches the STUN server.
+
+**Consequences.** An applet that creates child frames, ships one in its markup, or registers its own Trusted Types policy is refused or breaks. That is the trade opinion 3 in `SOUL.md` makes: the user outranks the applet developer, and an applet has no legitimate need for a nested browsing context inside a shell that already gives it a window. A string written to an HTML sink that merely mentions a frame tag is refused too.
+
+**Reversal.** Delete `packages/guard/src/frame-lock.ts`, the Trusted Types field of `AppletCsp` and the splice in `planMount`, and pass `experimental: { nestedContextLock: true }` to `prepareNappletSrcdoc` once `@kehto/shell` ships it. The e2e probe stays as the regression test.

@@ -26,6 +26,18 @@ const here = relativePath(Astro.props.pathname);
         ))}
       </ul>
     </nav>
+    <details class="site-menu">
+      <summary>Menu</summary>
+      <nav aria-label="Site menu">
+        <ul>
+          {NAV.map((link) => (
+            <li>
+              <a href={href(link.path)} aria-current={here === link.path ? 'page' : undefined}>{link.label}</a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </details>
     <button class="theme-toggle" type="button" aria-label="Switch colour theme" data-theme-toggle>
       <svg class="sun" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
         <circle cx="8" cy="8" r="3.2" fill="currentColor" />

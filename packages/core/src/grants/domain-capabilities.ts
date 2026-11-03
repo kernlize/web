@@ -29,9 +29,11 @@ export const DOMAIN_CAPABILITIES: Readonly<Record<string, readonly Capability[]>
 
 /**
  * Domains every applet gets without asking: the handshake, in-shell messaging,
- * the theme, a read-only view of the identity and scoped storage. No network.
+ * the theme and scoped storage. No network, and not the identity: which
+ * account is signed in is the user's to reveal, so an applet learns it only
+ * after the user grants "your account" (SOUL opinion 2).
  */
-export const BASELINE_DOMAINS: readonly string[] = Object.freeze(['shell', 'inc', 'theme', 'identity', 'storage']);
+export const BASELINE_DOMAINS: readonly string[] = Object.freeze(['shell', 'inc', 'theme', 'storage']);
 
 /**
  * Capabilities a domain needs. Unknown domains need none, which keeps the

@@ -41,9 +41,9 @@ const description =
       <div>
         <p>A shell has two jobs. It gives you a place where your identity and your things are yours and portable. And it gives an untrusted program a place to run where the worst it can do is bounded. kernl cannot protect you from everything. It does all of it that it can.</p>
         <ul>
-          <li>Applets run in a sealed frame with no network of their own.</li>
-          <li>They never hold keys and never see text you did not ask to show them.</li>
-          <li>Every write the shell makes for an applet is shown to you as what it changes, not as code.</li>
+          <li>Applets run in a sealed frame with no network of their own, and cannot open another frame inside it.</li>
+          <li>They never hold keys, never see text you did not ask to show them, and learn which account you use only if you grant it.</li>
+          <li>Before the shell signs anything for an applet that overwrites or erases part of your record, it shows you what changes, not code.</li>
           <li>An applet's identity is bound to the exact bytes you verified. Changed bytes are a new applet, with no grants.</li>
         </ul>
       </div>

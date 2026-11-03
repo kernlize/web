@@ -1,6 +1,6 @@
 # Applets under kernl
 
-kernl adds nothing to the applet format. An applet that conforms to NIP-5D and the NAPs runs in kernl. What kernl changes is the posture the applet meets: fewer domains until the user grants them, budgets that tighten while the window is hidden or unfocused, and a quarantine for applets that flood the shell. This page explains that posture from the applet's side and how to test against it.
+kernl adds nothing to the applet format. An applet that conforms to NIP-5D and the NAPs runs in kernl. What kernl changes is the posture the applet meets: fewer domains until the user grants them, budgets the runtime enforces, no frames of its own, and a quarantine for applets that flood the shell. This page explains that posture from the applet's side and how to test against it.
 
 ## Use the applet SDK, not this repository
 
@@ -18,8 +18,8 @@ kernl's packages are shell-side. You do not import them in an applet.
 
 | Posture | Domains | Notes |
 | --- | --- | --- |
-| Baseline, advertised without a grant | `shell`, `inc`, `theme`, `identity`, `storage` | `BASELINE_DOMAINS`. No network. A blocked applet sees `shell` alone. |
-| Offered, advertised once the user grants it | `relay`, `outbox`, `resource`, `dm`, `notify`, `link` | Backed by the services `createKernlServices` registers. In the live shell `dm` has no available provider yet ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)). |
+| Baseline, advertised without a grant | `shell`, `inc`, `theme`, `storage` | `BASELINE_DOMAINS`. No network, and no account. Storage is the applet's own, read and write. A blocked applet sees `shell` alone. |
+| Offered, advertised once the user grants it | `identity`, `relay`, `outbox`, `resource`, `dm`, `notify`, `link` | Backed by the services `createKernlServices` registers. `identity` is "your account" in the launcher: until it is granted, your applet is not told who is signed in. In the live shell `dm` has no available provider yet ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)). |
 | Offered, advertised once granted, nothing wired behind it | `keys`, `media` | kehto's runtime serves these domains natively, so the shell offers them; kernl wires no host behaviour (hotkeys are not forwarded). |
 | Not offered | `config`, `cvm`, `upload`, `intent`, `fs`, `llm`, `cache`, and every other domain | They have a row in `DOMAIN_CAPABILITIES` (or none), but no service is registered, so they are never advertised. |
 
@@ -29,8 +29,8 @@ Put a domain in `requires` only if your applet is useless without it. The launch
 
 kehto's bridge owns the port your applet talks over. kernl sees each envelope synchronously, just before kehto dispatches it, but cannot hold or drop it ([D-012](../decisions.md#d-012)). Two layers follow from that, and they behave differently:
 
-- **kehto's runtime firewall refuses.** It enforces the profile's per-class rates, which `kernl.mount` installs for your applet's `dTag`. An over-budget envelope is refused by the runtime with an error that starts `firewall:`.
-- **kernl's guard reports, and quarantines.** It observes the same traffic with the shell's knowledge of visibility and focus and records guard events. It cannot refuse a single envelope, with one exception: when an envelope pushes your applet over a quarantine limit, kernl revokes the binding inside that observation, so that envelope is not dispatched and your applet is closed.
+- **kehto's runtime firewall refuses.** It enforces the profile's per-class rates, which `kernl.mount` installs for your applet's `dTag`, and kehto's own startup burst guard. An over-budget envelope is refused by the runtime with an error that starts `firewall:`. kernl's size caps are refused the same way: kernl measures the envelope and has the runtime refuse that one dispatch.
+- **kernl's guard reports, and quarantines.** It observes the same traffic with the shell's knowledge of visibility and focus and records guard events. Apart from the size caps it cannot refuse a single envelope, with one exception: when an envelope pushes your applet over a quarantine limit, kernl revokes the binding inside that observation, so that envelope is not dispatched and your applet is closed.
 
 The window-level `hello` is the one message kernl filters before kehto sees it.
 
@@ -48,9 +48,11 @@ The shell boots in `strict`. The numbers are in [Guard](./guard.md#profiles); th
 
 **Quarantine stops your applet.** A quarantined window has its binding revoked and its frame removed. The user sees "This applet was stopped." and can open your applet again in a fresh window; nothing resumes on its own.
 
-**Envelope caps.** `resource.*` envelopes over 64 KiB and `relay.subscribe`/`outbox.subscribe` (including `outbox.query`) envelopes over 256 KiB are reported as `size:<class>`. kernl measures each envelope before dispatch but cannot hold it, so the cap is not enforced on the port; do not rely on that. Large filters are a smell; split them.
+**Envelope caps.** `resource.*` envelopes over 64 KiB and `relay.subscribe`/`outbox.subscribe` (including `outbox.query`) envelopes over 256 KiB are refused before dispatch: your applet receives a `firewall:` error, nothing is fetched, and the user sees a `size:<class>` guard event. Large filters are a smell; split them.
 
-**No init-burst exemption.** kehto's own init-burst guard is not what runs here: kernl counts the same 8 messages per second from the first message your applet sends. Load lazily: request the first screen, render, then fetch the rest.
+**A startup burst limit.** kehto's runtime counts every operation in your window's first 3 seconds and refuses everything past the 20th with a `firewall:` error. kernl also counts 8 messages per second from the first message, and reports bursts above that. Load lazily: request the first screen, render, then fetch the rest.
+
+**No frames of your own.** kernl refuses to mount an applet whose markup contains an `iframe`, `frame`, `frameset`, `object`, `embed`, `portal` or `fencedframe` element (`denied:nested-frame`), and inside the window every way of creating one throws `TypeError: denied:nested-frame`: `createElement`, `createElementNS`, `createDocument`, and any HTML string with a frame tag written to `innerHTML`, `insertAdjacentHTML`, `document.write` or a parser. A child frame would be a fresh realm with a network path the shell cannot see ([D-014](../decisions.md#d-014)). Render into your own document instead. Two side effects to know: a string written to an HTML sink that merely mentions a frame tag, in text or an attribute, is refused too, so escape such text or set it with `textContent`; and the window's CSP carries `require-trusted-types-for 'script'; trusted-types default`, so your applet must not register a Trusted Types policy of its own, `default` or any other name. Libraries that create one need a fallback.
 
 **Consent for destructive kinds.** When your applet asks the shell to sign a replaceable event (kind 0, 3 or 10000–19999), an addressable event (30000–39999), a deletion (5) or a request to vanish (62), through `relay.publish` or `outbox.publish`, kernl looks up the version it replaces (for up to 4 seconds on the network), shows the user a summary of what changes and waits. Expect the publish to take as long as a person takes to read. If they refuse, signing fails with `denied:consent` and nothing is published; you receive the normal error envelope. Every other kind is signed without a prompt, and nothing is remembered: the next destructive write asks again.
 

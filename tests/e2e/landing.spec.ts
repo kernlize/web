@@ -28,6 +28,29 @@ test.describe('landing site', () => {
     }
   });
 
+  test('at 390px every site link is reachable from the menu and nothing scrolls sideways', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    for (const path of pages) {
+      await page.goto(path);
+      const overflow = await page.evaluate(() => (document.scrollingElement ?? document.documentElement).scrollWidth - innerWidth);
+      expect(overflow, `${path} scrolls sideways`).toBeLessThanOrEqual(0);
+      await expect(page.getByRole('navigation', { name: 'Site', exact: true })).toBeHidden();
+      await page.locator('header details.site-menu > summary').click();
+      const links = page.getByRole('navigation', { name: 'Site menu' }).getByRole('link');
+      await expect(links).toHaveCount(5);
+      for (const link of await links.all()) {
+        await expect(link).toBeInViewport({ ratio: 1 });
+        await link.click({ trial: true });
+      }
+      const open = await page.evaluate(() => (document.scrollingElement ?? document.documentElement).scrollWidth - innerWidth);
+      expect(open, `${path} scrolls sideways with the menu open`).toBeLessThanOrEqual(0);
+    }
+    await page.goto('/');
+    await page.locator('header details.site-menu > summary').click();
+    await page.getByRole('navigation', { name: 'Site menu' }).getByRole('link', { name: 'Guard' }).click();
+    await expect(page).toHaveURL(/\/guard\/$/);
+  });
+
   test('the open form is a real labelled form with tool attributes', async ({ page }) => {
     await page.goto('/');
     const form = page.locator('form[toolname="open-applet"]');

@@ -37,9 +37,9 @@ kehto's `createRuntime` hardcodes the ACL default policy to `'permissive'`: a ca
 
 1. **Explicit ACL writes.** `KernlGrants.ensure(identity)` runs inside `kernl.plan`, before any frame exists. It commits the applet's record, and a commit writes the complete capability set: every capability in kehto's `ALL_CAPABILITIES` is granted when `BASELINE_DOMAINS` or an allowed domain needs it and revoked otherwise, then the blocked flag is applied and the ACL persisted. The permissive default is never consulted for an applet kernl runs, because every capability has an entry.
 2. **Environment narrowing.** `createEnvironmentResolver(grants)` is the `ShellAdapter.capabilities.resolveEnvironment` hook. For each identity it returns the baseline plus the domains the user allowed, intersected with what the shell offers live; a blocked applet gets `shell` alone, enough to finish the handshake and nothing more. kehto intersects the result with its own availability set, so the hook can only remove. The applet's `shell.init` therefore advertises a subset.
-3. **Runtime firewall rules.** `kernl.mount` calls `applyRuntimeFirewallRules`, which translates the guard profile's per-class rates into kehto's runtime firewall through `RUNTIME_OP_CLASSES` so that over-budget envelopes are refused before dispatch. The policy it sets is `allow`; deny and block are the grants layer's job. [Guard](./guard.md#where-enforcement-happens) has the translation table.
+3. **Runtime firewall rules.** `kernl.mount` calls `applyRuntimeFirewallRules`, which translates the guard profile's per-class rates into kehto's runtime firewall through `RUNTIME_OP_CLASSES` so that over-budget envelopes are refused before dispatch. It sets no policy: kehto's `allow` policy would skip every check, and deny and block are the grants layer's job. The one policy kernl writes there is the momentary `deny` of `refuseCurrentDispatch`, which refuses a single oversized envelope. [Guard](./guard.md#where-enforcement-happens) has the translation table.
 
-The baseline is `BASELINE_DOMAINS`: `shell`, `inc`, `theme`, `identity` and `storage`. It is read-only and has no network: the handshake, in-shell messaging, the theme, the user's public key and profile, and scoped storage. `grants.revokeDomain` refuses a baseline domain with `denied:baseline-domain`; `grants.allowDomain` refuses a domain the shell does not offer with `invalid:domain`, and is a no-op for a baseline domain.
+The baseline is `BASELINE_DOMAINS`: `shell`, `inc`, `theme` and `storage`. It has no network, and it is not read-only: the handshake, in-shell messaging, the theme, and the applet's own scoped storage, which it reads and writes within its state quota. Who the user is, is not in it. `identity` is a grant like any other ("your account" in the shell): until the user grants it, the shell does not tell an applet which account is signed in, its public key or its profile (SOUL opinion 2). Other grants can reveal the account indirectly, and the shell does not hide that: an applet granted `relay` that publishes gets the signed event back in `relay.publish.result`, and a signed event carries the author's public key. `grants.revokeDomain` refuses a baseline domain with `denied:baseline-domain`; `grants.allowDomain` refuses a domain the shell does not offer with `invalid:domain`, and is a no-op for a baseline domain.
 
 The practical effect for an applet: `requires` in the manifest is honoured as a question, not a demand. `MountPlan.missingRequired` lists the required domains the environment does not include, and the host decides what to do before mounting; the web shell's launcher shows the required and optional domains as choices and calls `grants.allowDomain` for the ones the user turns on before it calls `kernl.plan`.
 
@@ -56,11 +56,11 @@ Most writes an applet asks the shell to sign are additive: a note, a reaction, a
 | --- | --- | --- |
 | `0` | `destructive` | "Update your profile": one line per changed field, with the value before and after. |
 | `3` | `destructive` | "Change who you follow": follows added and removed, counted, the first three named by abbreviated key. |
-| `5` | `destructive` | "Delete N events": one line per event id (`e` tag), and one "Delete every version of" line per address (`a` tag). |
+| `5` | `destructive` | "Delete N items", or "Delete N posts" when the `k` tags say every target is a post: one line per event id (`e` tag), and one "Delete every version of" line per address (`a` tag), named in plain words such as `record (type 30001) "books" by person 3bf0c63f…`. |
 | `62` | `destructive` | "Ask services to erase your account": everything the account published, and which services are asked. |
 | `10002` | `destructive` | "Change your connections list": relays added and removed with their read/write markers. |
-| 10000–10099, 30000–30099 | `destructive` | "Change the list …": entries added and removed. |
-| any other replaceable or addressable kind | `destructive` | "Replace your kind N event": tags added and removed, and "Content: Replaced" when the content changes, without copying it. |
+| 10000–10099, 30000–30099 | `destructive` | "Change the list …": entries added and removed, each named as a person, item, topic, type, server or key rather than as a raw tag. |
+| any other replaceable or addressable kind | `destructive` | "Replace one of your records (type N)": tags added and removed, and "Content: Replaced" when the content changes, without copying it. |
 | everything else | `routine` | No prompt; the event is signed without asking. |
 
 When no current version is found, in the store or on the network within the timeout, a replaceable or addressable summary starts with "Current version: could not be loaded; this replaces it entirely" (`UNKNOWN_CURRENT_VERSION`), so the user is not shown a first version that seems to remove nothing.
@@ -73,13 +73,13 @@ Three limits are deliberate:
 - **Answers are not remembered.** Each destructive write asks again; `ConsentPrompt` has no "always allow" switch.
 - **The user never approves raw JSON.** The unsigned draft (empty `id` and `sig`) is on `ConsentSummary.event` for an "advanced" disclosure.
 
-kehto's own `ConsentRequest` is a different thing: the runtime raises it, without an event, when a firewall policy is `prompt`. `createConsentHandler` is registered for it and refuses those without asking; a future request that carries an event, from a window the shell can name, would be described and put to the user. kernl's runtime rules set policy `allow`, so the firewall path is not expected.
+kehto's own `ConsentRequest` is a different thing: the runtime raises it, without an event, when a firewall policy is `prompt`. `createConsentHandler` is registered for it and refuses those without asking; a future request that carries an event, from a window the shell can name, would be described and put to the user. kernl sets no runtime policy except the momentary `deny` of `refuseCurrentDispatch`, and never `ask`, so the firewall path is not expected.
 
 Deletions are not rate-limited more tightly than other publishes before dispatch: kind 5 shares the `relay:write` budget in kehto's runtime firewall. The guard's separate `relay:publish:delete` bucket runs only in kernl's own focus firewall, which observes each envelope before dispatch but cannot hold it, so an overrun becomes a guard event ([Guard](./guard.md#where-enforcement-happens)).
 
 ## What the applet learns
 
-The applet learns its own narrowed environment through `shell.init`. It does not learn why a domain is missing, whether other applets have it, or what the user's other grants are. The shell never gives it `window.nostr`, a key, the `EventStore`, or plaintext the user did not ask the shell to show it.
+The applet learns its own narrowed environment through `shell.init`. Without the `identity` grant it is not told who is signed in. It does not learn why a domain is missing, whether other applets have it, or what the user's other grants are. The shell never gives it `window.nostr`, a key, the `EventStore`, or plaintext the user did not ask the shell to show it.
 
 ## Related
 

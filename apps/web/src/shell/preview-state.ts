@@ -21,8 +21,21 @@ export const AVAILABLE_DOMAINS: readonly string[] = [
   'llm',
 ];
 
-/** Read-only and network-free: what every applet gets without asking (D-003). */
-export const BASELINE_DOMAINS: readonly string[] = ['storage', 'theme', 'keys'];
+let baseline: readonly string[] = [];
+let baselineLoad: Promise<readonly string[]> | undefined;
+
+/**
+ * What every applet gets without asking, taken from the core itself so the preview's always-on
+ * set is the live shell's (D-003). Imported on first use so the core stays out of the shell's
+ * first chunk; the preview awaits it before it shows an applet or plans a mount.
+ */
+export function loadBaselineDomains(): Promise<readonly string[]> {
+  baselineLoad ??= import('@kernl/core').then((core) => (baseline = core.BASELINE_DOMAINS));
+  return baselineLoad;
+}
+
+/** The baseline once {@link loadBaselineDomains} has settled; empty before. */
+export const baselineDomains = (): readonly string[] => baseline;
 
 interface StoredGrant {
   readonly domains: readonly string[];
@@ -93,7 +106,7 @@ export function createPreviewGrants(storage: StorageLike): Grants {
     unblock: (identity) => update(identity, (current) => ({ ...current, blocked: false })),
     setStateQuota: (identity, bytes) => update(identity, (current) => ({ ...current, stateQuotaBytes: bytes })),
     availableDomains: () => AVAILABLE_DOMAINS,
-    baselineDomains: () => BASELINE_DOMAINS,
+    baselineDomains,
     changes$,
   };
 }

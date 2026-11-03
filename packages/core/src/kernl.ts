@@ -13,6 +13,7 @@ import { decodePointer } from './applets/pointer.js';
 import { defaultFetchBlob, openDefaultArtifactCache } from './applets/resolve.js';
 import type { MountedApplet } from './applets/mount.js';
 import { createGuardPipeline, type GuardPipeline } from './guard/pipeline.js';
+import { refuseCurrentDispatch } from './guard/runtime-rules.js';
 import { createEnvironmentResolver, createGrants, type KernlGrants } from './grants/grants.js';
 import { createConsentHandler, createSigningConsent, lookupReplaceable } from './consent/handler.js';
 import { abbreviate } from './consent/describe-change.js';
@@ -91,7 +92,11 @@ export function createKernl(options: KernlOptions): Kernl {
   const pipeline = createGuardPipeline({
     config: createGuardConfig(options.guard?.profile ?? 'strict'),
     ...(host.now ? { now: host.now.bind(host) } : {}),
-    onEvent: (event) => guardEvents$.next(event),
+    onEvent: (event) => {
+      // The ingress guard's size caps are refused before dispatch through the runtime firewall (D-012).
+      if (event.reason.startsWith('size:')) refuseCurrentDispatch(bridge.runtime.firewallState, event.napplet);
+      guardEvents$.next(event);
+    },
     onQuarantine: (windowId) => {
       handles.get(windowId)?.revoked('quarantine');
       bridge.revokeNapplet(windowId, 'host');

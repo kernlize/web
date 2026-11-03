@@ -93,7 +93,7 @@ The host is the only way the core reaches the user or the page. Applets never re
 
 `resolve(pointer)` fetches the manifest from the pointer's relay hints plus the `apps` tier (newest event wins for addresses), throws `unavailable:manifest` when nobody serves one, and verifies the manifest and artifact through kehto's `resolveNapplet`, with `host.fetchBlob` or `defaultFetchBlob` for the bytes and the artifact cache when the page has Cache Storage. Failures are rethrown as `unavailable:blob` or `invalid:<kehto code>` (`invalid:blob-hash-mismatch`, `invalid:invalid-signature`, …). The verified `index.html` is kept inside the lifecycle, keyed by identity; the caller gets an `AppletSummary` whose `requires` and `optional` are advisory.
 
-`plan(summary)` throws `invalid:unresolved` for a summary this shell did not resolve. It calls `grants.ensure(identity)` so the ACL holds the applet's record, numbers the window `applet-1`, `applet-2`, … and returns a `MountPlan`: the environment from kehto's `resolveShellEnvironment` narrowed by the grants, the `srcdoc` with the guard's zero-network CSP and the namespace prelude inserted by `prepareNappletSrcdoc`, `sandbox: 'allow-scripts'`, and `missingRequired`, the required domains the environment does not include. The host decides what to do with `missingRequired`; the core mounts whatever it is given.
+`plan(summary)` throws `invalid:unresolved` for a summary this shell did not resolve. It calls `grants.ensure(identity)` so the ACL holds the applet's record, numbers the window `applet-1`, `applet-2`, … and returns a `MountPlan`: the environment from kehto's `resolveShellEnvironment` narrowed by the grants, the `srcdoc` with the guard's zero-network CSP and the namespace prelude inserted by `prepareNappletSrcdoc`, then the Trusted Types directives appended to that CSP and the frame lock inserted right after the prelude ([D-014](../decisions.md#d-014)), `sandbox: 'allow-scripts'`, and `missingRequired`, the required domains the environment does not include. The host decides what to do with `missingRequired`; the core mounts whatever it is given.
 
 `mount(plan, frame)` runs in this order:
 
@@ -151,7 +151,7 @@ messaging.get('legacy')?.availability; // { available: false, reason: MESSAGING_
 
 ### Grants
 
-`BASELINE_DOMAINS` is `['shell', 'inc', 'theme', 'identity', 'storage']`: every applet gets the handshake, in-shell messaging, the theme, a read-only view of the identity and scoped storage, and no network. `DOMAIN_CAPABILITIES` maps each NAP domain to the kehto capabilities it needs:
+`BASELINE_DOMAINS` is `['shell', 'inc', 'theme', 'storage']`: every applet gets the handshake, in-shell messaging, the theme and its own scoped storage, which it can read and write, and no network. `identity` is not in the baseline: an applet learns which account is signed in only after the user grants it ("your account" in the shell). `DOMAIN_CAPABILITIES` maps each NAP domain to the kehto capabilities it needs:
 
 | Domain | Capabilities |
 | --- | --- |
@@ -184,12 +184,12 @@ Unknown domains need no capability (`capabilitiesForDomain('made-up')` is `[]`).
 | --- | --- | --- | --- |
 | `0` | `destructive` | Update your profile | One line per changed field among name, display name, about, picture, banner, verified address, payment address and website; or "No profile fields change". |
 | `3` | `destructive` | Change who you follow | "Follows added" and "Follows removed" with counts and the first three pubkeys abbreviated; or "No entries change". |
-| `5` | `destructive` | Delete N event(s) | One "Delete" line per `e` tag, abbreviated, and one "Delete every version of" line per `a` tag, naming the address as `kind:pubkey…:identifier`. |
+| `5` | `destructive` | Delete N item(s), or Delete N post(s) when the `k` tags say every target is kind 1 and no `a` tag is present | One "Delete" line per `e` tag, abbreviated, and one "Delete every version of" line per `a` tag, naming the address in plain words, for example `record (type 30001) "books" by person 3bf0c63f…`. |
 | `62` | `destructive` | Ask services to erase your account | "Erase: Everything this account has published" and "Services asked": every service when the `relay` tags are absent or include `ALL_RELAYS`, else the first three named. |
 | `10002` | `destructive` | Change your connections list | "Connections added" and "Connections removed" with read/write markers. |
-| 10000–10099, 30000–30099 | `destructive` | Change the list "title or d tag", or "Change a list" | "Entries added" and "Entries removed" as `tag:value`. |
-| any other replaceable (10100–19999) or addressable (30100–39999) kind | `destructive` | Replace your kind N event, with the `title` or `d` tag in quotes when there is one | "Entries added" and "Entries removed" over the tags other than `d`, `title` and `description`, and "Content: Replaced" when the content differs, without copying it. |
-| anything else | `routine` | Publish a note, repost, reaction, comment, article, sealed message, legacy private message, payment receipt, or "kind N event" | One "Content" line with a 140-character preview. |
+| 10000–10099, 30000–30099 | `destructive` | Change the list "title or d tag", or "Change a list" | "Entries added" and "Entries removed", each entry in plain words: `person 3bf0c63f…`, `item 3bf0c63f…`, `topic …`, `type N`, `server example.com`, `key 3bf0c63f…`, or `name value` for any other tag. |
+| any other replaceable (10100–19999) or addressable (30100–39999) kind | `destructive` | Replace one of your records (type N), with the `title` or `d` tag in quotes when there is one | "Entries added" and "Entries removed" over the tags other than `d`, `title` and `description`, and "Content: Replaced" when the content differs, without copying it. |
+| anything else | `routine` | Publish a post, repost, reaction, comment, article, sealed message, legacy private message, payment receipt, or "record (type N)" | One "Content" line with a 140-character preview. |
 
 `isDestructiveKind(kind)` is true for exactly the `destructive` rows: every replaceable kind (0, 3, 10000–19999), every addressable kind (30000–39999), 5 and 62.
 
@@ -250,7 +250,7 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `openDefaultArtifactCache` | `() => Promise<NappletArtifactCache \| undefined>` | kehto's verified-artifact cache over Cache Storage, or nothing. |
 | `resolveApplet` | `(options: ResolveAppletOptions) => Promise<ResolvedApplet>` | kehto's `resolveNapplet` with kernl's reasons: `unavailable:blob` or `invalid:<code>`. |
 | `summarize` | `(resolved: ResolvedNapplet) => AppletSummary` | The verified manifest reduced to what the shell shows. |
-| `planMount` | `(options: PlanMountOptions) => MountPlan` | Environment, CSP-prepared `srcdoc`, `missingRequired`. No DOM. |
+| `planMount` | `(options: PlanMountOptions) => MountPlan` | Environment, CSP-prepared `srcdoc` with the frame lock, `missingRequired`. No DOM. Throws `denied:nested-frame` when the verified markup declares a frame, and `unavailable:frame-lock` when kehto's prepared head is not where it expects it ([D-014](../decisions.md#d-014)). |
 | `mountApplet` | `(plan: MountPlan, frame: FrameLike, deps: MountDeps) => MountedApplet` | The NIP-5D mount order; throws `invalid:frame-detached`. Calls `frame.setAttribute('sandbox', 'allow-scripts')`. |
 | `CONTROLLER_DENY_POLICY` | `string` | `gamepad 'none'; hid 'none'; usb 'none'`. |
 | `BLOB_TIMEOUT_MS` | `20_000` | |
@@ -262,7 +262,8 @@ Signatures are abbreviated; the generated reference has the full ones.
 | --- | --- | --- |
 | `createGuardPipeline` | `(options: GuardPipelineOptions) => GuardPipeline` | Ingress guard, visibility gate and focus firewall in front of the bridge; `handleWindowMessage` for window-level messages, `observe` for port traffic. |
 | `runtimeFirewallRules` | `(config: GuardConfig, napplet: string) => RuntimeFirewallRules` | The profile's per-class rates translated to the runtime's capability keys, plus the global rate. |
-| `applyRuntimeFirewallRules` | `(firewallState, config: GuardConfig, napplet: string) => void` | Installs those rules in `bridge.runtime.firewallState` with policy `allow` and persists. |
+| `applyRuntimeFirewallRules` | `(firewallState, config: GuardConfig, napplet: string) => void` | Installs those rules in `bridge.runtime.firewallState` and persists. Sets no policy: kehto's `allow` policy would skip every rate, matcher and burst check. |
+| `refuseCurrentDispatch` | `(firewallState, napplet: string) => void` | Sets the applet's runtime policy to `deny` for the envelope kehto is dispatching and restores the previous policy in a microtask. `createKernl` calls it for each `size:` guard event, because the runtime cannot measure download and query requests itself. |
 | `RUNTIME_OP_CLASSES` | `Readonly<Record<OpClass, string \| null>>` | Guard class to runtime key; `null` for `relay:publish:delete`, `control` and `generic`. See [Guard](../concepts/guard.md#where-enforcement-happens). |
 | `GuardPipeline`, `GuardPipelineOptions`, `PipelineDisposition`, `WindowResolution`, `RuntimeFirewallRules`, `RuntimeRateRule` | types | `PipelineDisposition` is `GuardDisposition \| 'unrouted'`. |
 
@@ -272,7 +273,7 @@ Signatures are abbreviated; the generated reference has the full ones.
 | --- | --- | --- |
 | `createGrants` | `(options: GrantsOptions) => KernlGrants` | The grants surface over `bridge.runtime.aclState`, persisted at `kernl:grants:v1`. |
 | `createEnvironmentResolver` | `(grants: Grants) => CapabilityHooks['resolveEnvironment']` | Baseline plus allowed domains; `shell` only when blocked. |
-| `BASELINE_DOMAINS` | `readonly string[]` | `['shell', 'inc', 'theme', 'identity', 'storage']`. |
+| `BASELINE_DOMAINS` | `readonly string[]` | `['shell', 'inc', 'theme', 'storage']`. |
 | `DOMAIN_CAPABILITIES` | `Readonly<Record<string, readonly Capability[]>>` | The table above. |
 | `capabilitiesForDomain` | `(domain: string) => readonly Capability[]` | Empty for unknown domains. |
 | `capabilitiesForDomains` | `(domains: readonly string[]) => readonly Capability[]` | Union in table order. |

@@ -55,6 +55,10 @@ Then('the guard mitigations {string} never claim to hold, queue, block or refuse
   }
 });
 
+Then('the guard mitigation {string} is titled {string}', (world: GuardWorld, id: string, title: string) => {
+  expect(mitigation(world, id).title).toBe(title);
+});
+
 Then('the guard mitigation {string} says {string}', (world: GuardWorld, id: string, summary: string) => {
   expect(mitigation(world, id).summary).toBe(summary);
 });

@@ -72,7 +72,7 @@ An applet reaches the shell through the NAP domains in `window.napplet`. `create
 | --- | --- | --- | --- |
 | `shell`, `inc` | kehto runtime | the environment from `resolveShellEnvironment`, narrowed per identity | identity binding; baseline, no grant needed |
 | `storage` | kehto runtime | the ACL state quota (`grants.setStateQuota`) | baseline; rate `storage:write` |
-| `identity` | `createIdentityService` | the active signer through `createAuthHooks`; profile, follows, mutes and relays from `createIdentityProviders` | baseline (`identity:read`) |
+| `identity` | `createIdentityService` | the active signer through `createAuthHooks`; profile, follows, mutes and relays from `createIdentityProviders` | grant (`identity:read`), "your account" in the shell |
 | `theme` | `createThemeService` | `KernlOptions.theme` when `isTheme` accepts it | baseline |
 | `relay` | `createRelayPoolService` | `createAppletRelayBackend` over the one pool, routed by `selectRelayTier` | grant; rates `relay:subscribe`, `relay:publish`; subscribe envelope cap |
 | `outbox` | `createOutboxService` | `createRelayPoolOutboxRouter` over `createOutboxRelayPool`, relay lists from `createIdentityProviders`, signing through the active signer (`denied:read-only` without one) | grant; rates `outbox:subscribe`, `outbox:publish`; consent for destructive kinds |
@@ -82,7 +82,7 @@ An applet reaches the shell through the NAP domains in `window.napplet`. `create
 | `link` | `createLinkService` | `host.openLink` after `LINK_PROTOCOLS` (`https:`, `mailto:`) allowed it | grant |
 | `keys`, `media` | kehto runtime | nothing: hotkeys are not forwarded and no media hook is wired | grant |
 
-So the shell offers thirteen domains: the baseline `shell`, `inc`, `theme`, `identity` and `storage`, and `relay`, `outbox`, `resource`, `dm`, `notify`, `link`, `keys` and `media` behind a grant. Domains kernl does not serve (`config`, `cvm`, `upload`, `intent`, `fs`, `llm`, `cache`) have a row in `DOMAIN_CAPABILITIES` so a grant can be expressed, but the shell does not offer them and `grants.allowDomain` refuses them with `invalid:domain`. [Identity and grants](./identity-and-grants.md) explains how the set is narrowed.
+So the shell offers thirteen domains: the baseline `shell`, `inc`, `theme` and `storage`, and `identity`, `relay`, `outbox`, `resource`, `dm`, `notify`, `link`, `keys` and `media` behind a grant. Domains kernl does not serve (`config`, `cvm`, `upload`, `intent`, `fs`, `llm`, `cache`) have a row in `DOMAIN_CAPABILITIES` so a grant can be expressed, but the shell does not offer them and `grants.allowDomain` refuses them with `invalid:domain`. [Identity and grants](./identity-and-grants.md) explains how the set is narrowed.
 
 ## The mount path
 
@@ -90,7 +90,7 @@ So the shell offers thirteen domains: the baseline `shell`, `inc`, `theme`, `ide
 
 1. **`decodePointer(input)`** (`applets/pointer.ts`) turns the address into `{ kind: 'address' | 'event', … }` and nothing more. Trust comes from verifying the event, never from the pointer.
 2. **`resolve(pointer)`** fetches the manifest from the pointer's relay hints plus the `apps` tier (`fetchManifestEvent`), then verifies the signature and the artifact bytes by hash through `resolveApplet` over kehto's `resolveNapplet` (`applets/resolve.ts`). Cached bytes are re-hashed on every read. Gateways and caches are accelerators, never identity.
-3. **`plan(summary)`** calls `grants.ensure(identity)`, then `planMount` (`applets/plan.ts`): the environment from `resolveShellEnvironment`, the guard's CSP and the namespace prelude inserted by `prepareNappletSrcdoc`, `sandbox: 'allow-scripts'`, and `missingRequired`.
+3. **`plan(summary)`** calls `grants.ensure(identity)`, then `planMount` (`applets/plan.ts`): it refuses markup that declares a frame (`denied:nested-frame`), then builds the environment from `resolveShellEnvironment`, the guard's CSP and the namespace prelude inserted by `prepareNappletSrcdoc`, the Trusted Types directives and frame lock spliced in after them ([D-014](../decisions.md#d-014)), `sandbox: 'allow-scripts'`, and `missingRequired`.
 4. **`mount(plan, frame)`** installs the profile's rates in kehto's runtime firewall with `applyRuntimeFirewallRules`, then `mountApplet` (`applets/mount.ts`) hardens the frame, registers the window in `originRegistry`, sets the environment, calls `bridge.observeFrame`, and only then assigns `srcdoc`. The frame has `sandbox="allow-scripts"` and `denyNappletControllerAccess` applied; it never has `src` and never `allow-same-origin`.
 
 Every revocation reason (`window-message`, `second-hello`, `invalid-hello`, `second-load`, `port-closed`, `host`) and a guard quarantine removes the iframe and drops the guard's state for that window. [Security posture](../policies/security-posture.md) lists the rules this path must keep.

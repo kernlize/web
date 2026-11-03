@@ -93,7 +93,7 @@
 
     {#if windows.windows.length === 0}
       <div class="empty">
-        <p class="shell-muted">No applets open. Press <kbd>Alt</kbd> + <kbd>/</kbd> or use the button above.</p>
+        <p class="shell-muted">No applets open.<span class="with-keyboard"> Press <kbd>Alt</kbd> + <kbd>/</kbd> or use the button above.</span><span class="touch"> Use the button above.</span></p>
       </div>
     {/if}
 
@@ -144,6 +144,20 @@
     font-size: 0.95rem;
     padding: 0 1rem;
     text-align: center;
+  }
+
+  .touch {
+    display: none;
+  }
+
+  @media (max-width: 720px) {
+    .with-keyboard {
+      display: none;
+    }
+
+    .touch {
+      display: inline;
+    }
   }
 
   kbd {

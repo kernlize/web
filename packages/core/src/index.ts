@@ -64,6 +64,7 @@ export {
 export {
   RUNTIME_OP_CLASSES,
   applyRuntimeFirewallRules,
+  refuseCurrentDispatch,
   runtimeFirewallRules,
   type RuntimeFirewallRules,
   type RuntimeRateRule,

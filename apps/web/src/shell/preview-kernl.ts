@@ -32,7 +32,7 @@ import { abbreviate, shortId } from './contract';
 import { domainLabel } from './domains';
 import { renderPreviewApplet, sampleSummary } from './preview-applet';
 import { createPreviewMessaging } from './preview-messaging';
-import { BASELINE_DOMAINS, createPreviewGrants, createPreviewRelays } from './preview-state';
+import { baselineDomains, createPreviewGrants, createPreviewRelays, loadBaselineDomains } from './preview-state';
 
 const PREVIEW_OWNER = 'e8f1a4b7c9d2e5f8a1b4c7d0e3f6a9b2c5d8e1f4a7b0c3d6e9f2a5b8c1d4e7f0';
 
@@ -52,12 +52,29 @@ interface PreviewMessage {
 }
 
 const SAMPLE_NOTE_ID = 'c0ffee00'.repeat(8);
+const SAMPLE_CONTACT = 'decade00'.repeat(8);
+
+interface Draft {
+  readonly kind: number;
+  readonly content: string;
+  readonly tags: string[][];
+}
+
+/** What the sample buttons that ask first would sign, beyond the profile and the deletion. */
+const SAMPLE_DRAFTS: Readonly<Record<string, Draft>> = {
+  contacts: { kind: 3, content: '', tags: [['p', SAMPLE_CONTACT, 'wss://relay.damus.io', 'alex']] },
+  servers: { kind: 10002, content: '', tags: [['r', 'wss://nos.lol'], ['r', 'wss://relay.damus.io', 'write']] },
+  vanish: { kind: 62, content: 'Please erase everything.', tags: [['relay', 'wss://relay.damus.io']] },
+};
 
 const ENVELOPES: Readonly<Record<string, { type: string; kind?: number }>> = {
   hello: { type: 'shell.ready' },
   publish: { type: 'relay.publish', kind: 1 },
   profile: { type: 'relay.publish', kind: 0 },
   delete: { type: 'relay.publish', kind: 5 },
+  contacts: { type: 'relay.publish', kind: 3 },
+  servers: { type: 'relay.publish', kind: 10002 },
+  vanish: { type: 'relay.publish', kind: 62 },
   notify: { type: 'notify.show' },
   subscribe: { type: 'relay.subscribe' },
   link: { type: 'link.open' },
@@ -113,7 +130,7 @@ function createActions(host: KernlHost, pubkeyOf: () => string): Actions {
    * The live shell's rule, from the core itself: only destructive kinds wait for the user, routine
    * publishes go straight out. Imported on first use so the core stays out of the shell's first chunk.
    */
-  const publish = async (entry: Mounted, draft: { kind: number; content: string; tags: string[][] }): Promise<void> => {
+  const publish = async (entry: Mounted, draft: Draft): Promise<void> => {
     const { describeChange, isDestructiveKind } = await import('@kernl/core');
     const now = Math.floor(Date.now() / 1000);
     const event = { id: '0'.repeat(64), pubkey: pubkeyOf(), created_at: now, sig: '', ...draft };
@@ -149,6 +166,11 @@ function createActions(host: KernlHost, pubkeyOf: () => string): Actions {
         return;
       case 'delete':
         if (needs('relay')) void publish(entry, { kind: 5, content: '', tags: [['e', SAMPLE_NOTE_ID]] });
+        return;
+      case 'contacts':
+      case 'servers':
+      case 'vanish':
+        if (needs('relay')) void publish(entry, SAMPLE_DRAFTS[message.kernlPreview] as Draft);
         return;
       case 'notify':
         if (needs('notify')) {
@@ -232,7 +254,7 @@ export function createPreviewKernl(host: KernlHost): ShellKernl {
 
   const environmentFor = (summary: AppletSummary): readonly string[] => {
     const granted = grants.get(summary.identity)?.domains ?? [];
-    return [...new Set([...BASELINE_DOMAINS, ...granted])];
+    return [...new Set([...baselineDomains(), ...granted])];
   };
 
   const { perform } = createActions(host, () => session$.value?.pubkey ?? PREVIEW_OWNER);
@@ -271,21 +293,25 @@ export function createPreviewKernl(host: KernlHost): ShellKernl {
     async resolve(pointer: AppletPointer) {
       const summary = pointer.kind === 'address' ? sampleSummary(`preview:${pointer.identifier}`) : undefined;
       if (!summary) throw new Error('unavailable:preview-offline');
+      await loadBaselineDomains();
       return summary;
     },
     async plan(summary) {
       if (grants.get(summary.identity)?.blocked) throw new Error('denied:blocked');
+      const baseline = await loadBaselineDomains();
       const domains = environmentFor(summary);
+      const csp = createAppletCsp(guard.config.profile);
       windowCount += 1;
       return {
         windowId: `preview-${windowCount}`,
         summary,
         srcdoc: renderPreviewApplet({
           title: summary.title,
-          csp: renderCsp(createAppletCsp(guard.config.profile).directives),
+          csp: `${renderCsp(csp.directives)}; ${csp.trustedTypes}`,
           domains,
-          domainLabels: domains.filter((domain) => !BASELINE_DOMAINS.includes(domain)).map(domainLabel),
+          domainLabels: domains.filter((domain) => !baseline.includes(domain)).map(domainLabel),
           identity: shortId(summary.identity.hash),
+          sample: summary.identity.dTag,
         }),
         sandbox: 'allow-scripts',
         environment: { capabilities: { domains }, services: [] },

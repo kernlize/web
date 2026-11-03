@@ -43,7 +43,7 @@ If kehto ships an experimental privacy or security mitigation, kernl enables it 
 Concretely:
 
 - The behavioural firewall ships enabled, in its strict profile, with focus-aware tightening.
-- Hidden and minimised applets have their traffic deferred, and their resource requests throttled.
+- Hidden and minimised applets are watched: their activity is reported, and one that keeps downloading past its allowance is closed. (Holding their traffic back needs a pre-dispatch hook kehto does not yet offer; see D-012.)
 - Replay and cross-window identity checks are on.
 - Artifact bytes are cached only after hash verification, and re-verified on every read.
 - A mitigation is loosened per applet by the user, never globally by a developer flag.

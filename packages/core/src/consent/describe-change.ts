@@ -14,7 +14,7 @@ const PROFILE_FIELDS: readonly (readonly [key: string, label: string])[] = [
 ];
 
 const KIND_LABELS: Readonly<Record<number, string>> = {
-  1: 'note',
+  1: 'post',
   4: 'legacy private message',
   6: 'repost',
   7: 'reaction',
@@ -49,10 +49,42 @@ function tagValues(event: NostrEvent | undefined, name: string): string[] {
   return (event?.tags ?? []).filter((tag) => tag[0] === name && typeof tag[1] === 'string').map((tag) => tag[1] as string);
 }
 
+const HEX_KEY = /^[0-9a-f]{64}$/i;
+const SERVER_ADDRESS = /^wss?:\/\//i;
+const SERVER_TAGS = new Set(['r', 'relay', 'relays']);
+const TYPE_TAGS = new Set(['k', 'kind']);
+
+/** A server address as the user knows it: no scheme, no trailing slash, no leading `relay.` or `nostr.` label while the rest still names a domain. */
+function serverName(address: string): string {
+  return address.replace(SERVER_ADDRESS, '').replace(/\/+$/, '').replace(/^(?:relay|nostr)\.(?=[^/]*\.)/i, '');
+}
+
+function recordNoun(kind: number | string): string {
+  return KIND_LABELS[Number(kind)] ?? `record (type ${kind})`;
+}
+
+function coordinate(address: string): string {
+  const [kind = '', pubkey = '', identifier = ''] = address.split(':');
+  const named = identifier ? ` "${identifier}"` : '';
+  return `${recordNoun(kind)}${named} by person ${abbreviate(pubkey)}`;
+}
+
+function entryLabel(name: string, value: string): string {
+  if (name === 'p') return `person ${abbreviate(value)}`;
+  if (name === 'e') return `item ${abbreviate(value)}`;
+  if (name === 'a') return coordinate(value);
+  if (name === 't') return `topic ${value}`;
+  if (TYPE_TAGS.has(name)) return `type ${value}`;
+  if (SERVER_TAGS.has(name) || SERVER_ADDRESS.test(value)) return `server ${serverName(value)}`;
+  // A bare key is named for what it is; an unfamiliar tag name could be protocol vocabulary.
+  if (HEX_KEY.test(value)) return `key ${abbreviate(value)}`;
+  return `${name} ${value}`;
+}
+
 function listItems(event: NostrEvent | undefined): string[] {
   return (event?.tags ?? [])
     .filter((tag) => tag[0] !== 'd' && tag[0] !== 'title' && tag[0] !== 'description' && typeof tag[1] === 'string')
-    .map((tag) => `${tag[0]}:${tag[1]}`);
+    .map((tag) => entryLabel(tag[0] as string, tag[1] as string));
 }
 
 function diff(before: readonly string[], after: readonly string[]): { added: string[]; removed: string[] } {
@@ -110,7 +142,7 @@ function profileLines(event: NostrEvent, before: NostrEvent | undefined): Consen
 function relayEntries(event: NostrEvent | undefined): string[] {
   return (event?.tags ?? [])
     .filter((tag) => tag[0] === 'r' && typeof tag[1] === 'string')
-    .map((tag) => (tag[2] ? `${tag[1]} (${tag[2]})` : (tag[1] as string)));
+    .map((tag) => serverName(tag[1] as string) + (tag[2] ? ` (${tag[2]})` : ''));
 }
 
 function isListKind(kind: number): boolean {
@@ -153,7 +185,8 @@ function listTitle(event: NostrEvent): string {
 
 function replaceTitle(event: NostrEvent): string {
   const name = nameOf(event);
-  const label = `Replace your ${kindLabel(event.kind)}`;
+  // Every labelled kind is either not replaceable or falls in the list range, so only the type is known here.
+  const label = `Replace one of your records (type ${event.kind})`;
   return name ? `${label} "${name}"` : label;
 }
 
@@ -163,17 +196,15 @@ function recordLines(event: NostrEvent, before: NostrEvent | undefined): Consent
   return lines;
 }
 
-function coordinate(address: string): string {
-  const [kind, pubkey = '', identifier = ''] = address.split(':');
-  return `${kind}:${abbreviate(pubkey)}:${identifier}`;
-}
-
 function deletion(event: NostrEvent, applet: AppletIdentity): ConsentSummary {
   const lines: ConsentLine[] = [
     ...tagValues(event, 'e').map((id) => ({ label: 'Delete', before: abbreviate(id) })),
     ...tagValues(event, 'a').map((address) => ({ label: 'Delete every version of', before: coordinate(address) })),
   ];
-  const noun = lines.length === 1 ? 'event' : 'events';
+  // A deletion names posts only when its `k` tags say every target is one.
+  const kinds = tagValues(event, 'k');
+  const posts = tagValues(event, 'a').length === 0 && kinds.length > 0 && kinds.every((kind) => kind === '1');
+  const noun = `${posts ? 'post' : 'item'}${lines.length === 1 ? '' : 's'}`;
   return destructive(event, applet, `Delete ${lines.length} ${noun}`, lines);
 }
 
@@ -181,12 +212,8 @@ function vanish(event: NostrEvent, applet: AppletIdentity): ConsentSummary {
   const services = tagValues(event, 'relay');
   const everywhere = services.length === 0 || services.includes(ALL_SERVICES);
   const lines: ConsentLine[] = [{ label: 'Erase', before: 'Everything this account has published' }];
-  lines.push({ label: 'Services asked', after: everywhere ? 'Every service' : describeItems(services, (item) => item) });
+  lines.push({ label: 'Services asked', after: everywhere ? 'Every service' : describeItems(services, serverName) });
   return destructive(event, applet, 'Ask services to erase your account', lines);
-}
-
-function kindLabel(kind: number): string {
-  return KIND_LABELS[kind] ?? `kind ${kind} event`;
 }
 
 function preview(content: string): string {
@@ -201,14 +228,16 @@ function destructive(event: NostrEvent, applet: AppletIdentity, title: string, l
 /**
  * Describe a write the shell is asked to sign as what it changes.
  *
- * Profiles diff field by field; follow, relay and list changes count what was
- * added and removed and name the first few entries by hex prefix; any other
+ * Profiles diff field by field; follow, connection and list changes count
+ * what was added and removed and name the first few entries in plain words
+ * (a person by key prefix, a server by its name); any other
  * replaceable or addressable record diffs its tags and says when its content
  * is replaced, without copying it; deletions list the events and addresses
  * that disappear; a request to vanish names the services asked. Those kinds
  * are `destructive` because they replace or erase the account's public record. Everything else is `routine` and shows
  * a content preview. Nothing here is protocol vocabulary the user has to know,
- * and nothing secret is copied out of the event.
+ * and nothing secret is copied out of the event; the event itself rides along
+ * unchanged for the record view.
  *
  * @param event - The event to be signed.
  * @param before - The current version of the replaceable event, when known.
@@ -238,7 +267,7 @@ export function describeChange(event: NostrEvent, before: NostrEvent | undefined
       }
       if (isReplaceable(event.kind)) return destructive(event, applet, replaceTitle(event), recordLines(event, before));
       return {
-        title: `Publish a ${kindLabel(event.kind)}`,
+        title: `Publish a ${recordNoun(event.kind)}`,
         severity: 'routine',
         lines: [{ label: 'Content', after: preview(event.content) }],
         applet,

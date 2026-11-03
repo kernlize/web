@@ -23,9 +23,11 @@ function mitigation(id: string, provider: Provider, title: string, summary: stri
  * Each summary claims only what is enforced where D-012 places it: limits
  * the runtime applies before an applet's request is handled are described as
  * refusals. kernl sees each request just before the runtime handles it but
- * cannot hold it back, so what kernl measures is described as reported; the
- * one exception is quarantine, which closes the applet before the request
- * that crossed the limit is handled, so that request is described as dropped.
+ * cannot hold it back, so what kernl measures is described as reported. Two
+ * exceptions: quarantine closes the applet before the request that crossed
+ * the limit is handled, so that request is described as dropped; and an
+ * oversized request kernl measures is refused by the runtime for that one
+ * dispatch, so size caps are described as refusals.
  *
  * @param config - The guard configuration whose limits appear in the text.
  * @returns One description per mitigation, in the order the UI shows them.
@@ -41,9 +43,9 @@ export function describeMitigations(config: GuardConfig): readonly MitigationDes
   return [
     mitigation(
       'zero-network-sandbox',
-      'kehto',
+      'both',
       'Applets cannot reach the network on their own',
-      'Every applet runs in a sealed frame with no direct network access. Anything it sends or receives goes through the shell, where you can see it, revoke what you granted, or close the applet.',
+      'Every applet runs in a sealed frame with no direct network access, and cannot open a frame of its own inside it. Anything it sends or receives goes through the shell, where you can see it, revoke what you granted, or close the applet.',
     ),
     mitigation(
       'bound-identity',
@@ -60,8 +62,8 @@ export function describeMitigations(config: GuardConfig): readonly MitigationDes
     mitigation(
       'replay-detection',
       'kehto',
-      'Replayed messages are dropped',
-      'Messages an applet has already sent, or messages that arrive from the wrong window, are ignored instead of acted on twice.',
+      'Old or repeated posts are not sent',
+      'When the shell posts for an applet, it refuses a post it has already sent in the last half minute, one dated too far in the past, or one dated in the future. A message from a window other than the applet’s own is ignored.',
     ),
     mitigation(
       'rate-limits',
@@ -93,9 +95,9 @@ export function describeMitigations(config: GuardConfig): readonly MitigationDes
     ),
     mitigation(
       'size-caps',
-      'kernl',
-      'Oversized requests are reported',
-      'The shell measures download and long-running query requests against a maximum size and tells you when an applet sends one that is too large. Such a request is not stopped: the shell measures it as it arrives but cannot hold it back, so it is still handled.',
+      'both',
+      'Oversized requests are refused',
+      'The shell measures download and long-running query requests against a maximum size. One that is too large is refused before it is handled, so nothing it asked for is fetched, and the shell tells you.',
       `downloads ${kib(limits.maxResourceEnvelopeBytes)}, queries ${kib(limits.maxSubscribeEnvelopeBytes)}`,
     ),
     mitigation(

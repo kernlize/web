@@ -23,6 +23,8 @@ test('at 390px the shell fits the screen and every panel is reachable', async ({
   await page.goto(`${base}/app/?preview=1`);
   await page.getByRole('button', { name: 'Try the preview' }).click();
   await expect(page.getByText('No applets open.')).toBeInViewport({ ratio: 1 });
+  // A phone has no Alt key: the empty desktop points at the button only.
+  expect(await page.locator('.empty').innerText()).not.toContain('Alt');
   await noHorizontalOverflow(page, 'empty desktop');
 
   await page.getByRole('button', { name: 'Open an applet' }).click();

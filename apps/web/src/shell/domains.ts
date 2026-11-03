@@ -1,9 +1,16 @@
+/** Plain words for every domain the shell can offer (D-006). */
 const LABELS: Readonly<Record<string, string>> = {
+  shell: 'the shell',
+  inc: 'talking to other applets',
   relay: 'network',
+  outbox: 'posting to your network',
   identity: 'your account',
   storage: 'its own storage',
+  cache: 'saved copies',
   theme: 'your theme',
+  config: 'its settings',
   resource: 'web fetches',
+  link: 'opening links',
   dm: 'messages',
   notify: 'notifications',
   media: 'media controls',
@@ -12,10 +19,20 @@ const LABELS: Readonly<Record<string, string>> = {
   keys: 'keyboard shortcuts',
   fs: 'your files',
   llm: 'language models',
+  cvm: 'remote tools',
+  count: 'counting',
+  lists: 'your lists',
+  common: 'social actions',
 };
 
-/** Plain words for a grant domain. Unknown domains keep their raw name. */
-export const domainLabel = (domain: string): string => LABELS[domain] ?? domain;
+/** What the launcher says for a domain it has no words for: never the wire name. */
+export const UNKNOWN_DOMAIN_LABEL = 'another capability';
+
+/** Plain words for a grant domain. Unknown domains get a generic label, never their raw name. */
+export const domainLabel = (domain: string): string => (Object.hasOwn(LABELS, domain) ? (LABELS[domain] as string) : UNKNOWN_DOMAIN_LABEL);
+
+/** Domains that are switched on the first time an applet that requires them is opened. */
+const PRESET_WHEN_REQUIRED: ReadonlySet<string> = new Set(['identity']);
 
 export interface DomainChoice {
   readonly domain: string;
@@ -23,6 +40,8 @@ export interface DomainChoice {
   readonly required: boolean;
   readonly baseline: boolean;
   readonly granted: boolean;
+  /** Switched on before the user decides: a required account grant on an applet's first run. */
+  readonly preset: boolean;
 }
 
 interface ChoiceInput {
@@ -30,9 +49,14 @@ interface ChoiceInput {
   readonly optional: readonly string[];
   readonly baseline: readonly string[];
   readonly granted: readonly string[];
+  /** True when the user has never decided anything for this applet. */
+  readonly firstRun: boolean;
 }
 
-/** One row per domain the applet mentions, required first, pre-set to baseline plus earlier grants. */
+/**
+ * One row per domain the applet mentions, required first, pre-set to baseline plus earlier grants.
+ * Your account is a grant, not baseline; an applet that requires it gets the switch on at first run.
+ */
 export function domainChoices(input: ChoiceInput): DomainChoice[] {
   const seen = new Set<string>();
   const rows: DomainChoice[] = [];
@@ -40,7 +64,8 @@ export function domainChoices(input: ChoiceInput): DomainChoice[] {
     if (seen.has(domain)) return;
     seen.add(domain);
     const baseline = input.baseline.includes(domain);
-    rows.push({ domain, label: domainLabel(domain), required, baseline, granted: baseline || input.granted.includes(domain) });
+    const preset = input.firstRun && required && PRESET_WHEN_REQUIRED.has(domain);
+    rows.push({ domain, label: domainLabel(domain), required, baseline, granted: baseline || input.granted.includes(domain), preset });
   };
   for (const domain of input.requires) push(domain, true);
   for (const domain of input.optional) push(domain, false);

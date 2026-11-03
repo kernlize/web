@@ -20,9 +20,11 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 | `invalid:invalid-signature`, `invalid:invalid-manifest`, `invalid:aggregate-mismatch`, `invalid:blob-hash-mismatch`, `invalid:missing-index` | `@kernl/core` | `resolveApplet` | Verification failed. The part after `invalid:` is kehto's `NappletResolutionErrorCode`. Nothing runs. |
 | `invalid:unresolved` | `@kernl/core` | `Kernl.plan` | The summary was not produced by this shell's `resolve`, so no verified bytes are held for it. |
 | `denied:blocked` | `@kernl/core` | `Kernl.plan` | The user blocked this applet identity. |
+| `denied:nested-frame` | `@kernl/guard`, `@kernl/core` | `assertAppletHasNoFrame`, so `planMount` and `Kernl.plan`; in the applet's realm, the frame lock | The verified markup contains an `iframe`, `frame`, `frameset`, `object`, `embed`, `portal` or `fencedframe` element, so the applet is not mounted. Inside a running applet the frame lock throws it as a `TypeError` when applet code tries to create a frame by element factory or HTML string ([D-014](../decisions.md#d-014)). |
+| `unavailable:frame-lock` | `@kernl/core` | `planMount`, so `Kernl.plan` | The srcdoc kehto prepared does not contain the CSP meta and namespace prelude where kernl expects them, so the frame lock cannot be inserted and the applet is not mounted. Seen only with a kehto release whose output changed. |
 | `invalid:frame-detached` | `@kernl/core` | `mountApplet`, so `Kernl.mount` | The frame has no `contentWindow`; it is not in the document. |
 | `invalid:domain` | `@kernl/core` | `Grants.allowDomain` | The shell does not offer this domain in its current configuration. |
-| `denied:baseline-domain` | `@kernl/core` | `Grants.revokeDomain` | Baseline domains (`shell`, `inc`, `theme`, `identity`, `storage`) cannot be revoked. |
+| `denied:baseline-domain` | `@kernl/core` | `Grants.revokeDomain` | Baseline domains (`shell`, `inc`, `theme`, `storage`) cannot be revoked. |
 | `denied:plaintext-key-persistence` | `@kernl/core` | `KernlAccountManager.addAccount` | The account type stores a raw secret key (`PLAINTEXT_KEY_ACCOUNT_TYPES`). |
 | `invalid:relay-url` | `@kernl/core` | `RelayTiers.add` | The URL is not `ws://` or `wss://`. |
 | `denied:read-only` | `@kernl/core` | the outbox service's signer | The session cannot sign, so an outbox publish is refused. |
@@ -53,13 +55,15 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 | `unavailable:timeout`, `unavailable:aborted`, `unavailable:network <message>` | `@kernl/bridges` | HTTP bridge | The time limit expired, the caller cancelled, or `fetch` failed for another reason. In a browser a CORS refusal and a network failure are the same `TypeError`, so both surface as `unavailable:network Failed to fetch`. |
 | `unavailable:network <type> response` | `@kernl/bridges` | HTTP bridge | Any status-0 answer other than an opaque redirect, for example `unavailable:network opaque response`. |
 
-`@kernl/guard` throws nothing. Its decisions are events.
+Apart from `assertAppletHasNoFrame`, `@kernl/guard` throws nothing. Its decisions are events.
 
 ## Guard event reasons
 
 The guard reports each non-pass decision as a `GuardEvent` with a `disposition` (`defer`, `reject`, `quarantine`, `flag`) and one of these reasons. They reach the user through `kernl.guard.events$` and the shell's guard panel. The numbers are per profile; see [Guard](../concepts/guard.md#profiles).
 
-For an applet's port traffic these layers observe each envelope just before kehto dispatches it but cannot hold it ([D-012](../decisions.md#d-012)): an event records what happened, and only a `quarantine` changes anything, by revoking the binding, which also stops the envelope that crossed the limit. `defer` and `reject` hold or drop only the window-level `hello`.
+For an applet's port traffic these layers observe each envelope just before kehto dispatches it but cannot hold it ([D-012](../decisions.md#d-012)): an event records what happened. Two reasons change the outcome. `size:<class>` makes kehto's runtime firewall refuse that envelope (`refuseCurrentDispatch`), and `quarantine` revokes the binding, which also stops the envelope that crossed the limit. Otherwise `defer` and `reject` hold or drop only the window-level `hello`.
+
+Refusals by kehto's runtime firewall (the per-class rates and the startup burst) are not guard events: kehto answers the applet with an error whose message starts `firewall:`, and `ShellAdapter` does not forward the runtime's firewall events to the host ([upstream gap 1](../alpha-status.md#upstream-gaps)). The focus firewall's `rate:<class>` events count the same rates, so the user still sees an applet that runs out.
 
 | Reason | Emitted by | Disposition | Meaning |
 | --- | --- | --- | --- |
@@ -67,11 +71,11 @@ For an applet's port traffic these layers observe each envelope just before keht
 | `flood:queue-full` | ingress guard | `reject` | More than `ingressQueue` messages over the burst. A `hello` is dropped; for port traffic this is a report. |
 | `flood:quarantine` | ingress guard | `quarantine` | `quarantineThreshold` messages in a rolling 10 s, or any message from a window already quarantined. The binding is revoked. |
 | `flood:hidden-resource` | ingress guard | `quarantine` | A hidden window made more `resource.*` requests than `hiddenResourceAllowance`. The binding is revoked. |
-| `size:<class>` | ingress guard | `reject` | The envelope is over the size cap for `resource:bytes`, `relay:subscribe` or `outbox:subscribe`. |
+| `size:<class>` | ingress guard | `reject` | The envelope is over the size cap for `resource:bytes`, `relay:subscribe` or `outbox:subscribe`. In the composed shell the runtime firewall refuses it before dispatch, so the applet receives a `firewall:` error and nothing is fetched. |
 | `defer:queue-full` | visibility gate (`visibility-gate.ts`) | `reject` | The hidden window's deferral queue is full. Only the window-level `hello` passes through the gate. |
 | `rate:<class>` | focus firewall (`focus-firewall.ts`) | `reject`, or `flag` when the rate's action is `flag` | kehto's `rate:opclass`, `rate:global` or `rate:default` rule fired; the reason names the class, for example `rate:relay:publish`. |
-| `matcher:<id>` | focus firewall | `reject` | A kehto content matcher fired, for example `matcher:size:resource:bytes`. The rule id is passed through unchanged. |
-| `policy:deny` | focus firewall | `reject` | The applet's firewall policy is `deny`. kernl sets `allow`, so this appears only if a caller changed it. |
+| `matcher:<id>` | focus firewall | `reject` | A kehto content matcher fired; the rule id is passed through unchanged. The guard's own matchers are `size:resource:bytes`, `size:relay:subscribe` and `size:outbox:subscribe`, and in the composed shell they cannot fire: the ingress guard rejects the same envelopes with `size:<class>` first, and the focus firewall sees only what it passed. A caller that runs the focus firewall alone can see `matcher:size:<class>`. |
+| `policy:deny` | focus firewall | `reject` | The applet's policy in the guard's own firewall configuration is `deny`. kernl sets no policy there, so this appears only if a caller set one. |
 | `prompt:<ruleId>` | focus firewall | `reject` | kehto's engine asked for a prompt (for example `prompt:policy:ask`); the guard has no UI and treats it as a rejection. |
 
 ## Revocation reasons

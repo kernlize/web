@@ -1,6 +1,6 @@
 # Write an applet
 
-This tutorial builds a small applet as one HTML file, checks it against the limits kernl will hold it to, publishes it with the applet format's own tooling, and opens it in kernl. The applet shows who is signed in, lists recent notes when it is allowed to read the network, and posts a note. It takes about thirty minutes, most of it in publishing.
+This tutorial builds a small applet as one HTML file, checks it against the limits kernl will hold it to, publishes it with the applet format's own tooling, and opens it in kernl. The applet shows who is signed in when it is allowed to know, lists recent notes when it is allowed to read the network, and posts a note. It takes about thirty minutes, most of it in publishing.
 
 kernl adds nothing to the applet format, so nothing here is kernl-specific except the last two steps. The authority on the format is [napplet.run](https://napplet.run/docs/), the [getting-started guide](https://napplet.run/docs/guide/getting-started.html) and the [NAP documents](https://github.com/napplet/naps). [Applets under kernl](../concepts/applets-under-kernl.md) explains the posture your applet meets; this page is the hands-on version.
 
@@ -26,7 +26,7 @@ Create a folder `hello-kernl` with one file, `index.html`:
   <title>Hello kernl</title>
   <meta name="description" content="Shows who is signed in, lists recent notes and posts one.">
   <meta name="napplet-id" content="hello-kernl">
-  <meta name="napplet-optional" content="relay">
+  <meta name="napplet-optional" content="identity relay">
   <style>
     body { font: 15px/1.5 system-ui, sans-serif; margin: 1.5rem; }
     li { margin-bottom: 0.5rem; }
@@ -52,8 +52,13 @@ Create a folder `hello-kernl` with one file, `index.html`:
     } else {
       await napplet.shell.ready();
 
-      const pubkey = napplet.identity ? await napplet.identity.getPublicKey() : '';
-      document.getElementById('who').textContent = pubkey ? `Signed in as ${pubkey.slice(0, 8)}…` : 'Nobody is signed in.';
+      const who = document.getElementById('who');
+      if (napplet.shell.supports('identity')) {
+        const pubkey = await napplet.identity.getPublicKey();
+        who.textContent = pubkey ? `Signed in as ${pubkey.slice(0, 8)}…` : 'Nobody is signed in.';
+      } else {
+        who.textContent = 'Allow your account to see who is signed in.';
+      }
 
       if (napplet.shell.supports('relay')) {
         document.getElementById('network').hidden = false;
@@ -89,12 +94,13 @@ Create a folder `hello-kernl` with one file, `index.html`:
 
 What each part does:
 
-- **The `<meta>` tags are publishing hints.** `napplet deploy` reads `description`, `napplet-id` (the applet's name in its address) and `napplet-optional` from the head and signs them into the manifest. `relay` is optional here, not required, because the applet still does something without it. A domain listed in `napplet-requires` would be marked "the applet says it needs this" in kernl's launcher. Neither grants anything: the user decides.
+- **The `<meta>` tags are publishing hints.** `napplet deploy` reads `description`, `napplet-id` (the applet's name in its address) and `napplet-optional`, a space-separated list of domains, from the head and signs them into the manifest. `identity` and `relay` are optional here, not required, because the applet still does something without them. A domain listed in `napplet-requires` would be marked "the applet says it needs this" in kernl's launcher. Neither grants anything: the user decides.
 - **`window.napplet` is the whole API.** The shell injects it before your code runs; the applet loads no library. Outside a shell it is missing, which is why the script checks `napplet?.shell` first. `@napplet/sdk` wraps the same object in typed named exports if you prefer a bundler ([`@napplet/sdk`](https://www.npmjs.com/package/@napplet/sdk)).
-- **Feature detection, not assumption.** `napplet.shell.supports('relay')` is true only when the shell put `relay` on `window.napplet`, which in kernl means the user granted it. Without the grant the applet still shows who is signed in, because `identity` is one of kernl's baseline domains.
+- **Feature detection, not assumption.** `napplet.shell.supports('relay')` is true only when the shell put `relay` on `window.napplet`, which in kernl means the user granted it. The same holds for `identity`: kernl's baseline is `shell`, `inc`, `theme` and `storage`, so an applet is not told who is signed in until the user grants "your account". Check `supports('identity')` before you read it, and say what the grant would add.
 - **`shell.ready()`** waits for the shell's answer to the applet's `hello`, so the domains are settled before the applet reads them.
 - **Routine writes only.** A kind 1 note is routine, so kernl signs it without a prompt. If your applet updated the user's profile (kind 0) or deleted something (kind 5), kernl would show the user what changes and wait; a refusal arrives as an error that names `denied:consent`.
 - **Errors are shown, not thrown away.** A publish over the shell's budget is refused with an error that starts `firewall:`; the applet prints it.
+- **No frames, no Trusted Types policy of its own.** The list is built with `createElement` and `textContent`. kernl refuses to mount markup that contains an `iframe`, `object`, `embed` or other frame element, makes every attempt to create one throw `denied:nested-frame`, and reserves the Trusted Types `default` policy for that lock, so an applet must not create a frame or register a Trusted Types policy ([Applets under kernl](../concepts/applets-under-kernl.md#what-the-strict-profile-means-for-you)).
 
 The file has no network access of its own and needs none: inline script and style are allowed, and everything else goes through the shell ([No network path](../concepts/guard.md#no-network-path)).
 
@@ -108,11 +114,13 @@ Under kernl's `strict` profile, which every load starts in, the limits that matt
 | --- | --- | --- |
 | Posts notes (`relay.publish`) | 20 per 60 s per applet | kehto's runtime firewall refuses the publish; the applet sees an error starting `firewall:` |
 | Reads the network (`relay.subscribe`) | 30 per 60 s | refused the same way |
+| Sends messages to the shell in its first 3 s | 20 | kehto's runtime firewall refuses the rest of the burst with a `firewall:` error |
 | Sends messages to the shell at all | 8 per second | reported to the user as a burst, still handled |
 | Sends messages to the shell at all | 300 in any 10 s | the applet is quarantined: the message that crossed the limit is dropped and the applet is closed |
 | Downloads while hidden (`resource.*`) | 8 | the ninth quarantines the applet |
+| Asks for a download or a query larger than the cap | 64 KiB for `resource.*`, 256 KiB for subscriptions and queries | refused before it is handled, with a `firewall:` error |
 
-This applet opens one subscription and publishes once per click, so it stays far inside every limit. The full list is in [Guard](../concepts/guard.md#profiles).
+This applet sends a handful of messages at start-up, opens one subscription and publishes once per click, so it stays far inside every limit. The full list is in [Guard](../concepts/guard.md#profiles).
 
 ## 3. Test it against the guard
 
@@ -182,10 +190,10 @@ If you build with Vite instead of writing one file by hand, `@napplet/vite-plugi
 Open the shell, either the hosted one at `https://kernlize.github.io/app/` or your own from [Run the shell](./run-the-shell.md), and sign in. The offline preview (`?preview=1`) cannot open your applet: it has no network and runs only its two sample applets.
 
 1. Click **Open an applet**, paste the address into "Applet address" and click **Look up**. kernl fetches the manifest, verifies its signature, fetches your file by hash and verifies it.
-2. The launcher shows the title, publisher and description, and under "What it may use" a switch for *network*, marked "optional" and off. Click **Run** with it off first.
-3. The window shows "Signed in as …" and "Allow network access to see and post notes." That is your feature detection at work.
-4. Click the window's **Grants** button and turn *network* on. The grant applies to the running window's next request, but the domains an applet was told about at start-up do not change until it is opened again, so close the window and open the applet again from "Recent" in the launcher.
-5. Now the notes appear and **Post** works without a prompt.
+2. The launcher shows the title, publisher and description, and under "What it may use" switches for *your account* and *network*, each marked "optional" and off. Click **Run** with both off first.
+3. The window shows "Allow your account to see who is signed in." and "Allow network access to see and post notes." That is your feature detection at work.
+4. Click the window's **Grants** button and turn *your account* and *network* on. The grant applies to the running window's next request, but the domains an applet was told about at start-up do not change until it is opened again, so close the window and open the applet again from "Recent" in the launcher.
+5. Now the window shows "Signed in as …", the notes appear, and **Post** works without a prompt.
 
 If you published to a relay that is not in kernl's catalogue tier and the address carries no relay hint, the lookup finds nothing: add the relay under **Settings**, "Applet catalogue", "Server address", and try again.
 

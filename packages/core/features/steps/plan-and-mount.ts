@@ -4,6 +4,7 @@ import type { ShellAdapter, ShellEnvironment } from '@kehto/shell';
 import type { GuardProfile, WindowVisibility } from '@kernl/guard';
 import { AccountManager } from 'applesauce-accounts';
 import { createRelayTiers, createShellAdapter, mountApplet, planMount, resolveApplet, type AppletStatus, type AppletSummary, type MountDeps, type MountPlan, type MountedApplet } from '@kernl/core';
+import { spliceOnce } from '../../src/applets/plan.js';
 import { allowAllSigning, attempt, createFakeFrame, scratch, signManifest, splitList, type CoreWorld, type FakeFrame } from './world.js';
 
 interface MountRecord {
@@ -87,6 +88,15 @@ Given('a verified applet summary for {string} requiring {string}', async (world:
   scratch(world).indexHtml = resolved.indexHtml;
 });
 
+Given('a verified applet summary for {string} with markup {string}', async (world: CoreWorld, dTag: string, html: string) => {
+  const manifest = await signManifest({ dTag, html, requires: [] });
+  const resolved = await resolveApplet({ event: manifest.event, fetchBlob: async () => new TextEncoder().encode(manifest.html) });
+  scratch(world).manifest = manifest;
+  scratch(world).summary = resolved.summary;
+  scratch(world).indexHtml = resolved.indexHtml;
+  scratch(world).adapter ??= fakeAdapter(world, ['shell']);
+});
+
 Given('a shell adapter whose resolver allows {string}', (world: CoreWorld, allowed: string) => {
   scratch(world).adapter = fakeAdapter(world, splitList(allowed));
 });
@@ -104,6 +114,46 @@ function makePlan(world: CoreWorld, windowId: string, guardProfile: GuardProfile
 
 When('the shell plans the mount in window {string} under the {string} profile', (world: CoreWorld, windowId: string, profile: GuardProfile) => {
   makePlan(world, windowId, profile);
+});
+
+When('the shell tries to plan the mount in window {string}', async (world: CoreWorld, windowId: string) => {
+  await attempt(world, () => makePlan(world, windowId, 'strict'));
+});
+
+const SRCDOC_LANDMARKS: Readonly<Record<string, string>> = {
+  'the CSP meta': '<meta http-equiv="Content-Security-Policy"',
+  "kehto's prelude": '<script data-kehto-nip5d-injection>',
+  'the frame lock': '<script data-kernl-frame-lock>',
+  'the applet script': '<script>applet()</script>',
+};
+
+Then('the plan srcdoc holds, in order, {string}', (world: CoreWorld, list: string) => {
+  const { srcdoc } = plan(world);
+  const positions = splitList(list).map((name) => srcdoc.indexOf(SRCDOC_LANDMARKS[name] as string));
+  expect(positions.every((position) => position >= 0)).toBe(true);
+  expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+  const preludeEnd = srcdoc.indexOf('</script>', positions[1]) + '</script>'.length;
+  expect(preludeEnd).toBe(positions[2]);
+});
+
+Then('the plan srcdoc CSP ends with {string}', (world: CoreWorld, directives: string) => {
+  const policy = /<meta http-equiv="Content-Security-Policy" content="([^"]*)">/.exec(plan(world).srcdoc)?.[1];
+  expect(policy?.endsWith(`; ${directives}`)).toBe(true);
+  expect(policy).toContain("frame-src 'none'");
+});
+
+Then('the plan srcdoc has exactly {int} frame lock', (world: CoreWorld, count: number) => {
+  expect(plan(world).srcdoc.split('data-kernl-frame-lock').length - 1).toBe(count);
+});
+
+When('the frame lock splices {string} into {string}', async (world: CoreWorld, find: string, text: string) => {
+  await attempt(world, () => {
+    scratch(world).spliced = spliceOnce(text, find, `${find}<lock>`);
+  });
+});
+
+Then('the spliced text is {string}', (world: CoreWorld, expected: string) => {
+  expect(scratch(world).spliced).toBe(expected);
 });
 
 Given('a plan for window {string}', (world: CoreWorld, windowId: string) => {

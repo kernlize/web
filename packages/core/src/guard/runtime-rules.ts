@@ -1,5 +1,5 @@
 import type { FirewallStateContainer } from '@kehto/runtime';
-import type { NappletRules, RateLimit } from '@kehto/firewall';
+import type { NappletPolicy, NappletRules, RateLimit } from '@kehto/firewall';
 import { applyNappletRules, type GuardConfig, type OpClass } from '@kernl/guard';
 
 /**
@@ -67,8 +67,9 @@ export function runtimeFirewallRules(config: GuardConfig, napplet: string): Runt
  * This is the pre-dispatch half of kernl's guard: `ShellAdapter` does not
  * forward kehto's firewall hooks (D-001), but the runtime's own firewall still
  * runs before every dispatch, so the profile's limits are pushed into it when
- * a window binds. The policy is `allow`; the user's choices to deny or block
- * live in the grants layer, not here.
+ * a window binds. No policy is set: kehto's `allow` policy bypasses every rate,
+ * matcher and burst check, and the user's choices to deny or block live in the
+ * grants layer, not here.
  *
  * @param firewallState - `bridge.runtime.firewallState`.
  * @param config - Current guard configuration.
@@ -80,13 +81,42 @@ export function runtimeFirewallRules(config: GuardConfig, napplet: string): Runt
  * ```
  */
 export function applyRuntimeFirewallRules(
-  firewallState: Pick<FirewallStateContainer, 'setRateLimit' | 'setGlobalRate' | 'setPolicy' | 'persist'>,
+  firewallState: Pick<FirewallStateContainer, 'setRateLimit' | 'setGlobalRate' | 'persist'>,
   config: GuardConfig,
   napplet: string,
 ): void {
   const rules = runtimeFirewallRules(config, napplet);
   for (const rule of rules.rates) firewallState.setRateLimit(napplet, rule.opClass, rule.limit);
   firewallState.setGlobalRate(napplet, rules.globalRate);
-  firewallState.setPolicy(napplet, 'allow');
   firewallState.persist();
+}
+
+/**
+ * Make the runtime firewall refuse the envelope kehto is about to dispatch for
+ * an applet, and only that one.
+ *
+ * kehto calls `onNappletMessage` synchronously, then evaluates the runtime
+ * firewall and dispatches in the same call (D-012). The runtime measures size
+ * only for envelopes that carry an event, so its size matchers never see a
+ * download or a query, and kernl's ingress guard is the only layer that
+ * measures them. When it finds one too large, the applet's policy is set to
+ * `deny` for the rest of this dispatch: kehto answers the request with a
+ * denial instead of handing it to a service, and the previous policy returns
+ * in a microtask, before the next port message can arrive.
+ *
+ * @param firewallState - `bridge.runtime.firewallState`.
+ * @param napplet - Applet identity (dTag) of the window whose envelope is being dispatched.
+ * @returns Nothing; the policy is restored in a microtask.
+ * @example
+ * ```ts
+ * onNappletMessage: (windowId, message) => {
+ *   if (oversized(message)) refuseCurrentDispatch(bridge.runtime.firewallState, dTag);
+ * };
+ * ```
+ */
+export function refuseCurrentDispatch(firewallState: Pick<FirewallStateContainer, 'getConfig' | 'setPolicy'>, napplet: string): void {
+  // An absent policy is restored as `undefined`, which kehto's engine reads as no policy.
+  const previous = firewallState.getConfig().napplets[napplet]?.policy as NappletPolicy;
+  firewallState.setPolicy(napplet, 'deny');
+  queueMicrotask(() => firewallState.setPolicy(napplet, previous));
 }

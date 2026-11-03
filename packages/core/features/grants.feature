@@ -1,14 +1,15 @@
 Feature: Grants
   A grant is something the user gave and can take back. Every applet starts
-  with the read-only, no-network baseline; kehto's permissive ACL default is
-  overwritten explicitly for every applet the shell runs (D-001).
+  with the read-only, no-network baseline, which does not include the signed-in
+  account; kehto's permissive ACL default is overwritten explicitly for every
+  applet the shell runs (D-001).
 
   Background:
     Given a kehto ACL state in memory
     And kernl grants over empty storage offering "shell,inc,theme,identity,storage,relay,notify,resource"
 
   Scenario: the baseline is read-only and offline
-    Then the baseline domains are "shell,inc,theme,identity,storage"
+    Then the baseline domains are "shell,inc,theme,storage"
     And the available domains are "shell,inc,theme,identity,storage,relay,notify,resource"
     And the grants list is empty
     And there is no grant record for "chat"
@@ -16,8 +17,9 @@ Feature: Grants
   Scenario: ensuring an applet writes the baseline into the ACL and nothing more
     When the shell ensures grants for "chat"
     Then the grant record for "chat" has domains "" and is not blocked
-    And the grant record for "chat" has capabilities "identity:read,state:read,state:write,theme:read"
-    And the ACL allows "identity:read" for "chat"
+    And the grant record for "chat" has capabilities "state:read,state:write,theme:read"
+    And the ACL allows "theme:read" for "chat"
+    And the ACL denies "identity:read" for "chat"
     And the ACL denies "relay:read" for "chat"
     And the ACL denies "relay:write" for "chat"
     And 1 grant changes were observed
@@ -46,18 +48,28 @@ Feature: Grants
     When the shell revokes "relay" for "chat"
     Then 2 grant changes were observed
 
-  Scenario: the baseline cannot be revoked
+  Scenario: an applet learns which account is signed in only after the user grants it
+    When the shell ensures grants for "chat"
+    Then the ACL denies "identity:read" for "chat"
+    And the resolver gives "chat" domains "shell,inc,theme,storage" and services "theme" from "shell,inc,theme,identity,storage,relay" and "theme"
+    When the shell allows "identity" for "chat"
+    Then the ACL allows "identity:read" for "chat"
+    And the resolver gives "chat" domains "shell,inc,theme,identity,storage" and services "theme" from "shell,inc,theme,identity,storage,relay" and "theme"
     When the shell revokes "identity" for "chat"
+    Then the ACL denies "identity:read" for "chat"
+
+  Scenario: the baseline cannot be revoked
+    When the shell revokes "storage" for "chat"
     Then the shell refused with "denied:baseline-domain"
 
   Scenario: blocking an applet denies everything until unblocked
     Given the shell allows "relay" for "chat"
     When the shell blocks "chat"
     Then the grant record for "chat" has domains "relay" and is blocked
-    And the ACL denies "identity:read" for "chat"
+    And the ACL denies "theme:read" for "chat"
     When the shell unblocks "chat"
     Then the grant record for "chat" has domains "relay" and is not blocked
-    And the ACL allows "identity:read" for "chat"
+    And the ACL allows "theme:read" for "chat"
 
   Scenario: the storage quota is set on the ACL and reported
     When the shell sets the state quota for "chat" to 4096 bytes
@@ -74,8 +86,8 @@ Feature: Grants
   Scenario: the environment resolver narrows what kehto advertises
     Given the shell allows "relay" for "chat"
     And the shell blocks "other"
-    Then the resolver gives "chat" domains "shell,inc,theme,identity,storage,relay" and services "relay,theme" from "shell,inc,theme,identity,storage,relay,notify,resource" and "relay,theme,notify"
-    And the resolver gives "unknown" domains "shell,inc,theme,identity,storage" and services "theme" from "shell,inc,theme,identity,storage,relay,notify,resource" and "relay,theme,notify"
+    Then the resolver gives "chat" domains "shell,inc,theme,storage,relay" and services "relay,theme" from "shell,inc,theme,identity,storage,relay,notify,resource" and "relay,theme,notify"
+    And the resolver gives "unknown" domains "shell,inc,theme,storage" and services "theme" from "shell,inc,theme,identity,storage,relay,notify,resource" and "relay,theme,notify"
     And the resolver gives "other" domains "shell" and services "" from "shell,inc,theme,identity,storage,relay,notify,resource" and "relay,theme,notify"
 
   Scenario: the domain table is explicit

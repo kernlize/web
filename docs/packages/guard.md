@@ -1,6 +1,6 @@
 # @kernl/guard
 
-Ingress flood control, visibility gating, focus-aware firewall and CSP profile for the kernl shell. Pure: no DOM, no timers. Every factory takes an optional `now` clock and defaults to `Date.now`.
+Ingress flood control, visibility gating, focus-aware firewall, CSP profile and nested-frame lock for the kernl shell. Pure: no DOM, no timers. Every factory takes an optional `now` clock and defaults to `Date.now`.
 
 | Field | Value |
 | --- | --- |
@@ -21,7 +21,7 @@ Ingress flood control, visibility gating, focus-aware firewall and CSP profile f
 
 ## Purpose
 
-The guard is the set of protections between an applet and the user. kehto's `@kehto/firewall` supplies a pure `evaluate()` engine; this package gives its opaque operation classes meaning, adds the layers kehto's `ShellAdapter` cannot yet host (ingress flood control, the visibility gate, focus supplied by the shell's window manager), fixes the CSP, and describes every mitigation for the UI. The concepts and the numbers are in [Guard](../concepts/guard.md).
+The guard is the set of protections between an applet and the user. kehto's `@kehto/firewall` supplies a pure `evaluate()` engine; this package gives its opaque operation classes meaning, adds the layers kehto's `ShellAdapter` cannot yet host (ingress flood control, the visibility gate, focus supplied by the shell's window manager), fixes the CSP, carries a port of kehto's unreleased nested-context lock ([D-014](../decisions.md#d-014)), and describes every mitigation for the UI. The concepts and the numbers are in [Guard](../concepts/guard.md).
 
 ## Exports
 
@@ -77,9 +77,20 @@ The guard is the set of protections between an applet and the user. kehto's `@ke
 
 | Export | Signature | Description |
 | --- | --- | --- |
-| `createAppletCsp` | `(profile: GuardProfile) => AppletCsp` | kehto's zero-network baseline: 14 directives, `connect-src 'none'`, no connection origins. The profile argument is accepted and ignored; see [why CSP never loosens](../concepts/guard.md#why-csp-never-loosens). |
+| `createAppletCsp` | `(profile: GuardProfile) => AppletCsp` | kehto's zero-network baseline: 14 directives, `connect-src 'none'`, no connection origins, plus `trustedTypes` for the frame lock. The profile argument is accepted and ignored; see [why CSP never loosens](../concepts/guard.md#why-csp-never-loosens). |
 | `renderCsp` | `(directives: Readonly<Record<string, readonly string[]>>) => string` | `"default-src 'none'; img-src data: blob:"`-style policy string for a `Content-Security-Policy` meta tag. |
-| `AppletCsp` | interface | `{ connectOrigins: readonly string[]; directives: Readonly<Record<string, readonly string[]>> }`, structurally compatible with kehto's `NappletCspOptions`. |
+| `AppletCsp` | interface | `{ connectOrigins: readonly string[]; directives: Readonly<Record<string, readonly string[]>>; trustedTypes: typeof TRUSTED_TYPES_DIRECTIVES }`. `connectOrigins` and `directives` are structurally compatible with kehto's `NappletCspOptions`; `trustedTypes` travels apart because kehto 0.29.0 refuses directives outside its baseline, and `planMount` appends it to kehto's CSP meta. |
+
+### Frame lock
+
+A temporary, attributed port of kehto's `experimental.nestedContextLock` (kehto 4d8a5693), which no `@kehto/shell` release carries yet. Removed when one does ([D-014](../decisions.md#d-014)).
+
+| Export | Signature | Description |
+| --- | --- | --- |
+| `appletMarkupHasFrame` | `(html: string) => boolean` | True when the markup contains an `iframe`, `frame`, `frameset`, `object`, `embed`, `portal` or `fencedframe` element. Parses with the host's `DOMParser` when there is one, including inside `<template>` content; otherwise, or if parsing throws, a lexical match that may over-reject. |
+| `assertAppletHasNoFrame` | `(html: string) => void` | Throws `Error('denied:nested-frame')` when `appletMarkupHasFrame` is true. Call it on the verified bytes before they become a `srcdoc`; `planMount` does. The only export of this package that throws. |
+| `renderFrameLockScript` | `() => string` | An inline `<script data-kernl-frame-lock>` that, run in the applet realm, installs a Trusted Types `default` policy refusing frame markup at every HTML string sink and pins `Document.prototype.createElement`, `createElementNS` and `DOMImplementation.prototype.createDocument` non-configurable to throw `TypeError('denied:nested-frame')` for frame tag names. Insert it immediately after kehto's namespace prelude, in a document whose CSP carries `TRUSTED_TYPES_DIRECTIVES`. A policy-name collision or a pre-frozen prototype is skipped rather than blocking the load. |
+| `TRUSTED_TYPES_DIRECTIVES` | `string` | `"require-trusted-types-for 'script'; trusted-types default"`: routes every DOM string sink through the `default` policy and admits no other policy name. |
 
 ### Mitigation descriptions
 
@@ -111,12 +122,12 @@ describeMitigations(config).find((m) => m.id === 'ingress-flood')?.limit; // '8 
 - Pure functions and small stateful objects keyed by `windowId`. Call `forget(windowId)` on every revocation.
 - Does not parse NAP envelopes beyond `type`, `kind` and `size`; the shell passes those fields and may use `estimateEnvelopeSize` for the third.
 - Does not decide grants. Whether a domain is allowed is `@kehto/acl`'s question, surfaced through `@kernl/core`.
-- Does not touch the DOM or the iframe. The shell applies `createAppletCsp(profile)` through kehto's `prepareNappletSrcdoc`.
-- Does not supply `initElapsedMs` to kehto, so kehto's init-burst guard never fires inside this package; the per-second burst is the ingress guard's.
+- Does not touch the shell's DOM or the iframe. The shell applies `createAppletCsp(profile)` through kehto's `prepareNappletSrcdoc`, and `planMount` in `@kernl/core` splices in the frame lock; the lock's script runs only inside the applet realm.
+- Does not supply `initElapsedMs` to kehto, so `GuardConfig.firewall.burstGuard` never fires inside this package. The startup burst that does fire is kehto's runtime firewall's own, at kehto's default of 20 operations in the first 3 s ([Guard](../concepts/guard.md#layers)).
 
 ## Specification
 
-`packages/guard/features/`: `profiles.feature`, `classification.feature`, `ingress.feature`, `visibility.feature`, `focus-firewall.feature`, `csp.feature`, `mitigations.feature`.
+`packages/guard/features/`: `profiles.feature`, `classification.feature`, `ingress.feature`, `visibility.feature`, `focus-firewall.feature`, `csp.feature`, `frame-lock.feature`, `mitigations.feature`.
 
 ## API reference
 

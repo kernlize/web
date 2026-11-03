@@ -107,7 +107,7 @@ const pages = [{ path: '', label: 'Home' }, ...NAV].map((page) => ({
         <article class="card reveal">
           <p class="label">Sealed</p>
           <h3>A window of its own</h3>
-          <p>Each applet runs in a sealed frame with no address of its own and no way to call out. It can draw and compute; it cannot reach anything you did not hand it.</p>
+          <p>Each applet runs in a sealed frame with no address of its own and no way to call out, and it cannot open a frame of its own inside it. It can draw and compute; it cannot reach anything you did not hand it.</p>
         </article>
         <article class="card reveal">
           <p class="label">Borrowed</p>
@@ -117,7 +117,7 @@ const pages = [{ path: '', label: 'Home' }, ...NAV].map((page) => ({
         <article class="card reveal">
           <p class="label">Watched</p>
           <h3>A network it reaches through you</h3>
-          <p>Everything an applet sends or fetches goes through the guard, which records what it refuses, reports and stops. You can block an applet, take back any grant, or make the guard stricter for the whole shell, at any time.</p>
+          <p>Everything an applet sends or fetches goes through the shell. The guard shows you what it reports, refuses or quarantines; some refusals made deeper inside the shell are not listed yet. You can block an applet, take back any grant, or make the guard stricter for the whole shell, at any time.</p>
         </article>
       </div>
     </div>

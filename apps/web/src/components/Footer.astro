@@ -1,5 +1,5 @@
 ---
-import { APPLET_FORMAT_URL, DECISIONS_URL, href, TOOLKIT_URL } from '../lib/site';
+import { DECISIONS_URL, href, TOOLKIT_URL } from '../lib/site';
 ---
 
 <footer class="site-footer">
@@ -13,7 +13,7 @@ import { APPLET_FORMAT_URL, DECISIONS_URL, href, TOOLKIT_URL } from '../lib/site
         <li><a href={href('docs/')}>Documentation</a></li>
         <li><a href={DECISIONS_URL}>Decisions</a></li>
         <li><a href={TOOLKIT_URL}>kehto toolkit</a></li>
-        <li><a href={APPLET_FORMAT_URL}>The applet format</a></li>
+        <li><a href={href('docs/concepts/applets-under-kernl')}>The applet format</a></li>
         <li><a href={href('llms.txt')}>llms.txt</a></li>
       </ul>
     </nav>

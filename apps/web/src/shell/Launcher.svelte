@@ -47,8 +47,9 @@
     busy = true;
     try {
       const found = await kernl.resolve(kernl.decodePointer(target));
-      const granted = kernl.grants.get(found.identity)?.domains ?? [];
-      choices = domainChoices({ requires: found.requires, optional: found.optional, baseline: kernl.grants.baselineDomains(), granted }).map((choice) => ({ ...choice, on: choice.granted }));
+      const record = kernl.grants.get(found.identity);
+      const input = { requires: found.requires, optional: found.optional, baseline: kernl.grants.baselineDomains(), granted: record?.domains ?? [], firstRun: record === undefined };
+      choices = domainChoices(input).map((choice) => ({ ...choice, on: choice.granted || choice.preset }));
       summary = found;
     } catch (reason) {
       error = explain(reason);
