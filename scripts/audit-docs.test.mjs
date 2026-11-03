@@ -1,0 +1,133 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, expect, test } from 'vitest';
+import {
+  checkDistAgentOutput,
+  checkPackagePages,
+  checkSidebarCoverage,
+  checkTypeDocModules,
+  publicPackages,
+  routeFor,
+  sidebarRoutes,
+  typedocModuleFile,
+} from './audit-docs.mjs';
+
+const roots = [];
+
+function fixture(files) {
+  const root = mkdtempSync(join(tmpdir(), 'audit-docs-'));
+  roots.push(root);
+  for (const [path, content] of Object.entries(files)) {
+    mkdirSync(join(root, path, '..'), { recursive: true });
+    writeFileSync(join(root, path), content);
+  }
+  return root;
+}
+
+afterEach(() => {
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+});
+
+const manifest = (name, version = '0.1.0') => JSON.stringify({ name, version });
+const page = (name, version = '0.1.0') =>
+  `# ${name}\n\n| Version | \`${version}\` |\n\n[api](/api/modules/${typedocModuleFile(name)}){target="_self"}\n`;
+
+test('typedocModuleFile mirrors TypeDoc package naming', () => {
+  expect(typedocModuleFile('@kernl/guard')).toBe('_kernl_guard.html');
+  expect(typedocModuleFile('@kernl/core')).toBe('_kernl_core.html');
+});
+
+test('publicPackages lists scoped packages sorted by slug and skips others', () => {
+  const root = fixture({
+    'packages/guard/package.json': manifest('@kernl/guard'),
+    'packages/bridges/package.json': manifest('@kernl/bridges', '0.2.0'),
+    'packages/other/package.json': manifest('@other/thing'),
+    'packages/empty/.keep': '',
+  });
+  expect(publicPackages(join(root, 'packages'))).toEqual([
+    { slug: 'bridges', name: '@kernl/bridges', version: '0.2.0' },
+    { slug: 'guard', name: '@kernl/guard', version: '0.1.0' },
+  ]);
+  expect(publicPackages(join(root, 'nowhere'))).toEqual([]);
+});
+
+test('checkPackagePages passes a complete page and index', () => {
+  const root = fixture({
+    'docs/packages/index.md': '# Packages\n\n[guard](./guard.md)\n',
+    'docs/packages/guard.md': page('@kernl/guard'),
+  });
+  const packages = [{ slug: 'guard', name: '@kernl/guard', version: '0.1.0' }];
+  expect(checkPackagePages({ docsDir: join(root, 'docs'), packages })).toEqual([]);
+});
+
+test('checkPackagePages reports a missing page, a wrong version row, a missing link and a missing index entry', () => {
+  const root = fixture({
+    'docs/packages/index.md': '# Packages\n',
+    'docs/packages/guard.md': '# @kernl/guard\n\n| Version | `0.0.9` |\n',
+  });
+  const packages = [
+    { slug: 'guard', name: '@kernl/guard', version: '0.1.0' },
+    { slug: 'core', name: '@kernl/core', version: '0.1.0' },
+  ];
+  const violations = checkPackagePages({ docsDir: join(root, 'docs'), packages });
+  expect(violations).toContain('@kernl/core: missing docs/packages/core.md');
+  expect(violations).toContain('@kernl/guard: docs/packages/guard.md lacks the row | Version | `0.1.0` |');
+  expect(violations).toContain('@kernl/guard: docs/packages/guard.md does not link /api/modules/_kernl_guard.html');
+  expect(violations).toContain('docs/packages/index.md does not link ./guard.md');
+});
+
+test('checkPackagePages reports a missing package index', () => {
+  const root = fixture({ 'docs/packages/guard.md': page('@kernl/guard') });
+  const packages = [{ slug: 'guard', name: '@kernl/guard', version: '0.1.0' }];
+  expect(checkPackagePages({ docsDir: join(root, 'docs'), packages })).toEqual(['missing docs/packages/index.md']);
+});
+
+test('routeFor and sidebarRoutes agree on index and nested pages', () => {
+  expect(routeFor('index.md')).toBe('/');
+  expect(routeFor('packages/index.md')).toBe('/packages/');
+  expect(routeFor('concepts/guard.md')).toBe('/concepts/guard');
+  const routes = sidebarRoutes(`link: '/' }, { link: "/packages/" }, { link: '/concepts/guard#x' }, { link: 'https://x' }`);
+  expect([...routes]).toEqual(['/', '/packages/', '/concepts/guard']);
+});
+
+test('checkSidebarCoverage ignores .vitepress, api and node_modules and reports unlinked pages', () => {
+  const root = fixture({
+    'docs/index.md': '# Home\n',
+    'docs/concepts/guard.md': '# Guard\n',
+    'docs/concepts/orphan.md': '# Orphan\n',
+    'docs/.vitepress/theme/readme.md': 'ignored',
+    'docs/api/readme.md': 'ignored',
+    'docs/node_modules/x/readme.md': 'ignored',
+  });
+  const configSource = `sidebar: [{ items: [{ link: '/' }, { link: '/concepts/guard' }] }]`;
+  expect(checkSidebarCoverage({ docsDir: join(root, 'docs'), configSource })).toEqual([
+    "docs/concepts/orphan.md is not linked from the sidebar (expected link: '/concepts/orphan')",
+  ]);
+});
+
+test('checkDistAgentOutput requires llms files and a twin per page, skipping 404 and assets', () => {
+  const root = fixture({
+    'dist/index.html': '',
+    'dist/index.md': '',
+    'dist/404.html': '',
+    'dist/concepts/guard.html': '',
+    'dist/assets/chunk.html': '',
+    'dist/llms.txt': '',
+  });
+  expect(checkDistAgentOutput({ distDir: join(root, 'dist') })).toEqual([
+    'built docs lack llms-full.txt',
+    'built docs lack the Markdown twin concepts/guard.md for concepts/guard.html',
+  ]);
+  expect(checkDistAgentOutput({ distDir: join(root, 'missing') })).toEqual([
+    `missing built docs at ${join(root, 'missing')}; run pnpm docs:build first`,
+  ]);
+});
+
+test('checkTypeDocModules reports each missing module page', () => {
+  const root = fixture({ 'api/modules/_kernl_guard.html': '' });
+  const packages = [{ name: '@kernl/guard' }, { name: '@kernl/core' }];
+  expect(checkTypeDocModules({ apiDir: join(root, 'api'), packages })).toEqual([
+    `TypeDoc module page missing: ${join(root, 'api', 'modules', '_kernl_core.html')}`,
+  ]);
+});

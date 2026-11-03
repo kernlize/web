@@ -1,0 +1,136 @@
+/* kernl docs theme: dark-first, typographic, one restrained accent. */
+/* aislop-ignore-file unused-css -- the VP* and vp-* selectors below are rendered by VitePress's default theme components, not by files in this repository. */
+
+:root {
+  --vp-font-family-base: 'Inter', 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --vp-font-family-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --kernl-accent-100: #a7e3d3;
+  --kernl-accent-200: #6fcdb5;
+  --kernl-accent-300: #3fae95;
+  --kernl-accent-400: #2a8a75;
+  --kernl-accent-soft: rgba(63, 174, 149, 0.14);
+
+  --vp-c-brand-1: var(--kernl-accent-400);
+  --vp-c-brand-2: var(--kernl-accent-300);
+  --vp-c-brand-3: var(--kernl-accent-200);
+  --vp-c-brand-soft: var(--kernl-accent-soft);
+
+  --vp-c-bg: #fbfbfa;
+  --vp-c-bg-alt: #f3f3f1;
+  --vp-c-bg-soft: #f3f3f1;
+  --vp-c-bg-elv: #ffffff;
+  --vp-c-divider: #e3e3df;
+  --vp-c-border: #d6d6d1;
+  --vp-c-gutter: #e3e3df;
+  --vp-c-text-1: #17181a;
+  --vp-c-text-2: #4b4d52;
+  --vp-c-text-3: #7a7d84;
+
+  --vp-code-font-size: 0.875em;
+  --vp-code-block-bg: #f0f0ee;
+  --vp-code-line-highlight-color: var(--kernl-accent-soft);
+
+  --vp-home-hero-name-color: var(--vp-c-text-1);
+  --vp-button-brand-bg: var(--kernl-accent-400);
+  --vp-button-brand-hover-bg: var(--kernl-accent-300);
+  --vp-button-brand-active-bg: var(--kernl-accent-200);
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-hover-border: transparent;
+  --vp-button-brand-active-border: transparent;
+  --vp-button-brand-text: #ffffff;
+  --vp-button-brand-hover-text: #0b1210;
+  --vp-button-brand-active-text: #0b1210;
+
+  --vp-custom-block-tip-border: var(--kernl-accent-300);
+  --vp-custom-block-tip-text: var(--vp-c-text-1);
+  --vp-custom-block-tip-bg: var(--kernl-accent-soft);
+}
+
+.dark {
+  --vp-c-brand-1: var(--kernl-accent-200);
+  --vp-c-brand-2: var(--kernl-accent-100);
+  --vp-c-brand-3: var(--kernl-accent-300);
+  --vp-c-brand-soft: rgba(111, 205, 181, 0.14);
+
+  --vp-c-bg: #0d0f12;
+  --vp-c-bg-alt: #090b0d;
+  --vp-c-bg-soft: #14171b;
+  --vp-c-bg-elv: #171a1f;
+  --vp-c-divider: #22262c;
+  --vp-c-border: #2c3138;
+  --vp-c-gutter: #1b1f24;
+  --vp-c-text-1: #e8e9eb;
+  --vp-c-text-2: #a9adb4;
+  --vp-c-text-3: #70757e;
+
+  --vp-code-block-bg: #101317;
+  --vp-code-line-highlight-color: rgba(111, 205, 181, 0.1);
+
+  --vp-button-brand-bg: var(--kernl-accent-300);
+  --vp-button-brand-hover-bg: var(--kernl-accent-200);
+  --vp-button-brand-active-bg: var(--kernl-accent-100);
+  --vp-button-brand-text: #0b1210;
+}
+
+.VPDoc h1,
+.VPDoc h2,
+.VPDoc h3 {
+  letter-spacing: -0.015em;
+}
+
+.VPDoc h1 {
+  font-weight: 650;
+}
+
+.VPDoc h2 {
+  border-top: 1px solid var(--vp-c-divider);
+  padding-top: 1.25rem;
+  margin-top: 2.5rem;
+}
+
+.vp-doc p,
+.vp-doc li {
+  line-height: 1.7;
+}
+
+.vp-doc table {
+  font-size: 0.9em;
+}
+
+.vp-doc th {
+  font-weight: 600;
+  color: var(--vp-c-text-2);
+  text-transform: none;
+}
+
+.vp-doc :not(pre) > code {
+  border-radius: 4px;
+  padding: 0.12em 0.35em;
+}
+
+.vp-doc a {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.VPNavBarTitle .title {
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.VPSidebarItem.level-0 .text {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--vp-c-text-3);
+}
+
+.VPHome .name {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.VPHome .tagline {
+  color: var(--vp-c-text-2);
+}

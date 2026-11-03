@@ -14,4 +14,9 @@ export function startReveal(): void {
     }
   }, { rootMargin: '0px 0px -10% 0px' });
   for (const target of targets) observer.observe(target);
+  // A missed intersection must never hide content for good: after a short grace period everything shows.
+  setTimeout(() => {
+    for (const target of targets) target.classList.add('in');
+    observer.disconnect();
+  }, 2500);
 }

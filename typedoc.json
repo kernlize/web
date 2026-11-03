@@ -1,11 +1,19 @@
 {
   "$schema": "https://typedoc.org/schema.json",
   "entryPointStrategy": "packages",
-  "entryPoints": ["packages/guard", "packages/messaging", "packages/bridges", "packages/core"],
+  "entryPoints": [
+    "packages/guard",
+    "packages/messaging",
+    "packages/bridges",
+    "packages/core"
+  ],
   "out": "docs/api",
   "name": "kernl API",
   "readme": "none",
   "treatWarningsAsErrors": true,
   "excludeExternals": true,
-  "skipErrorChecking": false
+  "skipErrorChecking": false,
+  "packageOptions": {
+    "sourceLinkTemplate": "https://github.com/kernlize/web/blob/main/{path}#L{line}"
+  }
 }
