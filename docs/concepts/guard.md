@@ -95,6 +95,34 @@ Three stateful objects, each built from the same `GuardConfig`, each keyed by `w
 
 **What `burstGuard` is for.** `createGuardConfig` sets `firewall.burstGuard` to `{ windowMs: 1000, maxOps: ingressBurst, action: 'block' }`. kehto's init-burst guard only fires for callers that supply `initElapsedMs` in the observation; the focus firewall never does, so inside kernl the per-second burst is enforced by the ingress guard alone. The field exists so that a runtime firewall configured from this object agrees with the ingress guard, and it is why there is no separate "init-burst guard" row in the mitigation list.
 
+## Where enforcement happens
+
+kehto's bridge owns the `MessagePort` an applet speaks over and shows the host that traffic only through the observe-only `ShellAdapter.onNappletMessage` hook, so kernl cannot sit between the port and the runtime (D-001). Enforcement is therefore layered (D-012):
+
+| Traffic | Where | How |
+| --- | --- | --- |
+| The window-level `napplet.hello` | kernl, before kehto sees it | `Kernl.handleWindowMessage` resolves the sending window from `originRegistry`, never from the message, and runs ingress guard → visibility gate → focus firewall before `bridge.handleMessage`. This is the one message the pipeline can hold or drop; any other window-level message from a bound applet is kehto's `window-message` revocation. |
+| Port traffic, before dispatch | kehto's runtime firewall, configured by kernl | `kernl.mount` calls `applyRuntimeFirewallRules(bridge.runtime.firewallState, config, dTag)`, which installs the profile's per-class rates for that applet with policy `allow`. The runtime refuses over-budget envelopes itself. |
+| Port traffic, after dispatch | kernl, reactive | `onNappletMessage` feeds `GuardPipeline.observe`: the ingress guard and the focus firewall advance their counters and emit events; a `quarantine` disposition calls `onQuarantine`, which marks the handle revoked with reason `quarantine` and calls `bridge.revokeNapplet(windowId, 'host')`. Nothing can be held or dropped here. |
+
+The runtime keys its rates by the sender capability a message needs, while the guard classifies by what a message does. `RUNTIME_OP_CLASSES` translates:
+
+| Guard class | Runtime key |
+| --- | --- |
+| `relay:subscribe` | `relay:read` |
+| `relay:publish` | `relay:write` |
+| `relay:publish:delete` | none; deletions share `relay:write` before dispatch and keep their own bucket only in the reactive layer |
+| `outbox:subscribe` | `outbox:read` |
+| `outbox:publish` | `outbox:write` |
+| `resource:bytes` | `resource:fetch` |
+| `storage:write` | `state:write` |
+| `dm:send` | `dm:write` |
+| `intent:invoke` | `intent:write` |
+| `control` | none; control envelopes need no capability |
+| `generic` | the per-applet global rate (`setGlobalRate`) |
+
+Two limits of this arrangement are stated plainly. `FirewallStateContainer` has no setter for `unfocusedMultiplier`, so the runtime firewall applies kehto's default multiplier before dispatch and the profile's value (`0.25` in `strict`) only in the reactive focus firewall. And hidden-window deferral is advisory for port traffic in this draft: the visibility gate holds only window-level messages, and by the time `observe` sees a port envelope the runtime has already dispatched it, so for a hidden window the gate's effect is the tightened budget, the hidden-resource allowance that still quarantines, and the event trail, not a held queue. Both are recorded as upstream gaps in [Alpha status](../alpha-status.md#upstream-gaps).
+
 ## Dispositions and reasons
 
 `IngressGuard.admit()` returns one of four dispositions:

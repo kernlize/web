@@ -296,6 +296,20 @@ When('the shell plans the summary', async (world: CoreWorld) => {
   k(world).plan = await k(world).kernl.plan(summary);
 });
 
+When('the shell blocks the resolved applet', (world: CoreWorld) => {
+  const summary = k(world).summary;
+  if (!summary) throw new Error('resolve first');
+  k(world).kernl.grants.block(summary.identity);
+});
+
+When('the shell tries to plan the summary', async (world: CoreWorld) => {
+  const summary = k(world).summary;
+  if (!summary) throw new Error('resolve first');
+  await attempt(world, async () => {
+    await k(world).kernl.plan(summary);
+  });
+});
+
 When('the shell plans an unresolved summary', async (world: CoreWorld) => {
   await attempt(world, async () => {
     const hash = 'ff'.repeat(32);

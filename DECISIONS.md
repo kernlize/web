@@ -37,6 +37,8 @@ Format: `D-NNN · title` → Context, Decision, Consequences, Reversal cost.
 
 **Consequences.** Some applets will hit limits in `strict`. The guard emits an event for every rejection and deferral so the user can see what happened and decide.
 
+**Status in the first draft.** The profile is shell-wide and not persisted: `GuardFacade.setProfile` rebuilds the single pipeline, and windows already open keep the runtime rates installed at mount. Per-applet, remembered loosening is the target this decision describes and is tracked in `docs/roadmap.md`. The default remains `strict` on every boot, so the gap errs toward the user.
+
 **Reversal cost.** A one-line profile change for a user; a `SOUL.md` amendment for the project.
 
 ## D-004 · Four packages, one app, one docs site
@@ -134,7 +136,7 @@ Published packages have zero framework dependencies, matching kehto's rule. The 
 
 **Context.** kehto's bridge owns the `MessagePort` an applet speaks over, and exposes applet traffic to the host only through the observe-only `onNappletMessage` hook. kernl cannot sit between the port and the runtime (D-001).
 
-**Decision.** Two layers. Before dispatch, kernl configures kehto's own runtime firewall from the guard profile (`applyNappletRules` on bind, `firewallState.setRateLimit`), so kehto rejects over-budget envelopes itself. After dispatch, kernl's ingress guard, visibility gate and focus firewall observe the same traffic with the shell's focus and visibility; a `quarantine` disposition revokes the applet's binding, and every other non-pass disposition is surfaced to the user as a guard event. The window-level `hello` is the one message kernl filters before kehto sees it.
+**Decision.** Two layers. Before dispatch, kernl configures kehto's own runtime firewall from the guard profile when an applet is mounted (`applyRuntimeFirewallRules`, translating op classes through `RUNTIME_OP_CLASSES`), so kehto rejects over-budget envelopes itself. After dispatch, kernl's ingress guard, visibility gate and focus firewall observe the same traffic with the shell's focus and visibility; a `quarantine` disposition revokes the applet's binding, and every other non-pass disposition is surfaced to the user as a guard event. The window-level `hello` is the one message kernl filters before kehto sees it.
 
 **Consequences.** Deferral while hidden is advisory in this draft: the applet's envelope has already reached the runtime by the time the gate observes it, so the gate's effect is the tightened budget and the event trail, not a held queue. The upstream request that would make it a true pre-dispatch hook is recorded with D-001's gaps.
 

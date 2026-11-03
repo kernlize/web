@@ -4,10 +4,12 @@ Ordered by the tie-breakers in `SOUL.md`: the user's safety and agency first, pr
 
 ## 1. Upstream pull requests to kehto
 
-Both items shrink kernl when they land; see [Alpha status](./alpha-status.md#upstream-gaps).
+Each item shrinks kernl when it lands; see [Alpha status](./alpha-status.md#upstream-gaps).
 
 - Forward `getFocusContext`, `onFirewallEvent` and `firewallPersistence` through `ShellAdapter` so the runtime's own firewall can be focus-aware without a second engine in front of it.
-- Let the host choose the ACL default policy in `createRuntime`, so a restrictive shell does not have to rely on environment narrowing alone.
+- Let the host choose the ACL default policy in `createRuntime`, so a restrictive shell does not have to write every capability explicitly.
+- Offer a pre-dispatch hook on port traffic, so the visibility gate can hold a hidden applet's envelopes instead of observing them after dispatch.
+- Expose a setter for the runtime firewall's `unfocusedMultiplier`, so the profile's focus tightening applies before dispatch as well as after.
 
 ## 2. Bridge backends
 
@@ -35,6 +37,9 @@ The window manager contracts come from `@kehto/wm`. A narrow-viewport layout wit
 
 ## 6. Guard
 
+- Per-applet guard profiles: today the profile is shell-wide and resets to `strict` on boot (D-003). Next: an override per applet identity, remembered locally.
+- Re-narrow a live applet's advertised environment when a domain is revoked; today the ACL denies at once but `shell.init` only changes on the next open.
+- Bridge consent per host: wire `createDefaultBridges({ authorize })` to a host prompt so a granted `resource` request still asks before reaching a new origin.
 - Persist per-applet profile overrides and grants through a user-chosen sync, so loosening an applet once does not have to be repeated per device.
 - A readable guard log in the shell: every `defer`, `reject`, `quarantine` and `flag` event, with the stable reason and the applet it concerned.
 

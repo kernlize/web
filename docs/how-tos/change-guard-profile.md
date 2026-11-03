@@ -4,11 +4,11 @@ The shell boots every applet in `strict`. A user can loosen one applet to `balan
 
 ## In the shell
 
-1. Open the applet's grants panel from its window title bar.
-2. Under *Guard*, pick `balanced` or `relaxed`. The list of mitigations updates to show the new limit for each one. The CSP does not change; it never does.
-3. The change applies to the applet's current window immediately and is remembered for this identity `(dTag, hash)` on this device. A new build of the applet is a new identity and starts in `strict` again.
+1. Open the guard panel from the desktop bar (*Guard · strict · N*).
+2. Under *Profile*, pick `balanced` or `relaxed`. The list of mitigations updates to show the new limit for each one. The CSP does not change; it never does.
+3. The change calls `kernl.guard.setProfile(profile)`, which rebuilds every guard layer for every open window at once; held messages are dropped and counters restart, so a quarantined window is released. It is not persisted: a reload starts in `strict` again.
 
-Pick `strict` again at any time. Quarantine, if the applet was in it, is lifted when you change profile, because changing profile is the user intervening.
+In this draft the profile is shell-wide. The per-applet, remembered override that D-003 describes is listed under [Alpha status](../alpha-status.md#what-does-not-work-yet).
 
 ## In code
 
@@ -42,7 +42,7 @@ function guardFor(profile: GuardProfile, onEvent: (event: GuardEvent) => void) {
 3. Call `release(windowId)` on the old ingress guard, or simply drop it: quarantine lives in the guard instance and does not survive the swap.
 4. If the shell also runs kehto's runtime firewall from `config.firewall`, hand it the new `FirewallConfig`. Per-applet rates are not in a fresh config; `applyNappletRules(config, dTag)` adds them, and the focus firewall does this itself on first observation.
 
-`@kernl/core` exposes this as `GuardFacade.setProfile(profile)` and `GuardFacade.release(windowId)`, with the override persisted per identity. The core page documents that surface.
+`@kernl/core` does this inside `createGuardPipeline`: `GuardFacade.setProfile(profile)` rebuilds the three layers from `createGuardConfig(profile)`, clears what they held, re-applies the known visibility of every window and emits on `profile$`; `GuardFacade.release(windowId)` lifts a quarantine on its own. Applets mounted after the change get the new profile's rates in kehto's runtime firewall through `applyRuntimeFirewallRules`; windows already open keep the runtime rates they were mounted with until they are opened again. The [core page](../packages/core.md#the-kernl-surface) documents that surface.
 
 ## What a profile cannot change
 

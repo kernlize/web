@@ -69,6 +69,13 @@ Feature: The composed shell
     When the shell plans an unresolved summary
     Then the shell refused with "invalid:unresolved"
 
+  Scenario: a blocked applet is refused before it is planned
+    Given a kernl shell over that host and pool
+    When the shell resolves the manifest address
+    And the shell blocks the resolved applet
+    And the shell tries to plan the summary
+    Then the shell refused with "denied:blocked"
+
   Scenario: a manifest nobody serves is unavailable
     Given a kernl shell over that host and pool
     And the fake pool serves nothing

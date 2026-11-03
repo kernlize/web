@@ -60,7 +60,7 @@ Three things the table says that the picker says too:
 
 - `legacy` is marked as metadata-exposing because it is. It exists because many correspondents can read nothing else, and the user is told that before choosing it.
 - `private` has no forward secrecy. A gift wrap protects metadata, not past messages, and the picker does not claim otherwise.
-- `ratchet` is available only when the shell's `available()` says so. The package does not decide the reason; the shell supplies one such as `no-ratchet-runtime`, `enable()` rethrows it as `unavailable:no-ratchet-runtime`, and `list()` reports it so the picker can show the provider greyed with that reason. Its specification is a draft and the provider is flagged `experimental`.
+- `ratchet` is available only when the shell's `available()` says so. The package does not decide the reason; kernl's `createDefaultMessaging` supplies `no-runtime` (`MESSAGING_UNAVAILABLE_REASONS.ratchet`), `enable()` rethrows it as `unavailable:no-runtime`, and `list()` reports it so the picker can show the provider greyed with that reason. Its specification is a draft and the provider is flagged `experimental`.
 
 ## The registry
 

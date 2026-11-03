@@ -2,7 +2,8 @@ import { BehaviorSubject } from 'rxjs';
 import type { RelayTier, RelayTiers, StorageLike } from '../types.js';
 import { createNamespacedStore } from '../persistence/store.js';
 
-type TierMap = Readonly<Record<RelayTier, readonly string[]>>;
+/** Relay URLs per tier, frozen. */
+export type TierMap = Readonly<Record<RelayTier, readonly string[]>>;
 
 /** Where the shell looks when the user has configured nothing. */
 export const DEFAULT_RELAY_TIERS: TierMap = Object.freeze({

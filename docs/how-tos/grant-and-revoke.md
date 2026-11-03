@@ -1,53 +1,63 @@
 # Grant and revoke
 
-A grant is something the user gave and can take back. This page covers what the shell asks, what each answer changes, and the calls behind the panel.
+A grant is something the user gave and can take back. This page covers what the shell asks, what each answer changes, and the `Kernl` calls behind the panel.
 
 ## What the user sees
 
-**At mount.** The applet's `requires` list is compared with what this identity already has. Each missing domain produces one line in a single prompt: the domain's user-facing name, one sentence on what it lets the applet do, and whether it can write on the user's behalf. Decline any required domain and the applet does not mount. Optional domains are not asked for at mount; they appear in the grants panel as switches.
+**Before the first run.** After `kernl.resolve` verifies the applet, the launcher compares its `requires` and `optional` lists with the baseline and with what this identity already has (`kernl.grants.get(identity)`). Each domain is a switch: the baseline fixed on, everything else pre-set to what this identity was granted before, so a first run starts with every grantable switch off. Required domains are marked as such and a warning names the ones still off. *Run* applies the switches with `allowDomain` and `revokeDomain`, then calls `kernl.plan`. A required domain left off appears in `MountPlan.missingRequired`; the applet mounts anyway and sees that domain as unavailable.
 
-**During use.** Three things prompt while an applet runs:
+**During use.** kehto asks before signing a destructive kind. kernl's consent handler turns the request into a `ConsentSummary` from `describeChange` and the host shows it: the title ("Update your profile", "Change who you follow", "Delete 2 events", "Change your connections list", "Change the list …") and one line per change with the value before and after. The applet is named by its display name and the short hash of its build. *Allow* resolves the request with `true`; dismissing it resolves `false`. Nothing is remembered; the next destructive write asks again.
 
-| Prompt | Trigger | Shown as |
-| --- | --- | --- |
-| Destructive write | A publish of kind 0, 3, 5 or 10002 | A semantic diff from `describeChange`: what is added, removed, changed. |
-| Bridge request | A `resource` request routed to a bridge for a host or scheme not yet allowed for this identity | The locator, the bridge's label and exposure, the requesting applet. |
-| Optional domain | The applet calls a domain it lists as optional and does not have | A one-line request with *Allow*, *Not now*, *Never for this applet*. |
-
-Every prompt names the applet by its display name and shows the short hash of the build, so an update is visible as an update.
-
-**In the grants panel.** Everything granted for the identity, in one list: domains, remembered consents per kind, allowed bridge hosts, the guard profile. Each row has *Revoke*. The panel has *Revoke all*, which also closes the window.
+**In the grants panel.** Every domain the shell offers, as a switch; a *Block* switch; and, when the guard has quarantined the window, a control to lift it. The panel reads `kernl.grants.get(identity)` and re-renders on `kernl.grants.changes$`.
 
 ## What a grant is keyed by
 
-`(dTag, artifactHash)`. A new build has a new hash and no grants. The shell shows the diff between the old manifest and the new one (name, `requires`, `optional`, author) and asks again. See [Identity and grants](../concepts/identity-and-grants.md#grants).
+`AppletIdentity`, `{ dTag, hash }`. A new build has a new hash and no grants; the launcher asks again, showing the new manifest's title, publisher and domains. See [Identity and grants](../concepts/identity-and-grants.md#grants).
 
 ## The calls
 
-`@kernl/core` exposes the grants surface the panel uses. All of it is behind an interface so the implementation can shrink when the upstream ACL default becomes configurable.
+`kernl.grants` is the `Grants` interface; `createGrants` implements it over `bridge.runtime.aclState` with a record per identity at `kernl:grants:v1`.
 
 ```ts
-const grants = kernl.grants;
+import type { AppletIdentity, Kernl } from '@kernl/core';
 
-grants.list(identity);
-// → [{ kind: 'domain', domain: 'relay' }, { kind: 'consent', eventKind: 3 }, { kind: 'host', host: 'cdn.example.org', bridge: 'http' }]
+declare const kernl: Kernl;
+declare const identity: AppletIdentity;
 
-await grants.grant(identity, { kind: 'domain', domain: 'outbox' });
-await grants.revoke(identity, { kind: 'domain', domain: 'outbox' });
-await grants.revokeAll(identity);
+kernl.grants.get(identity); // GrantRecord | undefined
+kernl.grants.allowDomain(identity, 'relay'); // throws invalid:domain when the shell does not offer it
+kernl.grants.revokeDomain(identity, 'relay'); // throws denied:baseline-domain for shell, inc, theme, identity, storage
+kernl.grants.block(identity);
+kernl.grants.unblock(identity);
+kernl.grants.setStateQuota(identity, 4096);
+kernl.grants.availableDomains(); // what buildShellCapabilities(adapter) offers
+kernl.grants.baselineDomains(); // ['shell', 'inc', 'theme', 'identity', 'storage']
+
+const subscription = kernl.grants.changes$.subscribe((record) => console.log(record.identity.dTag, record.domains));
+subscription.unsubscribe();
+
+for (const handle of kernl.applets()) {
+  if (handle.summary.identity.hash === identity.hash) handle.close();
+}
 ```
 
-`grant` for a domain does three things in order: `aclState.grant(identity, cap)` in kehto's ACL store, a re-resolution of the environment so `resolveEnvironment` now returns the domain, and a persistence write. The applet's next `shell.ready` or domain call sees the domain. `revoke` reverses the three; the applet's next call to that domain returns `unavailable`, and any live subscription on that domain is closed by the service.
+`GrantRecord` is `{ identity, domains, capabilities, blocked, stateQuotaBytes }`. `domains` are the ones the user allowed beyond the baseline; `capabilities` is `capabilitiesForDomains([...BASELINE_DOMAINS, ...domains])`.
 
-`revokeAll` additionally calls `bridge.revokeNapplet(windowId, 'host')`, which closes the port and removes the frame.
+Every change commits the record, which does three things in order: persist it to `kernl:grants:v1`, write the full capability set into kehto's ACL (each capability in `ALL_CAPABILITIES` granted or revoked explicitly, then `block` or `unblock`, then `acl.persist()`), and emit the new `GrantRecord` on `changes$`. A call that changes nothing (allowing a domain twice, revoking one that was never allowed, allowing a baseline domain) commits nothing and emits nothing.
 
-## Remembered consent
+- **`allowDomain`** refuses a domain the shell does not offer with `invalid:domain`. A newly allowed domain is in the ACL at once; a running applet was told its environment at mount and is not told again, so the domain appears in its `shell.init` the next time it is opened.
+- **`revokeDomain`** refuses the baseline with `denied:baseline-domain`. The ACL loses the domain's capabilities at once, and kehto refuses the applet's next envelope that needs one of them.
+- **`block`** keeps the record's domains but denies every capability in the ACL and makes `createEnvironmentResolver` advertise `shell` alone at the next mount. It does not close an open window; the panel closes it with `handle.close()`. **`unblock`** restores the record's capabilities.
+- **`setStateQuota`** writes the quota for the `storage` domain into the ACL and emits a change.
+- **`ensure(identity)`**, on the `KernlGrants` type the shell holds internally, is called by `kernl.plan` so an applet with no record still gets an explicit, baseline-only ACL entry.
 
-A destructive-write prompt has *Allow once* and *Always allow kind N for this applet*. The second writes a `consent` grant keyed by `(identity, kind)`. It is listed in the panel and revocable. There is no "always allow everything". The shell never remembers consent for kind 5 deletions beyond the current session, because deletions are the one write the user cannot undo by publishing again.
+## Closing and quarantine
 
-## Blocking
+Closing a window is `handle.close()`: `bridge.revokeNapplet(windowId, 'host')`, which closes the port and drops kehto's sessions for the frame, then the frame is removed and the guard forgets the window. Grants are untouched. When the guard quarantines a window, `createKernl`'s `onQuarantine` does the same and tells `host.onRevoked(windowId, 'quarantine')`; the grants panel's control for a quarantined window calls `kernl.guard.release(windowId)`.
 
-*Never for this applet* on any prompt calls `aclState.block(identity)`. A blocked identity's frame is removed, its grants are kept but inert, and opening the same address shows the block with an *Unblock* control. Blocking is per hash like everything else; a new build asks fresh, and the panel says the previous build was blocked.
+## Bridges
+
+A `resource` request from an applet that holds the `resource` domain is resolved by the bridge registry in the applet's name (`resourceInitFor`). The registry `createKernl` builds with `createDefaultBridges()` has no `authorize` hook, so the HTTP bridge's SSRF policy is the only check. A host that wants to ask per host or scheme passes its own registry, built with `createDefaultBridges({ authorize })`, in `KernlOptions.bridges`.
 
 ## What is never granted
 
@@ -55,3 +65,4 @@ A destructive-write prompt has *Allow once* and *Always allow kind N for this ap
 - Access to `window.nostr`, raw keys or the `EventStore`.
 - A global grant across applets.
 - A grant by a developer flag or a URL parameter.
+- A domain the shell does not register. `DOMAIN_CAPABILITIES` has rows for `keys`, `media`, `config`, `cvm`, `upload`, `intent`, `fs`, `llm` and `cache`, but `availableDomains()` does not list them and `allowDomain` refuses them.

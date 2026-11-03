@@ -20,7 +20,7 @@ kehto ships `@kehto/{acl,firewall,runtime,shell,services,nip,wm}` and deliberate
 | Protocols | One identity layer, many [bridges](./concepts/bridges.md) named by what they do for the user, never by the wire format. |
 | Messaging | Any reasonable private-messaging protocol, exposed through one contract. [Providers](./concepts/messaging.md) describe their security properties truthfully and the shell does not rank them. |
 
-kernl does not fork kehto. When kehto lacks a hook kernl needs, kernl composes around it and files the gap upstream. The two gaps filed so far are recorded in [D-001](./alpha-status.md#upstream-gaps).
+kernl does not fork kehto. When kehto lacks a hook kernl needs, kernl composes around it and files the gap upstream. The four gaps filed so far are recorded in [D-001](./alpha-status.md#upstream-gaps).
 
 ## Three doors
 

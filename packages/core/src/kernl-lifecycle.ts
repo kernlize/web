@@ -81,6 +81,7 @@ export function createAppletLifecycle(context: LifecycleContext): AppletLifecycl
     async plan(summary: AppletSummary): Promise<MountPlan> {
       const indexHtml = verified.get(keyOf(summary.identity));
       if (indexHtml === undefined) throw new Error('invalid:unresolved');
+      if (context.grants.get(summary.identity)?.blocked) throw new Error('denied:blocked');
       context.grants.ensure(summary.identity);
       windowCounter += 1;
       return planMount({ summary, indexHtml, adapter: context.adapter, guardProfile: pipeline.config.profile, windowId: `applet-${windowCounter}` });

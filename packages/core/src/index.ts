@@ -18,6 +18,7 @@ export type * from './types.js';
 
 export { createNamespacedStore, type NamespacedStore } from './persistence/store.js';
 export { DEFAULT_RELAY_TIERS, createRelayTiers } from './relays/tiers.js';
+export type { TierMap } from './relays/tiers.js';
 
 export {
   createRelayPoolHooks,

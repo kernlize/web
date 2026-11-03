@@ -8,8 +8,8 @@ kernl is three layers. kehto supplies the primitives, four kernl packages supply
 │  landing site at /         shell at /app/      docs at /docs/        │
 ├──────────────────────────────────────────────────────────────────────┤
 │  @kernl/core                                   composition root      │
-│  createKernl · applesauce adapters · resolveApplet → planMount →     │
-│  mountApplet · describeChange · layouts · persistence                │
+│  createKernl · applesauce adapters · decodePointer → resolve →       │
+│  plan → mount · guard pipeline · grants · describeChange · layouts   │
 │       │                 │                   │                        │
 │  @kernl/guard      @kernl/messaging     @kernl/bridges               │
 │  ingress, gate,    provider contract,   locators, Bridge contract,   │
@@ -18,7 +18,7 @@ kernl is three layers. kehto supplies the primitives, four kernl packages supply
 ├──────────────────────────────────────────────────────────────────────┤
 │  kehto   @kehto/shell · runtime · acl · firewall · services · nip · wm │
 │  applesauce   EventStore · RelayPool · AccountManager · signers ·     │
-│               loaders · factory                                       │
+│               loaders                                                 │
 ├──────────────────────────────────────────────────────────────────────┤
 │  @napplet/core   NAP wire types, NapDomain, envelope dispatch         │
 └──────────────────────────────────────────────────────────────────────┘
@@ -30,25 +30,25 @@ kehto is the runtime authority for how a NIP-5D shell composes. kernl uses these
 
 | kehto package | What kernl takes from it |
 | --- | --- |
-| `@kehto/shell` | `createShellBridge`, `originRegistry`, `prepareNappletSrcdoc`, `buildNappletCsp`, `denyNappletControllerAccess`, `resolveShellEnvironment`, the `ShellAdapter` hooks and the revocation model. |
-| `@kehto/runtime` | The protocol engine behind the bridge: dispatch, ACL gates, service registry, `firewallState`. |
-| `@kehto/acl` | Grant state keyed by `dTag:hash`, `grant`, `revoke`, `block`, serialisation. |
-| `@kehto/firewall` | The pure `evaluate(config, state, observation)` engine, config mutations, `serialize`/`deserialize`. |
-| `@kehto/services` | Reference service handlers for identity, relay, outbox, storage, resource, theme, config, lists, notify, media and dm. |
-| `@kehto/nip` | `resolveNapplet` from `@kehto/nip/5d` for artifact verification and caching; NIP-51, NIP-65 and NIP-66 helpers. |
-| `@kehto/wm` | Window-management contracts the layouts implement. |
+| `@kehto/shell` | `createShellBridge`, `buildShellCapabilities`, `resolveShellEnvironment`, `prepareNappletSrcdoc`, `denyNappletControllerAccess`, `renderNappletFramePolicyMeta`, `originRegistry`, the `ShellAdapter` hooks and the revocation model. |
+| `@kehto/runtime` | The protocol engine behind the bridge: dispatch, the ACL gate (`bridge.runtime.aclState`, `ALL_CAPABILITIES`), the runtime firewall (`bridge.runtime.firewallState`), the `ServiceRegistry` and `ConsentRequest`. |
+| `@kehto/acl` | The grant store the runtime enforces, keyed by `dTag:hash`. kernl reaches it only through `bridge.runtime.aclState`. |
+| `@kehto/firewall` | The pure `evaluate()` engine `@kernl/guard` runs, and the `NappletRules` and `RateLimit` types `runtimeFirewallRules` translates into. |
+| `@kehto/services` | `createRelayPoolService`, `createIdentityService`, `createThemeService`, `createNotifyService`, `createLinkService`, `createResourceService`, `createDmService`, `createOutboxService` and `createRelayPoolOutboxRouter`. |
+| `@kehto/nip` | `resolveNapplet`, `openNappletArtifactCache` and `NAPPLET_KINDS` from `@kehto/nip/5d`. |
+| `@kehto/wm` | `LayoutStrategy`, `WindowState`, `Rect` and `WindowPlacement`, which the layouts implement. |
 
-kernl never re-implements a kehto primitive. When a seam is too narrow, kernl composes in front of it and files the gap; the two current gaps are in [Alpha status](../alpha-status.md#upstream-gaps).
+kernl never re-implements a kehto primitive. When a seam is too narrow, kernl composes in front of it and files the gap; the four open gaps are in [Alpha status](../alpha-status.md#upstream-gaps).
 
 ## One event layer
 
-Every relay connection, event store, signer, account, loader and event factory goes through applesauce v7 (D-002). `@kernl/core` creates exactly one of each per shell:
+Every relay connection, event store, signer, account and loader goes through applesauce v7 (D-002). `createKernl` creates exactly one of each per shell, or uses the one the host passes in:
 
-| Instance | Role | Who sees it |
+| Instance | Role | Adapted by |
 | --- | --- | --- |
-| `EventStore` | The in-memory, reactive store of every event the shell knows. | Services read from it on an applet's behalf. Applets never receive a reference. |
-| `RelayPool` | Every relay connection. | kehto's `RelayPoolLike`, `RelayPoolServiceOptions` and `DmRelayPool` contracts are satisfied by thin adapters over this one pool. |
-| `AccountManager` | The signed-in accounts and their signers. | Signers are applesauce signers. Keys never leave a signer instance; the only serialised form is `PasswordAccount`. |
+| `EventStore` | The in-memory, reactive store of every event the shell knows. Applets never receive a reference; `createIdentityProviders` (`applesauce/identity-providers.ts`) and `lookupReplaceable` read from it on their behalf. | kehto's identity service and the consent handler. |
+| `RelayPool` | Every relay connection. | `createRelayPoolHooks` and `createRelayPoolLike` (`applesauce/relay-hooks.ts`) for `ShellAdapter.relayPool`; `createAppletRelayBackend`, `createDmRelayPool` and `createOutboxRelayPool` (`applesauce/relay-backend.ts`) for the relay, dm and outbox services. All of them route through `selectRelayTier`. |
+| `AccountManager` | The signed-in accounts and their signers. | `createKernlAccounts` (`applesauce/accounts.ts`) refuses plaintext-key account types; `createAuthHooks` and `wrapAccountSigner` (`applesauce/auth-hooks.ts`) give kehto a signer that never reveals the account. |
 
 `nostr-tools` remains a transitive peer of kehto and applesauce. kernl source never imports it, and `scripts/check-dependency-rules.mjs` fails the build if it does.
 
@@ -58,40 +58,41 @@ Every relay connection, event store, signer, account, loader and event factory g
 | --- | --- | --- |
 | [`@kernl/guard`](../packages/guard.md) | `@kehto/firewall` | Flood control, visibility gate, focus-aware firewall, CSP profile, mitigation descriptions. Pure: no DOM, no timers, time is injected. |
 | [`@kernl/messaging`](../packages/messaging.md) | `@napplet/core` (types) | The provider contract and the composite backend. Structurally identical to kehto's `DmAdapter` so a composite can be handed to `createDmService` without translation, while the package stays free of a kehto dependency. |
-| [`@kernl/bridges`](../packages/bridges.md) | nothing | Locator parsing, the `Bridge` contract, the registry with its consent hook, the HTTP bridge. |
-| [`@kernl/core`](../packages/core.md) | all of the above, kehto, applesauce | Composition: adapters, applet resolution, mount plan, consent summaries, layouts, persistence. Browser-agnostic; the DOM is reached through injected hooks. |
+| [`@kernl/bridges`](../packages/bridges.md) | nothing | Locator parsing, the `Bridge` contract, the registry with its `authorize` hook, the HTTP bridge. |
+| [`@kernl/core`](../packages/core.md) | all of the above, kehto, applesauce | Composition: adapters, the applet lifecycle, the guard pipeline and runtime firewall rules, grants, consent summaries, layouts, the namespaced store. Browser-agnostic; the DOM is reached through `KernlHost` and `FrameLike`. |
 
 The three leaf packages have zero framework dependencies and import nothing from each other. Only `core` composes them. The dependency rules are enforced by `pnpm check:deps`.
 
 ## Where each NAP domain is served from
 
-An applet reaches the shell through the NAP domains in `window.napplet`. Each domain is served by one kehto service, fed by one kernl adapter or registry:
+An applet reaches the shell through the NAP domains in `window.napplet`. `createKernlServices` (`kernl-services.ts`) registers eight kehto services; `shell`, `inc` and `storage` are routed by kehto's runtime itself. What one applet sees is `buildShellCapabilities(adapter).domains` narrowed by `createEnvironmentResolver(grants)`.
 
-| NAP domain | kehto service | kernl supplies | Guarded by |
+| NAP domain | Served by | kernl supplies | Guarded by |
 | --- | --- | --- | --- |
-| `shell` | runtime | capability advertisement narrowed by `resolveEnvironment` | identity binding |
-| `identity` | `createIdentityService` | `AccountManager` active account | grant |
-| `relay` | relay service over `RelayPoolLike` | adapter over the shared `RelayPool`, reads from `EventStore` | ingress guard, rate limits, subscribe envelope cap |
-| `outbox` | outbox service | NIP-65 relay plan from `@kehto/nip`, publish through the pool | rate limits, consent for destructive kinds |
-| `keys` | keys proxy | applesauce signer behind consent | consent, grant |
-| `storage` | storage service | shell persistence namespaced per applet identity | rate limit `storage:write` |
-| `resource` | resource service | `BridgeRegistry.resolve` (HTTP bridge and others) | hidden resource allowance, resource envelope cap, SSRF policy |
-| `dm` | `createDmService` | `MessagingRegistry.composite()` | rate limit `dm:send`, provider availability |
-| `theme`, `config`, `lists`, `notify`, `media` | kehto reference services | shell state | grant where the domain writes |
-| `intent` | intent hooks | shell intent router | rate limit `intent:invoke` |
+| `shell`, `inc` | kehto runtime | the environment from `resolveShellEnvironment`, narrowed per identity | identity binding; baseline, no grant needed |
+| `storage` | kehto runtime | the ACL state quota (`grants.setStateQuota`) | baseline; rate `storage:write` |
+| `identity` | `createIdentityService` | the active signer through `createAuthHooks`; profile, follows, mutes and relays from `createIdentityProviders` | baseline (`identity:read`) |
+| `theme` | `createThemeService` | `KernlOptions.theme` when `isTheme` accepts it | baseline |
+| `relay` | `createRelayPoolService` | `createAppletRelayBackend` over the one pool, routed by `selectRelayTier` | grant; rates `relay:subscribe`, `relay:publish`; subscribe envelope cap |
+| `outbox` | `createOutboxService` | `createRelayPoolOutboxRouter` over `createOutboxRelayPool`, relay lists from `createIdentityProviders`, signing through the active signer (`denied:read-only` without one) | grant; rates `outbox:subscribe`, `outbox:publish`; consent for destructive kinds |
+| `resource` | `createResourceService` | `createBridgeResourceResolver(bridges)` with the requesting applet named through `resourceInitFor` | grant; rate `resource:bytes`, resource envelope cap, hidden resource allowance, SSRF policy |
+| `dm` | `createDmService` | `messaging.composite()` | grant; rate `dm:send`; provider availability |
+| `notify` | `createNotifyService` | `host.notify` with tone `info` | grant |
+| `link` | `createLinkService` | `host.openLink` after `LINK_PROTOCOLS` (`https:`, `mailto:`) allowed it | grant |
 
-The exact set an applet sees is whatever `shell.ready` delivers for its identity. [Identity and grants](./identity-and-grants.md) explains how that set is narrowed.
+Domains kernl does not register (`keys`, `media`, `config`, `cvm`, `upload`, `intent`, `fs`, `llm`, `cache`) have a row in `DOMAIN_CAPABILITIES` so a grant can be expressed, but the shell does not offer them and `grants.allowDomain` refuses them with `invalid:domain`. [Identity and grants](./identity-and-grants.md) explains how the set is narrowed.
 
 ## The mount path
 
-`@kernl/core` turns an address into a running window in three steps, and the order is load-bearing:
+`createAppletLifecycle` (`kernl-lifecycle.ts`) turns an address into a running window in four steps, and the order is load-bearing:
 
-1. **`resolveApplet(address)`** fetches the manifest event, verifies the signature, fetches the artifact bytes by hash through `@kehto/nip/5d` `resolveNapplet`, and re-verifies cached bytes on every read. Gateways and caches are accelerators, never identity.
-2. **`planMount(resolved)`** computes the identity `(dTag, artifactHash)`, the narrowed environment, the guard profile for this applet, and the prepared `srcdoc` with the CSP injected outside the signed bytes.
-3. **`mountApplet(plan, frame)`** registers the iframe window in `originRegistry`, sets the environment, calls `bridge.observeFrame`, and only then assigns `srcdoc`. The frame has `sandbox="allow-scripts"` and `denyNappletControllerAccess` applied; it never has `src` and never `allow-same-origin`.
+1. **`decodePointer(input)`** (`applets/pointer.ts`) turns the address into `{ kind: 'address' | 'event', … }` and nothing more. Trust comes from verifying the event, never from the pointer.
+2. **`resolve(pointer)`** fetches the manifest from the pointer's relay hints plus the `apps` tier (`fetchManifestEvent`), then verifies the signature and the artifact bytes by hash through `resolveApplet` over kehto's `resolveNapplet` (`applets/resolve.ts`). Cached bytes are re-hashed on every read. Gateways and caches are accelerators, never identity.
+3. **`plan(summary)`** calls `grants.ensure(identity)`, then `planMount` (`applets/plan.ts`): the environment from `resolveShellEnvironment`, the guard's CSP and the namespace prelude inserted by `prepareNappletSrcdoc`, `sandbox: 'allow-scripts'`, and `missingRequired`.
+4. **`mount(plan, frame)`** installs the profile's rates in kehto's runtime firewall with `applyRuntimeFirewallRules`, then `mountApplet` (`applets/mount.ts`) hardens the frame, registers the window in `originRegistry`, sets the environment, calls `bridge.observeFrame`, and only then assigns `srcdoc`. The frame has `sandbox="allow-scripts"` and `denyNappletControllerAccess` applied; it never has `src` and never `allow-same-origin`.
 
-Every revocation reason (`window-message`, `second-hello`, `invalid-hello`, `second-load`, `port-closed`, `host`) removes the iframe and drops the guard's state for that window. [Security posture](../policies/security-posture.md) lists the rules this path must keep.
+Every revocation reason (`window-message`, `second-hello`, `invalid-hello`, `second-load`, `port-closed`, `host`) and a guard quarantine removes the iframe and drops the guard's state for that window. [Security posture](../policies/security-posture.md) lists the rules this path must keep.
 
 ## The app
 
-`apps/web` is Astro 7 with Svelte 5 islands. It owns the landing site at `/`, the shell at `/app/`, and the glue that gives `@kernl/core` a DOM: iframe creation, the window manager's focus events (which feed the guard's visibility), the grants panel, the provider picker and the bridge consent prompts. The published packages contain none of this; the app is the only framework-dependent workspace (D-004).
+`apps/web` is Astro 7 with Svelte 5 islands. It owns the landing site at `/`, the shell at `/app/`, and the `KernlHost` that gives `@kernl/core` a page: `localStorage`, the consent dialog, notices, link confirmation and window visibility. It creates the iframes, wires `window.addEventListener('message', kernl.handleWindowMessage)` once, and renders the launcher, the grants panel per window, the guard panel and the provider picker. The published packages contain none of this; the app is the only framework-dependent workspace (D-004). `?preview=1` swaps in `preview-kernl.ts`, which implements the same `Kernl` contract without a network (D-011).
