@@ -10,31 +10,21 @@ kernl deploys as one static artifact: the landing site at the root, the shell at
 | `SITE_BASE` | Astro site | Path prefix the site is served under. | `/` | `/` |
 | `VITEPRESS_BASE` | Docs site | Path prefix the docs are served under. Always `SITE_BASE` plus `docs/`. | `/docs/` | `/docs/` |
 
-The Pages workflow reads `SITE_URL` and `SITE_BASE` from repository variables (`vars.SITE_URL`, `vars.SITE_BASE`) and falls back to the project subpath. When a custom domain is chosen, set those two variables; nothing in the source references a host (D-008).
+The Pages workflow reads `SITE_URL` and `SITE_BASE` from repository variables (`vars.SITE_URL`, `vars.SITE_BASE`) and falls back to the domain root: `https://kernlize.github.io/` and `/`. It sets `VITEPRESS_BASE` to `SITE_BASE` followed by `docs/`. When a custom domain is chosen, set those two variables; nothing in the source references a host ([D-008](../decisions.md#d-008)).
 
 ## Serve at a domain root
 
-Agent-readiness scanners such as amiagentready score the **origin**: they read the domain's homepage, `robots.txt` and `llms.txt` at the root, whatever path they are given (D-013). Measured on 2026-11-03:
+The site is served at the root of its own origin, **https://kernlize.github.io/**, because agent-readiness scanners grade the origin: they read `robots.txt` and `llms.txt` from the domain root whatever path they are given, and a project subpath such as `kernlize.github.io/web/` has neither ([D-013](../decisions.md#d-013)).
 
-| Hosting | `robots.txt` / `llms.txt` at the root | `Accept: text/markdown` | Score |
-| --- | --- | --- | --- |
-| Domain root, host negotiates Markdown (`scripts/serve-pages.mjs`) | yes | yes | **92** |
-| Domain root, plain static host | yes | no | 90 |
-| Project subpath `kernlize.github.io/web/` | no | no | about 82 |
-
-So production is a domain root: **https://kernlize.github.io/**, scored **90** live on 2026-11-03 (no failing checks; GitHub Pages cannot negotiate Markdown). The source repository is private and on the free plan, so it cannot serve Pages itself. The built `.pages/` artifact is published to the public `kernlize/kernlize.github.io` repository, which holds nothing else.
-
-Publishing is manual by decision (D-013): one command builds, runs the vocabulary and agent-readiness gates, and pushes the artifact.
+The source repository is private, so it does not serve Pages itself. The built `.pages/` artifact is published to the public `kernlize/kernlize.github.io` repository, which holds nothing else. Publishing is manual by decision ([D-013](../decisions.md#d-013)): one command builds, runs the vocabulary and agent-readiness gates, and pushes the artifact.
 
 ```bash
 pnpm site:publish
 ```
 
-`.github/workflows/pages.yml` builds and audits the same artifact on every push to `main`. It publishes only if a `SITE_PUBLISH_TOKEN` secret (a fine-grained token with Contents read/write on `kernlize/kernlize.github.io`) is ever added; none is configured. Organisation deploy keys are disabled for `kernlize`.
+`.github/workflows/pages.yml` builds and audits the same artifact on every push to `main`. It publishes only if a `SITE_PUBLISH_TOKEN` secret (a fine-grained token with Contents read/write on `kernlize/kernlize.github.io`) is ever added; none is configured.
 
-Moving to a custom domain later means setting the `SITE_URL` and `SITE_BASE` repository variables and adding a `CNAME` to the published artifact. With GitHub Pages that means a custom domain (set the variables to `https://<domain>/` and `/`). Content negotiation needs a host or edge rule that, for a request with `Accept: text/markdown`, serves the page's `.md` twin with `Vary: Accept`. `scripts/serve-pages.mjs` implements the rule and is the reference.
-
-To re-measure a build without deploying it, serve `.pages/` with `scripts/serve-pages.mjs`, expose it on a temporary public URL, and request `https://amiagentready.com/api/scan?url=<url>`. Add a query string to bypass the scanner's cache.
+To move to a custom domain, set the `SITE_URL` repository variable to `https://<domain>/`, keep `SITE_BASE` at `/`, and add a `CNAME` file to the published artifact. GitHub Pages cannot answer `Accept: text/markdown`; a host that should needs a rule that serves the page's `.md` twin with `Vary: Accept`. `scripts/serve-pages.mjs` implements the rule and is the reference.
 
 ## Build locally
 
@@ -84,6 +74,7 @@ The server resolves directory URLs to `index.html` and VitePress clean URLs to t
 env:
   SITE_URL: ${{ vars.SITE_URL || 'https://kernlize.github.io/' }}
   SITE_BASE: ${{ vars.SITE_BASE || '/' }}
+  VITEPRESS_BASE: ${{ vars.SITE_BASE || '/' }}docs/
 steps:
   - run: pnpm install --frozen-lockfile
   - run: pnpm site:build
@@ -96,7 +87,7 @@ steps:
 
 ## TypeDoc source links
 
-TypeDoc derives source links from the git remote named `origin`. In a checkout with commits but without that remote it warns once per package, and `typedoc.json` sets `treatWarningsAsErrors`, so `pnpm docs:api` fails. CI checkouts have the remote. Locally, add it (`git remote add origin https://github.com/kernlize/web.git`). Because `entryPointStrategy` is `packages`, command-line flags such as `--disableSources` do not reach the per-package converters; a configuration that never depends on the remote sets `packageOptions.sourceLinkTemplate` to `https://github.com/kernlize/web/blob/main/{path}#L{line}` in `typedoc.json`.
+`typedoc.json` sets `packageOptions.disableSources`, so the generated reference carries no links into the source repository, which is private during the alpha, and TypeDoc never consults a git remote. Because `entryPointStrategy` is `packages`, command-line flags such as `--disableSources` do not reach the per-package converters; set source options under `packageOptions`. When the repository opens, replace it with a `sourceLinkTemplate` pointing at the public tree. Without either option, TypeDoc looks up the `origin` remote and, if there is none, warns; `treatWarningsAsErrors` turns that into a failed `pnpm docs:api` ([Troubleshooting](../guides/troubleshooting.md#typedoc-fails-on-the-git-remote)).
 
 ## Hosting somewhere else
 

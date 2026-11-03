@@ -44,4 +44,4 @@ Rules 18 to 20 are enforced by `scripts/check-dependency-rules.mjs` (`pnpm check
 
 ## Reporting
 
-A posture violation is a bug of the highest severity in this repository, above any feature. Report it as an issue on `kernlize/web` with the rule number. If it involves a kehto seam, the issue is filed upstream too, and `DECISIONS.md` records the gap.
+A posture violation is a bug of the highest severity in this repository, above any feature. Report it to the maintainers with the rule number; the source repository is private during the alpha. If it involves a kehto seam, the issue is filed upstream too, and `DECISIONS.md` records the gap.

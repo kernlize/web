@@ -1,7 +1,7 @@
 ---
 import Site from '../layouts/Site.astro';
 import HeroFigure from '../components/HeroFigure.astro';
-import { absoluteUrl, href, NAV, REPO_URL, SITE_NAME } from '../lib/site';
+import { absoluteUrl, DECISIONS_URL, href, NAV, SITE_NAME } from '../lib/site';
 
 const description =
   'kernl is a shell that runs small applets in a sealed sandbox. Your identity, contacts, messages and files stay yours; applets borrow them only while you watch.';
@@ -54,9 +54,9 @@ const jsonLd = [
     '@context': 'https://schema.org',
     '@type': 'SoftwareSourceCode',
     name: 'kernl',
-    codeRepository: REPO_URL,
     programmingLanguage: 'TypeScript',
     license: 'https://opensource.org/license/mit',
+    url: DECISIONS_URL,
   },
 ];
 
@@ -153,7 +153,7 @@ const pages = [{ path: '', label: 'Home' }, ...NAV].map((page) => ({
         </div>
         <div>
           <p>Applets are verified by content hash before they run and re-checked on every read from cache. If the bytes change, the applet's grants die with them.</p>
-          <p><a class="button" href={href('developers/')}>Build on it</a> <a class="button" href={REPO_URL}>Read the source</a></p>
+          <p><a class="button" href={href('developers/')}>Build on it</a> <a class="button" href={DECISIONS_URL}>Read the decisions</a></p>
         </div>
       </div>
     </div>

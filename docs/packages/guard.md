@@ -13,8 +13,10 @@ Ingress flood control, visibility gating, focus-aware firewall and CSP profile f
 
 ## Install
 
-```bash
-pnpm add @kernl/guard
+`@kernl/guard` is not yet published to npm, so `pnpm add @kernl/guard` fails. During the alpha it is built from the kernl source repository, which is private, and consumed as a workspace dependency. The [package index](./index.md#install) has the steps.
+
+```json
+{ "dependencies": { "@kernl/guard": "workspace:^" } }
 ```
 
 ## Purpose
@@ -27,7 +29,7 @@ The guard is the set of protections between an applet and the user. kehto's `@ke
 
 | Export | Signature | Description |
 | --- | --- | --- |
-| `GUARD_PROFILES` | `readonly GuardProfile[]` | `['strict', 'balanced', 'relaxed']`, tightest first. `strict` is the shell default (D-003). |
+| `GUARD_PROFILES` | `readonly GuardProfile[]` | `['strict', 'balanced', 'relaxed']`, tightest first. `strict` is the shell default ([D-003](../decisions.md#d-003)). |
 | `createGuardConfig` | `(profile: GuardProfile) => GuardConfig` | The profile's `GuardLimits` plus the derived kehto `FirewallConfig`: `defaultRate` from the `generic` class, `burstGuard` from `ingressBurst`, `unfocusedMultiplier`, and three `block` content matchers (`size:resource:bytes`, `size:relay:subscribe`, `size:outbox:subscribe`) at `cap + 1` bytes. No per-applet rules. |
 | `applyNappletRules` | `(config: GuardConfig, napplet: string) => GuardConfig` | Returns a new config whose firewall carries every class rate as a per-applet `rateLimits` entry plus a `globalRate` equal to the `generic` rate, all with action `block`. Existing policy and matchers are kept; rates for the applet are overwritten. The input is not modified. |
 | `GuardProfile` | `'strict' \| 'balanced' \| 'relaxed'` | Profiles change limits only; every mitigation stays on in every profile. |
@@ -118,4 +120,4 @@ describeMitigations(config).find((m) => m.id === 'ingress-flood')?.limit; // '8 
 
 ## API reference
 
-Generated module: [`_kernl_guard`](/api/modules/_kernl_guard.html){target="_self"}
+Generated module: [`_kernl_guard`](../api/modules/_kernl_guard.html){target="_self"}

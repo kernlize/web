@@ -8,7 +8,7 @@ A grant is something the user gave and can take back. This page covers what the 
 
 **During use.** kehto asks before signing a destructive kind. kernl's consent handler turns the request into a `ConsentSummary` from `describeChange` and the host shows it: the title ("Update your profile", "Change who you follow", "Delete 2 events", "Change your connections list", "Change the list …") and one line per change with the value before and after. The applet is named by its display name and the short hash of its build. *Allow* resolves the request with `true`; dismissing it resolves `false`. Nothing is remembered; the next destructive write asks again.
 
-**In the grants panel.** Every domain the shell offers, as a switch; a *Block* switch; and, when the guard has quarantined the window, a control to lift it. The panel reads `kernl.grants.get(identity)` and re-renders on `kernl.grants.changes$`.
+**In the grants panel.** Every domain the shell offers, as a switch; a **Block applet** button (**Unblock applet** once blocked); and, when the guard has quarantined the window, **Release from quarantine**. The panel reads `kernl.grants.get(identity)` and re-renders on `kernl.grants.changes$`.
 
 ## What a grant is keyed by
 
@@ -47,7 +47,7 @@ Every change commits the record, which does three things in order: persist it to
 
 - **`allowDomain`** refuses a domain the shell does not offer with `invalid:domain`. A newly allowed domain is in the ACL at once; a running applet was told its environment at mount and is not told again, so the domain appears in its `shell.init` the next time it is opened.
 - **`revokeDomain`** refuses the baseline with `denied:baseline-domain`. The ACL loses the domain's capabilities at once, and kehto refuses the applet's next envelope that needs one of them.
-- **`block`** keeps the record's domains but denies every capability in the ACL and makes `createEnvironmentResolver` advertise `shell` alone at the next mount. It does not close an open window; the panel closes it with `handle.close()`. **`unblock`** restores the record's capabilities.
+- **`block`** keeps the record's domains but denies every capability in the ACL and makes `createEnvironmentResolver` advertise `shell` alone at the next mount. It does not close an open window, and neither does the panel; the open window keeps running under the ACL's denials until it is closed. **`unblock`** restores the record's capabilities.
 - **`setStateQuota`** writes the quota for the `storage` domain into the ACL and emits a change.
 - **`ensure(identity)`**, on the `KernlGrants` type the shell holds internally, is called by `kernl.plan` so an applet with no record still gets an explicit, baseline-only ACL entry.
 
@@ -65,4 +65,4 @@ A `resource` request from an applet that holds the `resource` domain is resolved
 - Access to `window.nostr`, raw keys or the `EventStore`.
 - A global grant across applets.
 - A grant by a developer flag or a URL parameter.
-- A domain the shell does not register. `DOMAIN_CAPABILITIES` has rows for `keys`, `media`, `config`, `cvm`, `upload`, `intent`, `fs`, `llm` and `cache`, but `availableDomains()` does not list them and `allowDomain` refuses them.
+- A domain the shell does not serve. `DOMAIN_CAPABILITIES` has rows for `config`, `cvm`, `upload`, `intent`, `fs`, `llm` and `cache`, but `availableDomains()` does not list them and `allowDomain` refuses them with `invalid:domain`. (`keys` and `media` are listed, because kehto's runtime serves them natively, though kernl wires nothing behind them.)

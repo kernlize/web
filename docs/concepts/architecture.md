@@ -16,11 +16,12 @@ kernl is three layers. kehto supplies the primitives, four kernl packages supply
 │  focus firewall,   registry, composite  registry, HTTP bridge        │
 │  CSP, profiles     dm adapter           with SSRF policy             │
 ├──────────────────────────────────────────────────────────────────────┤
-│  kehto   @kehto/shell · runtime · acl · firewall · services · nip · wm │
-│  applesauce   EventStore · RelayPool · AccountManager · signers ·     │
-│               loaders                                                 │
+│  kehto   @kehto/shell · runtime · acl · firewall · services · nip ·  │
+│          wm                                                          │
+│  applesauce   EventStore · RelayPool · AccountManager · signers ·    │
+│               loaders                                                │
 ├──────────────────────────────────────────────────────────────────────┤
-│  @napplet/core   NAP wire types, NapDomain, envelope dispatch         │
+│  @napplet/core   NAP wire types, NapDomain, envelope dispatch        │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -38,11 +39,11 @@ kehto is the runtime authority for how a NIP-5D shell composes. kernl uses these
 | `@kehto/nip` | `resolveNapplet`, `openNappletArtifactCache` and `NAPPLET_KINDS` from `@kehto/nip/5d`. |
 | `@kehto/wm` | `LayoutStrategy`, `WindowState`, `Rect` and `WindowPlacement`, which the layouts implement. |
 
-kernl never re-implements a kehto primitive. When a seam is too narrow, kernl composes in front of it and files the gap; the four open gaps are in [Alpha status](../alpha-status.md#upstream-gaps).
+kernl never re-implements a kehto primitive. When a seam is too narrow, kernl composes in front of it and takes the gap upstream; the four gaps found so far, still to be filed, are in [Alpha status](../alpha-status.md#upstream-gaps).
 
 ## One event layer
 
-Every relay connection, event store, signer, account and loader goes through applesauce v7 (D-002). `createKernl` creates exactly one of each per shell, or uses the one the host passes in:
+Every relay connection, event store, signer, account and loader goes through applesauce v7 ([D-002](../decisions.md#d-002)). `createKernl` creates exactly one of each per shell, or uses the one the host passes in:
 
 | Instance | Role | Adapted by |
 | --- | --- | --- |
@@ -65,7 +66,7 @@ The three leaf packages have zero framework dependencies and import nothing from
 
 ## Where each NAP domain is served from
 
-An applet reaches the shell through the NAP domains in `window.napplet`. `createKernlServices` (`kernl-services.ts`) registers eight kehto services; `shell`, `inc` and `storage` are routed by kehto's runtime itself. What one applet sees is `buildShellCapabilities(adapter).domains` narrowed by `createEnvironmentResolver(grants)`.
+An applet reaches the shell through the NAP domains in `window.napplet`. `createKernlServices` (`kernl-services.ts`) registers eight kehto services; `shell`, `inc`, `storage`, `keys` and `media` are routed by kehto's runtime itself. What one applet sees is `buildShellCapabilities(adapter).domains` narrowed by `createEnvironmentResolver(grants)`.
 
 | NAP domain | Served by | kernl supplies | Guarded by |
 | --- | --- | --- | --- |
@@ -79,8 +80,9 @@ An applet reaches the shell through the NAP domains in `window.napplet`. `create
 | `dm` | `createDmService` | `messaging.composite()` | grant; rate `dm:send`; provider availability |
 | `notify` | `createNotifyService` | `host.notify` with tone `info` | grant |
 | `link` | `createLinkService` | `host.openLink` after `LINK_PROTOCOLS` (`https:`, `mailto:`) allowed it | grant |
+| `keys`, `media` | kehto runtime | nothing: hotkeys are not forwarded and no media hook is wired | grant |
 
-Domains kernl does not register (`keys`, `media`, `config`, `cvm`, `upload`, `intent`, `fs`, `llm`, `cache`) have a row in `DOMAIN_CAPABILITIES` so a grant can be expressed, but the shell does not offer them and `grants.allowDomain` refuses them with `invalid:domain`. [Identity and grants](./identity-and-grants.md) explains how the set is narrowed.
+So the shell offers thirteen domains: the baseline `shell`, `inc`, `theme`, `identity` and `storage`, and `relay`, `outbox`, `resource`, `dm`, `notify`, `link`, `keys` and `media` behind a grant. Domains kernl does not serve (`config`, `cvm`, `upload`, `intent`, `fs`, `llm`, `cache`) have a row in `DOMAIN_CAPABILITIES` so a grant can be expressed, but the shell does not offer them and `grants.allowDomain` refuses them with `invalid:domain`. [Identity and grants](./identity-and-grants.md) explains how the set is narrowed.
 
 ## The mount path
 
@@ -95,4 +97,4 @@ Every revocation reason (`window-message`, `second-hello`, `invalid-hello`, `sec
 
 ## The app
 
-`apps/web` is Astro 7 with Svelte 5 islands. It owns the landing site at `/`, the shell at `/app/`, and the `KernlHost` that gives `@kernl/core` a page: `localStorage`, the consent dialog, notices, link confirmation and window visibility. It creates the iframes, wires `window.addEventListener('message', kernl.handleWindowMessage)` once, and renders the launcher, the grants panel per window, the guard panel and the provider picker. The published packages contain none of this; the app is the only framework-dependent workspace (D-004). `?preview=1` swaps in `preview-kernl.ts`, which implements the same `Kernl` contract without a network (D-011).
+`apps/web` is Astro 7 with Svelte 5 islands. It owns the landing site at `/`, the shell at `/app/`, and the `KernlHost` that gives `@kernl/core` a page: `localStorage`, the consent dialog, notices, link confirmation and window visibility. It creates the iframes, wires `window.addEventListener('message', kernl.handleWindowMessage)` once, and renders the launcher, the grants panel per window, the guard panel and the provider picker. The published packages contain none of this; the app is the only framework-dependent workspace ([D-004](../decisions.md#d-004)). `?preview=1` swaps in `preview-kernl.ts`, which implements the same `Kernl` contract without a network ([D-011](../decisions.md#d-011)).

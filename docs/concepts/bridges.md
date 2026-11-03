@@ -1,6 +1,6 @@
 # Bridges
 
-Nostr is kernl's identity and resolution layer. It is not the only protocol kernl speaks. A bridge is a shell-owned service that resolves a protocol-specific locator to bytes, a job or a conversation, behind the same consent and quota model as everything else. Bridges are named by what they do for the user, never by the protocol they speak (D-010).
+Nostr is kernl's identity and resolution layer. It is not the only protocol kernl speaks. A bridge is a shell-owned service that resolves a protocol-specific locator to bytes, a job or a conversation, behind the same consent and quota model as everything else. Bridges are named by what they do for the user, never by the protocol they speak ([D-010](../decisions.md#d-010)).
 
 ## Locators
 
@@ -66,7 +66,7 @@ The shell holds one `BridgeRegistry`, built with `createBridgeRegistry({ authori
 | authorise | `denied:bridge` | the bridge id |
 | resolve | whatever the bridge threw (`denied:…`, `unavailable:…`, `invalid:…`); a non-`Error` rejection is reported as its text | the bridge id |
 
-Every outcome, successful or not, is reported to `onResolve` as `{ bridge, scheme, ok, reason? }`. The authoriser is a `BridgeAuthorizer`: `(locator, bridge, context) => boolean | Promise<boolean>`. Without one, every request is allowed. kernl's shell wires a consent prompt here that shows the user the locator's label, the bridge's description rows and which applet asked. Allowing a request from an applet is a grant keyed by that applet's identity and the locator's host, and it is listed and revocable like every other grant. See `registry.feature`.
+Every outcome, successful or not, is reported to `onResolve` as `{ bridge, scheme, ok, reason? }`. The authoriser is a `BridgeAuthorizer`: `(locator, bridge, context) => boolean | Promise<boolean>`. Without one, every request is allowed. The composed shell has none: `createKernl` builds its registry with `createDefaultBridges()` and no `authorize`, so a `resource` request from an applet that holds the `resource` grant is checked by the HTTP bridge's policy and nothing else. There is no per-host consent prompt and no per-host grant in this draft ([Alpha status](../alpha-status.md#what-does-not-work-yet)); wiring one is on the [Roadmap](../roadmap.md#_6-guard). A host can pass its own registry with an `authorize` hook in `KernlOptions.bridges`. See `registry.feature`.
 
 ## The HTTP bridge
 
@@ -82,7 +82,7 @@ Every outcome, successful or not, is reported to `onResolve` as `{ bridge, schem
 
 The bridge's `schemes` and `exposure` follow the policy: with the default it serves `https` only and declares `revealsAddress: true`, `encryptedInTransit: true`, `publicActivity: false`. A shell that adds `'http:'` to `allowedSchemes` gets a bridge that serves `https` and `http` and declares `encryptedInTransit: false` (`http-bridge.feature`, scenario "the shell can admit the unencrypted scheme and the bridge says so").
 
-Before every request, including every redirect hop, the bridge checks the URL. A scheme outside the policy fails with `denied:scheme <protocol>`. A host that `isBlockedHostname` or `isPrivateAddress` recognises fails with `denied:private-address <host>`, unless it is listed in `allowPrivateHosts`. When `resolveHost` is supplied, the host's addresses are checked too and a private one fails with `denied:private-address <host> -> <ip>`. The fetch API cannot pin a connection to a validated address, so the resolver check narrows the DNS-rebinding window without closing it; the shell closes it by also fetching through a guard that resolves names once.
+Before every request, including every redirect hop, the bridge checks the URL. A scheme outside the policy fails with `denied:scheme <protocol>`. A host that `isBlockedHostname` or `isPrivateAddress` recognises fails with `denied:private-address <host>`, unless it is listed in `allowPrivateHosts`. When `resolveHost` is supplied, the host's addresses are checked too and a private one fails with `denied:private-address <host> -> <ip>`. No caller supplies it in this draft: `createDefaultBridges()` creates the HTTP bridge without `http.resolveHost`, so the composed shell judges a hostname by `isBlockedHostname` and `isPrivateAddress` on the literal alone. A public name that resolves to a private address is not caught, and there is no DNS-rebinding protection. Even with a resolver, the fetch API cannot pin a connection to the validated address, so the check would narrow the rebinding window without closing it.
 
 | Check | Blocked |
 | --- | --- |
@@ -90,7 +90,7 @@ Before every request, including every redirect hop, the bridge checks the URL. A
 | `isPrivateAddress`, IPv6 | `::` and `::1`, `fe80::/10`, `fc00::/7`, `ff00::/8`; brackets are stripped; an IPv4-mapped address (`::ffff:127.0.0.1`) is judged as its IPv4 part |
 | `isBlockedHostname` | `localhost` and any name under `.localhost`, `.local` or `.internal`, case-insensitively, trailing dot ignored |
 
-Strings that are neither a valid IPv4 nor a valid IPv6 literal (`1.2.3`, `256.1.1.1`, `1::2::3`, `example.com`) are not addresses and pass `isPrivateAddress`; a hostname is judged by `isBlockedHostname` and, if a resolver is present, by what it resolves to.
+Strings that are neither a valid IPv4 nor a valid IPv6 literal (`1.2.3`, `256.1.1.1`, `1::2::3`, `example.com`) are not addresses and pass `isPrivateAddress`; a hostname is judged by `isBlockedHostname` and, only if a resolver was supplied, by what it resolves to.
 
 Redirects (`301`, `302`, `303`, `307`, `308`) are followed manually, so each hop passes the same checks. More than `maxRedirects` hops fails with `denied:too-many-redirects`; a redirect without a usable `Location` fails with `invalid:redirect`. Requests race `AbortSignal.timeout(timeoutMs)` and the caller's signal: the time limit fails with `unavailable:timeout`, a caller cancel with `unavailable:aborted`, any other fetch failure with `unavailable:network <message>`. Caller headers are forwarded on every hop.
 
@@ -130,7 +130,7 @@ kehto's resource service takes a `fetch(url, init)` function. `createBridgeResou
 
 ## Why bridges are shell-owned
 
-An applet could, in principle, be given a WebRTC or WebSocket path and speak these protocols itself. kernl does not allow that, because the CSP [never loosens](./guard.md#why-csp-never-loosens). Routing every protocol through a shell service means every protocol gets the same consent prompt, the same quota, the same exposure description and the same revocation. The applet asks for a locator; the user decides; the shell does the talking.
+An applet could, in principle, be given a WebRTC or WebSocket path and speak these protocols itself. kernl does not allow that, because the CSP [never loosens](./guard.md#why-csp-never-loosens). Routing every protocol through a shell service means every protocol gets the same grant, the same quota, the same exposure description and the same revocation, and a consent prompt per request can be added in one place. The applet asks for a locator; the user decides; the shell does the talking.
 
 ## Related
 

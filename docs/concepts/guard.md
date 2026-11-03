@@ -2,7 +2,7 @@
 
 The guard is everything that stands between an applet and the user. Some of it is kehto's and kernl turns it on; some of it is kernl's and runs in front of kehto's bridge. The user sees it as one list of mitigations with reasons. This page is that list, with the numbers.
 
-The rule from `SOUL.md`: if kehto ships a mitigation, kernl enables it by default and documents how to loosen it. Loosening is per applet and done by the user, never globally and never by a developer flag (D-003).
+The rule from `SOUL.md`: if kehto ships a mitigation, kernl enables it by default and documents how to loosen it. Loosening is per applet and done by the user, never globally and never by a developer flag ([D-003](../decisions.md#d-003)).
 
 ## The eleven mitigations
 
@@ -97,7 +97,7 @@ Three stateful objects, each built from the same `GuardConfig`, each keyed by `w
 
 ## Where enforcement happens
 
-kehto's bridge owns the `MessagePort` an applet speaks over and shows the host that traffic only through the observe-only `ShellAdapter.onNappletMessage` hook, so kernl cannot sit between the port and the runtime (D-001). Enforcement is therefore layered (D-012):
+kehto's bridge owns the `MessagePort` an applet speaks over and shows the host that traffic only through the observe-only `ShellAdapter.onNappletMessage` hook, so kernl cannot sit between the port and the runtime ([D-001](../decisions.md#d-001)). Enforcement is therefore layered ([D-012](../decisions.md#d-012)):
 
 | Traffic | Where | How |
 | --- | --- | --- |
@@ -169,4 +169,4 @@ It is not an access control list. Whether an applet may use a domain is a grant,
 
 - [`@kernl/guard`](../packages/guard.md)
 - [Change the guard profile](../how-tos/change-guard-profile.md)
-- [Build an applet for kernl](../tutorials/build-an-applet-for-kernl.md)
+- [Applets under kernl](./applets-under-kernl.md)

@@ -15,7 +15,7 @@ The four non-HTTP bridges are complete up to the backend interface they call. Su
 
 ## 2. Implement it outside the published packages
 
-A backend talks to something: a WebTorrent client, a downloader daemon, a mail account. That belongs in `apps/web` (or in a package of its own with its own dependencies), not in `@kernl/bridges`, which stays dependency-free.
+A backend talks to something: a WebTorrent client, a downloader daemon, a mail account. That belongs in the host app (`apps/web`, or your own page) or in a package of its own with its own dependencies, not in `@kernl/bridges`, which stays dependency-free. The samples on this page type-check against the built packages.
 
 ```ts
 import type { BridgeContext, TorrentBackend } from '@kernl/bridges';
@@ -38,21 +38,45 @@ export function createWebTorrentBackend(client: WebTorrentLike): TorrentBackend 
 }
 ```
 
-Return a stable `id`: the shell uses it to show job state and to let the user cancel. The `name` becomes the job's `label`. Reject with stable reasons (`unavailable:engine-offline`, `denied:…`); the registry reports and rethrows them unchanged (`registry.feature`, scenario "a bridge failure is reported and rethrown").
+Return a stable `id`: it is the job's identity in the `202` body the applet receives, and what a future downloads view would use to show state and cancel. The `name` becomes the job's `label`. Reject with stable reasons (`unavailable:engine-offline`, `denied:…`); the registry reports and rethrows them unchanged (`registry.feature`, scenario "a bridge failure is reported and rethrown").
 
 ## 3. Hand it to the bridge
 
-`createTorrentBridge(backend?)` takes the backend as an optional argument. Without one it reports `{ available: false, reason: 'no-backend' }` and rejects every `resolve()` with `unavailable:no-backend`; with one it reports available and routes `resolve()` to `backend.add`. In `createKernl`, replace the bare registration:
+`createTorrentBridge(backend?)` takes the backend as an optional argument. Without one it reports `{ available: false, reason: 'no-backend' }` and rejects every `resolve()` with `unavailable:no-backend`; with one it reports available and routes `resolve()` to `backend.add`.
+
+The shell's bridges are registered by `createDefaultBridges` in `packages/core/src/bridges/default-registry.ts`, which `createKernl` calls when `KernlOptions.bridges` is absent. Its signature is `createDefaultBridges(options?: DefaultBridgesOptions)`, where the options are the registry's `authorize` and `onResolve` plus `http` for the web bridge. It takes no backends, and a registry cannot replace a bridge it already holds (a second `torrent` throws `invalid:duplicate-bridge torrent`). So a host that supplies a backend builds the same five registrations itself, with its backend in place, and passes the registry as `KernlOptions.bridges`:
 
 ```ts
-import { createBridgeRegistry, createTorrentBridge, formatLocator } from '@kernl/bridges';
+import { createKernl, type KernlHost } from '@kernl/core';
+import {
+  createBridgeRegistry,
+  createHttpBridge,
+  createMailBridge,
+  createNzbBridge,
+  createSoulseekBridge,
+  createTorrentBridge,
+  type BridgeRegistry,
+  type TorrentBackend,
+} from '@kernl/bridges';
 
-const registry = createBridgeRegistry({
-  authorize: (locator, bridge) => confirm(`Open ${formatLocator(locator)} with ${bridge.label}?`),
-  onResolve: (event) => log.push(event),
-});
-registry.register(createTorrentBridge(createWebTorrentBackend(client)));
+declare const host: KernlHost;
+declare const client: Parameters<typeof createWebTorrentBackend>[0];
+
+export function createBridgesWithTorrent(torrent: TorrentBackend): BridgeRegistry {
+  const registry = createBridgeRegistry({ onResolve: (event) => console.info('bridge', event) });
+  registry.register(createHttpBridge());
+  registry.register(createTorrentBridge(torrent));
+  registry.register(createNzbBridge());
+  registry.register(createSoulseekBridge());
+  registry.register(createMailBridge());
+  return registry;
+}
+
+const kernl = createKernl({ host, bridges: createBridgesWithTorrent(createWebTorrentBackend(client)) });
+kernl.bridges.forScheme('magnet')?.availability(); // { available: true }
 ```
+
+The web, NZB, Soulseek and mail bridges are the same as the defaults. To ship the backend inside kernl itself, change the torrent registration in `createDefaultBridges` instead.
 
 Check the bridge's `exposure`. The torrent bridge declares `revealsAddress: true`, `encryptedInTransit: false`, `publicActivity: true`, which is the truth for a client in a public swarm. The factory does not take an exposure argument, so if your backend changes the truth of any field (a backend that tunnels through a seedbox does not reveal the user's address), register a bridge object with the same `resolve` and a corrected `exposure`:
 
@@ -61,11 +85,15 @@ const stock = createTorrentBridge(createWebTorrentBackend(client));
 registry.register({ ...stock, exposure: { ...stock.exposure, revealsAddress: false } });
 ```
 
+Register that object in place of `createTorrentBridge(torrent)` in `createBridgesWithTorrent`.
+
 The user reads these three booleans, rendered by `describeBridge`, before consenting; they must be right.
 
-## 4. Consent and quota are already there
+## 4. What already applies, and what does not yet
 
-You do not add a prompt. `BridgeRegistry.resolve` checks `availability()`, then calls the shell's `BridgeAuthorizer`, before any bridge runs; a denial rejects with `denied:bridge`. The guard's `resource:bytes` bucket and hidden-window allowance apply before the registry is reached. A `job` result reaches kehto's resource service as a `202 Accepted` JSON body through `createBridgeResourceResolver`, and shows up in the shell's downloads list with the bridge's label. Every outcome is also reported to `onResolve` as a `BridgeResolveEvent`.
+`BridgeRegistry.resolve` checks `availability()`, then calls the registry's `authorize` hook if one was given, before any bridge runs; a denial rejects with `denied:bridge`. The composed shell wires no `BridgeAuthorizer`: `createKernl` uses `createDefaultBridges()` without `authorize`, so a request from an applet that holds the `resource` grant reaches your bridge without a per-request prompt. A host that wants one passes `authorize` to `createBridgeRegistry` in the sample above; a consent prompt per host in the shell is on the [Roadmap](../roadmap.md#_6-guard) ([Alpha status](../alpha-status.md#what-does-not-work-yet)).
+
+The guard's `resource:bytes` rate and hidden-window allowance apply to `resource.*` envelopes. A `job` result reaches kehto's resource service as a `202 Accepted` JSON body through `createBridgeResourceResolver`; the applet that asked receives it. The shell has no downloads list yet, so nothing shows job state to the user; that UI is roadmap work. Every outcome is also reported to `onResolve` as a `BridgeResolveEvent`.
 
 ## 5. Specify and document
 

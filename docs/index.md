@@ -20,25 +20,27 @@ kehto ships `@kehto/{acl,firewall,runtime,shell,services,nip,wm}` and deliberate
 | Protocols | One identity layer, many [bridges](./concepts/bridges.md) named by what they do for the user, never by the wire format. |
 | Messaging | Any reasonable private-messaging protocol, exposed through one contract. [Providers](./concepts/messaging.md) describe their security properties truthfully and the shell does not rank them. |
 
-kernl does not fork kehto. When kehto lacks a hook kernl needs, kernl composes around it and files the gap upstream. The four gaps filed so far are recorded in [D-001](./alpha-status.md#upstream-gaps).
+kernl does not fork kehto ([D-001](./decisions.md#d-001)). When kehto lacks a hook kernl needs, kernl composes around it and takes the gap upstream. The four gaps found so far, still to be filed upstream, are listed in [Alpha status](./alpha-status.md#upstream-gaps).
 
 ## Three doors
 
-**Use the shell.** Run kernl locally, sign in with a browser extension or a remote signer, and open an applet by its address. Start with [Run the shell](./tutorials/run-the-shell.md), then read [Grant and revoke](./how-tos/grant-and-revoke.md) to understand what the shell asks you and why.
+**Use the shell.** Try the hosted preview at [kernlize.github.io/app/?preview=1](https://kernlize.github.io/app/?preview=1), which needs no install and no account, or open the live shell, sign in with a browser extension or a remote signer, and open an applet by its address. Start with [Run the shell](./tutorials/run-the-shell.md), then read [Grant and revoke](./how-tos/grant-and-revoke.md) to understand what the shell asks you and why.
 
-**Build an applet for it.** Applets are ordinary NIP-5D napplets; kernl adds nothing to the wire format. What kernl changes is the posture: fewer domains advertised until granted, deferral while hidden, and rate limits that tighten when you lose focus. [Build an applet for kernl](./tutorials/build-an-applet-for-kernl.md) tells you what to expect and how to test against it.
+**Build an applet for it.** Applets are ordinary NIP-5D napplets; kernl adds nothing to the wire format. What kernl changes is the posture: fewer domains advertised until granted, budgets that tighten while hidden or unfocused, and quarantine for floods. [Applets under kernl](./concepts/applets-under-kernl.md) tells you what to expect and how to test against it.
 
-**Extend the shell.** Add a [messaging provider](./how-tos/add-a-messaging-provider.md), a [bridge backend](./how-tos/add-a-bridge-backend.md), or change how the guard is composed. Start with [Architecture](./concepts/architecture.md) and the [package pages](./packages/index.md).
+**Extend the shell.** [Embed kernl core](./how-tos/embed-kernl-core.md) in your own page, add a [messaging provider](./how-tos/add-a-messaging-provider.md) or a [bridge backend](./how-tos/add-a-bridge-backend.md), or change how the guard is composed. Start with [Architecture](./concepts/architecture.md) and the [package pages](./packages/index.md).
 
 ## How these docs are organised
 
 | Section | What you find there |
 | --- | --- |
-| [Concepts](./concepts/architecture.md) | Why the shell is shaped the way it is: layering, guard, identity, messaging, bridges. |
+| [Concepts](./concepts/architecture.md) | Why the shell is shaped the way it is: layering, guard, identity, messaging, bridges, and what an applet meets. |
 | [Tutorials](./tutorials/run-the-shell.md) | End-to-end walkthroughs that leave you with something running. |
 | [How-tos](./how-tos/change-guard-profile.md) | One task each, with the exact calls. |
-| [Packages](./packages/index.md) | One page per published package: version, install, exports, scope. |
-| [API reference](./reference/api.md) | Generated from source JSDoc by TypeDoc. |
+| [Troubleshooting](./guides/troubleshooting.md) | Failures people hit with this draft, and their fixes. |
+| [Packages](./packages/index.md) | One page per package: version, install, exports, scope. |
+| [API reference](./reference/api.md) and [error reasons](./reference/errors.md) | Generated from source JSDoc by TypeDoc; every reason string the packages throw. |
+| [Decisions](./decisions.md) | The `D-NNN` decision log these pages cite. |
 | [Policies](./policies/index.md) | Rules the repository enforces mechanically: vocabulary, security posture, spec conformance. |
 
 Protocol vocabulary is used freely in these pages because they are written for developers. The public website and the shell UI follow a different rule, described in [Public vocabulary](./policies/public-vocabulary.md).
@@ -47,4 +49,4 @@ Agents reading this site should start at [Agent access](./agent-access.md).
 
 ## Licence and cost
 
-kernl is free software under the MIT licence. Every package and the shell cost $0; there is no paid tier and no account to buy. The source, these docs and the decisions behind both live at [kernlize/web](https://github.com/kernlize/web).
+kernl is free software under the MIT licence. Every package and the shell cost $0; there is no paid tier and no account to buy. During the alpha the source repository is private; the site, these docs and the [decisions](./decisions.md) are public at [kernlize.github.io](https://kernlize.github.io/).

@@ -177,6 +177,24 @@ function sectionsFor(docs: DocsPage[], sidebar: SidebarGroup[], docsUrl: string)
 }
 
 /**
+ * Inline VitePress `<!--@include: path{start,end}-->` directives so a Markdown twin carries the included text, not the directive.
+ * @param source Page source.
+ * @param dir Directory the page lives in; include paths resolve against it.
+ * @returns The source with every include replaced by the lines it selects.
+ */
+export async function expandIncludes(source: string, dir: string): Promise<string> {
+  const pattern = /<!--\s*@include:\s*([^{\s]+?)(?:\{(\d*),(\d*)\})?\s*-->/g;
+  let out = source;
+  for (const [directive, file, start, end] of source.matchAll(pattern)) {
+    const lines = (await readFile(path.resolve(dir, file), 'utf8')).split('\n');
+    const from = start ? Number(start) - 1 : 0;
+    const to = end ? Number(end) : lines.length;
+    out = out.replace(directive, lines.slice(from, to).join('\n'));
+  }
+  return out;
+}
+
+/**
  * Write a `.md` twin next to every built page, then `llms.txt` and `llms-full.txt` at the docs root.
  * @param siteConfig Resolved VitePress site config from `buildEnd`.
  * @param sidebar Sidebar groups, used to order the llms.txt sections.
@@ -186,7 +204,8 @@ export async function writeAgentOutput(siteConfig: SiteConfig, sidebar: SidebarG
   const docs: DocsPage[] = [];
   for (const relativePath of [...siteConfig.pages].sort()) {
     if (relativePath === '404.md') continue;
-    const source = await readFile(path.join(siteConfig.srcDir, relativePath), 'utf8');
+    const sourcePath = path.join(siteConfig.srcDir, relativePath);
+    const source = await expandIncludes(await readFile(sourcePath, 'utf8'), path.dirname(sourcePath));
     const data = pages.get(relativePath);
     const markdown = docsPageMarkdown({ relativePath, source, frontmatter: data?.frontmatter ?? {} }, docsUrl);
     const target = path.join(siteConfig.outDir, relativePath);

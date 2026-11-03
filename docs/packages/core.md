@@ -13,8 +13,10 @@ Opinionated shell composition over kehto and applesauce. Browser-agnostic: the D
 
 ## Install
 
-```bash
-pnpm add @kernl/core
+`@kernl/core` is not yet published to npm, so `pnpm add @kernl/core` fails. During the alpha it is built from the kernl source repository, which is private, and consumed as a workspace dependency. The [package index](./index.md#install) has the steps.
+
+```json
+{ "dependencies": { "@kernl/core": "workspace:^" } }
 ```
 
 ## Purpose
@@ -46,7 +48,7 @@ if (plan.missingRequired.length === 0) kernl.mount(plan, iframe);
 4. **Guard pipeline.** `createGuardPipeline` with `createGuardConfig(options.guard?.profile ?? 'strict')`, the host's `now` when given, `onEvent` feeding `kernl.guard.events$`, `getVisibility` delegated to `host.getVisibility`, and `onQuarantine` marking the handle revoked with reason `quarantine` and calling `bridge.revokeNapplet(windowId, 'host')`.
 5. **Services.** `createKernlServices` registers `relay`, `identity`, `theme`, `notify`, `link`, `resource`, `dm` and `outbox` over the pool, the tiers, the event store, the active signer, the host, the bridge registry and the messaging registry. `options.theme` is used only when `isTheme` accepts it. `resolveIdentity` maps a live window to its verified identity so the resource service names the requesting applet to the bridges.
 6. **ShellAdapter.** `createShellAdapter` builds kehto's adapter from the relay-pool hooks, the relay-config hooks over the tiers, `createAuthHooks(accounts)`, the service registry, `capabilities.resolveEnvironment` from `createEnvironmentResolver(grants)`, `onNappletRevoked` (removes the frame through the handle) and `onNappletMessage` (feeds `pipeline.observe`). Choices kehto left open are fixed here: applets cannot create windows (`createWindow` returns null), hotkeys are not forwarded, there is no worker relay, update behaviour is `banner`, signatures are verified by applesauce's `verifyEvent`, `link.isAvailable` is true and `getNip66Suggestions` is null.
-7. **Bridge.** `createShellBridge(adapter)`, unchanged (D-001).
+7. **Bridge.** `createShellBridge(adapter)`, unchanged ([D-001](../decisions.md#d-001)).
 8. **Grants.** `createGrants({ acl: bridge.runtime.aclState, storage: host.storage, availableDomains: () => buildShellCapabilities(adapter).domains })`. The grants layer writes kehto's ACL explicitly for every applet, see [Grants](#grants).
 9. **Consent.** `bridge.registerConsentHandler(createConsentHandler(host, lookupReplaceable(eventStore), identityOf))`, so every destructive-signing request kehto raises reaches `host.presentConsent` as a `ConsentSummary`.
 10. **Session.** `accounts.active$` drives `session$` (`toSession(account)` or null) and calls `bridge.publishIdentityChanged(pubkey)` with the active pubkey or `''` on sign-out, so bound applets hear every identity change through kehto's live port.
@@ -81,7 +83,7 @@ The host is the only way the core reaches the user or the page. Applets never re
 | `session$`, `session` | `Session \| null`: `{ accountId, pubkey, label, readOnly }`. The label is the account's `metadata.name`, then `account.name`, then the abbreviated pubkey. |
 | `login(account)` | Adds the account to the manager if it is not there, makes it active, returns its `Session`. `KernlAccountManager` refuses plaintext-key account types here. |
 | `logout()` | Clears the active account. |
-| `decodePointer(input)` | See [resolve → plan → mount](#resolve--plan--mount). |
+| `decodePointer(input)` | See [resolve → plan → mount](#resolve-→-plan-→-mount). |
 | `resolve`, `plan`, `mount`, `applets()`, `handleWindowMessage(event)` | The applet lifecycle. |
 | `destroy()` | Tears the shell down. |
 
@@ -300,7 +302,7 @@ Signatures are abbreviated; the generated reference has the full ones.
 | --- | --- | --- |
 | `createDefaultMessaging` | `(options: DefaultMessagingOptions) => MessagingRegistry` | The three providers, available only when their backend factory is supplied. |
 | `MESSAGING_UNAVAILABLE_REASONS` | `Readonly<Record<'private' \| 'legacy' \| 'ratchet', string>>` | `needs-local-key-signer`, `not-implemented`, `no-runtime`. |
-| `createDefaultBridges` | `(options?: DefaultBridgesOptions) => BridgeRegistry` | The HTTP bridge plus torrent, nzb, soulseek and mail, which report `no-backend` (D-010). `options.http` goes to the HTTP bridge; the rest to the registry. |
+| `createDefaultBridges` | `(options?: DefaultBridgesOptions) => BridgeRegistry` | The HTTP bridge plus torrent, nzb, soulseek and mail, which report `no-backend` ([D-010](../decisions.md#d-010)). `options.http` goes to the HTTP bridge; the rest to the registry. |
 | `floatingLayout`, `createDwindleLayout`, `createColumnsLayout`, `createMasterStackLayout` | `LayoutStrategy` and `(options?) => LayoutStrategy` | The layouts above. |
 | `createNamespacedStore` | `(storage: StorageLike, prefix: string) => NamespacedStore` | `getJson`, `setJson`, `remove` under `<prefix>:`; corrupt JSON reads as the fallback. |
 | `DefaultMessagingOptions`, `DefaultBridgesOptions`, `LayoutOptions`, `MasterStackOptions`, `NamespacedStore` | types | |
@@ -314,4 +316,4 @@ Signatures are abbreviated; the generated reference has the full ones.
 
 ## API reference
 
-Generated module: [`_kernl_core`](/api/modules/_kernl_core.html){target="_self"}
+Generated module: [`_kernl_core`](../api/modules/_kernl_core.html){target="_self"}

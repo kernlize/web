@@ -10,21 +10,24 @@
 
 The person at the keyboard is the only principal that matters.
 
-[![CI](https://github.com/kernlize/web/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kernlize/web/actions/workflows/ci.yml)
-[![Pages](https://github.com/kernlize/web/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/kernlize/web/actions/workflows/pages.yml)
-[![AI Slop Score](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fkernlize%2Fweb%2Fbadges%2Faislop-score.json)](https://github.com/kernlize/web/actions/workflows/aislop-badge.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-0b0b0b.svg)](./LICENSE)
+![status: alpha](https://img.shields.io/badge/status-alpha-efb449)
+![coverage: 100%](https://img.shields.io/badge/coverage-100%25-0b0b0b)
+![ai slop: 100/100](https://img.shields.io/badge/ai%20slop-100%2F100-0b0b0b)
+![agent readiness: 90](https://img.shields.io/badge/agent%20readiness-90-0b0b0b)
+[![license: MIT](https://img.shields.io/badge/license-MIT-0b0b0b)](./LICENSE)
 
-[Website](https://kernlize.github.io/) · [Docs](https://kernlize.github.io/docs/) · [Open the shell](https://kernlize.github.io/app/) · [Why](https://kernlize.github.io/why/)
+[**Try the shell**](https://kernlize.github.io/app/?preview=1) · [Website](https://kernlize.github.io/) · [Docs](https://kernlize.github.io/docs/) · [Why](https://kernlize.github.io/why/)
 
 <br />
 
 </div>
 
 > **Alpha.** kernl is a first draft. The guard, the messaging and bridge contracts, the composition over kehto and the shell UI are real and tested. Torrent, NZB, Soulseek and mail backends are contracts without implementations. Read [`docs/alpha-status.md`](./docs/alpha-status.md) before relying on anything.
+>
+> The source is private during alpha; the [site and docs](https://kernlize.github.io/) are public, and the `@kernl/*` packages are not on npm yet. The badges above are measured values from `pnpm check` and a live agent-readiness scan, not live CI status.
 
 <p align="center">
-  <img src=".github/assets/shell.png" alt="The kernl shell: two sandboxed applets in floating windows, the guard indicator in the status bar reading strict." width="880" />
+  <img src=".github/assets/shell.png" alt="The kernl shell in its tiled layout: two sandboxed preview applets side by side, one granted network access and one not, with the guard indicator reading strict." width="880" />
 </p>
 
 ## What it is
@@ -53,7 +56,7 @@ The full reasoning is in [`SOUL.md`](./SOUL.md). Each concrete choice is in [`DE
 - **Previews without an account.** `/app/?preview=1` runs the whole shell offline with sample applets that exercise consent, notifications and the guard.
 
 <p align="center">
-  <img src=".github/assets/guard.png" alt="The guard panel: profile selector and the list of protections in plain words." width="880" />
+  <img src=".github/assets/guard.png" alt="The guard panel: profile selector, the eleven protections in plain words, and the recent-events log." width="520" />
 </p>
 
 ## Packages
@@ -65,7 +68,7 @@ The full reasoning is in [`SOUL.md`](./SOUL.md). Each concrete choice is in [`DE
 | [`@kernl/bridges`](./packages/bridges) | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy, backend interfaces. Pure. | [bridges](./docs/packages/bridges.md) |
 | [`@kernl/core`](./packages/core) | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts. | [core](./docs/packages/core.md) |
 
-Published packages have zero framework dependencies and never import `nostr-tools` directly. A guard test enforces both.
+Published packages have zero framework dependencies and never import `nostr-tools` directly. `pnpm check:deps` (`scripts/check-dependency-rules.mjs`) enforces both.
 
 ## Layout
 
@@ -81,14 +84,19 @@ scripts               build, audit and guard scripts
 
 ## Run it
 
+No install: [open the preview](https://kernlize.github.io/app/?preview=1). It runs the whole shell in your browser with sample applets and a throwaway account.
+
+From source (Node 22 or newer, pnpm 10 via `corepack enable`):
+
 ```bash
+git clone git@github.com:kernlize/web.git kernl && cd kernl   # access required during alpha
 pnpm install
-pnpm build
+pnpm build           # the site imports the built packages
 pnpm site:dev        # landing site and shell
 pnpm docs:dev        # documentation
 ```
 
-Open the shell, sign in with a browser extension or a remote signer, and paste an applet address.
+Open `/app/`, sign in with a browser extension, a remote signer or a local account, and paste an applet's address.
 
 ## Check it
 
@@ -96,20 +104,26 @@ Open the shell, sign in with a browser extension or a remote signer, and paste a
 pnpm check
 ```
 
-That runs, in order: build, type-check, features with 100% coverage, dependency rules, docs gate, site build, public-vocabulary scan, agent-readiness audit, slop gate. All of them must pass before a PR is opened.
+That runs, in order: build, type-check, features with 100% coverage, dependency rules, docs gate, site build, public-vocabulary scan, agent-readiness audit, slop gate. `pnpm test:e2e` adds the browser suite, and `PLAYWRIGHT_BASE_URL=https://kernlize.github.io pnpm exec playwright test` runs it against the live site. `pnpm site:publish` publishes.
 
 ## How behaviour is specified
 
-Every behaviour is a Gherkin scenario before it is code.
+Every behaviour is a Gherkin scenario before it is code. This one is verbatim from [`packages/guard/features/visibility.feature`](./packages/guard/features/visibility.feature):
 
 ```gherkin
-Feature: Hidden windows wait their turn
-  Scenario: a hidden applet asks for bytes
-    Given a guard configured with the "strict" profile
-    And window "w1" is hidden
-    When window "w1" sends a "resource.bytes" envelope
-    Then the guard defers it
-    And the deferred envelope is delivered when "w1" becomes visible
+Feature: Visibility gate
+  Hidden windows should not fetch or publish while the user cannot see them.
+  Their traffic waits and is drained when they return; control messages are
+  never held so a hidden window can still be closed or themed.
+
+  Background:
+    Given a guard visibility gate using the "strict" profile
+
+  Scenario: hidden windows defer everything except control
+    When the guard gate marks window "w1" as "hidden"
+    Then the guard gate defers "relay:subscribe" for window "w1"
+    And the guard gate defers "resource:bytes" for window "w1"
+    And the guard gate does not defer "control" for window "w1"
 ```
 
 Features live in `packages/*/features/` and run inside vitest through [quickpickle](https://github.com/dnotes/quickpickle). Coverage thresholds are 100% across statements, branches, functions and lines.
@@ -124,15 +138,17 @@ The docs are a product. Start at [`docs/index.md`](./docs/index.md), or on the s
 | Understand what protects the user | [Guard](./docs/concepts/guard.md) |
 | Understand grants and identity | [Identity and grants](./docs/concepts/identity-and-grants.md) |
 | Run the shell locally | [Run the shell](./docs/tutorials/run-the-shell.md) |
-| Build an applet for kernl | [Build an applet](./docs/tutorials/build-an-applet-for-kernl.md) |
+| Write an applet that runs well under kernl | [Applets under kernl](./docs/concepts/applets-under-kernl.md) |
+| Embed the shell core in your own page | [Embed `@kernl/core`](./docs/how-tos/embed-kernl-core.md) |
 | Add a messaging provider | [How-to](./docs/how-tos/add-a-messaging-provider.md) |
 | Add a bridge backend | [How-to](./docs/how-tos/add-a-bridge-backend.md) |
+| Look up an error reason | [Errors](./docs/reference/errors.md) |
 | Browse the API | [Reference](./docs/reference/api.md) |
 
 ## Relationship to the ecosystem
 
-- [kehto](https://github.com/kehto/web) supplies the runtime, shell adapter, services, ACL, firewall and NIP-5D verification. kernl composes them and files gaps upstream rather than forking.
-- The applet format is [NIP-5D](https://github.com/nostr-protocol/nips/pull/2303) with per-domain [NAPs](https://github.com/napplet/naps). Applet-side packages live at [napplet](https://github.com/sandwichfarm/napplet).
+- [kehto](https://github.com/kehto/web) supplies the runtime, shell adapter, services, ACL, firewall and NIP-5D verification. kernl composes them and records upstream gaps (to be filed) instead of forking; see [`DECISIONS.md`](./DECISIONS.md) D-001.
+- The applet format is [NIP-5D](https://github.com/nostr-protocol/nips/pull/2303) with per-domain [NAPs](https://github.com/napplet/naps). Applet-side packages and the format's own site live at [napplet.run](https://napplet.run).
 - [applesauce](https://applesauce.build) is the event layer.
 
 ## Contributing

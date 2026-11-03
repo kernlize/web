@@ -13,13 +13,15 @@ Locator parsing, the bridge contract, the registry that routes and authorises, a
 
 ## Install
 
-```bash
-pnpm add @kernl/bridges
+`@kernl/bridges` is not yet published to npm, so `pnpm add @kernl/bridges` fails. During the alpha it is built from the kernl source repository, which is private, and consumed as a workspace dependency. The [package index](./index.md#install) has the steps.
+
+```json
+{ "dependencies": { "@kernl/bridges": "workspace:^" } }
 ```
 
 ## Purpose
 
-A bridge resolves a protocol-specific locator to bytes, a job or a conversation on the user's behalf, behind the same consent and quota as everything else, and is named by what it does rather than by its protocol. The HTTP bridge is complete; the torrent, NZB, Soulseek and mail bridges are complete up to the backend interface they call and report `unavailable` until one is supplied. The concepts are in [Bridges](../concepts/bridges.md); the opinion is D-010.
+A bridge resolves a protocol-specific locator to bytes, a job or a conversation on the user's behalf, behind the same consent and quota as everything else, and is named by what it does rather than by its protocol. The HTTP bridge is complete; the torrent, NZB, Soulseek and mail bridges are complete up to the backend interface they call and report `unavailable` until one is supplied. The concepts are in [Bridges](../concepts/bridges.md); the opinion is [D-010](../decisions.md#d-010).
 
 ## Exports
 
@@ -41,7 +43,7 @@ A bridge resolves a protocol-specific locator to bytes, a job or a conversation 
 | `BridgeResult` | union | `{ kind: 'bytes'; response: Response }`, `{ kind: 'job'; id; label }` or `{ kind: 'conversation'; id; participants: readonly string[] }`. |
 | `BridgeExposure` | interface | `{ revealsAddress; encryptedInTransit; publicActivity }`, three booleans the user reads before consenting. |
 | `BridgeAvailability` | union | `{ available: true }` or `{ available: false; reason: string }`. The reason is a bare word such as `no-backend`. |
-| `BridgeAuthorizer` | type | `(locator, bridge, context) => boolean \| Promise<boolean>`; the shell's consent hook. |
+| `BridgeAuthorizer` | type | `(locator, bridge, context) => boolean \| Promise<boolean>`; the registry's consent hook. The composed shell supplies none in this draft. |
 
 ### Registry
 
@@ -116,7 +118,7 @@ const fetchLike = createBridgeResourceResolver(registry, { requesterFor: (init) 
 ## Scope
 
 - Does not implement any transfer protocol. Backends live in the shell app or in packages of their own.
-- Does not prompt. Consent is the `BridgeAuthorizer` the shell supplies to the registry.
+- Does not prompt. Consent is a `BridgeAuthorizer` the host can supply to the registry; `createKernl`'s default registry has none.
 - Does not apply the guard. Rate limits and the hidden-window allowance run in `@kernl/guard` before a request reaches the registry.
 - Does not know about NAP envelopes. `@kernl/core` maps `resource.*` requests onto `createBridgeResourceResolver(registry)`.
 
@@ -126,4 +128,4 @@ const fetchLike = createBridgeResourceResolver(registry, { requesterFor: (init) 
 
 ## API reference
 
-Generated module: [`_kernl_bridges`](/api/modules/_kernl_bridges.html){target="_self"}
+Generated module: [`_kernl_bridges`](../api/modules/_kernl_bridges.html){target="_self"}

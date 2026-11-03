@@ -20,16 +20,17 @@ kernl keeps no local copy of a specification text. A copy drifts; a link does no
 When kernl needs something a specification or an upstream package does not provide, the order is:
 
 1. **Compose it from what exists.** Most of kernl is this: the guard composes `@kehto/firewall`'s `evaluate()`, the restrictive posture composes `resolveEnvironment` and `aclState.grant`.
-2. **Propose it upstream.** An issue or pull request on `kehto/web`, `napplet/naps` or `nostr-protocol/nips`, as appropriate. The four open kehto proposals are in [Alpha status](../alpha-status.md#upstream-gaps).
+2. **Propose it upstream.** An issue or pull request on `kehto/web`, `napplet/naps` or `nostr-protocol/nips`, as appropriate. The four kehto gaps kernl has found, still to be filed upstream, are listed in [Alpha status](../alpha-status.md#upstream-gaps).
 3. **Implement it locally with a recorded gap.** Only when 1 is impossible and 2 is pending. The local implementation sits behind an interface, cites the upstream issue, and is removed when upstream lands.
 
 kernl never re-implements a kehto primitive because it was easier than reading kehto's source, and never invents wire format. When a NAP is ambiguous, kernl prefers an upstream issue over a guess and records the ambiguity next to the code.
 
 ## What conformance is checked by
 
-- **`@napplet/conformance`** runs in the test suite against the shell's bridge: envelope validators per NAP domain, manifest validation and the reference mock shell's expectations of a host.
 - **Gherkin scenarios** in `features/` for every protocol-visible behaviour, named after the clause they implement where one exists.
 - **Review.** A change that touches an envelope shape, a domain's semantics or the handshake cites the clause in its description. A reviewer checks the clause, not the summary.
+
+`@napplet/conformance` (envelope validators per NAP domain, manifest validation and the reference mock shell's expectations of a host) is not part of the test suite yet; running it against the shell's bridge is on the [Roadmap](../roadmap.md#_7-conformance).
 
 The docs are non-normative. Where a page here and the specification disagree, the specification wins and the page has a bug.
 

@@ -4,6 +4,29 @@ import { structuredData } from './structured-data';
 
 const base = process.env.VITEPRESS_BASE ?? '/docs/';
 
+const rControl = /[\u0000-\u001f]/g;
+const rSpecial = /[\s~`!@#$%^&*()\-_+=[\]{}|\\;:"'“”‘’<>,.?/]+/g;
+const rCombining = /[\u0300-\u036F]/g;
+
+/**
+ * VitePress's default heading slug, except that a `D-NNN · title` heading from DECISIONS.md gets the short anchor `d-nnn`.
+ * @param title Heading text.
+ * @returns The anchor id.
+ */
+function slugify(title: string): string {
+  const decision = title.match(/^D-(\d{3}) ·/);
+  if (decision) return `d-${decision[1]}`;
+  return title
+    .normalize('NFKD')
+    .replace(rCombining, '')
+    .replace(rControl, '')
+    .replace(rSpecial, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/^(\d)/, '_$1')
+    .toLowerCase();
+}
+
 export const sidebar = [
   {
     text: 'Start',
@@ -12,6 +35,7 @@ export const sidebar = [
       { text: 'Alpha status', link: '/alpha-status' },
       { text: 'Roadmap', link: '/roadmap' },
       { text: 'Agent access', link: '/agent-access' },
+      { text: 'Decisions', link: '/decisions' },
     ],
   },
   {
@@ -22,13 +46,13 @@ export const sidebar = [
       { text: 'Identity and grants', link: '/concepts/identity-and-grants' },
       { text: 'Messaging', link: '/concepts/messaging' },
       { text: 'Bridges', link: '/concepts/bridges' },
+      { text: 'Applets under kernl', link: '/concepts/applets-under-kernl' },
     ],
   },
   {
     text: 'Tutorials',
     items: [
       { text: 'Run the shell', link: '/tutorials/run-the-shell' },
-      { text: 'Build an applet for kernl', link: '/tutorials/build-an-applet-for-kernl' },
     ],
   },
   {
@@ -38,8 +62,13 @@ export const sidebar = [
       { text: 'Add a messaging provider', link: '/how-tos/add-a-messaging-provider' },
       { text: 'Add a bridge backend', link: '/how-tos/add-a-bridge-backend' },
       { text: 'Grant and revoke', link: '/how-tos/grant-and-revoke' },
+      { text: 'Embed kernl core', link: '/how-tos/embed-kernl-core' },
       { text: 'Deploy', link: '/how-tos/deploy' },
     ],
+  },
+  {
+    text: 'Guides',
+    items: [{ text: 'Troubleshooting', link: '/guides/troubleshooting' }],
   },
   {
     text: 'Packages',
@@ -53,7 +82,10 @@ export const sidebar = [
   },
   {
     text: 'Reference',
-    items: [{ text: 'API reference', link: '/reference/api' }],
+    items: [
+      { text: 'API reference', link: '/reference/api' },
+      { text: 'Error reasons', link: '/reference/errors' },
+    ],
   },
   {
     text: 'Policies',
@@ -75,7 +107,8 @@ export default defineConfig({
   lang: 'en-US',
   appearance: 'dark',
   // TypeDoc writes docs/api after the VitePress build; the pages build copies it next to this site.
-  ignoreDeadLinks: [/^\/api\//],
+  ignoreDeadLinks: [/^\/api\//, /^\.\.\/api\//],
+  markdown: { anchor: { slugify } },
   head: [['meta', { name: 'color-scheme', content: 'dark light' }]],
   transformPageData: collectPage,
   transformHead: ({ pageData }) => [...markdownAlternate(pageData, base), ...structuredData(pageData)],
@@ -92,11 +125,6 @@ export default defineConfig({
       { text: 'API', link: '/reference/api' },
     ],
     sidebar,
-    socialLinks: [{ icon: 'github', link: 'https://github.com/kernlize/web' }],
-    editLink: {
-      pattern: 'https://github.com/kernlize/web/edit/main/docs/:path',
-      text: 'Edit this page',
-    },
     footer: {
       message: 'MIT licensed. Protocol authority: NIP-5D (nostr-protocol/nips PR #2303) and the NAPs (napplet/naps).',
     },

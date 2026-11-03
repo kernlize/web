@@ -1,6 +1,6 @@
 # Messaging
 
-No encrypted messaging protocol is inherently superior. Each one trades metadata exposure, forward secrecy and reach against the others, and the right trade depends on who the user is writing to. kernl therefore supports several and ranks none (D-009). A provider describes its own properties truthfully; the shell shows the description and lets the user choose.
+No encrypted messaging protocol is inherently superior. Each one trades metadata exposure, forward secrecy and reach against the others, and the right trade depends on who the user is writing to. kernl therefore supports several and ranks none ([D-009](../decisions.md#d-009)). A provider describes its own properties truthfully; the shell shows the description and lets the user choose.
 
 ## The provider contract
 
@@ -28,11 +28,11 @@ interface ProviderDeps {
 }
 ```
 
-The three built-in factories (`createPrivateMessagesProvider`, `createLegacyMessagesProvider`, `createRatchetMessagesProvider`) take the same `ProviderDeps` and supply the definition themselves. In the shell, `@kernl/core` closes `createBackend` over the applesauce store, pool and active signer; in tests it returns `createMemoryBackend()`. See `providers.feature`, scenario "availability and the backend come from the shell".
+The three built-in factories (`createPrivateMessagesProvider`, `createLegacyMessagesProvider`, `createRatchetMessagesProvider`) take the same `ProviderDeps` and supply the definition themselves. In the shell, `@kernl/core`'s `createDefaultMessaging` builds each provider's `ProviderDeps` from `KernlOptions.messagingBackends` and nothing else: `createBackend` calls the factory the host supplied, and a provider without one reports itself unavailable. `apps/web` supplies none today, so all three are unavailable in the live shell ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)). In tests and the preview, `createBackend` returns `createMemoryBackend()`. See `providers.feature`, scenario "availability and the backend come from the shell".
 
 ## Security properties
 
-`SecurityProperties` is a fixed set of fields. Every provider fills in every field, and the shell renders them verbatim with no summary score:
+`SecurityProperties` is a fixed set of fields. Every field except `specification` is required, and the shell renders them verbatim with no summary score:
 
 | Field | Meaning |
 | --- | --- |
@@ -41,18 +41,18 @@ The three built-in factories (`createPrivateMessagesProvider`, `createLegacyMess
 | `metadataProtection` | `none`, `partial` or `strong`: how much a network observer learns about who talks to whom and when. |
 | `requiresSameClient` | The correspondent must use a client that speaks this provider. |
 | `groups` | Conversations with more than two participants are supported. |
-| `specification` | Where the protocol is specified. Shown in these docs, not in the public UI. |
+| `specification` | Optional. Where the protocol is specified. Shown in these docs, not in the public UI. |
 | `experimental` | The provider is still changing and may lose history between versions. |
 
-`describeProvider(provider)` turns them into the six rows the picker shows, in this order and with these labels: `Forward secrecy`, `Recovers after a key compromise`, `Metadata protection`, `Correspondent needs the same app`, `Group conversations`, `Experimental`. Booleans render as `yes`/`no`; `metadataProtection` renders as is; `specification` is left out so no protocol name reaches the UI (D-006).
+`describeProvider(provider)` turns them into the six rows the picker shows, in this order and with these labels: `Forward secrecy`, `Recovers after a key compromise`, `Metadata protection`, `Correspondent needs the same app`, `Group conversations`, `Experimental`. Booleans render as `yes`/`no`; `metadataProtection` renders as is; `specification` is left out so no protocol name reaches the UI ([D-006](../decisions.md#d-006)).
 
 ## The three providers
 
-| Provider id | Name | Protocol (`specification`) | Forward secrecy | Post-compromise security | Metadata protection | Same client required | Groups | Experimental |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `private` | Private messages | NIP-17 gift-wrapped private messages (kind 14 rumours sealed in kind 13, wrapped in kind 1059 with a random key) | no | no | `partial`: the wrap hides sender and timing from relays, the recipient's inbox relays still see delivery | no | yes | no |
-| `legacy` | Legacy messages | NIP-04 direct messages (kind 4, shared-secret encryption) | no | no | `none`: sender, recipient and timing are public on the event | no | no | no |
-| `ratchet` | Ratchet sessions | nostr-double-ratchet (draft) | yes | yes | `partial`: per-message ephemeral keys hide the long-term identities, relays still see timing | yes | no | yes |
+| Provider id | Name | `specification` | What the specification is | Forward secrecy | Post-compromise security | Metadata protection | Same client required | Groups | Experimental |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `private` | Private messages | `'NIP-17'` | Gift-wrapped private messages: kind 14 rumours sealed in kind 13, wrapped in kind 1059 with a random key | no | no | `partial`: the wrap hides sender and timing from relays, the recipient's inbox relays still see delivery | no | yes | no |
+| `legacy` | Legacy messages | `'NIP-04'` | Direct messages: kind 4, shared-secret encryption | no | no | `none`: sender, recipient and timing are public on the event | no | no | no |
+| `ratchet` | Ratchet sessions | `'nostr-double-ratchet (draft)'` | A double-ratchet session protocol over nostr, still a draft | yes | yes | `partial`: per-message ephemeral keys hide the long-term identities, relays still see timing | yes | no | yes |
 
 The descriptions the picker shows: `private` "Sealed messages that hide who is talking to whom from the network."; `legacy` "The original direct-message format. Readable by the widest range of apps, but who you talk to is visible on the network."; `ratchet` "Per-session keys that change with every message. Both sides need an app that supports it."
 

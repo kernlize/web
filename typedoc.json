@@ -14,6 +14,6 @@
   "excludeExternals": true,
   "skipErrorChecking": false,
   "packageOptions": {
-    "sourceLinkTemplate": "https://github.com/kernlize/web/blob/main/{path}#L{line}"
+    "disableSources": true
   }
 }

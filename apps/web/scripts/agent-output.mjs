@@ -7,7 +7,7 @@ import { parseHTML } from 'linkedom';
 const DIST = fileURLToPath(new URL('../dist/', import.meta.url));
 const SITE_URL = withSlash(process.env.SITE_URL ?? 'https://kernlize.github.io/');
 const SITE_BASE = withSlash(process.env.SITE_BASE ?? '/');
-const REPO_URL = 'https://github.com/kernlize/web';
+const DECISIONS_URL = `${SITE_URL}docs/decisions`;
 const TOOLKIT_URL = 'https://github.com/kehto/web';
 const PAGE_ORDER = ['', 'why/', 'guard/', 'messaging/', 'bridges/', 'developers/', 'app/'];
 const STRIP = 'script, style, noscript, template, svg, form, button, input, select, textarea, nav, header, footer, [aria-hidden="true"], [hidden], .skip-link, .section-head .label, .hero-copy .label';
@@ -161,7 +161,7 @@ function renderLlmsTxt(pages) {
     '',
     '## Source',
     '',
-    `- [Repository](${REPO_URL}): TypeScript, MIT. Decisions and their reasons are recorded in DECISIONS.md.`,
+    `- [Decisions](${DECISIONS_URL}): every architecture decision and its reason. TypeScript, MIT; the source is private during alpha.`,
     `- [kehto toolkit](${TOOLKIT_URL}): the unopinionated toolkit kernl composes.`,
     `- [Full site text](${SITE_URL}llms-full.txt): every page of this site in one file.`,
     '',

@@ -4,7 +4,7 @@ Ordered by the tie-breakers in `SOUL.md`: the user's safety and agency first, pr
 
 ## 1. Upstream pull requests to kehto
 
-Each item shrinks kernl when it lands; see [Alpha status](./alpha-status.md#upstream-gaps).
+None is filed yet. Each item shrinks kernl when it lands; see [Alpha status](./alpha-status.md#upstream-gaps).
 
 - Forward `getFocusContext`, `onFirewallEvent` and `firewallPersistence` through `ShellAdapter` so the runtime's own firewall can be focus-aware without a second engine in front of it.
 - Let the host choose the ACL default policy in `createRuntime`, so a restrictive shell does not have to write every capability explicitly.
@@ -22,6 +22,8 @@ Each backend plugs into the path the HTTP bridge already exercises end to end. O
 | Torrent | `TorrentBackend` | Adds an info hash with its trackers. WebTorrent in the shell, or a configured external client. Marked as public activity in the exposure description. |
 | Soulseek | `SoulseekBackend` | Requests one file from one peer. Requires a daemon; the bridge reports job state. |
 
+The shell also needs a downloads view that shows the state of each `job` result and lets the user cancel it; there is none today.
+
 ## 3. Messaging
 
 - Supply the double-ratchet runtime so the `ratchet` provider reports `available`. Its properties are already described; see [Messaging](./concepts/messaging.md).
@@ -37,14 +39,17 @@ The window manager contracts come from `@kehto/wm`. A narrow-viewport layout wit
 
 ## 6. Guard
 
-- Per-applet guard profiles: today the profile is shell-wide and resets to `strict` on boot (D-003). Next: an override per applet identity, remembered locally.
+- Per-applet guard profiles: today the profile is shell-wide and resets to `strict` on boot ([D-003](./decisions.md#d-003)). Next: an override per applet identity, remembered locally.
 - Re-narrow a live applet's advertised environment when a domain is revoked; today the ACL denies at once but `shell.init` only changes on the next open.
 - Bridge consent per host: wire `createDefaultBridges({ authorize })` to a host prompt so a granted `resource` request still asks before reaching a new origin.
 - Persist per-applet profile overrides and grants through a user-chosen sync, so loosening an applet once does not have to be repeated per device.
-- A readable guard log in the shell: every `defer`, `reject`, `quarantine` and `flag` event, with the stable reason and the applet it concerned.
+
+## 7. Conformance
+
+- Run `@napplet/conformance` against the shell's bridge in `pnpm test`: envelope validators per NAP domain, manifest validation and the reference mock shell's expectations of a host. Today conformance is checked by the `features/` scenarios and review only ([Spec conformance](./policies/spec-conformance.md)).
 
 ## Not planned
 
 - A global configuration flag that loosens a mitigation for every applet. `SOUL.md` opinion three rules it out.
-- A second event library beside applesauce. `DECISIONS.md` D-002 rules it out.
-- A "recommended" messaging provider. D-009 rules it out.
+- A second event library beside applesauce. `DECISIONS.md` [D-002](./decisions.md#d-002) rules it out.
+- A "recommended" messaging provider. [D-009](./decisions.md#d-009) rules it out.

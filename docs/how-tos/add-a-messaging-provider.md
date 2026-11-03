@@ -4,7 +4,7 @@ A provider is a package change plus a docs page. This how-to adds a provider cal
 
 ## 1. Describe it truthfully
 
-Start with the properties, because they are the contract with the user. Every field is required and the shell shows all of them through `describeProvider`.
+Start with the properties, because they are the contract with the user. Every field except `specification` is required, and the shell shows all of them except `specification` through `describeProvider`.
 
 ```ts
 import type { ProviderDefinition, SecurityProperties } from '@kernl/messaging';
@@ -81,7 +81,7 @@ export function createExampleBackend(deps: ExampleDeps): MessagingBackend {
 
 Rules the backend must keep:
 
-- Read from the shell's shared `EventStore`; do not open a second relay connection outside the shared `RelayPool`. The shell passes both to your deps.
+- Use the shell's shared `EventStore` and `RelayPool` (`kernl.eventStore`, `kernl.pool`); do not open a second relay connection. The shell does not inject anything into your backend: `@kernl/core` calls only the factory you register, so you build `ExampleDeps` yourself from those instances, as `exampleDeps(resolve)` below does.
 - Sign only through the function the shell injects. Never touch key bytes.
 - Reject with stable reasons: `denied:`, `invalid:`, `unavailable:`.
 - `subscribe` returns `{ subscriptionId }`; `unsubscribe` of an unknown id returns `{ ok: false }`; `close` drops every subscription. Every method except `send` may be synchronous.
@@ -116,11 +116,22 @@ The three built-ins (`createPrivateMessagesProvider`, `createLegacyMessagesProvi
 
 ## 4. Register it
 
-In `@kernl/core`, `createKernl` builds the registry and registers the three existing providers. Add yours there:
+The three built-in providers are registered by `createDefaultMessaging` in `packages/core/src/messaging/default-registry.ts`, which `createKernl` calls when `KernlOptions.messaging` is absent. You do not edit `createKernl`. A host has two options-based paths:
+
+- **A backend for a built-in provider.** Pass `KernlOptions.messagingBackends`, a `MessagingBackendFactories` (`{ private?, legacy?, ratchet? }`, each `() => MessagingBackend`). The provider whose factory you supply reports itself available.
+- **A new provider.** Build the default registry yourself, register yours on it, and pass it as `KernlOptions.messaging`. The defaults stay registered:
 
 ```ts
-registry.register(provider);
+import { createDefaultMessaging, createKernl, type KernlHost } from '@kernl/core';
+
+declare const host: KernlHost;
+
+const messaging = createDefaultMessaging({ storage: host.storage });
+messaging.register(provider);
+const kernl = createKernl({ host, messaging });
 ```
+
+When `messaging` is supplied, `createKernl` uses it as is and ignores `messagingBackends`; pass any built-in backends to `createDefaultMessaging({ storage, backends })` instead. To ship a provider inside kernl itself, register it in `createDefaultMessaging` next to the three built-ins.
 
 Registration does not enable, unless the user's saved preferences already list `example`; then it is enabled on registration if `available()` agrees, and left disabled otherwise. The user enables it in the provider picker, which calls `registry.enable('example')`. Registering the same id twice throws `invalid:duplicate-provider`. See `registry.feature`, scenarios "a registered provider starts disabled" and "saved preferences enable providers as they register".
 
@@ -129,6 +140,6 @@ Registration does not enable, unless the user's saved preferences already list `
 - Add the provider to the `Scenario Outline` in `packages/messaging/features/providers.feature` ("the built-in providers carry fixed copy and properties") with its name, description, six properties and specification, and a scenario that `describeProvider` rows name no protocol. Step definitions live in `packages/messaging/features/steps/`.
 - If the backend lives in a package, give it a feature file modelled on `memory-backend.feature`: sends create conversations, delivered messages are unread, subscriptions filter by conversation, cursors resume.
 - Add a row to the providers table in [Messaging](../concepts/messaging.md#the-three-providers) and a line to the providers table on the [package page](../packages/messaging.md#providers).
-- Add a changeset for `@kernl/messaging` (and `@kernl/core` if you touched registration).
+- Add a changeset for `@kernl/messaging` (and `@kernl/core` if you touched `createDefaultMessaging`).
 
 `pnpm test` must stay at 100% coverage over `packages/*/src`, and `pnpm docs:check` must pass. A provider without the feature rows or the docs rows is not shipped.

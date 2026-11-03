@@ -1,6 +1,6 @@
 # Change the guard profile
 
-The shell boots every applet in `strict`. A user can loosen one applet to `balanced` or `relaxed`. There is no way to loosen every applet at once, and that is the point (D-003).
+The shell boots every applet in `strict`. A user can loosen one applet to `balanced` or `relaxed`. There is no way to loosen every applet at once, and that is the point ([D-003](../decisions.md#d-003)).
 
 ## In the shell
 
@@ -8,7 +8,7 @@ The shell boots every applet in `strict`. A user can loosen one applet to `balan
 2. Under *Profile*, pick `balanced` or `relaxed`. The list of mitigations updates to show the new limit for each one. The CSP does not change; it never does.
 3. The change calls `kernl.guard.setProfile(profile)`, which rebuilds every guard layer for every open window at once; held messages are dropped and counters restart, so a quarantined window is released. It is not persisted: a reload starts in `strict` again.
 
-In this draft the profile is shell-wide. The per-applet, remembered override that D-003 describes is listed under [Alpha status](../alpha-status.md#what-does-not-work-yet).
+In this draft the profile is shell-wide. The per-applet, remembered override that [D-003](../decisions.md#d-003) describes is listed under [Alpha status](../alpha-status.md#what-does-not-work-yet).
 
 ## In code
 

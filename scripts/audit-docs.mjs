@@ -155,6 +155,55 @@ export function checkTypeDocModules({ apiDir, packages }) {
 }
 
 /**
+ * The URL path a built VitePress page is served at with `cleanUrls`: `index.html` maps to its directory, any other page drops `.html`.
+ * @param {string} htmlPath Path of the built page relative to the dist directory, such as `packages/core.html`.
+ * @param {string} base The VitePress base, with leading and trailing slash.
+ * @returns {string} The served path, such as `/docs/packages/core`.
+ * @example
+ * servedPath('packages/index.html', '/docs/'); // '/docs/packages/'
+ */
+export function servedPath(htmlPath, base) {
+  return `${base}${htmlPath.replace(/(?:^|\/)index\.html$/, (m) => (m.startsWith('/') ? '/' : '')).replace(/\.html$/, '')}`;
+}
+
+/**
+ * Check that every `href` in the built docs that points into the TypeDoc output resolves, under the docs base, to a file that exists in `docs/api`.
+ * An href points into the API reference when its path has an `api/` segment; external URLs and fragments are ignored.
+ * @param {{ pages: { path: string, html: string }[], base: string, apiFileExists: (relativePath: string) => boolean }} input Built pages relative to the dist directory, the VitePress base and a lookup relative to `docs/api`.
+ * @returns {string[]} One violation per href that escapes the base or names a missing file.
+ * @example
+ * checkApiHrefs({ pages: [{ path: 'packages/core.html', html: '<a href="../api/index.html">' }], base: '/docs/', apiFileExists: () => true }); // []
+ */
+export function checkApiHrefs({ pages, base, apiFileExists }) {
+  const apiRoot = `${base}api/`;
+  const violations = [];
+  for (const page of pages) {
+    const pageUrl = new URL(servedPath(page.path, base), 'https://docs.invalid');
+    for (const match of page.html.matchAll(/\shref="([^"]*)"/g)) {
+      const href = match[1];
+      if (/^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(href)) continue;
+      const pathOnly = href.replace(/[?#].*$/, '');
+      if (!/(?:^|\/)api\//.test(pathOnly)) continue;
+      const { pathname } = new URL(pathOnly, pageUrl);
+      if (!pathname.startsWith(apiRoot)) {
+        violations.push(`${page.path}: href "${href}" resolves to ${pathname}, outside ${apiRoot}`);
+        continue;
+      }
+      const target = decodeURIComponent(pathname.slice(apiRoot.length));
+      if (!apiFileExists(target === '' || target.endsWith('/') ? `${target}index.html` : target)) {
+        violations.push(`${page.path}: href "${href}" resolves to ${pathname}, which docs/api does not contain`);
+      }
+    }
+  }
+  return violations;
+}
+
+function builtPages(distDir) {
+  if (!existsSync(distDir)) return [];
+  return htmlFiles(distDir).map((path) => ({ path, html: readFileSync(join(distDir, path), 'utf8') }));
+}
+
+/**
  * Run every check against a repository root.
  * @param {string} repoRoot Absolute path of the repository.
  * @returns {string[]} All violations.
@@ -173,6 +222,11 @@ export function auditDocs(repoRoot) {
     ...checkSidebarCoverage({ docsDir, configSource }),
     ...checkDistAgentOutput({ distDir: join(docsDir, '.vitepress', 'dist') }),
     ...checkTypeDocModules({ apiDir: join(docsDir, 'api'), packages }),
+    ...checkApiHrefs({
+      pages: builtPages(join(docsDir, '.vitepress', 'dist')),
+      base: process.env.VITEPRESS_BASE ?? '/docs/',
+      apiFileExists: (relativePath) => existsSync(join(docsDir, 'api', relativePath)),
+    }),
   ];
 }
 

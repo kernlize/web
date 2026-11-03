@@ -31,7 +31,7 @@ Three reasons, in the order `SOUL.md` ranks them.
 
 **Protocol conformance is a property of the code, not the copy.** kernl conforms to NIP-5D and the NAPs, and the docs say so precisely. Saying so on the landing page would not make the code conform more; it would make the page about the specification instead of about what a person can do.
 
-**Providers and bridges are chosen by what they do.** A user chooses a messaging provider by whether their correspondent can read it and what an observer learns, not by its wire format. A bridge is "downloads", not the name of a peer-to-peer protocol. Naming protocols in the UI would invite ranking by familiarity, which D-009 and D-010 rule out.
+**Providers and bridges are chosen by what they do.** A user chooses a messaging provider by whether their correspondent can read it and what an observer learns, not by its wire format. A bridge is "downloads", not the name of a peer-to-peer protocol. Naming protocols in the UI would invite ranking by familiarity, which [D-009](../decisions.md#d-009) and [D-010](../decisions.md#d-010) rule out.
 
 ## Where the rule stops
 

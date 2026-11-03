@@ -1,6 +1,6 @@
 ---
 import Site from '../../layouts/Site.astro';
-import { APPLET_FORMAT_URL, href, REPO_URL, TOOLKIT_URL } from '../../lib/site';
+import { APPLET_FORMAT_URL, DECISIONS_URL, href, TOOLKIT_URL } from '../../lib/site';
 
 const description =
   'How to build for kernl: write an applet in the open applet format, learn what the sealed sandbox and strict guard mean for your code, and read the docs first.';
@@ -64,9 +64,9 @@ const description =
       <div class="grid cols-2">
         <div class="reveal">
           <p class="label">Source</p>
-          <h2 id="source-title">MIT, in the open.</h2>
-          <p>Four small packages and one app. Behaviour is specified in scenarios before it is implemented, and coverage is complete. Decisions, and the reasons for them, are written down in the repository.</p>
-          <p><a class="button primary" href={REPO_URL}>github.com/kernlize/web</a></p>
+          <h2 id="source-title">MIT, opening after alpha.</h2>
+          <p>Four small packages and one app. Behaviour is specified in scenarios before it is implemented, and coverage is complete. Decisions, and the reasons for them, are written down and published now. The source itself is private during alpha and opens under the MIT licence with the first public release.</p>
+          <p><a class="button primary" href={DECISIONS_URL}>Read the decisions</a></p>
         </div>
         <div class="reveal">
           <p class="label">For agents</p>

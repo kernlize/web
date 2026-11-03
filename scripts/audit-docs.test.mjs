@@ -3,12 +3,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 import {
+  checkApiHrefs,
   checkDistAgentOutput,
   checkPackagePages,
   checkSidebarCoverage,
   checkTypeDocModules,
   publicPackages,
   routeFor,
+  servedPath,
   sidebarRoutes,
   typedocModuleFile,
 } from './audit-docs.mjs';
@@ -129,5 +131,32 @@ test('checkTypeDocModules reports each missing module page', () => {
   const packages = [{ name: '@kernl/guard' }, { name: '@kernl/core' }];
   expect(checkTypeDocModules({ apiDir: join(root, 'api'), packages })).toEqual([
     `TypeDoc module page missing: ${join(root, 'api', 'modules', '_kernl_core.html')}`,
+  ]);
+});
+
+test('servedPath maps built pages to their clean URLs under the base', () => {
+  expect(servedPath('index.html', '/docs/')).toBe('/docs/');
+  expect(servedPath('packages/index.html', '/docs/')).toBe('/docs/packages/');
+  expect(servedPath('packages/core.html', '/web/docs/')).toBe('/web/docs/packages/core');
+});
+
+test('checkApiHrefs accepts relative API links that resolve under the base to existing files', () => {
+  const files = new Set(['modules/_kernl_core.html', 'index.html']);
+  const pages = [
+    { path: 'packages/core.html', html: '<a href="../api/modules/_kernl_core.html" target="_self">core</a>' },
+    { path: 'reference/api.html', html: '<a href="../api/index.html#top">index</a> <a href="/docs/api/">root</a>' },
+    { path: 'index.html', html: '<a href="https://example.org/api/x.html">ext</a> <a href="#api/x">frag</a> <a href="./concepts/guard">guard</a>' },
+  ];
+  expect(checkApiHrefs({ pages, base: '/docs/', apiFileExists: (path) => files.has(path) })).toEqual([]);
+});
+
+test('checkApiHrefs reports API links that escape the base or name a missing file', () => {
+  const pages = [
+    { path: 'packages/core.html', html: '<a href="/api/modules/_kernl_core.html" target="_self">core</a>' },
+    { path: 'packages/guard.html', html: '<a href="../api/modules/_kernl_gaurd.html">guard</a>' },
+  ];
+  expect(checkApiHrefs({ pages, base: '/docs/', apiFileExists: () => false })).toEqual([
+    'packages/core.html: href "/api/modules/_kernl_core.html" resolves to /api/modules/_kernl_core.html, outside /docs/api/',
+    'packages/guard.html: href "../api/modules/_kernl_gaurd.html" resolves to /docs/api/modules/_kernl_gaurd.html, which docs/api does not contain',
   ]);
 });

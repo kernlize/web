@@ -1,7 +1,6 @@
 import type { HeadConfig, PageData } from 'vitepress';
 import { DOCS_URL } from './agent-output';
 
-const REPO_URL = 'https://github.com/kernlize/web';
 
 function pageUrl(relativePath: string): string {
   const path = relativePath.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '');
@@ -11,7 +10,6 @@ function pageUrl(relativePath: string): string {
 const SOFTWARE = {
   '@type': 'SoftwareSourceCode',
   name: 'kernl',
-  codeRepository: REPO_URL,
   programmingLanguage: 'TypeScript',
   license: 'https://opensource.org/license/mit',
   offers: { '@type': 'Offer', price: '0.00', priceCurrency: 'USD' },
@@ -32,7 +30,7 @@ export function structuredData(pageData: PageData): HeadConfig[] {
     url,
     inLanguage: 'en',
     isPartOf: { '@type': 'WebSite', name: 'kernl documentation', url: DOCS_URL },
-    about: { '@type': 'SoftwareSourceCode', name: 'kernl', codeRepository: REPO_URL },
+    about: { '@type': 'SoftwareSourceCode', name: 'kernl', license: 'https://opensource.org/license/mit' },
   };
   const graph = pageData.relativePath === 'index.md' ? [article, SOFTWARE] : [article];
   return [['script', { type: 'application/ld+json' }, JSON.stringify({ '@context': 'https://schema.org', '@graph': graph })]];

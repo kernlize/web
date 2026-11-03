@@ -1,5 +1,6 @@
 export const SITE_NAME = 'kernl';
-export const REPO_URL = 'https://github.com/kernlize/web';
+/** The source is private during alpha; public readers get the decisions record instead. */
+export const DECISIONS_URL = 'https://kernlize.github.io/docs/decisions';
 export const TOOLKIT_URL = 'https://github.com/kehto/web';
 export const APPLET_FORMAT_URL = 'https://napplet.run/';
 

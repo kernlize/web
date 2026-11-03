@@ -87,7 +87,7 @@
     <dl class="shell-rows">
       <div><dt>Shell</dt><dd>kernl {pkg.version}</dd></div>
       <div><dt>Mode</dt><dd>{mode === 'preview' ? 'preview, offline' : 'live'}</dd></div>
-      <div><dt>Source</dt><dd><a href="https://github.com/kernlize/web">github.com/kernlize/web</a></dd></div>
+      <div><dt>Source</dt><dd>Private during alpha. <a href="https://kernlize.github.io/docs/decisions">Decisions</a> are public.</dd></div>
     </dl>
   </section>
 </Overlay>
