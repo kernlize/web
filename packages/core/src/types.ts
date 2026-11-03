@@ -4,10 +4,10 @@ import type { RelayPool } from 'applesauce-relay';
 import type { AccountManager, IAccount } from 'applesauce-accounts';
 import type { ShellBridge, ShellEnvironment } from '@kehto/shell';
 import type { Capability } from '@kehto/runtime';
-import type { NappletManifest } from '@kehto/nip/5d';
+import type { NappletArtifactCache, NappletManifest } from '@kehto/nip/5d';
 import type { NostrEvent } from '@napplet/core';
 import type { GuardConfig, GuardEvent, GuardProfile, MitigationDescription, WindowVisibility } from '@kernl/guard';
-import type { MessagingRegistry } from '@kernl/messaging';
+import type { MessagingBackend, MessagingRegistry } from '@kernl/messaging';
 import type { BridgeRegistry } from '@kernl/bridges';
 
 
@@ -60,8 +60,8 @@ export interface FrameLike {
   readonly contentWindow: Window | null;
   sandbox: { add(token: string): void } | string;
   srcdoc: string;
-  addEventListener(type: 'load', listener: () => void): void;
-  removeEventListener(type: 'load', listener: () => void): void;
+  addEventListener(type: 'load', listener: (event: Event) => void): void;
+  removeEventListener(type: 'load', listener: (event: Event) => void): void;
   setAttribute(name: string, value: string): void;
   remove(): void;
 }
@@ -158,7 +158,7 @@ export interface StorageLike {
   removeItem(key: string): void;
 }
 
-/** What the UI supplies to the core. Every method is called from the core; none is called by applets. */
+/** Host hooks the core calls. Applets never reach these. */
 export interface KernlHost {
   readonly storage: StorageLike;
   /** Ask the user. Resolve `false` on dismiss. The core never times this out. */
@@ -177,6 +177,16 @@ export interface KernlHost {
 }
 
 
+/**
+ * Backend constructors for the three messaging providers. A provider whose
+ * constructor is absent reports itself unavailable with a stable reason.
+ */
+export interface MessagingBackendFactories {
+  readonly private?: () => MessagingBackend;
+  readonly legacy?: () => MessagingBackend;
+  readonly ratchet?: () => MessagingBackend;
+}
+
 export interface KernlOptions {
   readonly host: KernlHost;
   readonly relays?: Partial<Record<RelayTier, readonly string[]>>;
@@ -189,6 +199,10 @@ export interface KernlOptions {
   readonly bridges?: BridgeRegistry;
   /** Theme pushed to applets that hold `theme:read`. */
   readonly theme?: Record<string, unknown>;
+  /** Backends for the messaging providers; absent ones stay unavailable. */
+  readonly messagingBackends?: MessagingBackendFactories;
+  /** Opens the verified-artifact cache. Defaults to Cache Storage when the page has it, otherwise none. */
+  readonly artifactCache?: () => Promise<NappletArtifactCache | undefined>;
 }
 
 /** The guard as the UI sees it. */

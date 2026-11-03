@@ -1,0 +1,133 @@
+Feature: The composed shell
+  createKernl builds one store, one pool, one account manager, the guard, the
+  grants and kehto's bridge, and runs an applet through decode, resolve, plan
+  and mount with the guard in front of the bridge.
+
+  Background:
+    Given a kernl host over empty storage
+    And a fake applesauce pool serving a signed manifest for "chat" requiring "relay"
+
+  Scenario: a fresh shell has no session, the strict guard and the default relays
+    Given a kernl shell over that host and pool without a blob fetcher
+    Then the shell session is null
+    And the shell guard profile is "strict" with mitigations described
+    And the shell relays "apps" tier is "wss://relay.napplet.soy"
+    And the shell messaging provider "private" is unavailable
+    And the shell bridges are "http,torrent,nzb,soulseek,mail"
+    And the frame policy meta locks frame navigation
+
+  Scenario: host-supplied parts are used as they are
+    Given a kernl shell over that host and pool with its own store, accounts, messaging, bridges, relays, a "balanced" guard, a theme, a clock and a blob fetcher
+    Then the shell guard profile is "balanced" with mitigations described
+    And the shell relays "apps" tier is "wss://apps.example"
+    And the shell uses the supplied store, accounts, messaging and bridges
+    When the shell resolves the manifest address
+    Then the shell summary is "chat" requiring "relay"
+    And the host blob fetcher was used
+    And the supplied artifact cache was consulted
+
+  Scenario: a shell without a supplied pool owns one and closes it when destroyed
+    Given a kernl shell over that host without a pool
+    Then the shell pool is its own
+    When the shell is destroyed
+    Then the shell pool is closed
+
+  Scenario: a supplied private backend makes the provider available
+    Given a kernl shell over that host and pool with a private backend
+    Then the shell messaging provider "private" is available
+
+  Scenario: logging in and out drives the session
+    Given a kernl shell over that host and pool
+    When the shell logs in with a password account named "alice"
+    Then the shell session is for "alice" and can sign
+    And the shell session stream saw 2 values
+    When the shell logs in with the same account again
+    Then the shell session stream saw 2 values
+    When the shell logs in with a read-only account
+    Then the shell session is read-only with an abbreviated label
+    When the shell logs in with an account that has a name but no metadata
+    Then the shell session label is "named"
+    When the shell logs out
+    Then the shell session is null
+
+  Scenario: an applet is resolved, planned and mounted
+    Given a kernl shell over that host and pool
+    When the shell resolves the manifest address
+    Then the shell summary is "chat" requiring "relay"
+    When the shell plans the summary
+    Then the shell plan is for window "applet-1" with domains "shell,identity,storage,inc,theme"
+    And the shell plan is missing "relay"
+    When the shell mounts the plan into a fake frame
+    Then the shell has 1 applets and the frame holds the plan srcdoc
+    When the shell closes the mounted applet
+    Then the shell has 0 applets
+    When the shell plans the summary
+    Then the shell plan is for window "applet-2" with domains "shell,identity,storage,inc,theme"
+
+  Scenario: planning an applet that was never resolved is refused
+    Given a kernl shell over that host and pool
+    When the shell plans an unresolved summary
+    Then the shell refused with "invalid:unresolved"
+
+  Scenario: a manifest nobody serves is unavailable
+    Given a kernl shell over that host and pool
+    And the fake pool serves nothing
+    When the shell resolves the manifest address
+    Then the shell refused with "unavailable:manifest"
+
+  Scenario: the bridge revoking a binding removes the frame and tells the host
+    Given a kernl shell over that host and pool
+    And a mounted applet
+    When kehto revokes the mounted window
+    Then the host was told the window was revoked for "host"
+    And the mounted frame was removed
+    And the shell has 0 applets
+
+  Scenario: an applet binds its port, completes the handshake and is observed by the guard
+    Given a kernl shell over that host and pool
+    And a mounted applet
+    When the applet sends its hello through the shell
+    And the applet asks "shell.ready" over its port
+    Then the applet received a "shell.init" with domains "shell,identity,storage,inc,theme"
+    When the applet asks "theme.get" over its port
+    Then the applet received a "theme.get.result"
+    When the applet asks "identity.getPublicKey" over its port
+    Then the applet received a "identity.getPublicKey.result"
+    When the applet floods "storage.get" over its port until the guard quarantines it
+    Then the host was told the window was revoked for "quarantine"
+    And the mounted frame was removed
+    And the shell guard events included "flood:quarantine"
+    And the shell has 0 applets
+
+  Scenario: a granted applet fetches resources through the bridges
+    Given a kernl shell over that host and pool with fake bridges
+    When the shell resolves the manifest address
+    And the shell allows "resource" for the resolved applet
+    And the shell plans the summary
+    Then the shell plan is for window "applet-1" with domains "shell,identity,storage,inc,theme,resource"
+    When the shell mounts the plan into a fake frame
+    And the applet sends its hello through the shell
+    And the applet asks "resource.bytes" for "https://files.example/a.txt" over its port
+    Then the applet received a "resource.bytes.result"
+    And the fake bridges were asked for "https://files.example/a.txt" by applet "chat"
+
+  Scenario: messages from windows the shell does not know go to the bridge unguarded
+    Given a kernl shell over that host and pool with fake bridges
+    When a window message with no source reaches the shell
+    And a rogue window registered outside the shell is granted "resource", sends its hello, asks "resource.bytes" for "https://files.example/rogue.txt" and floods "storage.get"
+    Then the fake bridges were asked for "https://files.example/rogue.txt" by the shell itself
+    And the shell survived and kehto can revoke the rogue window
+
+  Scenario: the guard facade changes the profile and lifts quarantine
+    Given a kernl shell over that host and pool
+    When the shell guard profile is set to "relaxed"
+    Then the shell guard profile is "relaxed" with mitigations described
+    And the shell guard profile stream ends with "relaxed"
+    And releasing window "applet-1" from the guard does nothing harmful
+
+  Scenario: destroying the shell closes every applet and the bridge
+    Given a kernl shell over that host and pool
+    And a mounted applet
+    When the shell is destroyed
+    Then the shell has 0 applets
+    And the mounted frame was removed
