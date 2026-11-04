@@ -48,9 +48,29 @@ describe('boot', () => {
     const createKernl = vi.fn(() => live);
     const { boot } = await bootWith({ createKernl });
     const booted = await boot(host, new URLSearchParams('preview=0'));
-    expect(createKernl).toHaveBeenCalledWith({ host });
-    expect(booted).toEqual({ kernl: live, mode: 'live', samples: [] });
+    expect(createKernl).toHaveBeenCalledWith({ host, torrent: booted.downloads.torrent });
+    expect(booted).toEqual({ kernl: live, mode: 'live', samples: [], downloads: booted.downloads });
     expect(signers.NostrConnectSigner.pool).toBe(live.pool);
+  });
+
+  it('hands links to the device in a live shell whose browser cannot reach peers', async () => {
+    const opened: string[] = [];
+    const { boot } = await bootWith({ createKernl: vi.fn(() => ({ pool: {} })) });
+    const booted = await boot({ ...host, openLink: (uri) => void opened.push(uri) }, new URLSearchParams());
+    expect(booted.downloads.inKernl).toBe(false);
+    expect(booted.downloads.mode()).toBe('device');
+    await booted.downloads.torrent.add('ab'.repeat(20), [], { requester: 'shell' });
+    expect(opened).toEqual([`magnet:?xt=urn:btih:${'ab'.repeat(20)}`]);
+  });
+
+  it('downloads in kernl in the preview, through the host opener when handed off', async () => {
+    const opened: string[] = [];
+    const { boot } = await bootWith({});
+    const booted = await boot({ ...host, openLink: (uri) => void opened.push(uri) }, new URLSearchParams('preview=1'));
+    expect(booted.downloads.mode()).toBe('kernl');
+    booted.downloads.setMode('device');
+    await booted.downloads.torrent.add('ab'.repeat(20), [], { requester: 'shell' });
+    expect(opened).toEqual([`magnet:?xt=urn:btih:${'ab'.repeat(20)}`]);
   });
 
   it.each([

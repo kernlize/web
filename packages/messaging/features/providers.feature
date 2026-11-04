@@ -14,6 +14,7 @@ Feature: Messaging providers describe themselves
       | private | Private messages | Sealed messages that hide who is talking to whom from the network.                                                 | false | false | partial  | false      | true   | false        | NIP-17                       |
       | legacy  | Legacy messages  | The original direct-message format. Readable by the widest range of apps, but who you talk to is visible on the network. | false | false | none     | false      | false  | false        | NIP-04                       |
       | ratchet | Ratchet sessions | Per-session keys that change with every message. Both sides need an app that supports it.                          | true  | true  | partial  | true       | false  | true         | nostr-double-ratchet (draft) |
+      | group   | Group sessions   | Shared keys that change as the group talks and as people join or leave. Everyone needs an app that supports it. | true  | true  | partial  | true       | true   | true         | Marmot (MLS, RFC 9420; supersedes NIP-EE) |
 
   Scenario: the description rows state facts without protocol names
     Given the built-in messaging provider "ratchet"
@@ -25,6 +26,17 @@ Feature: Messaging providers describe themselves
       | Group conversations               | no      |
       | Experimental                      | yes     |
     And no messaging description row mentions "ratchet" or "nostr"
+
+  Scenario: the group provider rows say it carries groups without naming its protocol
+    Given the built-in messaging provider "group"
+    Then the messaging provider description rows are:
+      | Forward secrecy                   | yes     |
+      | Recovers after a key compromise   | yes     |
+      | Metadata protection               | partial |
+      | Correspondent needs the same app  | yes     |
+      | Group conversations               | yes     |
+      | Experimental                      | yes     |
+    And no messaging description row mentions "Marmot" or "MLS"
 
   Scenario: the legacy provider rows say no to everything
     Given the built-in messaging provider "legacy"

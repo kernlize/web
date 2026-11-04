@@ -6,7 +6,7 @@ import { AccountManager } from 'applesauce-accounts';
 import { PrivateKeyAccount } from 'applesauce-accounts/accounts';
 import type { ShellAdapter } from '@kehto/shell';
 import type { NappletMessage } from '@napplet/core';
-import type { BridgeContext, BridgeRegistry } from '@kernl/bridges';
+import type { BridgeContext, BridgeRegistry, TorrentBackend } from '@kernl/bridges';
 import type { MessagingBackend, MessagingRegistry } from '@kernl/messaging';
 import { createMemoryBackend } from '@kernl/messaging';
 import {
@@ -337,6 +337,16 @@ Then('storage key {string} lists {string} as enabled', (world: CoreWorld, key: s
   expect(stored.enabled).toContain(id);
 });
 
+/** A torrent backend that records the hashes it was given. */
+export function fakeTorrentBackend(asked: string[]): TorrentBackend {
+  return {
+    add: async (infoHash) => {
+      asked.push(infoHash);
+      return { id: `download:${asked.length}`, name: infoHash };
+    },
+  };
+}
+
 Given('the default bridge registry', (world: CoreWorld) => {
   scratch(world).bridgeRegistry = createDefaultBridges();
 });
@@ -345,6 +355,22 @@ Given('the default bridge registry with a hand-off opener', (world: CoreWorld) =
   const opened: string[] = [];
   scratch(world).handoffOpened = opened;
   scratch(world).bridgeRegistry = createDefaultBridges({ handoff: (uri) => void opened.push(uri) });
+});
+
+Given('the default bridge registry with a hand-off opener and a torrent backend', (world: CoreWorld) => {
+  const opened: string[] = [];
+  const asked: string[] = [];
+  scratch(world).handoffOpened = opened;
+  scratch(world).torrentAsked = asked;
+  scratch(world).bridgeRegistry = createDefaultBridges({ handoff: (uri) => void opened.push(uri), torrent: fakeTorrentBackend(asked) });
+});
+
+Then('the hand-off opener was never called', (world: CoreWorld) => {
+  expect(scratch(world).handoffOpened).toEqual([]);
+});
+
+Then('the torrent backend was asked for {string}', (world: CoreWorld, hash: string) => {
+  expect(scratch(world).torrentAsked).toEqual([hash]);
 });
 
 Then('bridge for scheme {string} hands off to the device', (world: CoreWorld, scheme: string) => {

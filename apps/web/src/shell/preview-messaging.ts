@@ -1,4 +1,5 @@
 import {
+  createGroupMessagesProvider,
   createLegacyMessagesProvider,
   createMemoryBackend,
   createMessagingRegistry,
@@ -59,7 +60,8 @@ function scripted(backend: MemoryBackend, owner: string, seed: boolean, now: () 
 
 /**
  * The preview's registry: the real registry and the real provider definitions
- * over in-memory backends. The ratchet provider is registered and reports
+ * over in-memory backends. The group provider asks for a signed-in account,
+ * which the preview has none of, and the ratchet provider is registered and reports
  * itself unavailable, which is the truth in a browser without its runtime.
  */
 export function createPreviewMessaging(storage: StorageLike, owner: string): MessagingRegistry {
@@ -85,6 +87,12 @@ export function createPreviewMessaging(storage: StorageLike, owner: string): Mes
     createRatchetMessagesProvider({
       createBackend: () => createMemoryBackend({ owner, now, available: false }),
       available: () => ({ available: false, reason: 'no-ratchet-runtime' }),
+    }),
+  );
+  registry.register(
+    createGroupMessagesProvider({
+      createBackend: () => createMemoryBackend({ owner, now, available: false }),
+      available: () => ({ available: false, reason: 'sign-in-required' }),
     }),
   );
   return registry;

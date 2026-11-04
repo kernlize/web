@@ -150,8 +150,59 @@ test('the default window shows the whole sample applet', async ({ page }) => {
   expect(buttonBox!.y + buttonBox!.height).toBeLessThanOrEqual(frameBox!.y + frameBox!.height);
 });
 
-test('a shared download is handed to an app on the device only after the shell asks to leave', async ({ page }) => {
+async function openSettings(page: Page): Promise<void> {
+  await page.locator('details.account summary').click();
+  await page.getByRole('button', { name: 'Settings' }).click();
+}
+
+test('a shared download joins the Downloads panel, fills in and can be saved', async ({ page }) => {
   const applet = await runPulse(page);
+  const asked: string[] = [];
+  page.on('dialog', (dialog) => {
+    asked.push(dialog.message());
+    void dialog.dismiss();
+  });
+  await applet.getByRole('button', { name: 'Download a shared file' }).click();
+  await expect(applet.locator('#log li').first()).toContainText('Added to your downloads.');
+  expect(asked).toHaveLength(0);
+
+  await page.getByRole('button', { name: 'Downloads', exact: true }).click();
+  const panel = page.getByRole('dialog', { name: 'Downloads' });
+  const job = panel.getByTestId('downloads').getByRole('listitem').filter({ hasText: 'Sample' });
+  await expect(job).toHaveCount(1);
+  await expect(job).toHaveAttribute('data-state', 'done', { timeout: 10_000 });
+  await expect(job.locator('.status')).toHaveText(/^Finished · 64\.0 KB of 64\.0 KB$/);
+  const saved = page.waitForEvent('download');
+  await job.getByRole('button', { name: 'Save' }).click();
+  expect((await saved).suggestedFilename()).toBe('Sample.txt');
+  await job.getByRole('button', { name: 'Remove Sample' }).click();
+  await expect(panel.getByText('Nothing downloading.')).toBeVisible();
+});
+
+test('a download link pasted into the panel can be paused and resumed', async ({ page }) => {
+  await page.goto(`${base}/app/?preview=1`);
+  await page.getByRole('button', { name: 'Try the preview' }).click();
+  await page.getByRole('button', { name: 'Downloads', exact: true }).click();
+  const panel = page.getByRole('dialog', { name: 'Downloads' });
+  await expect(panel.getByText('Nothing downloading.')).toBeVisible();
+  await panel.getByRole('textbox', { name: 'Download link' }).fill('not a link');
+  await panel.getByRole('button', { name: 'Download', exact: true }).click();
+  await expect(panel.getByRole('alert')).toHaveText('That is not a download link kernl can open.');
+  await panel.getByRole('textbox', { name: 'Download link' }).fill(`magnet:?xt=urn:btih:${'cd'.repeat(20)}&dn=Field%20Notes`);
+  await panel.getByRole('button', { name: 'Download', exact: true }).click();
+  const job = panel.getByTestId('downloads').getByRole('listitem').filter({ hasText: 'Field Notes' });
+  await job.getByRole('button', { name: 'Pause' }).click();
+  await expect(job).toHaveAttribute('data-state', 'paused');
+  await job.getByRole('button', { name: 'Resume' }).click();
+  await expect(job).toHaveAttribute('data-state', 'done', { timeout: 10_000 });
+});
+
+test('choosing an app on the device hands a shared download off only after the shell asks to leave', async ({ page }) => {
+  const applet = await runPulse(page);
+  await openSettings(page);
+  await page.getByRole('radio', { name: /Open in an app on your device/ }).check();
+  await expect(page.getByText('Ready (opens an app on your device)')).toHaveCount(4);
+  await page.keyboard.press('Escape');
   const asked: string[] = [];
   page.on('dialog', (dialog) => {
     asked.push(`${dialog.type()}:${dialog.message()}`);
@@ -162,14 +213,19 @@ test('a shared download is handed to an app on the device only after the shell a
   expect(asked).toHaveLength(1);
   expect(asked[0]).toMatch(/^confirm:Leave kernl and open this link\?/);
   expect(asked[0]).toContain(`magnet:?xt=urn:btih:${'ab'.repeat(20)}&dn=Sample`);
+
+  await page.reload();
+  await page.getByRole('button', { name: 'Try the preview' }).click();
+  await openSettings(page);
+  await expect(page.getByRole('radio', { name: /Open in an app on your device/ })).toBeChecked();
 });
 
-test('settings say downloads, sharing and mail open an app on the device', async ({ page }) => {
+test('settings say downloads from peers happen in kernl, and sharing and mail open an app on the device', async ({ page }) => {
   await page.goto(`${base}/app/?preview=1`);
   await page.getByRole('button', { name: 'Try the preview' }).click();
-  await page.locator('details.account summary').click();
-  await page.getByRole('button', { name: 'Settings' }).click();
-  await expect(page.getByText('Ready (opens an app on your device)')).toHaveCount(4);
+  await openSettings(page);
+  await expect(page.getByRole('radio', { name: /Download in kernl/ })).toBeChecked();
+  await expect(page.getByText('Ready (opens an app on your device)')).toHaveCount(3);
 });
 
 test('an empty desktop reads as two sentences and the sign-in choices follow the preview', async ({ page }) => {

@@ -1,108 +1,43 @@
 import { expect, vi } from 'vitest';
 import { Given, Then, When, type DataTable } from 'quickpickle';
-import { Observable, Subject, of, type Subscriber } from 'rxjs';
+import { Subject } from 'rxjs';
 import { EventStore } from 'applesauce-core';
-import { kinds, matchFilters, normalizeRelayUrl, verifyEvent, type Filter, type NostrEvent } from 'applesauce-core/helpers';
+import { kinds, verifyEvent, type NostrEvent } from 'applesauce-core/helpers';
 import { giftWrap } from 'applesauce-common/operations/gift-wrap';
 import { LegacyMessageFactory } from 'applesauce-common/factories/legacy-message';
 import { createConversationIdentifier } from 'applesauce-common/helpers/messages';
 import { PrivateKeySigner, type ISigner } from 'applesauce-signers';
 import { ReadonlyAccount } from 'applesauce-accounts/accounts';
-import type { PublishResponse } from 'applesauce-relay';
 import type { DmConversation, DmMessage, DmSendResult } from '@napplet/core';
 import type { MessagingBackend } from '@kernl/messaging';
 import {
+  createGroupMessagesBackend,
   createLegacyMessagesBackend,
   createPrivateMessagesBackend,
   createRelayTiers,
   messagingSigner,
   signerAvailability,
-  type ApplesaucePool,
   type SignerMessagingOptions,
 } from '@kernl/core';
-import { MemoryStorage, passwordAccount, scratch, splitList, type CoreWorld, type ReqMessage } from './world.js';
+import { createRelayNetwork, type RelayNetwork } from './relay-network.js';
+import { MemoryStorage, passwordAccount, scratch, splitList, type CoreWorld } from './world.js';
 
 const DISCOVERY = 'wss://discovery.example';
 const TIERS = { discovery: [DISCOVERY], apps: [], outbox: ['wss://outbox.example'], super: ['wss://super.example'] };
 
-interface LiveReq {
-  readonly relays: readonly string[];
-  readonly filters: readonly Filter[];
-  readonly observer: Subscriber<ReqMessage>;
-}
-
-/** A fake set of relays that stores what is published and streams it to open subscriptions that match. */
-interface RelayNetwork extends ApplesaucePool {
-  readonly stored: Map<string, NostrEvent[]>;
-  readonly published: { relays: string[]; event: NostrEvent }[];
-  readonly live: Set<LiveReq>;
-  refuseLookups: boolean;
-  refusePublishes: boolean;
-  /** Runs right after a publish reached the open subscriptions, before anything could open it. */
-  afterPublish?: () => void;
-  /** Deliver an event to every open subscription, as a relay that ignores filters would. */
-  push(event: NostrEvent): void;
-}
-
-function storedOn(network: RelayNetwork, relays: readonly string[], filters: readonly Filter[]): NostrEvent[] {
-  const found = new Map<string, NostrEvent>();
-  for (const relay of relays) for (const event of network.stored.get(relay) ?? []) if (matchFilters([...filters], event)) found.set(event.id, event);
-  return [...found.values()];
-}
-
-function createRelayNetwork(): RelayNetwork {
-  const network: RelayNetwork = {
-    stored: new Map(),
-    published: [],
-    live: new Set(),
-    refuseLookups: false,
-    refusePublishes: false,
-    req(relays, filters) {
-      const urls = (relays as string[]).map(normalizeRelayUrl);
-      const list = (Array.isArray(filters) ? filters : [filters]) as Filter[];
-      return new Observable<ReqMessage>((observer) => {
-        for (const event of storedOn(network, urls, list)) observer.next({ type: 'EVENT', from: urls[0] as string, id: 'sub', event });
-        for (const url of urls) observer.next({ type: 'EOSE', from: url, id: 'sub' });
-        const entry: LiveReq = { relays: urls, filters: list, observer };
-        network.live.add(entry);
-        return () => network.live.delete(entry);
-      });
-    },
-    request(relays, filters) {
-      if (network.refuseLookups) return new Observable<NostrEvent>((observer) => observer.error(new Error('down'))) as ReturnType<ApplesaucePool['request']>;
-      const list = (Array.isArray(filters) ? filters : [filters]) as Filter[];
-      return of(...storedOn(network, (relays as string[]).map(normalizeRelayUrl), list)) as ReturnType<ApplesaucePool['request']>;
-    },
-    async publish(relays, event) {
-      const urls = (relays as string[]).map(normalizeRelayUrl);
-      if (network.refusePublishes) throw new Error('refused');
-      const plain = JSON.parse(JSON.stringify(event)) as NostrEvent;
-      network.published.push({ relays: urls, event: plain });
-      for (const url of urls) network.stored.set(url, [...(network.stored.get(url) ?? []), plain]);
-      for (const entry of network.live) {
-        if (entry.relays.some((url) => urls.includes(url)) && matchFilters([...entry.filters], plain)) entry.observer.next({ type: 'EVENT', from: urls[0] as string, id: 'sub', event: plain });
-      }
-      network.afterPublish?.();
-      return urls.map((from): PublishResponse => ({ ok: true, from }));
-    },
-    push(event) {
-      const plain = JSON.parse(JSON.stringify(event)) as NostrEvent;
-      for (const entry of network.live) entry.observer.next({ type: 'EVENT', from: entry.relays[0] as string, id: 'sub', event: plain });
-    },
-  };
-  return network;
-}
-
-interface Device {
+export interface Device {
   readonly backend: MessagingBackend;
+  /** What the device keeps between page loads; a device added again under the same name keeps it. */
+  readonly storage: MemoryStorage;
   readonly store: EventStore;
   readonly changes: Subject<void>;
   signer: ISigner | undefined;
   pubkey: string | undefined;
 }
 
-interface MessagingScratch {
+export interface MessagingScratch {
   readonly network: RelayNetwork;
+  readonly storages: Map<string, MemoryStorage>;
   readonly people: Map<string, { signer: PrivateKeySigner; pubkey: string }>;
   readonly devices: Map<string, Device>;
   readonly subscriptions: Map<string, { device: string; id: string; seen: DmMessage[] }>;
@@ -110,36 +45,38 @@ interface MessagingScratch {
   lastSend?: DmSendResult;
 }
 
-function m(world: CoreWorld): MessagingScratch {
+export function m(world: CoreWorld): MessagingScratch {
   return scratch(world).messagingBackends as MessagingScratch;
 }
 
-function person(world: CoreWorld, name: string): { signer: PrivateKeySigner; pubkey: string } {
+export function person(world: CoreWorld, name: string): { signer: PrivateKeySigner; pubkey: string } {
   const found = m(world).people.get(name);
   if (!found) throw new Error(`unknown person ${name}`);
   return found;
 }
 
-function pubkeys(world: CoreWorld, names: string): string[] {
+export function pubkeys(world: CoreWorld, names: string): string[] {
   return splitList(names).map((name) => person(world, name).pubkey);
 }
 
-function device(world: CoreWorld, name: string): Device {
+export function device(world: CoreWorld, name: string): Device {
   const found = m(world).devices.get(name);
   if (!found) throw new Error(`unknown device ${name}`);
   return found;
 }
 
 /** Wait until every device has opened what already arrived. */
-async function settle(world: CoreWorld): Promise<void> {
+export async function settle(world: CoreWorld): Promise<void> {
   for (const entry of m(world).devices.values()) await entry.backend.conversations();
 }
 
-function addDevice(world: CoreWorld, name: string, kind: string, signer: ISigner | undefined, pubkey: string | undefined): Device {
+export function addDevice(world: CoreWorld, name: string, kind: string, signer: ISigner | undefined, pubkey: string | undefined): Device {
   let clock = 1_700_000_000;
   const store = new EventStore();
   const changes = new Subject<void>();
-  const entry = { store, changes, signer, pubkey } as Device;
+  const storage = m(world).storages.get(name) ?? new MemoryStorage();
+  m(world).storages.set(name, storage);
+  const entry = { store, changes, signer, pubkey, storage } as Device;
   const options: SignerMessagingOptions = {
     store,
     pool: m(world).network,
@@ -149,12 +86,17 @@ function addDevice(world: CoreWorld, name: string, kind: string, signer: ISigner
     now: () => (clock += 10),
     accountChanges: changes,
   };
-  const backend = kind === 'legacy' ? createLegacyMessagesBackend(options) : createPrivateMessagesBackend(options);
+  const backends: Record<string, () => MessagingBackend> = {
+    legacy: () => createLegacyMessagesBackend(options),
+    private: () => createPrivateMessagesBackend(options),
+    group: () => createGroupMessagesBackend({ ...options, storage }),
+  };
+  const backend = (backends[kind] as () => MessagingBackend)();
   m(world).devices.set(name, Object.assign(entry, { backend }));
   return entry;
 }
 
-async function send(world: CoreWorld, name: string, request: { recipients: string[]; content: string; conversationId?: string }): Promise<void> {
+export async function send(world: CoreWorld, name: string, request: { recipients: string[]; content: string; conversationId?: string }): Promise<void> {
   m(world).sendError = undefined;
   try {
     m(world).lastSend = await device(world, name).backend.send(request);
@@ -164,7 +106,7 @@ async function send(world: CoreWorld, name: string, request: { recipients: strin
   await settle(world);
 }
 
-async function conversationWith(world: CoreWorld, name: string, others: string): Promise<DmConversation | undefined> {
+export async function conversationWith(world: CoreWorld, name: string, others: string): Promise<DmConversation | undefined> {
   const expected = pubkeys(world, others).sort();
   const page = await device(world, name).backend.conversations();
   return page.conversations.find((conversation) => JSON.stringify(conversation.participants.map((peer) => peer.pubkey).sort()) === JSON.stringify(expected));
@@ -176,7 +118,7 @@ Given('a message network with alice, bob and carol', async (world: CoreWorld) =>
     const signer = new PrivateKeySigner();
     people.set(name, { signer, pubkey: await signer.getPublicKey() });
   }
-  scratch(world).messagingBackends = { network: createRelayNetwork(), people, devices: new Map(), subscriptions: new Map() } satisfies MessagingScratch;
+  scratch(world).messagingBackends = { network: createRelayNetwork(), people, devices: new Map(), storages: new Map(), subscriptions: new Map() } satisfies MessagingScratch;
 });
 
 Given('{word} uses the {word} backend on {string}', (world: CoreWorld, name: string, kind: string, deviceName: string) => {

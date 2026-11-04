@@ -15,20 +15,24 @@ Filed as [kehto/web #397](https://github.com/kehto/web/issues/397), [#398](https
 
 ## 2. Bridge backends
 
-Today the torrent, NZB, Soulseek and mail bridges hand the locator to an app on the user's device ([Bridges](./concepts/bridges.md#hand-off-backends)). An in-shell backend replaces the hand-off for its bridge and plugs into the path the HTTP bridge already exercises end to end. In-shell transfers would put the traffic under the shell's grants, guard and revocation, and would also make it the shell's to expose, so each needs its exposure description checked. Order reflects how much of the user's exposure each one changes.
+Magnet links download inside the shell page through WebTorrent, with the device app as a choice in Settings ([D-017](./decisions.md#d-017)). The NZB, Soulseek and mail bridges still hand the locator to an app on the user's device ([Bridges](./concepts/bridges.md#hand-off-backends)), because each of their protocols runs over raw TCP sockets and a browser page cannot open one ([Why they still hand off](./concepts/bridges.md#why-nzb-soulseek-and-mail-still-hand-off)).
+
+The next step is a **companion service**: a small program the user runs on their own device, or a service they choose, that opens those sockets on the user's behalf and that the shell reaches over a WebSocket. Each bridge then gets an in-shell backend that talks to it. In-shell transfers put the traffic under the shell's grants, guard and revocation, and make it the shell's to expose, so each needs its exposure description checked. Order reflects how much of the user's exposure each one changes.
 
 | Backend | Interface | Notes |
 | --- | --- | --- |
-| Mail | `MailBackend` | Opens or creates a conversation for a `mailto:` locator inside the shell. Candidate for a shell-side IMAP/JMAP client. Today the device's mail program opens. |
-| NZB | `NzbBackend` | Hands an `nzb:` locator to a configured downloader the shell can query. The downloader runs outside the browser; the bridge reports job state. Today the `https` document URL opens on the device. |
-| Torrent | `TorrentBackend` | Adds an info hash with its trackers. WebTorrent in the shell, or a configured external client the shell can query. Marked as public activity in the exposure description. Today the magnet link opens on the device. |
-| Soulseek | `SoulseekBackend` | Requests one file from one peer. Requires a daemon; the bridge reports job state. Today the `slsk://` address opens on the device. |
+| Mail | `MailBackend` | Opens or creates a conversation for a `mailto:` locator inside the shell. Needs the companion service for IMAP and SMTP, or a provider with a JMAP endpoint that allows cross-origin requests. Today the device's mail program opens. |
+| NZB | `NzbBackend` | Hands an `nzb:` locator to the companion service, which fetches from the user's news server; the bridge reports job state in the Downloads panel. Today the `https` document URL opens on the device. |
+| Soulseek | `SoulseekBackend` | Requests one file from one peer through the companion service; the bridge reports job state. Today the `slsk://` address opens on the device. |
+| Torrent | `TorrentBackend` | Done for browser peers ([Downloads inside kernl](./concepts/bridges.md#downloads-inside-kernl)). A companion service could also reach peers that only speak TCP and UDP, which browser peers cannot. |
 
-The shell also needs a downloads view that shows the state of each `job` result and lets the user cancel it; there is none today. A hand-off job cannot be tracked at all, because the transfer belongs to the device app.
+The Downloads panel shows in-kernl jobs only; a hand-off job cannot be tracked, because the transfer belongs to the device app. Downloads live in memory and end when the tab closes; keeping them across reloads is open.
 
 ## 3. Messaging
 
-- Supply the double-ratchet runtime so the `ratchet` provider reports `available`. Its properties are already described; see [Messaging](./concepts/messaging.md).
+- Ratchet sessions: persist the conversation list sealed like the session state, read correspondents' inbox relays, and offer groups ([D-016](./decisions.md#d-016)).
+- Group sessions: keep each group's history sealed across reloads, let the user name a group, add and remove members and leave, read correspondents' key-package relay lists (kind 10051), and follow the group library out of alpha ([D-018](./decisions.md#d-018)).
+- Private messages: read NIP-17 kind 15 file messages, which `private` skips today.
 - Inbox setup: offer to publish the user's kind 10050 inbox relays when they have none, so `private` stops falling back to the `outbox` and `super` tiers ([D-015](./decisions.md#d-015)).
 - Per-conversation provider migration: move a correspondent from `legacy` to `private` when both clients can read it, shown as a reversible choice.
 

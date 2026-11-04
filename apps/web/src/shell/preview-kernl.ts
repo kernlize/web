@@ -9,6 +9,7 @@ import {
   createSoulseekBridge,
   createTorrentBridge,
   type BridgeRegistry,
+  type TorrentBackend,
 } from '@kernl/bridges';
 import type { NappletCspDirectives } from '@kehto/shell';
 import {
@@ -154,12 +155,13 @@ function createActions(host: KernlHost, bridges: BridgeRegistry, pubkeyOf: () =>
     });
   };
 
-  /** A shared download resolves through the same hand-off bridges the live shell uses (D-010). */
+  /** A shared download resolves through the same bridges the live shell uses (D-010, D-017). */
   const handOff = async (entry: Mounted, url: string): Promise<void> => {
     const { dTag, hash } = entry.plan.summary.identity;
     try {
-      await bridges.resolve(url, { requester: { dTag, hash } });
-      reply(entry, true, 'Handed to an app on your device.');
+      const result = await bridges.resolve(url, { requester: { dTag, hash } });
+      const handedOff = 'id' in result && result.id.startsWith('handoff:');
+      reply(entry, true, handedOff ? 'Handed to an app on your device.' : 'Added to your downloads.');
     } catch {
       reply(entry, false, 'The download could not be handed off.');
     }
@@ -262,7 +264,7 @@ function sessionOf(account: IAccount): Session {
  * document instead of verified bytes. Default when the live core is absent,
  * and the thing Playwright drives.
  */
-export function createPreviewKernl(host: KernlHost): ShellKernl {
+export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend): ShellKernl {
   const accounts = new AccountManager();
   registerCommonAccountTypes(accounts);
   const guard = createPreviewGuard();
@@ -274,7 +276,7 @@ export function createPreviewKernl(host: KernlHost): ShellKernl {
   const handoff = createHandoffBackends((uri) => host.openLink(uri));
   for (const bridge of [
     createHttpBridge(),
-    createTorrentBridge(handoff.torrent),
+    createTorrentBridge(torrent ?? handoff.torrent),
     createNzbBridge(handoff.nzb),
     createSoulseekBridge(handoff.soulseek),
     createMailBridge(handoff.mail),

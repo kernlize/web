@@ -8,7 +8,7 @@ import type { NappletArtifactCache, NappletManifest } from '@kehto/nip/5d';
 import type { NostrEvent } from '@napplet/core';
 import type { GuardConfig, GuardEvent, GuardProfile, MitigationDescription, WindowVisibility } from '@kernl/guard';
 import type { MessagingBackend, MessagingRegistry } from '@kernl/messaging';
-import type { BridgeRegistry } from '@kernl/bridges';
+import type { BridgeRegistry, TorrentBackend } from '@kernl/bridges';
 
 
 /** The two values an applet's grants are keyed on. Both come from verification, never from the applet. */
@@ -186,6 +186,7 @@ export interface MessagingBackendFactories {
   readonly private?: () => MessagingBackend;
   readonly legacy?: () => MessagingBackend;
   readonly ratchet?: () => MessagingBackend;
+  readonly group?: () => MessagingBackend;
 }
 
 export interface KernlOptions {
@@ -198,6 +199,11 @@ export interface KernlOptions {
   readonly pool?: RelayPool;
   readonly messaging?: MessagingRegistry;
   readonly bridges?: BridgeRegistry;
+  /**
+   * The engine for magnet links when `bridges` is not given. With one, magnet links download
+   * inside kernl instead of handing off to an app on the device (D-017).
+   */
+  readonly torrent?: TorrentBackend;
   /** Theme pushed to applets that hold `theme:read`. */
   readonly theme?: Record<string, unknown>;
   /** Backends for the messaging providers; absent ones stay unavailable. */

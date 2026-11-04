@@ -16,3 +16,7 @@ import './messaging-backends.js';
 import './kernl.js';
 import './quarantine.js';
 import './runtime-guard.js';
+import './ratchet-backend.js';
+import './kernl-dm.js';
+import './group-sessions.js';
+import './kernl-bridges.js';

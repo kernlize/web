@@ -5,3 +5,4 @@ import './backend-bridges';
 import './resource-resolver';
 import './describe';
 import './handoff-backends';
+import './webtorrent-backend';

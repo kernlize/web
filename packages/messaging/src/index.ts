@@ -30,6 +30,7 @@ export {
   type MemoryIncoming,
 } from './memory-backend.js';
 export {
+  createGroupMessagesProvider,
   createLegacyMessagesProvider,
   createPrivateMessagesProvider,
   createRatchetMessagesProvider,

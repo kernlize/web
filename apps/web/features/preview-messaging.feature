@@ -2,14 +2,17 @@ Feature: The preview's messaging
   The preview uses the real messaging registry and the real provider
   definitions over in-memory backends. A scripted correspondent answers every
   send after a moment, and the ratchet provider truthfully reports that it
-  cannot run in a browser without its runtime.
+  cannot run in a browser without its runtime. The group provider asks for a
+  signed-in account, which the preview does not have.
 
   Scenario: a first visit enables the private provider and the correspondent says hello
     When the preview messaging opens
-    Then the preview messaging offers "private,legacy,ratchet"
+    Then the preview messaging offers "private,legacy,ratchet,group"
     And the preview messaging has "private" enabled with "private" as the default
     And the preview messaging reports "ratchet" unavailable because "no-ratchet-runtime"
     And a "ratchet" backend built anyway reports itself offline
+    And the preview messaging reports "group" unavailable because "sign-in-required"
+    And a "group" backend built anyway reports itself offline
     And the preview correspondent has opened with 2 messages
 
   Scenario: saved preferences are restored and every change is saved

@@ -3,7 +3,7 @@ import Site from '../../layouts/Site.astro';
 import { href } from '../../lib/site';
 
 const description =
-  'Bridges let kernl reach other networks for you. Web fetch works today; downloads, sharing and mail work by handing off to an app on your device. In-shell backends are planned.';
+  'Bridges let kernl reach other networks for you. Web fetch and downloads from peers work inside kernl today; newsgroup downloads, sharing and mail hand off to an app on your device.';
 ---
 
 <Site title="Bridges" description={description}>
@@ -12,7 +12,7 @@ const description =
       <div class="section-head">
         <p class="label">Bridges</p>
         <h1 id="bridges-title">Named by what they do for you.</h1>
-        <p class="lede">A bridge is a service the shell owns that turns a link into bytes or a conversation on another network. An applet never talks to the other network itself; it asks the shell, and the shell answers. <strong>In this alpha web fetch has no consent prompt yet</strong> and refuses private and local addresses by policy. Downloads, sharing and mail hand the link to an app on your device, and the shell asks you before it leaves kernl.</p>
+        <p class="lede">A bridge is a service the shell owns that turns a link into bytes or a conversation on another network. An applet never talks to the other network itself; it asks the shell, and the shell answers. <strong>In this alpha web fetch has no consent prompt yet</strong> and refuses private and local addresses by policy. Files shared by peers download inside kernl. Newsgroup downloads, sharing and mail hand the link to an app on your device, and the shell asks you before it leaves kernl.</p>
       </div>
     </div>
   </section>
@@ -30,9 +30,14 @@ const description =
           <p>Fetches a web address for an applet, through the shell, with a policy that refuses private and local addresses so an applet cannot use you to look inside your own network.</p>
         </article>
         <article class="card reveal">
+          <p class="label"><span class="pill on">Works today</span></p>
+          <h3>Downloads from peers</h3>
+          <p>Links to files that people share with each other download inside kernl, in the Downloads panel, where you can pause, resume, remove and save them. Peers see your network address and what you fetch. If you prefer, Settings sends these links to the download app on your device instead.</p>
+        </article>
+        <article class="card reveal">
           <p class="label"><span class="pill on">Hands off to your device</span></p>
-          <h3>Downloads</h3>
-          <p>Understands the links people already share for large files and newsgroup posts, and hands each one to the download app on your device after asking you. kernl itself moves no bytes for it; an in-shell backend is planned.</p>
+          <h3>Newsgroup downloads</h3>
+          <p>Understands the links people share for newsgroup posts, and hands each one to the download app on your device after asking you. kernl itself moves no bytes for it.</p>
         </article>
         <article class="card reveal">
           <p class="label"><span class="pill on">Hands off to your device</span></p>
@@ -46,6 +51,7 @@ const description =
         </article>
       </div>
       <div class="note reveal" style="margin-top: 2rem">
+        <p>Why some bridges hand off: a web page may only make web requests and direct connections to other browsers. Newsgroup servers, sharing networks and mail servers need a kind of connection no web page is allowed to open, so until kernl can reach a helper you run or trust, an app on your device does that part.</p>
         <p>Handing off is honest about what happens: the app on your device does the transfer, so what that app shares with the other side is what Settings lists for the bridge, and nothing goes through kernl's own connections. Where no app is set up, nothing opens. A bridge with nothing to hand off to reports itself as unavailable, and an applet cannot tell the difference between "unavailable" and "you said no".</p>
       </div>
     </div>

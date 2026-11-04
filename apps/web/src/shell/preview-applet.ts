@@ -119,7 +119,7 @@ const ACTIONS: readonly Action[] = [
   { id: 'delete', label: 'Delete a note', hint: 'asks you first: it cannot be undone', domain: 'relay' },
   { id: 'notify', label: 'Send a notification', hint: 'needs the notifications grant', domain: 'notify' },
   { id: 'flood', label: 'Flood the shell', hint: '40 network reads at once; watch the guard', domain: 'relay' },
-  { id: 'download', label: 'Download a shared file', hint: 'an app on your device takes it; the shell asks first' },
+  { id: 'download', label: 'Download a shared file', hint: 'it joins your downloads, or goes to an app on your device if you chose that' },
   { id: 'link', label: 'Open a link', hint: 'the shell confirms before leaving' },
 ];
 

@@ -22,6 +22,14 @@ Feature: The composed shell
     When the shell bridges resolve "magnet:?xt=urn:btih:ABCDEF0123456789ABCDEF0123456789ABCDEF01&dn=Mix"
     Then the host was asked to open "magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01&dn=Mix" once
 
+  Scenario: a torrent backend makes magnet links download inside kernl
+    Given a kernl shell over that host and pool with a torrent backend
+    Then the shell bridge for "magnet" downloads inside kernl
+    And the shell bridge for "mailto" hands off to the device
+    When the shell bridges resolve "magnet:?xt=urn:btih:ABCDEF0123456789ABCDEF0123456789ABCDEF01&dn=Mix"
+    Then the torrent backend was asked for "abcdef0123456789abcdef0123456789abcdef01"
+    And the host was asked to open nothing
+
   Scenario: host-supplied parts are used as they are
     Given a kernl shell over that host and pool with its own store, accounts, messaging, bridges, relays, a "balanced" guard, a theme, a clock and a blob fetcher
     Then the shell guard profile is "balanced" with mitigations described
@@ -51,11 +59,59 @@ Feature: The composed shell
   Scenario: kernl's own message backends follow the active account
     Given a kernl shell over that host and pool
     Then the shell messaging provider "legacy" is unavailable because "sign-in-required"
-    And the shell messaging provider "ratchet" is unavailable because "no-runtime"
+    And the shell messaging provider "ratchet" is unavailable because "sign-in-required"
     When the shell logs in with a password account named "alice"
-    And the shell enables messaging provider "private" and "legacy"
+    Then the shell messaging provider "ratchet" is available
+    When the shell enables messaging provider "private" and "legacy"
+    And the shell enables messaging provider "ratchet"
     Then the shell messaging status is available for the signed-in account
     When the shell is destroyed
+
+  Scenario: an applet reaches ratchet sessions through the dm domain
+    Given a kernl shell over a message network serving that manifest
+    And bob opens ratchet sessions on the same relays
+    When the shell logs in with a password account named "alice"
+    And the shell enables messaging provider "ratchet"
+    And the shell resolves the manifest address
+    And the shell allows "dm" for the resolved applet
+    And the shell plans the summary
+    And the shell mounts the plan into a fake frame
+    And the applet sends its hello through the shell
+    And the applet asks "shell.ready" over its port
+    And the applet subscribes to its messages over its port
+    And the applet sends "hello from an applet" to bob with provider "ratchet" over its port
+    Then the applet's sent message is namespaced "ratchet"
+    And bob reads "hello from an applet" from the shell's account
+    When bob replies "hello applet" to the shell's account
+    Then the applet is pushed "hello applet" namespaced "ratchet"
+    When the applet reads its "ratchet" conversation with bob over its port
+    Then the applet's page holds "hello from an applet|hello applet" with every id namespaced "ratchet"
+    And bob closes his ratchet sessions
+
+  Scenario: an applet reaches group sessions through the dm domain
+    Given a kernl shell over a message network serving that manifest
+    And bob opens group sessions on the same relays
+    Then the shell messaging provider "group" is unavailable because "sign-in-required"
+    When the shell logs in with a password account named "alice"
+    Then the shell messaging provider "group" is available
+    When the shell enables messaging provider "group"
+    And the shell resolves the manifest address
+    And the shell allows "dm" for the resolved applet
+    And the shell plans the summary
+    And the shell mounts the plan into a fake frame
+    And the applet sends its hello through the shell
+    And the applet asks "shell.ready" over its port
+    And the applet asks for its message status over its port
+    And the applet subscribes to its messages over its port
+    And the applet sends "hello group" to bob in a new group over its port
+    Then the applet's sent message is filed under a "group" group
+    And bob reads "hello group" in his group with the shell's account
+    When bob replies "hello from the group" in that group
+    Then the applet is pushed "hello from the group" in that group
+    And the applet lists that group among its conversations over its port
+    When the applet reads that group over its port
+    Then the applet's page holds "hello group|hello from the group" with every id namespaced "group"
+    And bob closes his group sessions
 
   Scenario: logging in and out drives the session
     Given a kernl shell over that host and pool

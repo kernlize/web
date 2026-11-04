@@ -3,6 +3,7 @@
   import core from '../../../../packages/core/package.json';
   import { bridgeName, bridgeRows } from './bridge-names';
   import type { BootMode, RelayTier, ShellKernl } from './contract';
+  import type { DownloadMode, ShellDownloads } from './downloads';
   import { toggleTheme } from '../lib/theme';
   import { observe } from './observe.svelte';
   import Overlay from './Overlay.svelte';
@@ -11,10 +12,22 @@
   interface Props {
     kernl: ShellKernl;
     mode: BootMode;
+    downloads: ShellDownloads;
     onclose: () => void;
   }
 
-  const { kernl, mode, onclose }: Props = $props();
+  const { kernl, mode, downloads, onclose }: Props = $props();
+  let downloadMode = $state<DownloadMode>(downloads.mode());
+
+  const DOWNLOAD_CHOICES: readonly { id: DownloadMode; label: string; help: string }[] = [
+    { id: 'kernl', label: 'Download in kernl', help: 'Files shared by peers download inside this page. Peers see your network address and what you fetch.' },
+    { id: 'device', label: 'Open in an app on your device', help: 'kernl asks first, then hands the link to the app your device uses for downloads.' },
+  ];
+
+  function chooseDownloads(next: DownloadMode): void {
+    downloads.setMode(next);
+    downloadMode = downloads.mode();
+  }
   const tiers = observe(kernl.relays.changes$, kernl.relays.get());
   $effect(() => tiers.stop);
 
@@ -66,8 +79,23 @@
     {#if error}<p class="shell-error" role="alert">{error}</p>{/if}
   </section>
   <section class="shell-section">
+    <h3>Downloads</h3>
+    <fieldset class="choices">
+      <legend class="shell-muted small">Where links to files shared by peers go.</legend>
+      {#each DOWNLOAD_CHOICES as choice (choice.id)}
+        {@const unavailable = choice.id === 'kernl' && !downloads.inKernl}
+        <label class="shell-card choice" class:active={downloadMode === choice.id}>
+          <input type="radio" name="download-mode" value={choice.id} checked={downloadMode === choice.id} disabled={unavailable} onchange={() => chooseDownloads(choice.id)} />
+          <span class="name">{choice.label}{choice.id === 'kernl' && downloads.inKernl ? ' (default)' : ''}</span>
+          <small>{unavailable ? 'This browser cannot connect to peers.' : choice.help}</small>
+        </label>
+      {/each}
+    </fieldset>
+  </section>
+  <section class="shell-section">
     <h3>Bridges</h3>
     <p class="shell-muted small">Shell-owned services that fetch things from other networks for you. Each one says what the other side learns.</p>
+    {#key downloadMode}
     <ul class="shell-list bridges">
       {#each kernl.bridges.list() as bridge (bridge.id)}
         <li class="shell-card">
@@ -80,6 +108,7 @@
         </li>
       {/each}
     </ul>
+    {/key}
   </section>
   <section class="shell-section">
     <h3>Appearance</h3>
@@ -127,6 +156,32 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .choices {
+    display: grid;
+    gap: 0.5rem;
+    border: 0;
+    padding: 0;
+    margin: 0;
+  }
+
+  .choice {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 0.6rem;
+    align-items: center;
+    cursor: pointer;
+  }
+
+  .choice.active {
+    border-color: var(--accent);
+  }
+
+  .choice small {
+    grid-column: 2;
+    color: var(--ink-muted);
+    font-size: 0.8rem;
   }
 
   .add {

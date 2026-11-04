@@ -1,4 +1,5 @@
 import type { Kernl } from '@kernl/core';
+import type { ShellDownloads } from './downloads';
 
 /**
  * The part of the composed shell the UI touches. The event store, the pool and
@@ -40,6 +41,8 @@ export interface Booted {
   readonly kernl: ShellKernl;
   readonly mode: BootMode;
   readonly samples: readonly SampleApplet[];
+  /** Downloads from peers: the in-page engine and the user's choice of where links go. */
+  readonly downloads: ShellDownloads;
   /** Why the live shell was not used, when it was not. */
   readonly fallbackReason?: string;
 }

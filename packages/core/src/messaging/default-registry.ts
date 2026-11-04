@@ -1,4 +1,5 @@
 import {
+  createGroupMessagesProvider,
   createLegacyMessagesProvider,
   createMessagingRegistry,
   createPrivateMessagesProvider,
@@ -23,20 +24,21 @@ export interface DefaultMessagingOptions {
   readonly backends?: MessagingBackendFactories;
   /**
    * The active account's signer, read on every availability check. When given,
-   * `private` is available only while it has `nip44` and `legacy` only while it
-   * has `nip04`, whichever backend is supplied for them.
+   * `private`, `ratchet` and `group` are available only while it has `nip44` and
+   * `legacy` only while it has `nip04`, whichever backend is supplied for them.
    */
   readonly signer?: () => ISigner | undefined;
 }
 
-const ENCRYPTION: Readonly<Record<'private' | 'legacy', MessagingEncryption>> = { private: 'nip44', legacy: 'nip04' };
+const ENCRYPTION: Readonly<Record<keyof MessagingBackendFactories, MessagingEncryption>> = { private: 'nip44', legacy: 'nip04', ratchet: 'nip44', group: 'nip44' };
 
 function availabilityFor(id: keyof MessagingBackendFactories, options: DefaultMessagingOptions): () => ProviderAvailability {
   const factory = options.backends?.[id];
-  if (id === 'ratchet') return () => (factory ? { available: true } : { available: false, reason: MESSAGING_UNAVAILABLE_REASONS.noRuntime });
   const { signer } = options;
   if (factory && signer) return () => signerAvailability(signer(), ENCRYPTION[id]);
-  return () => (factory ? { available: true } : { available: false, reason: MESSAGING_UNAVAILABLE_REASONS.signInRequired });
+  if (factory) return () => ({ available: true });
+  const reason = id === 'ratchet' || id === 'group' ? MESSAGING_UNAVAILABLE_REASONS.noRuntime : MESSAGING_UNAVAILABLE_REASONS.signInRequired;
+  return () => ({ available: false, reason });
 }
 
 function depsFor(id: keyof MessagingBackendFactories, options: DefaultMessagingOptions): ProviderDeps {
@@ -53,14 +55,15 @@ function depsFor(id: keyof MessagingBackendFactories, options: DefaultMessagingO
 }
 
 /**
- * The shell's messaging registry with kernl's three providers registered and
+ * The shell's messaging registry with kernl's four providers registered and
  * preferences persisted at `kernl:messaging:v1`.
  *
- * `createKernl` passes the account-signer backends for `private` and
- * `legacy` and the active account's signer, so those two follow the account:
+ * `createKernl` passes the account-signer backends for all four providers
+ * and the active account's signer, so each follows the account:
  * `sign-in-required` while nobody is signed in, `signer-cannot-encrypt` while
- * the signer lacks the encryption the format needs. `ratchet` is `no-runtime`
- * until a host supplies a backend: the shell describes, it does not pretend.
+ * the signer lacks the encryption the format needs. A provider given no
+ * backend stays unavailable: `no-runtime` for `ratchet` and `group`, `sign-in-required`
+ * for the others. The shell describes, it does not pretend.
  *
  * @param options - Storage, backend constructors and the active signer.
  * @returns A `MessagingRegistry`.
@@ -69,6 +72,7 @@ function depsFor(id: keyof MessagingBackendFactories, options: DefaultMessagingO
  * const messaging = createDefaultMessaging({ storage: localStorage });
  * messaging.get('private')?.availability; // { available: false, reason: 'sign-in-required' }
  * messaging.get('ratchet')?.availability; // { available: false, reason: 'no-runtime' }
+ * messaging.get('group')?.availability; // { available: false, reason: 'no-runtime' }
  * ```
  */
 export function createDefaultMessaging(options: DefaultMessagingOptions): MessagingRegistry {
@@ -81,5 +85,6 @@ export function createDefaultMessaging(options: DefaultMessagingOptions): Messag
   registry.register(createPrivateMessagesProvider(depsFor('private', options)));
   registry.register(createLegacyMessagesProvider(depsFor('legacy', options)));
   registry.register(createRatchetMessagesProvider(depsFor('ratchet', options)));
+  registry.register(createGroupMessagesProvider(depsFor('group', options)));
   return registry;
 }

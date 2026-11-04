@@ -21,7 +21,7 @@ Locator parsing, the bridge contract, the registry that routes and authorises, a
 
 ## Purpose
 
-A bridge resolves a protocol-specific locator to bytes, a job or a conversation on the user's behalf, behind the same grant and quota as everything else (the composed shell wires no per-request consent), and is named by what it does rather than by its protocol. The HTTP bridge is complete. The torrent, NZB, Soulseek and mail bridges are complete up to the backend interface they call; `createHandoffBackends` supplies all four by handing the locator to an app on the user's device, and without any backend they report `unavailable`. The concepts are in [Bridges](../concepts/bridges.md); the opinion is [D-010](../decisions.md#d-010).
+A bridge resolves a protocol-specific locator to bytes, a job or a conversation on the user's behalf, behind the same grant and quota as everything else (the composed shell wires no per-request consent), and is named by what it does rather than by its protocol. The HTTP bridge is complete. The torrent, NZB, Soulseek and mail bridges are complete up to the backend interface they call; `createHandoffBackends` supplies all four by handing the locator to an app on the user's device, `createWebTorrentBackend` downloads magnet links inside the page instead ([D-017](../decisions.md#d-017)), and without any backend they report `unavailable`. The concepts are in [Bridges](../concepts/bridges.md); the opinion is [D-010](../decisions.md#d-010).
 
 ## Exports
 
@@ -73,7 +73,7 @@ A bridge resolves a protocol-specific locator to bytes, a job or a conversation 
 | `createNzbBridge` | `(backend?: NzbBackend) => Bridge` | Id `nzb`, label `downloads`, scheme `nzb`. Exposure: reveals address, encrypted, not public. |
 | `createSoulseekBridge` | `(backend?: SoulseekBackend) => Bridge` | Id `soulseek`, label `sharing`, scheme `slsk`. Exposure: reveals address, not encrypted, public activity. |
 | `createMailBridge` | `(backend?: MailBackend) => Bridge` | Id `mail`, label `mail`, scheme `mailto`. Exposure: does not reveal address, encrypted, not public. |
-| `BackendTraits` | interface | `{ handoff?: true }`. Every backend interface extends it; a hand-off backend sets it, and its bridge then reports `{ available: true, handoff: true }`. |
+| `BackendTraits` | interface | `{ handoff?: true \| undefined }`. Every backend interface extends it; a hand-off backend sets it, and its bridge then reports `{ available: true, handoff: true }`. The bridge reads it on every availability check, so a backend may switch it, as the shell's does when the user changes where downloads go. |
 | `TorrentBackend` | interface | `add(infoHash: string, trackers: readonly string[], context: BridgeContext, name?: string): Promise<{ id: string; name: string }>`. `name` is the magnet's display name when it has one. |
 | `NzbBackend` | interface | `add(url: string, context: BridgeContext): Promise<{ id: string; name: string }>`. |
 | `SoulseekBackend` | interface | `download(user: string, path: string, context: BridgeContext): Promise<{ id: string; name: string }>`. |
@@ -90,6 +90,23 @@ Without a backend each of the four reports `{ available: false, reason: 'no-back
 | `HandoffBackends` | interface | `{ torrent: TorrentBackend; soulseek: SoulseekBackend; mail: MailBackend; nzb: NzbBackend }`. |
 
 A hand-off makes no connection from kernl; the app on the device does the transfer with its own network, which kernl cannot see or limit. See [Bridges](../concepts/bridges.md#hand-off-backends).
+
+### Downloads inside kernl
+
+| Export | Signature | Description |
+| --- | --- | --- |
+| `createWebTorrentBackend` | `(options: WebTorrentBackendOptions) => WebTorrentBackend` | A `TorrentBackend` without a `handoff` trait that downloads through a WebTorrent client inside the page. Throws `invalid:info-hash` for a hash that is not 40 hex characters and `unavailable:<why>` when the client cannot load or refuses the link. The same hash twice is one job; ids are `download:1`, `download:2`, and so on. |
+| `WebTorrentBackendOptions` | interface | `{ client: WebTorrentLike \| (() => WebTorrentLike \| Promise<WebTorrentLike>); trackers?: readonly string[]; now?: () => number; progressIntervalMs?: number }`. A loader runs on the first download and again after a failure. `trackers` replaces `DEFAULT_WEBRTC_TRACKERS`; progress-only notifications are at most one per `progressIntervalMs` (500 by default). |
+| `WebTorrentBackend` | interface | `TorrentBackend` plus `jobs()`, `subscribe(listener) => stop`, `pause(id)`, `resume(id)`, `remove(id)` (drops the job and its stored data) and `files(id) => Promise<readonly DownloadedFile[]>`. An unknown id throws `denied:unknown-download`; `files` on an unfinished job rejects with `unavailable:not-finished`. |
+| `DownloadJob` | interface | `{ id, name, infoHash, state, progress, received, size?, peers, speed, error? }`. `progress` runs from 0 to 1; sizes are bytes; `speed` is bytes per second and 0 unless downloading. |
+| `DownloadState` | type | `'connecting' \| 'downloading' \| 'paused' \| 'done' \| 'failed'`. |
+| `DownloadedFile` | interface | `{ name: string; size: number; blob: Blob }`. |
+| `DownloadListener` | type | `(jobs: readonly DownloadJob[]) => void`. |
+| `WebTorrentLike`, `WebTorrentTorrentLike`, `WebTorrentFileLike` | interfaces | The parts of a WebTorrent client, torrent and file the backend uses, so the package has no dependency on the library: `add(magnet)`, `remove(torrent, { destroyStore })`; a torrent's `name`, `length`, `downloaded`, `progress`, `downloadSpeed`, `numPeers`, `done`, `files`, `on(event, listener)`, `pause()`, `resume()`; a file's `name`, `length`, `blob()`. |
+| `DEFAULT_WEBRTC_TRACKERS` | `readonly string[]` | `wss://tracker.openwebtorrent.com`, `wss://tracker.webtorrent.dev`, `wss://tracker.btorrent.xyz`. |
+| `webTrackers` | `(trackers: readonly string[], defaults?: readonly string[]) => readonly string[]` | The link's `wss://` trackers, then the defaults, without duplicates. A page cannot open the UDP or TCP sockets other trackers need. |
+
+NZB, Soulseek and mail have no in-page backend: their protocols need raw TCP sockets, which a browser page cannot open. See [Bridges](../concepts/bridges.md#why-nzb-soulseek-and-mail-still-hand-off).
 
 ### Resource resolver
 
@@ -141,7 +158,7 @@ const fetchLike = createBridgeResourceResolver(registry, { requesterFor: (init) 
 
 ## Specification
 
-`packages/bridges/features/`: `locators.feature`, `registry.feature`, `http-bridge.feature`, `backend-bridges.feature`, `handoff-backends.feature`, `resource-resolver.feature`, `describe.feature`.
+`packages/bridges/features/`: `locators.feature`, `registry.feature`, `http-bridge.feature`, `backend-bridges.feature`, `handoff-backends.feature`, `webtorrent-backend.feature`, `resource-resolver.feature`, `describe.feature`.
 
 ## API reference
 

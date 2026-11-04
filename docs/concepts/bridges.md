@@ -68,7 +68,7 @@ The shell holds one `BridgeRegistry`, built with `createBridgeRegistry({ authori
 | authorise | `denied:bridge` | the bridge id |
 | resolve | whatever the bridge threw (`denied:…`, `unavailable:…`, `invalid:…`); a non-`Error` rejection is reported as its text | the bridge id |
 
-Every outcome, successful or not, is reported to `onResolve` as `{ bridge, scheme, ok, reason? }`, when the registry was given one. The composed shell gives none, so bridge outcomes reach neither the guard panel nor any other surface the user sees. The authoriser is a `BridgeAuthorizer`: `(locator, bridge, context) => boolean | Promise<boolean>`. Without one, every request is allowed. The composed shell has none: `createKernl` builds its registry with `createDefaultBridges({ handoff: (uri) => host.openLink(uri) })` and no `authorize`, so a `resource` request from an applet that holds the `resource` grant is checked by the HTTP bridge's policy and nothing else. There is no per-host consent prompt and no per-host grant in this draft ([Alpha status](../alpha-status.md#what-does-not-work-yet)); wiring one is on the [Roadmap](../roadmap.md#_6-guard). A host can pass its own registry with an `authorize` hook in `KernlOptions.bridges`. See `registry.feature`.
+Every outcome, successful or not, is reported to `onResolve` as `{ bridge, scheme, ok, reason? }`, when the registry was given one. The composed shell gives none, so bridge outcomes reach neither the guard panel nor any other surface the user sees. The authoriser is a `BridgeAuthorizer`: `(locator, bridge, context) => boolean | Promise<boolean>`. Without one, every request is allowed. The composed shell has none: `createKernl` builds its registry with `createDefaultBridges({ handoff: (uri) => host.openLink(uri), torrent })` (the torrent backend only when `KernlOptions.torrent` is given) and no `authorize`, so a `resource` request from an applet that holds the `resource` grant is checked by the HTTP bridge's policy and nothing else. There is no per-host consent prompt and no per-host grant in this draft ([Alpha status](../alpha-status.md#what-does-not-work-yet)); wiring one is on the [Roadmap](../roadmap.md#_6-guard). A host can pass its own registry with an `authorize` hook in `KernlOptions.bridges`. See `registry.feature`.
 
 ## The HTTP bridge
 
@@ -117,7 +117,7 @@ Four bridges are complete up to the backend interface they call. Each takes its 
 
 The first three return `{ kind: 'job', id, label: name }`; the mail bridge returns `{ kind: 'conversation', id, participants: addresses }`. Fields are read from the locator before the backend is called; a locator missing one rejects with `invalid:locator-missing-<field>` (`backend-bridges.feature`, scenario "a locator missing a required field is rejected before the backend is called").
 
-Every backend interface extends `BackendTraits`, whose one field is `handoff?: true`. A bridge reports:
+Every backend interface extends `BackendTraits`, whose one field is `handoff?: true`. The bridge reads it on every `availability()` call, so a backend that lets the user choose between moving data itself and handing off may switch it. A bridge reports:
 
 | Backend | `availability()` | `resolve()` |
 | --- | --- | --- |
@@ -147,9 +147,34 @@ What the user is exposed to:
 - **kernl's network sees nothing.** For a hand-off, kernl makes no connection: no swarm, indexer, news server, peer or mail provider is contacted by the shell or by any applet. The address is the only thing that leaves kernl, and it leaves to the device, not to the network.
 - **The device app's behaviour is outside kernl.** The torrent client, the Soulseek client, the mail program or the NZB downloader then does what it does, with its own settings and its own network. The exposure rows describe what that protocol normally exposes, which is why they stay the same as for an in-shell backend, but kernl cannot see, limit or revoke what the app does. If no app is registered for the scheme, the browser decides what happens.
 
-### In-shell backends
+### Downloads inside kernl
 
-A backend that moves the data inside the shell, such as a WebTorrent client, replaces the hand-off backend for its bridge: build the bridge with your backend in place of the hand-off one. The bridge then reports `{ available: true }`, the `Handled by` and `Sent through kernl` rows disappear, and the traffic is the shell's. Supplying one is a shell change plus a docs change; see [Add a bridge backend](../how-tos/add-a-bridge-backend.md). The order in which in-shell backends are planned is in the [Roadmap](../roadmap.md#_2-bridge-backends).
+Magnet links download inside the shell page ([D-017](../decisions.md#d-017)). `createWebTorrentBackend({ client, trackers?, now?, progressIntervalMs? })` is a `TorrentBackend` over a WebTorrent client. `client` is a structural `WebTorrentLike` or a function that returns one (or a promise of one), so `@kernl/bridges` has no dependency on the library and the shell can load it on the first download. A loader that fails is tried again on the next download.
+
+| Step | What happens |
+| --- | --- |
+| hash | Lowercased; anything but 40 hex characters rejects with `invalid:info-hash` before the client loads. |
+| trackers | Only the link's `wss://` trackers are kept, then `DEFAULT_WEBRTC_TRACKERS` (`wss://tracker.openwebtorrent.com`, `wss://tracker.webtorrent.dev`, `wss://tracker.btorrent.xyz`) or the `trackers` option are appended, without duplicates. A page reaches peers only over WebRTC, and only a secure-socket tracker introduces it to them; `webTrackers(list, defaults?)` is the filter. |
+| add | The client gets `magnet:?xt=urn:btih:<hash>&dn=<name>&tr=…`. The same hash twice is one job. A client that fails to load or throws rejects with `unavailable:<why>`. |
+| job | Ids are `download:1`, `download:2`, and so on. The label is the link's name, else the hash, until the swarm sends the real name. |
+
+The backend also exposes what the Downloads panel needs:
+
+| Method | Does | Fails with |
+| --- | --- | --- |
+| `jobs()` | Every `DownloadJob` in the order added: `id`, `name`, `infoHash`, `state` (`connecting`, `downloading`, `paused`, `done`, `failed`), `progress` (0 to 1), `received`, `size` once known, `peers`, `speed` (bytes per second, 0 unless downloading), `error` once failed | |
+| `subscribe(listener)` | Calls the listener now and on every change; returns the function that stops it. Progress-only changes are reported at most once per `progressIntervalMs` (500 ms by default). | |
+| `pause(id)`, `resume(id)` | Pauses or resumes the transfer | `denied:unknown-download` |
+| `remove(id)` | Drops the job and asks the client to remove the torrent with its stored data | `denied:unknown-download` |
+| `files(id)` | `{ name, size, blob }` for each file of a finished job | `denied:unknown-download`, `unavailable:not-finished` |
+
+The backend has no `handoff` trait, so the bridge reports `{ available: true }` and `describeBridge` gives `Status: ready` without the `Handled by` and `Sent through kernl` rows. The exposure rows stay: peers see the user's network address, the transfer is not encrypted, and what the user fetches is visible to the swarm. See `webtorrent-backend.feature`.
+
+`createDefaultBridges({ handoff, torrent })` builds the torrent bridge over `torrent` when given, and over the hand-off otherwise; NZB, Soulseek and mail still hand off. `createKernl` passes `KernlOptions.torrent` through. The web shell supplies a backend that follows the user's choice in Settings: **Download in kernl**, the default when the browser has `RTCPeerConnection`, or **Open in an app on your device**, which uses the hand-off backend. The choice is stored under `kernl:downloads:mode:v1`. The WebTorrent library (`webtorrent` 3.0.21, browser build) loads only in the shell host page, and only when the first download starts. Applet frames never get it: their CSP and kehto's prelude still remove WebRTC from them.
+
+### Why NZB, Soulseek and mail still hand off
+
+A browser page can open HTTP requests, WebSockets and WebRTC connections, and nothing else. NZB downloads need NNTP to a news server, Soulseek its own protocol to a central server and to peers, and mail SMTP and IMAP; all of them run over raw TCP sockets, which no page can open. They stay hand-off until kernl can reach a companion service that opens those sockets for the user ([Roadmap](../roadmap.md#_2-bridge-backends)). Supplying another backend is a shell change plus a docs change; see [Add a bridge backend](../how-tos/add-a-bridge-backend.md).
 
 ## The resource resolver
 
@@ -163,6 +188,9 @@ kehto's resource service takes a `fetch(url, init)` function. `createBridgeResou
 | `invalid:magnet-missing-hash` | `parseLocator` for a magnet without a `urn:btih:` hash |
 | `invalid:locator-missing-<field>` | a backend-driven bridge whose locator lacks `infoHash`, `url`, `user`, `path` or `address` |
 | `invalid:nzb-not-https` | the NZB hand-off backend, for a document not served over `https` |
+| `invalid:info-hash` | the in-kernl download backend, for a hash that is not 40 hex characters |
+| `unavailable:<why>` | the in-kernl download backend, when the client cannot load or refuses the link |
+| `unavailable:not-finished`, `denied:unknown-download` | the in-kernl download backend's `files`, `pause`, `resume` and `remove` |
 | `invalid:duplicate-bridge <id>`, `invalid:scheme-taken <scheme>` | `BridgeRegistry.register` |
 | `invalid:redirect` | HTTP bridge, redirect without a usable `Location` |
 | `unavailable:no-bridge` | `BridgeRegistry.resolve`, no bridge serves the scheme |
@@ -174,7 +202,7 @@ kehto's resource service takes a `fetch(url, init)` function. `createBridgeResou
 
 ## Why bridges are shell-owned
 
-An applet could, in principle, be given a WebRTC or WebSocket path and speak these protocols itself. kernl does not allow that, because the CSP [never loosens](./guard.md#why-csp-never-loosens). Routing every protocol through a shell service means every protocol gets the same grant, the same quota, the same exposure description and the same revocation, and a consent prompt per request, which this draft does not have, could be added in one place. The applet asks for a locator; the user's `resource` grant decides whether it may; the shell does the talking.
+An applet could, in principle, be given a WebRTC or WebSocket path and speak these protocols itself. kernl does not allow that, which is why in-kernl downloads run in the shell page and not in an applet frame, because the CSP [never loosens](./guard.md#why-csp-never-loosens). Routing every protocol through a shell service means every protocol gets the same grant, the same quota, the same exposure description and the same revocation, and a consent prompt per request, which this draft does not have, could be added in one place. The applet asks for a locator; the user's `resource` grant decides whether it may; the shell does the talking.
 
 ## Related
 

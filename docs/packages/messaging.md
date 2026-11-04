@@ -3,7 +3,7 @@
 Messaging provider contract, registry, composite direct-message backend and an in-memory backend for the kernl shell. Pure: no relay code, no signer, no kehto dependency. Providers receive their backend constructor from the shell.
 
 ::: info Network backends live in `@kernl/core`
-This package ships no backend that sends anything over a network; the only backend in it is `createMemoryBackend`. The network backends for `private` and `legacy` are `createPrivateMessagesBackend` and `createLegacyMessagesBackend` in [`@kernl/core`](./core.md#messaging-backends), because they need the shell's event store, connection pool and account signer. `createKernl` wires them by default, so both providers work in the live shell while the signed-in account's signer can encrypt; `ratchet` stays unavailable with `no-runtime` ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)). The offline preview (`?preview=1`) runs the same providers over the in-memory backend with a scripted correspondent, so messages sent there go nowhere.
+This package ships no backend that sends anything over a network; the only backend in it is `createMemoryBackend`. The network backends for `private`, `legacy` and `ratchet` are `createPrivateMessagesBackend`, `createLegacyMessagesBackend` and `createRatchetMessagesBackend` in [`@kernl/core`](./core.md#messaging-backends), because they need the shell's event store, connection pool and account signer. `createKernl` wires them by default, so all three work in the live shell while the signed-in account's signer can encrypt; `ratchet` is experimental ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)). The offline preview (`?preview=1`) runs the same providers over the in-memory backend with a scripted correspondent, so messages sent there go nowhere.
 :::
 
 | Field | Value |
@@ -78,7 +78,8 @@ One contract for every private-messaging protocol, truthful self-description ins
 | `createPrivateMessagesProvider` | `(deps: ProviderDeps) => MessagingProvider` | Id `private`, name "Private messages". NIP-17. |
 | `createLegacyMessagesProvider` | `(deps: ProviderDeps) => MessagingProvider` | Id `legacy`, name "Legacy messages". NIP-04. |
 | `createRatchetMessagesProvider` | `(deps: ProviderDeps) => MessagingProvider` | Id `ratchet`, name "Ratchet sessions". nostr-double-ratchet draft; `experimental: true`. |
-| `defineProvider` | `(definition: ProviderDefinition, deps: ProviderDeps) => MessagingProvider` | Joins fixed copy and properties with the shell's backend constructor and availability check. The three built-ins are made with it. |
+| `createGroupMessagesProvider` | `(deps: ProviderDeps) => MessagingProvider` | Id `group`, name "Group sessions". Marmot (MLS, RFC 9420; supersedes NIP-EE); forward secrecy, post-compromise security, groups; `experimental: true`. |
+| `defineProvider` | `(definition: ProviderDefinition, deps: ProviderDeps) => MessagingProvider` | Joins fixed copy and properties with the shell's backend constructor and availability check. The built-ins are made with it. |
 | `ProviderDeps` | interface | `{ createBackend: () => MessagingBackend; available: () => ProviderAvailability }`. |
 | `ProviderDefinition` | interface | `{ id; name; description; properties: SecurityProperties }`. |
 | `describeProvider` | `(provider: MessagingProvider) => readonly ProviderDescriptionRow[]` | Six label/value rows for the picker, in a fixed order; `specification` is left out so no protocol name reaches the UI. |

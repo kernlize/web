@@ -115,6 +115,12 @@ export { MESSAGING_UNAVAILABLE_REASONS, messagingSigner, signerAvailability, typ
 export type { SignerMessagingOptions } from './messaging/signer-backend.js';
 export { createPrivateMessagesBackend } from './messaging/private-backend.js';
 export { createLegacyMessagesBackend } from './messaging/legacy-backend.js';
+export { createRatchetMessagesBackend, type RatchetMessagingOptions } from './messaging/ratchet-backend.js';
+export { createGroupMessagesBackend, type GroupMessagingOptions } from './messaging/group-backend.js';
+export { createSealedGroupStore, type SealedGroupStoreOptions } from './messaging/group-storage.js';
+export { createGroupNetwork } from './messaging/group-network.js';
+export type { InboxRelays } from './messaging/inbox-relays.js';
+export { createSealedRatchetStorage, type SealedRatchetStorageOptions } from './messaging/ratchet-storage.js';
 export { createDefaultBridges, type DefaultBridgesOptions } from './bridges/default-registry.js';
 
 export { LINK_PROTOCOLS, createKernlServices, isTheme, resourceInitFor, type KernlServiceDeps, type KernlServices } from './kernl-services.js';

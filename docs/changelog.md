@@ -4,14 +4,27 @@ Each entry says what ships, per package and app. [Alpha status](./alpha-status.m
 
 ## Unreleased
 
+### `@kernl/bridges`
+
+- `createWebTorrentBackend({ client, trackers?, now?, progressIntervalMs? })`: a `TorrentBackend` that downloads inside the page through a structural `WebTorrentLike` client or a loader for one. It keeps only `wss://` trackers plus `DEFAULT_WEBRTC_TRACKERS` (`webTrackers` is the filter) and adds `jobs`, `subscribe`, `pause`, `resume`, `remove` and `files`. Errors: `invalid:info-hash`, `unavailable:<why>`, `unavailable:not-finished`, `denied:unknown-download` ([D-017](./decisions.md#d-017)).
+- `BackendTraits.handoff` is typed `true | undefined` and is read on every availability check, so a backend may switch between moving data itself and handing off.
+
 ### `@kernl/core`
 
+- `createDefaultBridges` takes an optional `torrent` backend that replaces the hand-off for magnet links only; `KernlOptions.torrent` passes one through `createKernl`.
+
 - `createPrivateMessagesBackend`: NIP-17 messages over the account signer. The seal is signed by the account with `nip44`; the wrap is signed by an ephemeral key that lives inside an applesauce `PrivateKeySigner` and is discarded after the wrap. Sends go to the recipient's kind 10050 inbox relays, falling back to the user's `outbox` and `super` tiers, with a copy wrapped to the user ([D-015](./decisions.md#d-015)).
+- `createRatchetMessagesBackend` and `createSealedRatchetStorage`: ratchet sessions over the `nostr-double-ratchet` library's `NdrRuntime`, with the account signer signing the device list and the library's device and session keys stored only as `nip44` ciphertext sealed to the account. `createKernl` wires it as the default `ratchet` backend, available while the signer has `nip44`; `ratchet` no longer reports `no-runtime` in the live shell, and applets reach it through the `dm` domain like the other providers ([D-016](./decisions.md#d-016)).
+- `createGroupMessagesBackend`, `createSealedGroupStore` and `createGroupNetwork`: group sessions (Marmot, MLS over nostr) over `@internet-privacy/marmot-ts`, with the account signer for identity and invitations and every library store sealed to the account with `nip44`. `createDefaultMessaging` registers the `group` provider and `createKernl` wires it; `MessagingBackendFactories` gains `group`.
 - `createLegacyMessagesBackend`: NIP-04 kind 4 messages through `signer.nip04`, normalised the same way and still marked metadata-exposing.
 - `createKernl` wires both by default unless `KernlOptions.messagingBackends` overrides them, so `private` and `legacy` work in the live shell. Availability follows the active account: `private` needs a signer with `nip44`, `legacy` one with `nip04`.
 - **Breaking.** `MESSAGING_UNAVAILABLE_REASONS` now holds `sign-in-required`, `signer-cannot-encrypt` and `no-runtime`. `needs-local-key-signer` and `not-implemented` are removed. See [Error reasons](./reference/errors.md).
 - **Breaking.** `planMount` enables kehto's released nested-context lock, `experimental: { nestedContextLock: true }` from `@kehto/shell` 0.30.0, in place of kernl's port of it. kehto now renders the Trusted Types directives, installs the `default` policy and pins the element factories; its `assertNappletHasNoFrame` still maps to `denied:nested-frame`. Frame creation inside an applet now throws `TypeError('kehto: napplets may not create nested browsing contexts')`; insertion still throws `denied:nested-frame` ([D-014](./decisions.md#d-014)).
 - `@kehto/shell` is now `^0.30.0`. The other kehto packages are unchanged.
+
+### `@kernl/messaging`
+
+- `createGroupMessagesProvider`: the `group` provider, "Group sessions". Forward secrecy, post-compromise security and groups; experimental; specification `Marmot (MLS, RFC 9420; supersedes NIP-EE)`.
 
 ### `@kernl/guard`
 
@@ -19,6 +32,10 @@ Each entry says what ships, per package and app. [Alpha status](./alpha-status.m
 - **Breaking.** Removed `appletMarkupHasFrame`, `assertAppletHasNoFrame`, `TRUSTED_TYPES_DIRECTIVES` and the `trustedTypes` field of `AppletCsp`. `createAppletCsp` returns the 14 baseline directives only, and `@kernl/guard` no longer throws outside the applet realm.
 
 ### Shell and site (`apps/web`)
+
+- The Messages panel lists "Group sessions" beside the other providers, unranked; a send to someone who has not set it up says so in plain words. The site's vocabulary check also refuses the group protocol's names.
+
+- Magnet links download inside the shell. A Downloads panel lists each download with progress, peers and speed, and offers pause, resume, remove and Save. Settings has a Downloads choice, "Download in kernl" (the default where the browser can connect to peers) or "Open in an app on your device", remembered under `kernl:downloads:mode:v1`. The shell host page loads `webtorrent` 3.0.21 (browser build) on the first download only; applet frames are unchanged. The preview downloads from nobody and finishes each download with a short text file.
 
 - The Messages panel sends and receives private and legacy messages for an account whose signer can encrypt (browser extension, remote signer, password-protected local account). It opens the user's own messages without a consent prompt; applets still reach messages only through the `dm` grant.
 

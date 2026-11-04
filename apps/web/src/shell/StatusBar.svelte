@@ -10,7 +10,7 @@
     guardEvents: number;
     unread: number;
     onlauncher: () => void;
-    onpanel: (kind: 'guard' | 'messages' | 'settings') => void;
+    onpanel: (kind: 'guard' | 'messages' | 'settings' | 'downloads') => void;
     onsignout: () => void;
   }
 
@@ -50,6 +50,9 @@
 {#snippet messagesButton()}
   <button type="button" class="shell-button quiet" onclick={() => choose(() => onpanel('messages'))} aria-label="Messages, {unread} unread">Messages{#if unread} <span class="count">{unread}</span>{/if}</button>
 {/snippet}
+{#snippet downloadsButton()}
+  <button type="button" class="shell-button quiet" onclick={() => choose(() => onpanel('downloads'))}>Downloads</button>
+{/snippet}
 {#snippet dock()}
   {#if minimised.length}
     <ul class="dock" aria-label="Minimised windows">
@@ -72,6 +75,7 @@
         <p class="shell-muted who">{session.label}{#if session.readOnly} · read-only{/if}</p>
         {@render guardButton()}
         {@render messagesButton()}
+        {@render downloadsButton()}
         <button type="button" class="shell-button quiet" onclick={() => choose(() => windows.setLayout(otherLayout))}>Layout: {windows.layout} · {windowCount}</button>
         {@render dock()}
         <button type="button" class="shell-button quiet" onclick={() => choose(() => onpanel('settings'))}>Settings</button>
@@ -88,6 +92,7 @@
       {#if mode === 'preview'}<span class="shell-badge warn" title="Nothing here reaches the network">preview</span>{/if}
       {@render guardButton()}
       {@render messagesButton()}
+      {@render downloadsButton()}
       <details class="account" bind:open={accountOpen}>
         <summary class="shell-button quiet">{session.label}{#if session.readOnly} <span class="shell-badge">read-only</span>{/if}</summary>
         <div class="menu">

@@ -77,9 +77,10 @@ export interface HttpPolicy {
 export interface BackendTraits {
   /**
    * True when the backend hands the locator to an app on the user's device rather than
-   * moving data itself. kernl then makes no connection for the resolution.
+   * moving data itself. kernl then makes no connection for the resolution. Read on every
+   * availability check, so a backend that lets the user choose may switch it.
    */
-  readonly handoff?: true;
+  readonly handoff?: true | undefined;
 }
 
 /** A backend that can download torrents. */

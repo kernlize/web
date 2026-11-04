@@ -34,7 +34,7 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 | `invalid:event-kind` | `@kernl/core` | `createSigningConsent` | The event's `kind` is not a number. |
 | `unavailable:sign-in-required` | `@kernl/core` | `createDefaultMessaging`'s `createBackend`; `MessagingRegistry.enable` | `private` or `legacy` while no account is active (`MESSAGING_UNAVAILABLE_REASONS`). |
 | `unavailable:signer-cannot-encrypt` | `@kernl/core` | `createDefaultMessaging`'s `createBackend`; `MessagingRegistry.enable` | The active account's signer has no `nip44` (`private`) or no `nip04` (`legacy`); a read-only account is the usual case. |
-| `unavailable:no-runtime` | `@kernl/core` | `createDefaultMessaging`'s `createBackend`; `MessagingRegistry.enable` | `ratchet`: no double-ratchet runtime is supplied. |
+| `unavailable:no-runtime` | `@kernl/core` | `createDefaultMessaging`'s `createBackend`; `MessagingRegistry.enable` | `ratchet` registered by a host without a backend; `createKernl` always supplies one. |
 | `invalid:duplicate-provider` | `@kernl/messaging` | `MessagingRegistry.register` | A provider with this id is already registered. |
 | `invalid:unknown-provider` | `@kernl/messaging` | `MessagingRegistry.enable`, `disable`; the composite backend | No provider has this id, or a namespaced id, cursor or `provider` hint names no enabled provider. |
 | `unavailable:<reason>` | `@kernl/messaging` | `MessagingRegistry.enable` | The provider's `availability()` is false; `<reason>` is the bare word it reported. |

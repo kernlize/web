@@ -78,7 +78,7 @@ function makeHost(world: CoreWorld, record: HostRecord, extra: Partial<KernlHost
   };
 }
 
-function blobFetcher(world: CoreWorld): Pick<KernlHost, 'fetchBlob'> {
+export function blobFetcher(world: CoreWorld): Pick<KernlHost, 'fetchBlob'> {
   return {
     fetchBlob: async () => {
       k(world).record.blobFetches += 1;
@@ -87,7 +87,7 @@ function blobFetcher(world: CoreWorld): Pick<KernlHost, 'fetchBlob'> {
   };
 }
 
-function boot(world: CoreWorld, options: Partial<KernlOptions> = {}, hostExtra: Partial<KernlHost> = {}): void {
+export function boot(world: CoreWorld, options: Partial<KernlOptions> = {}, hostExtra: Partial<KernlHost> = {}): void {
   const record: HostRecord = { prompts: [], notices: [], links: [], revoked: [], blobFetches: 0, cacheOpens: 0 };
   const host = makeHost(world, record, hostExtra);
   const kernl = createKernl({ host, pool: scratch(world).pool, ...options });
@@ -131,6 +131,7 @@ Given('a kernl shell over that host and pool', (world: CoreWorld) => {
 Given('a kernl shell over that host and pool without a blob fetcher', (world: CoreWorld) => {
   boot(world);
 });
+
 
 Given('a kernl shell over that host and pool with a private backend', (world: CoreWorld) => {
   boot(world, { messagingBackends: { private: () => createMemoryBackend() } }, blobFetcher(world));
@@ -212,7 +213,7 @@ When('the shell enables messaging provider {string} and {string}', (world: CoreW
 
 Then('the shell messaging status is available for the signed-in account', async (world: CoreWorld) => {
   const status = await k(world).kernl.messaging.composite().status();
-  expect(status).toMatchObject({ available: true, ownerPubkey: k(world).kernl.session?.pubkey, implementations: ['nip17', 'nip04'] });
+  expect(status).toMatchObject({ available: true, ownerPubkey: k(world).kernl.session?.pubkey, implementations: ['nip17', 'nip04', 'ndr'] });
   const sent = await k(world).kernl.messaging.composite().send({ provider: 'legacy', recipients: [await author.getPublicKey()], content: 'hello' } as DmSendRequest);
   expect(sent.message.status).toBe('sent');
 });

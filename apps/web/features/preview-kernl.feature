@@ -227,6 +227,13 @@ Feature: The preview kernl
     Then the preview kernl frame "a" is answered "yes" with "Handed to an app on your device."
     And the preview kernl host opened 1 link
 
+  Scenario: a shared download joins the user's downloads when kernl downloads them
+    Given a preview kernl that downloads in kernl
+    And the preview kernl mounts "notes" in frame "a"
+    When the preview kernl frame "a" posts '{"kernlPreview":"download","url":"magnet:?xt=urn:btih:ABCDEF0123456789ABCDEF0123456789ABCDEF01&dn=Mix"}'
+    Then the preview kernl frame "a" is answered "yes" with "Added to your downloads."
+    And the preview kernl host opened 0 links
+
   Scenario Outline: a download that cannot be handed off is answered in plain words
     Given the preview kernl mounts "notes" in frame "a"
     When the preview kernl frame "a" posts '<message>'

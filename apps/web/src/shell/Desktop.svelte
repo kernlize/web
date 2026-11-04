@@ -5,6 +5,7 @@
   import type { GuardLog } from './guard-log.svelte';
   import GuardPanel from './GuardPanel.svelte';
   import IframeLayer from './IframeLayer.svelte';
+  import DownloadsPanel from './DownloadsPanel.svelte';
   import Launcher from './Launcher.svelte';
   import MessagesPanel from './MessagesPanel.svelte';
   import { observe } from './observe.svelte';
@@ -25,7 +26,7 @@
   const { booted, session, storage, windows, guardLog, onsignout }: Props = $props();
   const kernl = $derived(booted.kernl);
 
-  type Overlay = { kind: 'launcher'; address?: string } | { kind: 'grants'; windowId: string } | { kind: 'guard' } | { kind: 'messages' } | { kind: 'settings' };
+  type Overlay = { kind: 'launcher'; address?: string } | { kind: 'grants'; windowId: string } | { kind: 'guard' } | { kind: 'messages' } | { kind: 'settings' } | { kind: 'downloads' };
 
   let overlay = $state.raw<Overlay | null>(null);
   let unread = $state(0);
@@ -106,7 +107,9 @@
     {:else if overlay?.kind === 'messages'}
       <MessagesPanel {kernl} mode={booted.mode} onclose={() => (overlay = null)} onunread={(count) => (unread = count)} />
     {:else if overlay?.kind === 'settings'}
-      <SettingsPanel {kernl} mode={booted.mode} onclose={() => (overlay = null)} />
+      <SettingsPanel {kernl} mode={booted.mode} downloads={booted.downloads} onclose={() => (overlay = null)} />
+    {:else if overlay?.kind === 'downloads'}
+      <DownloadsPanel {kernl} downloads={booted.downloads} onclose={() => (overlay = null)} onsettings={() => open('settings')} />
     {/if}
   </div>
 </div>

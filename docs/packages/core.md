@@ -44,7 +44,7 @@ if (plan.missingRequired.length === 0) kernl.mount(plan, iframe);
 
 1. **Event layer.** `options.eventStore ?? new EventStore()`, `options.pool ?? new RelayPool()`, `options.accounts ?? createKernlAccounts(host.storage)`. A pool the shell created itself is closed by `destroy()`; a supplied pool is left open.
 2. **Relay tiers.** `createRelayTiers(host.storage, options.relays ?? {})`. Persisted choices at `kernl:relays:v1` win over `options.relays`, which only overrides `DEFAULT_RELAY_TIERS` on a fresh device.
-3. **Registries.** `options.messaging ?? createDefaultMessaging(...)`, with `createPrivateMessagesBackend` and `createLegacyMessagesBackend` as the `private` and `legacy` backends unless `options.messagingBackends` overrides them, and availability tracking the active account ([Messaging backends](#messaging-backends)), and `options.bridges ?? createDefaultBridges()`. The default bridge registry has no `authorize` hook, so in the composed shell a resource request is checked only by the HTTP bridge's SSRF policy and the applet's `resource` grant.
+3. **Registries.** `options.messaging ?? createDefaultMessaging(...)`, with `createPrivateMessagesBackend` and `createLegacyMessagesBackend` as the `private` and `legacy` backends unless `options.messagingBackends` overrides them, and availability tracking the active account ([Messaging backends](#messaging-backends)), and `options.bridges ?? createDefaultBridges({ handoff: host.openLink, torrent: options.torrent })`, so downloads, sharing and mail hand off through the host's confirm-before-leaving opener and a `KernlOptions.torrent` backend, when given, downloads magnet links inside kernl instead ([D-017](../decisions.md#d-017)). The default bridge registry has no `authorize` hook, so in the composed shell a resource request is checked only by the HTTP bridge's SSRF policy and the applet's `resource` grant.
 4. **Guard pipeline.** `createGuardPipeline` with `createGuardConfig(options.guard?.profile ?? 'strict')`, the host's `now` when given, `onEvent` feeding `kernl.guard.events$`, `getVisibility` delegated to `host.getVisibility`, and `onQuarantine` marking the handle revoked with reason `quarantine` and calling `bridge.revokeNapplet(windowId, 'host')`.
 5. **Services.** `createKernlServices` registers `relay`, `identity`, `theme`, `notify`, `link`, `resource`, `dm` and `outbox` over the pool, the tiers, the event store, the active signer, the consent gate, the host, the bridge registry and the messaging registry. The `outbox` service is wrapped so that `outbox.publish` passes the consent gate first, because kehto's outbox service signs without naming the window. `options.theme` is used only when `isTheme` accepts it. `resolveIdentity` maps a live window to its verified identity so the resource service names the requesting applet to the bridges.
 6. **ShellAdapter.** `createShellAdapter` builds kehto's adapter from the relay-pool hooks, the relay-config hooks over the tiers, `createAuthHooks(accounts, consent)`, the service registry, `capabilities.resolveEnvironment` from `createEnvironmentResolver(grants)`, `onNappletRevoked` (removes the frame through the handle) and `onNappletMessage` (feeds `pipeline.observe` and refuses the envelope with `refuseCurrentDispatch` when it answers `defer` or `reject`). Choices kehto left open are fixed here: applets cannot create windows (`createWindow` returns null), hotkeys are not forwarded, there is no worker relay, update behaviour is `banner`, signatures are verified by applesauce's `verifyEvent`, `link.isAvailable` is true and `getNip66Suggestions` is null.
@@ -110,7 +110,7 @@ A frame without a `contentWindow` throws `invalid:frame-detached`. `handle.close
 
 ### Messaging backends
 
-`createKernl` registers all three providers through `createDefaultMessaging` and, unless `KernlOptions.messagingBackends` overrides them, wires two network backends built on the active account's signer ([D-015](../decisions.md#d-015)). `KernlOptions.messagingBackends` is a `MessagingBackendFactories`: `{ private?: () => MessagingBackend; legacy?: () => MessagingBackend; ratchet?: () => MessagingBackend }`; a factory there replaces kernl's backend for that provider.
+`createKernl` registers all four providers through `createDefaultMessaging` and, unless `KernlOptions.messagingBackends` overrides them, wires four network backends built on the active account's signer ([D-015](../decisions.md#d-015), [D-016](../decisions.md#d-016)). `KernlOptions.messagingBackends` is a `MessagingBackendFactories`: `{ private?: () => MessagingBackend; legacy?: () => MessagingBackend; ratchet?: () => MessagingBackend; group?: () => MessagingBackend }`; a factory there replaces kernl's backend for that provider.
 
 `createPrivateMessagesBackend({ store, pool, tiers, signer, selfPubkey, now? })` is a `MessagingBackend` over NIP-17. `signer` and `selfPubkey` are functions, read on every call, so one backend follows sign-in and sign-out.
 
@@ -120,7 +120,14 @@ A frame without a `contentWindow` throws `invalid:frame-detached`. `handle.close
 
 `createLegacyMessagesBackend(...)` takes the same options and sends NIP-04 kind 4 events through `signer().nip04`, with the same normalisation into `DmConversation` and `DmMessage`. It is the metadata-exposing provider: sender, recipient and timing are public on the event.
 
-Neither backend holds key bytes; signing, encryption and decryption all go through the account's applesauce signer. The shell's own Messages panel decrypts the user's messages without a kernl prompt, because the request is the shell's, for the user; applets reach messages only through the `dm` domain grant.
+`createRatchetMessagesBackend({ pool, tiers, storage, signer, selfPubkey, accountChanges?, discoveryTimeouts? })` is a `MessagingBackend` over the `nostr-double-ratchet` library ([D-016](../decisions.md#d-016)).
+
+- **Runtime.** One `NdrRuntime` per signed-in account, built on first use and closed when the account changes or signs out. The account signer signs the owner's device list (the library's unsigned owner events are re-signed from their template); the library generates and holds this browser's device key and the per-session ratchet keys. `discoveryTimeouts: { fetchMs, fastMs }` shortens how long it waits for relays to return the device list (library defaults 10 s and 2 s).
+- **Storage.** `createSealedRatchetStorage({ storage, signer, owner })` is the library's `StorageAdapter`. Each value is JSON, split into chunks that fit `nip44`, encrypted to `owner` with `signer.nip44`, and kept at `kernl:ratchet:v1:<owner>:<slot>`; the map from the library's key names to slots is one more sealed entry at `…:index`. Values are decrypted once per page load and writes are applied in order.
+- **Send and receive.** A send names exactly one other person (`invalid:groups-unsupported`, `invalid:no-recipients`, `invalid:unknown-conversation`); the library queues it until a session exists. Received rumours of kind 14 are filed with the same conversation ids as the other backends; typing notices, receipts and controls are dropped. Setup that cannot reach a relay fails with `unavailable:offline` and is retried on the next call.
+- **Relays.** Reads and writes use the user's `outbox` and `super` tiers, so both sides must share one.
+
+None of the backends holds key bytes outside a signer or a sealed store; signing, encryption and decryption all go through the account's applesauce signer. The shell's own Messages panel decrypts the user's messages without a kernl prompt, because the request is the shell's, for the user; applets reach messages only through the `dm` domain grant.
 
 Availability follows the active account. An unavailable provider reports a reason from `MESSAGING_UNAVAILABLE_REASONS`, and `enable(id)` throws it as `unavailable:<reason>`:
 
@@ -128,7 +135,19 @@ Availability follows the active account. An unavailable provider reports a reaso
 | --- | --- | --- |
 | `private` | The active signer exposes `nip44` | `sign-in-required` with no active account, `signer-cannot-encrypt` without `nip44` |
 | `legacy` | The active signer exposes `nip04` | `sign-in-required` with no active account, `signer-cannot-encrypt` without `nip04` |
-| `ratchet` | Never in this draft | `no-runtime` |
+| `ratchet` | The active signer exposes `nip44` | `sign-in-required` with no active account, `signer-cannot-encrypt` without `nip44`; `no-runtime` only when a host registers it without a backend |
+| `group` | The active signer exposes `nip44` | `sign-in-required` with no active account, `signer-cannot-encrypt` without `nip44`; `no-runtime` only when a host registers it without a backend |
+
+### Group sessions
+
+`createGroupMessagesBackend({ store, pool, tiers, storage, signer, selfPubkey, now?, accountChanges? })` is a `MessagingBackend` over `@internet-privacy/marmot-ts` ([D-018](../decisions.md#d-018)), the maintained TypeScript implementation of the Marmot protocol (MLS over nostr).
+
+- **Client.** One `MarmotClient` per signed-in account, started on first use and dropped when the account changes or signs out. The account signer signs identity proofs and key packages and opens invitations; the library holds its MLS keys and group secrets.
+- **Storage.** `createSealedGroupStore({ storage, signer, owner }, name)` is the library's `GenericKeyValueStore`. Each store is one JSON value (bytes and big integers tagged), split into parts NIP-44 can carry and encrypted to the account with its `nip44`, under `kernl:group:v1:<owner>:<name>`. It is decrypted once per page load and served from memory; writes are applied in order.
+- **Network.** `createGroupNetwork(pool, inboxRelays)` adapts the shell's one relay pool to the library's `NostrNetworkInterface`. A publish no relay accepted answers with no acknowledgements, and a failed request with no events.
+- **Sending.** A send to people goes to the group with exactly those members, else founds one inviting each by their newest kind 30443 key package; `unavailable:recipient-not-ready` when someone has none. A send into a conversation needs a group this device belongs to (`invalid:unknown-conversation`), and a message no relay accepted is taken back with `unavailable:offline`.
+- **Types.** `GroupMessagingOptions` is `SignerMessagingOptions` plus `storage`; `SealedGroupStoreOptions` is `{ storage, signer, owner }`; `InboxRelays` is `(pubkey) => Promise<string[]>`, the resolver the private and group backends share.
+- **Ids.** The conversation id is the group id in hex; through the composite it is `group:<hex>`. Message ids are the kind 9 rumour id; other rumour kinds a group carries are not messages and are skipped.
 
 Preferences persist at `kernl:messaging:v1`.
 
@@ -347,7 +366,7 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `MessagingEncryption` | `'nip44' \| 'nip04'` | The signer method a backend needs. |
 | `SignerMessagingOptions` | `{ store, pool, tiers, signer, selfPubkey, now?, accountChanges? }` | Options for both backends. `accountChanges` clears the in-memory conversations when the account changes or signs out. |
 | `MESSAGING_UNAVAILABLE_REASONS` | `Readonly<Record<'signInRequired' \| 'signerCannotEncrypt' \| 'noRuntime', string>>` | `sign-in-required`, `signer-cannot-encrypt`, `no-runtime`. |
-| `createDefaultBridges` | `(options?: DefaultBridgesOptions) => BridgeRegistry` | The HTTP bridge plus torrent, nzb, soulseek and mail, which report `no-backend` ([D-010](../decisions.md#d-010)). `options.http` goes to the HTTP bridge; the rest to the registry. |
+| `createDefaultBridges` | `(options?: DefaultBridgesOptions) => BridgeRegistry` | The HTTP bridge plus torrent, nzb, soulseek and mail. Without `options.handoff` the last four report `no-backend` ([D-010](../decisions.md#d-010)); with it they hand off to an app on the device. `options.torrent` replaces the hand-off for the torrent bridge only ([D-017](../decisions.md#d-017)). `options.http` goes to the HTTP bridge; the rest to the registry. |
 | `floatingLayout`, `createDwindleLayout`, `createColumnsLayout`, `createMasterStackLayout` | `LayoutStrategy` and `(options?) => LayoutStrategy` | The layouts above. |
 | `createNamespacedStore` | `(storage: StorageLike, prefix: string) => NamespacedStore` | `getJson`, `setJson`, `remove` under `<prefix>:`; corrupt JSON reads as the fallback. |
 | `DefaultMessagingOptions`, `DefaultBridgesOptions`, `LayoutOptions`, `MasterStackOptions`, `NamespacedStore` | types | |

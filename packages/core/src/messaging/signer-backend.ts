@@ -96,7 +96,8 @@ interface Session {
 
 const CAPABILITIES = ['send', 'receive', 'subscribe', 'history'];
 
-function recipientsOf(request: DmSendRequest, self: string): string[] {
+/** The people a send goes to, other than `self`; refuses an unknown conversation, nobody, or a key that is not hex. */
+export function recipientsOf(request: DmSendRequest, self: string): string[] {
   const named = request.conversationId === undefined ? request.recipients : getConversationParticipants(request.conversationId);
   if (request.conversationId !== undefined && !named.includes(self)) throw new Error('invalid:unknown-conversation');
   const others = [...new Set(named)].filter((pubkey) => pubkey !== self);

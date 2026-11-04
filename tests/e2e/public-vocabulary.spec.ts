@@ -72,6 +72,9 @@ test('every shell surface names no protocol', async ({ page }) => {
   await page.getByRole('button', { name: 'Grants' }).first().click();
   await expectClean(page, 'grants panel');
   await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Downloads', exact: true }).first().click();
+  await expectClean(page, 'downloads panel');
+  await page.keyboard.press('Escape');
   await page.locator('details.account summary').click();
   await expectClean(page, 'account menu');
   await page.getByRole('button', { name: 'Settings' }).click();

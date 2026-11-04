@@ -108,6 +108,14 @@ Feature: Shell services and adapter
     And bridge for scheme "magnet" is unavailable because "no-backend"
     And bridge for scheme "https" is available
 
+  Scenario: a torrent backend wins over the hand-off for magnet links only
+    Given the default bridge registry with a hand-off opener and a torrent backend
+    Then bridge for scheme "magnet" is available
+    And bridge for scheme "nzb" hands off to the device
+    When the default bridges resolve "magnet:?xt=urn:btih:ABCDEF0123456789ABCDEF0123456789ABCDEF01"
+    Then the torrent backend was asked for "abcdef0123456789abcdef0123456789abcdef01"
+    And the hand-off opener was never called
+
   Scenario Outline: with a hand-off opener the default bridges open an app on the device
     Given the default bridge registry with a hand-off opener
     Then bridge for scheme "<scheme>" hands off to the device

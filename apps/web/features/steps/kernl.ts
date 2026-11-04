@@ -7,6 +7,8 @@ import { BASELINE_DOMAINS } from '@kernl/core';
 import { MemoryStorage } from '../../../../packages/core/features/steps/world.ts';
 import { abbreviate, type AppletHandle, type AppletPointer, type AppletSummary, type ConsentPrompt, type FrameLike, type KernlHost, type MountPlan, type ShellKernl } from '../../src/shell/contract.ts';
 import { sampleSummary } from '../../src/shell/preview-applet.ts';
+import { createShellDownloads } from '../../src/shell/downloads.ts';
+import { createPreviewTorrentClient } from '../../src/shell/preview-downloads.ts';
 import { createPreviewKernl } from '../../src/shell/preview-kernl.ts';
 import './shell-host.ts';
 import './preview-messaging.ts';
@@ -109,7 +111,7 @@ function post(scratch: PreviewScratch, name: string, data: unknown): void {
   scratch.kernl.handleWindowMessage({ source: frameOf(scratch, name).contentWindow, data } as MessageEvent);
 }
 
-Given('a preview kernl', (world: PreviewWorld) => {
+function previewKernl(world: PreviewWorld, inKernl: boolean): void {
   const prompts: ConsentPrompt[] = [];
   const notices: unknown[] = [];
   const links: string[] = [];
@@ -125,9 +127,14 @@ Given('a preview kernl', (world: PreviewWorld) => {
     getVisibility: () => ({ visible: true, focused: true }),
     onRevoked: (windowId, reason) => void revoked.push({ windowId, reason }),
   };
-  const scratch: PreviewScratch = { kernl: createPreviewKernl(host), prompts, notices, links, revoked, frames: new Map(), handles: new Map(), answer: true };
+  const torrent = inKernl ? createShellDownloads({ storage: host.storage, client: createPreviewTorrentClient(() => () => undefined), open: host.openLink, inKernl }).torrent : undefined;
+  const scratch: PreviewScratch = { kernl: createPreviewKernl(host, torrent), prompts, notices, links, revoked, frames: new Map(), handles: new Map(), answer: true };
   world.previewKernl = scratch;
-});
+}
+
+Given('a preview kernl', (world: PreviewWorld) => previewKernl(world, false));
+
+Given('a preview kernl that downloads in kernl', (world: PreviewWorld) => previewKernl(world, true));
 
 Given('the preview kernl user will answer {string}', (world: PreviewWorld, answer: string) => {
   preview(world).answer = answer === 'yes';

@@ -23,6 +23,8 @@ import { createDefaultMessaging } from './messaging/default-registry.js';
 import { messagingSigner } from './messaging/availability.js';
 import { createPrivateMessagesBackend } from './messaging/private-backend.js';
 import { createLegacyMessagesBackend } from './messaging/legacy-backend.js';
+import { createRatchetMessagesBackend } from './messaging/ratchet-backend.js';
+import { createGroupMessagesBackend } from './messaging/group-backend.js';
 import { createDefaultBridges } from './bridges/default-registry.js';
 import { createKernlServices, isTheme } from './kernl-services.js';
 import { createShellAdapter } from './kernl-adapter.js';
@@ -64,7 +66,7 @@ interface MessagingParts {
   readonly accounts: AccountManager;
 }
 
-/** kernl's account-signer backends for `private` and `legacy`, unless the host supplied its own. */
+/** kernl's account-signer backends for `private`, `legacy` and `ratchet`, unless the host supplied its own. */
 function createAccountMessaging(options: KernlOptions, parts: MessagingParts): MessagingRegistry {
   const signer = (): ISigner | undefined => messagingSigner(parts.accounts.active);
   const deps = {
@@ -78,7 +80,13 @@ function createAccountMessaging(options: KernlOptions, parts: MessagingParts): M
   return createDefaultMessaging({
     storage: options.host.storage,
     signer,
-    backends: { private: () => createPrivateMessagesBackend(deps), legacy: () => createLegacyMessagesBackend(deps), ...options.messagingBackends },
+    backends: {
+      private: () => createPrivateMessagesBackend(deps),
+      legacy: () => createLegacyMessagesBackend(deps),
+      ratchet: () => createRatchetMessagesBackend({ ...deps, storage: options.host.storage }),
+      group: () => createGroupMessagesBackend({ ...deps, storage: options.host.storage }),
+      ...options.messagingBackends,
+    },
   });
 }
 
@@ -113,7 +121,9 @@ export function createKernl(options: KernlOptions): Kernl {
   const tiers = createRelayTiers(host.storage, options.relays ?? {});
   const messaging = options.messaging ?? createAccountMessaging(options, { eventStore, pool, tiers, accounts });
   // host.openLink asks before leaving kernl, so every hand-off is confirmed by the user (D-010).
-  const bridges = options.bridges ?? createDefaultBridges({ handoff: (uri) => host.openLink(uri) });
+  const bridges =
+    options.bridges ??
+    createDefaultBridges({ handoff: (uri) => host.openLink(uri), ...(options.torrent ? { torrent: options.torrent } : {}) });
 
   const handles = new Map<string, MountedApplet>();
   const guardEvents$ = new Subject<GuardEvent>();

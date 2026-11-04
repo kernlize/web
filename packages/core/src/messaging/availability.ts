@@ -14,9 +14,9 @@ import { isReadOnlyAccount } from '../applesauce/auth-hooks.js';
 export type MessagingEncryption = 'nip44' | 'nip04';
 
 /**
- * The reasons kernl gives for a provider that cannot run. `private` and
- * `legacy` report the first two, which follow the active account; `ratchet`
- * reports `noRuntime` because no runtime ships with the shell.
+ * The reasons kernl gives for a provider that cannot run. Every provider
+ * reports the first two, which follow the active account; `noRuntime` is
+ * reported only by a `ratchet` or `group` provider a host registered without a backend.
  *
  * @example
  * ```ts

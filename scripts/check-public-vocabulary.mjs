@@ -12,7 +12,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-export const DENYLIST = /\b(nostr|nip-?\d*|napplets?|relays?|pubkeys?|npub\w*|nsec\w*)\b/gi;
+export const DENYLIST = /\b(nostr|nip-?\d*|marmot|mls|napplets?|relays?|pubkeys?|npub\w*|nsec\w*)\b/gi;
 const URL_PATTERN = /https?:\/\/[^\s"'<>)\]]+/g;
 const SCANNED = new Set(['.html', '.md', '.txt', '.json', '.xml']);
 

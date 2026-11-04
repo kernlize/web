@@ -8,7 +8,7 @@ export const UNAVAILABLE_WORDS: Readonly<Record<string, string>> = {
   'sign-in-required': 'Sign in to use this provider.',
   'signer-cannot-encrypt': 'The account you signed in with cannot lock and unlock messages this way. Sign in with one that can.',
   'no-runtime': 'No backend is available for this provider yet; this build lacks the part it needs.',
-  'no-ratchet-runtime': 'No backend is available for this provider yet; this build lacks the part it needs.',
+  'no-ratchet-runtime': 'Ratchet sessions run only in the live shell with a signed-in account, not in the preview.',
 };
 
 /** Plain words for the reasons a send, an enable or a disable can be refused with. */
@@ -21,6 +21,7 @@ const ERROR_WORDS: Readonly<Record<string, string>> = {
   'invalid:provider-not-enabled': 'Turn that provider on first.',
   'invalid:recipient': 'That does not look like an account id.',
   'invalid:groups-unsupported': 'This provider writes to one person at a time.',
+  'unavailable:recipient-not-ready': 'Someone you named has not set this provider up yet, so they cannot be added.',
 };
 
 /** Why a provider cannot be used, in plain words; an unknown code gets a generic sentence. */

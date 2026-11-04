@@ -1,6 +1,7 @@
 import { expect } from 'vitest';
 import { Given, Then, When, type DataTable } from 'quickpickle';
 import {
+  createGroupMessagesProvider,
   createLegacyMessagesProvider,
   createMemoryBackend,
   createPrivateMessagesProvider,
@@ -15,6 +16,7 @@ const BUILT_IN: Record<string, (deps: ProviderDeps) => MessagingProvider> = {
   private: createPrivateMessagesProvider,
   legacy: createLegacyMessagesProvider,
   ratchet: createRatchetMessagesProvider,
+  group: createGroupMessagesProvider,
 };
 
 function build(world: MessagingWorld, id: string): void {

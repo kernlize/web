@@ -62,9 +62,11 @@ test('the live settings show every default server without naming the protocol', 
   await page.keyboard.press('Escape');
 
   await page.getByRole('button', { name: /^Messages/ }).first().click();
-  // A read-only account can neither sign nor decrypt, so both message formats ask for a different account.
+  // A read-only account can neither sign nor decrypt, so private, legacy and ratchet messages all ask for a different account (D-016).
   await expect(page.getByText(UNAVAILABLE_WORDS['signer-cannot-encrypt'] as string).first()).toBeVisible();
-  await expect(page.getByText('No backend is available for this provider yet', { exact: false }).first()).toBeVisible();
+  expect(await page.getByText(UNAVAILABLE_WORDS['signer-cannot-encrypt'] as string).count()).toBeGreaterThanOrEqual(3);
+  // Every provider is listed side by side, the group one included, and none is ranked.
+  for (const name of ['Private messages', 'Legacy messages', 'Ratchet sessions', 'Group sessions']) await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
   await expectClean(page, 'live messages');
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: /^Guard/ }).first().click();
