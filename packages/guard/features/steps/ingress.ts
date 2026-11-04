@@ -11,10 +11,10 @@ function ingress(world: GuardWorld) {
   return ingress;
 }
 
-function admit(world: GuardWorld, windowId: string, envelope: GuardEnvelope, times = 1): void {
+function admit(world: GuardWorld, windowId: string, envelope: GuardEnvelope, times = 1, hold = true): void {
   const state = scratch(world);
   for (let i = 0; i < times; i += 1) {
-    state.dispositions.push(ingress(world).admit(windowId, NAPPLET, envelope, state.visibility));
+    state.dispositions.push(ingress(world).admit(windowId, NAPPLET, envelope, state.visibility, { hold }));
   }
 }
 
@@ -55,6 +55,10 @@ Given('guard window {string} is visible', (world: GuardWorld, _windowId: string)
 
 When('the guard admits {int} {string} envelopes from window {string}', (world: GuardWorld, count: number, type: string, windowId: string) => {
   admit(world, windowId, { type }, count);
+});
+
+When('the guard admits {int} {string} envelopes from window {string} without holding any', (world: GuardWorld, count: number, type: string, windowId: string) => {
+  admit(world, windowId, { type }, count, false);
 });
 
 When('the guard admits a {string} envelope from window {string}', (world: GuardWorld, type: string, windowId: string) => {

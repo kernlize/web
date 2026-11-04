@@ -20,14 +20,14 @@ function mitigation(id: string, provider: Provider, title: string, summary: stri
  * The list is what the grants panel renders (D-003). Titles and summaries
  * avoid protocol vocabulary: they say network, applet and account. Every
  * mitigation is enabled in every profile; only the `limit` text changes.
- * Each summary claims only what is enforced where D-012 places it: limits
- * the runtime applies before an applet's request is handled are described as
- * refusals. kernl sees each request just before the runtime handles it but
- * cannot hold it back, so what kernl measures is described as reported. Two
- * exceptions: quarantine closes the applet before the request that crossed
- * the limit is handled, so that request is described as dropped; and an
- * oversized request kernl measures is refused by the runtime for that one
- * dispatch, so size caps are described as refusals.
+ * Each summary claims only what is enforced where D-012 places it. kernl
+ * sees each request just before the runtime handles it and cannot hold it
+ * back, but it can have the runtime refuse that one request: a burst above
+ * the per-second rate, a request over the smaller unfocused budget, an
+ * oversized request, and any request from a hidden applet other than the
+ * messages that keep its window controllable are described as refused.
+ * Quarantine closes the applet before the request that crossed the limit is
+ * handled, so that request is described as dropped.
  *
  * @param config - The guard configuration whose limits appear in the text.
  * @returns One description per mitigation, in the order the UI shows them.
@@ -76,21 +76,21 @@ export function describeMitigations(config: GuardConfig): readonly MitigationDes
       'focus-tightening',
       'kernl',
       'Applets you are not using are measured against a smaller budget',
-      'When an applet window is not the one you are working in, the shell counts its requests against a smaller allowance and tells you when it goes over. Going over is reported, not refused: the shell counts each request as it arrives but cannot hold it back, so it is still handled. The budget above still applies.',
+      'When an applet window is not the one you are working in, the shell counts its requests against a smaller allowance. A request over it is refused before it is handled, and the shell tells you; the applet can try again once you switch to it. The budget above still applies.',
       `${limits.unfocusedMultiplier * 100}% of the focused budget`,
     ),
     mitigation(
       'hidden-deferral',
       'kernl',
-      'Hidden applets that keep downloading are stopped',
-      'While an applet is minimised or hidden, the shell counts its downloads. One that downloads past its allowance is quarantined: the download that crossed the allowance is dropped, and the shell closes the applet and tells you. Other requests from a hidden applet are recorded, not held back.',
+      'Hidden applets cannot act until you can see them',
+      'While an applet is minimised or hidden, the shell refuses its requests before they are handled, except the messages that let you close, theme or reach it; the applet can try again once it is visible. One that keeps asking for downloads past its allowance is quarantined: the download that crossed the allowance is dropped, and the shell closes the applet and tells you.',
       `${limits.hiddenResourceAllowance} downloads while hidden`,
     ),
     mitigation(
       'ingress-flood',
       'kernl',
       'Applets that flood the shell are put in quarantine',
-      'The shell counts every message an applet sends. Bursts above the per-second rate are reported to you. An applet that keeps flooding is quarantined: the message that crossed the limit is dropped, and the shell closes the applet and tells you.',
+      'The shell counts every message an applet sends. Requests in a burst above the per-second rate are refused before they are handled, and the shell tells you; messages that keep the window controllable still get through. An applet that keeps flooding is quarantined: the message that crossed the limit is dropped, and the shell closes the applet and tells you.',
       `${limits.ingressBurst} messages per second, ${limits.quarantineThreshold} per 10s`,
     ),
     mitigation(

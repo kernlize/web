@@ -85,10 +85,20 @@ export interface GuardConfig {
   readonly firewall: FirewallConfig;
 }
 
+/** Per-call options for `IngressGuard.admit`. */
+export interface AdmitOptions {
+  /** Queue a deferred envelope for `drain`. Defaults to true. */
+  readonly hold?: boolean;
+}
+
 /** Ingress guard: flood control in front of the kehto bridge. */
 export interface IngressGuard {
-  /** Decide what to do with one envelope from one window. */
-  admit(windowId: string, napplet: string, envelope: GuardEnvelope, visibility: WindowVisibility): GuardDisposition;
+  /**
+   * Decide what to do with one envelope from one window. With `hold: false`
+   * a `defer` is reported but the envelope is not queued, for traffic the
+   * caller refuses instead of holding.
+   */
+  admit(windowId: string, napplet: string, envelope: GuardEnvelope, visibility: WindowVisibility, options?: AdmitOptions): GuardDisposition;
   /** Return queued envelopes that may now be dispatched, up to the drain batch size. */
   drain(windowId: string): readonly GuardEnvelope[];
   /** True once a window has been quarantined. Quarantine lasts until `release`. */

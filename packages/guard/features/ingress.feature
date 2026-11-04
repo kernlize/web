@@ -1,7 +1,7 @@
 Feature: Ingress flood control
   Each applet window has a per-second burst budget. Spent budgets queue
   traffic, full queues reject it, and sustained floods quarantine the window
-  until the user intervenes. Every non-pass disposition is reported.
+  until the user intervenes. Every non-pass disposition is reported as an event.
 
   Background:
     Given a guard ingress guard using the "strict" profile with a drain batch of 4
@@ -17,6 +17,14 @@ Feature: Ingress flood control
     And the guard emitted 1 events
     And the guard's last event has disposition "defer" and reason "flood:burst"
     And the guard's last event names window "w1" and applet "chat" with class "relay:subscribe"
+
+  Scenario: a caller that refuses instead of holding gets the deferral without a queue
+    When the guard admits 9 "relay.subscribe" envelopes from window "w1" without holding any
+    Then the guard's last disposition is "defer"
+    And the guard's last event has disposition "defer" and reason "flood:burst"
+    When the guard clock advances by 125 ms
+    And the guard admits a "relay.subscribe" envelope from window "w1"
+    Then the guard's last disposition is "pass"
 
   Scenario: windows have independent budgets
     When the guard admits 8 "relay.subscribe" envelopes from window "w1"

@@ -102,13 +102,15 @@ export function applyRuntimeFirewallRules(
  * an applet, and only that one.
  *
  * kehto calls `onNappletMessage` synchronously, then evaluates the runtime
- * firewall and dispatches in the same call (D-012). The runtime measures size
- * only for envelopes that carry an event, so its size matchers never see a
- * download or a query, and kernl's ingress guard is the only layer that
- * measures them. When it finds one too large, the applet's policy is set to
- * `deny` for the rest of this dispatch: kehto answers the request with a
- * denial instead of handing it to a service, and the previous policy returns
- * in a microtask, before the next port message can arrive.
+ * firewall and dispatches in the same call, and ignores the callback's answer
+ * (D-012). kernl's guard layers judge each envelope in that callback: a burst
+ * above the per-second rate, a request over the unfocused budget, an
+ * oversized download or query (the runtime measures size only for envelopes
+ * that carry an event), and any non-control request from a hidden window.
+ * When one of them will not let an envelope through, the applet's policy is
+ * set to `deny` for the rest of this dispatch: kehto answers the request with
+ * a firewall denial instead of handing it to a service, and the previous
+ * policy returns in a microtask, before the next port message can arrive.
  *
  * @param firewallState - `bridge.runtime.firewallState`.
  * @param napplet - Applet identity (dTag) of the window whose envelope is being dispatched.
@@ -116,7 +118,7 @@ export function applyRuntimeFirewallRules(
  * @example
  * ```ts
  * onNappletMessage: (windowId, message) => {
- *   if (oversized(message)) refuseCurrentDispatch(bridge.runtime.firewallState, dTag);
+ *   if (pipeline.observe(windowId, dTag, message) === 'reject') refuseCurrentDispatch(bridge.runtime.firewallState, dTag);
  * };
  * ```
  */

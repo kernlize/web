@@ -115,7 +115,9 @@ Under kernl's `strict` profile, which every load starts in, the limits that matt
 | Posts notes (`relay.publish`) | 20 per 60 s per applet | kehto's runtime firewall refuses the publish; the applet sees an error starting `firewall:` |
 | Reads the network (`relay.subscribe`) | 30 per 60 s | refused the same way |
 | Sends messages to the shell in its first 3 s | 20 | kehto's runtime firewall refuses the rest of the burst with a `firewall:` error |
-| Sends messages to the shell at all | 8 per second | reported to the user as a burst, still handled |
+| Sends messages to the shell at all | 8 per second | requests past it are refused with a `firewall:` error; control messages still pass |
+| Is not the focused window | 25% of each rate above | refused with a `firewall:` error until it is focused |
+| Asks for anything while hidden, other than control messages | none | refused with a `firewall:` error; retry once visible |
 | Sends messages to the shell at all | 300 in any 10 s | the applet is quarantined: the message that crossed the limit is dropped and the applet is closed |
 | Downloads while hidden (`resource.*`) | 8 | the ninth quarantines the applet |
 | Asks for a download or a query larger than the cap | 64 KiB for `resource.*`, 256 KiB for subscriptions and queries | refused before it is handled, with a `firewall:` error |

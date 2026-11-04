@@ -48,10 +48,18 @@ Then('the guard mitigation {string} has no limit', (world: GuardWorld, id: strin
   expect(mitigation(world, id).limit).toBeUndefined();
 });
 
-Then('the guard mitigations {string} never claim to hold, queue, block or refuse', (world: GuardWorld, ids: string) => {
+Then('the guard mitigations {string} never claim to hold, queue or pause', (world: GuardWorld, ids: string) => {
   for (const id of ids.split(',')) {
     const { title, summary } = mitigation(world, id);
-    expect(`${title} ${summary}`).not.toMatch(/\b(held until|are held|queued|blocked|refused until|are refused|wait their turn|paused)\b/i);
+    expect(`${title} ${summary}`).not.toMatch(/\b(held until|are held|queued|wait their turn|paused)\b/i);
+  }
+});
+
+Then('the guard mitigations {string} say they refuse and never that they only report', (world: GuardWorld, ids: string) => {
+  for (const id of ids.split(',')) {
+    const { summary } = mitigation(world, id);
+    expect(summary).toMatch(/\brefuse[sd]?\b/);
+    expect(summary).not.toMatch(/\b(reported|not refused|recorded, not|not held back)\b/i);
   }
 });
 

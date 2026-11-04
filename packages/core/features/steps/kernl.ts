@@ -136,7 +136,7 @@ Given('a kernl shell over that host and pool with a private backend', (world: Co
   boot(world, { messagingBackends: { private: () => createMemoryBackend() } }, blobFetcher(world));
 });
 
-Given('a kernl shell over that host and pool with fake bridges', (world: CoreWorld) => {
+function bootWithFakeBridges(world: CoreWorld, hostExtra: Partial<KernlHost> = {}): void {
   const bridgeCalls: KernlScratch['bridgeCalls'] = [];
   const bridges: BridgeRegistry = {
     register: () => undefined,
@@ -147,8 +147,15 @@ Given('a kernl shell over that host and pool with fake bridges', (world: CoreWor
       return { kind: 'bytes', response: new Response('bytes', { status: 200, headers: { 'content-type': 'text/plain' } }) };
     },
   };
-  boot(world, { bridges }, blobFetcher(world));
+  boot(world, { bridges }, { ...blobFetcher(world), ...hostExtra });
   k(world).bridgeCalls = bridgeCalls;
+}
+
+Given('a kernl shell over that host and pool with fake bridges', (world: CoreWorld) => bootWithFakeBridges(world));
+
+Given('a kernl shell over that host and pool with fake bridges and a manual clock', (world: CoreWorld) => {
+  scratch(world).clock = 1_700_000_000_000;
+  bootWithFakeBridges(world, { now: () => scratch(world).clock as number });
 });
 
 Given('a kernl shell over that host and pool with its own store, accounts, messaging, bridges, relays, a {string} guard, a theme, a clock and a blob fetcher', (world: CoreWorld, profile: GuardProfile) => {

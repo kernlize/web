@@ -124,11 +124,7 @@ export function createKernl(options: KernlOptions): Kernl {
   const pipeline = createGuardPipeline({
     config: createGuardConfig(options.guard?.profile ?? 'strict'),
     ...(host.now ? { now: host.now.bind(host) } : {}),
-    onEvent: (event) => {
-      // The ingress guard's size caps are refused before dispatch through the runtime firewall (D-012).
-      if (event.reason.startsWith('size:')) refuseCurrentDispatch(bridge.runtime.firewallState, event.napplet);
-      guardEvents$.next(event);
-    },
+    onEvent: (event) => guardEvents$.next(event),
     onQuarantine: (windowId) => {
       handles.get(windowId)?.revoked('quarantine');
       bridge.revokeNapplet(windowId, 'host');
@@ -166,7 +162,12 @@ export function createKernl(options: KernlOptions): Kernl {
     services: services.registry,
     resolveEnvironment: (identity, available) => createEnvironmentResolver(grants)(identity, available),
     onNappletRevoked: ({ windowId, reason }) => handles.get(windowId)?.revoked(reason),
-    onNappletMessage: (windowId, message) => pipeline.observe(windowId, identityOf(windowId)?.dTag ?? 'unknown', message),
+    onNappletMessage: (windowId, message) => {
+      const napplet = identityOf(windowId)?.dTag ?? 'unknown';
+      const disposition = pipeline.observe(windowId, napplet, message);
+      // kehto ignores this callback's answer, so what the guard will not let through is refused by the runtime firewall for this one dispatch (D-012).
+      if (disposition === 'defer' || disposition === 'reject') refuseCurrentDispatch(bridge.runtime.firewallState, napplet);
+    },
   });
   const bridge = createShellBridge(adapter);
   grants = createGrants({ acl: bridge.runtime.aclState, storage: host.storage, availableDomains: () => buildShellCapabilities(adapter).domains });

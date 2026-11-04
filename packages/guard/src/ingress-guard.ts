@@ -59,6 +59,7 @@ interface Admission {
   readonly opClass: OpClass;
   readonly visibility: WindowVisibility;
   readonly at: number;
+  readonly hold: boolean;
 }
 
 /** Drain order: keep windows controllable, then feed what the user is looking at. */
@@ -100,7 +101,9 @@ function refill(state: WindowState, limits: GuardLimits, at: number): void {
  * `drain` as tokens refill; past the queue they are rejected. A window that
  * sends `quarantineThreshold` messages inside ten seconds, or fetches more
  * than `hiddenResourceAllowance` resources while hidden, is quarantined until
- * the user releases it. Oversized envelopes are rejected outright.
+ * the user releases it. Oversized envelopes are rejected outright. A caller
+ * that refuses deferred traffic instead of holding it passes `hold: false`:
+ * the burst is reported as `defer` but nothing is queued.
  *
  * The guard emits an event for every disposition other than `pass`, so the
  * user can see what an applet tried to do (D-003).
@@ -152,6 +155,7 @@ export function createIngressGuard(options: IngressGuardOptions): IngressGuard {
 
   function enqueue(state: WindowState, admission: Admission): GuardDisposition {
     if (state.queue.length >= limits.ingressQueue) return settle(admission, 'reject', 'flood:queue-full');
+    if (!admission.hold) return settle(admission, 'defer', 'flood:burst');
     state.seq += 1;
     state.queue.push({ envelope: admission.envelope, opClass: admission.opClass, seq: state.seq });
     return settle(admission, 'defer', 'flood:burst');
@@ -177,10 +181,11 @@ export function createIngressGuard(options: IngressGuardOptions): IngressGuard {
   }
 
   return {
-    admit(windowId, napplet, envelope, visibility) {
+    admit(windowId, napplet, envelope, visibility, admitOptions) {
       const at = now();
       const state = window(windowId, at);
-      const admission: Admission = { windowId, napplet, envelope, opClass: classifyEnvelope(envelope), visibility, at };
+      const hold = admitOptions?.hold ?? true;
+      const admission: Admission = { windowId, napplet, envelope, opClass: classifyEnvelope(envelope), visibility, at, hold };
       if (state.quarantined) return settle(admission, 'quarantine', 'flood:quarantine');
       return decide(state, admission);
     },

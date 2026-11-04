@@ -35,6 +35,7 @@ The guard is the set of protections between an applet and the user. kehto's `@ke
 | `GuardProfile` | `'strict' \| 'balanced' \| 'relaxed'` | Profiles change limits only; every mitigation stays on in every profile. |
 | `GuardLimits` | interface | `ingressBurst`, `ingressQueue`, `quarantineThreshold`, `hiddenResourceAllowance`, `deferQueue`, `maxResourceEnvelopeBytes`, `maxSubscribeEnvelopeBytes`, `rates` (per `OpClass`: `{ capacity, windowMs }`), `unfocusedMultiplier`. |
 | `GuardConfig` | interface | `{ profile, limits, firewall }`. |
+| `AdmitOptions` | interface | `{ hold?: boolean }` for `IngressGuard.admit`; `hold: false` reports a burst as `defer` without queueing the envelope. |
 
 ### Classification
 
@@ -52,7 +53,7 @@ The guard is the set of protections between an applet and the user. kehto's `@ke
 | --- | --- | --- |
 | `createIngressGuard` | `(options: IngressGuardOptions) => IngressGuard` | Per-window token bucket of `ingressBurst` per second, a queue of `ingressQueue`, quarantine at `quarantineThreshold` arrivals in a rolling 10 s window or past `hiddenResourceAllowance` resource requests while hidden, and envelope size caps. |
 | `IngressGuardOptions` | interface | `{ config: GuardConfig; now?: () => number; onEvent?: (event: GuardEvent) => void; drainBatch?: number }`. `drainBatch` defaults to 4. |
-| `IngressGuard` | interface | `admit(windowId, napplet, envelope, visibility): GuardDisposition`, `drain(windowId): readonly GuardEnvelope[]`, `isQuarantined(windowId): boolean`, `release(windowId): void` (lifts quarantine, restores a fresh budget), `forget(windowId): void` (drops all state). |
+| `IngressGuard` | interface | `admit(windowId, napplet, envelope, visibility, options?: AdmitOptions): GuardDisposition` (`{ hold: false }` reports a `defer` without queueing the envelope), `drain(windowId): readonly GuardEnvelope[]`, `isQuarantined(windowId): boolean`, `release(windowId): void` (lifts quarantine, restores a fresh budget), `forget(windowId): void` (drops all state). |
 | `QUARANTINE_WINDOW_MS` | `10_000` | The rolling window over which arrivals are counted against `quarantineThreshold`. |
 | `GuardDisposition` | `'pass' \| 'defer' \| 'reject' \| 'quarantine'` | What `admit` returns. `defer` here means the burst budget is spent and the envelope was queued, not that the window is hidden. |
 | `GuardEvent` | interface | `{ disposition: GuardDisposition \| 'flag'; windowId; napplet; opClass; reason; at }`. Emitted for every disposition other than `pass`, and for a `pass` the firewall flagged. `reason` is a stable prefixed string; the list is in [Guard](../concepts/guard.md#dispositions-and-reasons). |

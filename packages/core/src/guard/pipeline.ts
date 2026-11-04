@@ -6,6 +6,7 @@ import {
   createIngressGuard,
   createVisibilityGate,
   estimateEnvelopeSize,
+  type AdmitOptions,
   type FocusFirewall,
   type GuardConfig,
   type GuardDisposition,
@@ -58,13 +59,17 @@ export interface GuardPipeline {
    */
   handleWindowMessage(event: MessageEvent, resolveWindow: (event: MessageEvent) => WindowResolution | null, forward: (event: MessageEvent) => void): PipelineDisposition;
   /**
-   * Observe one envelope that arrived over a bound port. kehto calls this
-   * synchronously just before it dispatches the envelope to the runtime, and
-   * ignores the return value, so nothing can be held or delayed here:
-   * counters advance and events are emitted. A quarantine triggers
-   * `onQuarantine`, and when that revokes the binding (as `createKernl` does)
-   * kehto no longer finds the window's session and drops this envelope
-   * instead of dispatching it.
+   * Judge one envelope that arrived over a bound port. kehto calls this
+   * synchronously just before it dispatches the envelope to the runtime, so
+   * nothing can be held or delayed here; the caller refuses instead. A
+   * `defer` or `reject` answer means the envelope must not be handled:
+   * `createKernl` refuses it for that one dispatch with
+   * `refuseCurrentDispatch`. That covers bursts above the per-second rate,
+   * the focus-aware firewall, size caps, and every non-control envelope from
+   * a window that is not visible (reason `hidden:<class>`), which the applet
+   * can retry once it is visible. Control envelopes are never refused. A
+   * quarantine triggers `onQuarantine`, and when that revokes the binding
+   * kehto no longer finds the window's session and drops the envelope.
    */
   observe(windowId: string, napplet: string, message: unknown): GuardDisposition;
   setVisibility(windowId: string, visibility: WindowVisibility): void;
@@ -94,6 +99,35 @@ function toEnvelope(data: unknown): GuardEnvelope {
   return typeof event.kind === 'number' ? { ...envelope, kind: event.kind } : envelope;
 }
 
+/** One envelope that arrived over a bound port, with the visibility the shell reported for its window. */
+interface PortEnvelope {
+  readonly windowId: string;
+  readonly napplet: string;
+  readonly envelope: GuardEnvelope;
+  readonly visibility: WindowVisibility;
+}
+
+/**
+ * What the pipeline answers for a port envelope once the ingress guard has
+ * admitted it. Control envelopes always pass; a hidden window's other
+ * envelopes are rejected with `hidden:<class>`; the rest go to the firewall.
+ */
+function judgePort(port: PortEnvelope, admitted: GuardDisposition, firewall: FocusFirewall, emit: (event: Omit<GuardEvent, 'at'>) => void): GuardDisposition {
+  const { windowId, napplet, envelope, visibility } = port;
+  if (admitted === 'quarantine') return admitted;
+  const opClass = classifyEnvelope(envelope);
+  if (opClass === 'control') {
+    if (admitted === 'pass') firewall.observe(windowId, napplet, envelope, visibility);
+    return 'pass';
+  }
+  if (admitted !== 'pass') return admitted;
+  if (!visibility.visible) {
+    emit({ disposition: 'reject', windowId, napplet, opClass, reason: `hidden:${opClass}` });
+    return 'reject';
+  }
+  return firewall.observe(windowId, napplet, envelope, visibility).decision === 'pass' ? 'pass' : 'reject';
+}
+
 /**
  * Compose the guard: ingress flood control, then the visibility gate, then the
  * focus-aware firewall, then kehto's bridge.
@@ -102,16 +136,14 @@ function toEnvelope(data: unknown): GuardEnvelope {
  * the bridge owns, so the only window-level message the pipeline can hold or
  * drop is `napplet.hello`. Port traffic reaches the pipeline through
  * `ShellAdapter.onNappletMessage`, which kehto calls synchronously before it
- * dispatches each envelope but treats as observe-only: its answer cannot hold,
- * delay or refuse the envelope. Rejections and flags therefore become events
- * for the user while the envelope is still handled. Quarantine is the one
- * disposition with an effect on the envelope itself: the shell revokes the
- * window inside the callback, kehto then finds no session for it, and the
- * envelope that crossed the limit is dropped along with everything after it.
- * Pre-dispatch limits for port traffic come from the runtime firewall
- * configured by `applyRuntimeFirewallRules`; `createKernl` also turns each
- * `size:` rejection into a runtime refusal of that one envelope with
- * `refuseCurrentDispatch`.
+ * dispatches each envelope and whose answer kehto ignores. `observe` returns
+ * a disposition instead, and `createKernl` refuses every `defer` or `reject`
+ * for that one dispatch with `refuseCurrentDispatch` (D-012), so the applet
+ * gets a firewall error and can retry. Control envelopes are never refused.
+ * Quarantine revokes the window inside the callback; kehto then finds no
+ * session for it, and the envelope that crossed the limit is dropped along
+ * with everything after it. The runtime firewall configured by
+ * `applyRuntimeFirewallRules` adds the profile's per-class rates.
  *
  * @param options - Configuration, clock, event sink and quarantine callback.
  * @returns The pipeline.
@@ -124,6 +156,7 @@ function toEnvelope(data: unknown): GuardEnvelope {
 export function createGuardPipeline(options: GuardPipelineOptions): GuardPipeline {
   let config = options.config;
   const profile$ = new BehaviorSubject<GuardProfile>(config.profile);
+  const clock = options.now ?? Date.now;
   const known = new Map<string, WindowVisibility>();
   const heldByIngress = new Map<string, Pending[]>();
   const heldByGate = new Map<string, Pending[]>();
@@ -179,8 +212,8 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
     return 'pass';
   }
 
-  function admit(windowId: string, napplet: string, envelope: GuardEnvelope): GuardDisposition {
-    const disposition = layers.ingress.admit(windowId, napplet, envelope, visibilityOf(windowId));
+  function admit(windowId: string, napplet: string, envelope: GuardEnvelope, admitOptions?: AdmitOptions): GuardDisposition {
+    const disposition = layers.ingress.admit(windowId, napplet, envelope, visibilityOf(windowId), admitOptions);
     if (disposition === 'quarantine') options.onQuarantine?.(windowId, napplet);
     return disposition;
   }
@@ -219,9 +252,8 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
     },
     observe(windowId, napplet, message) {
       const envelope = toEnvelope(message);
-      const disposition = admit(windowId, napplet, envelope);
-      if (disposition === 'pass') layers.firewall.observe(windowId, napplet, envelope, visibilityOf(windowId));
-      return disposition;
+      const port: PortEnvelope = { windowId, napplet, envelope, visibility: visibilityOf(windowId) };
+      return judgePort(port, admit(windowId, napplet, envelope, { hold: false }), layers.firewall, (event) => options.onEvent?.({ ...event, at: clock() }));
     },
     setVisibility(windowId, visibility) {
       known.set(windowId, visibility);

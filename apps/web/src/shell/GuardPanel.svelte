@@ -70,7 +70,7 @@
         {/each}
       </ol>
     {:else}
-      <p class="shell-muted">Nothing yet. The guard records what it reports, refuses or quarantines here. Some refusals made inside the runtime are not shown yet.</p>
+      <p class="shell-muted">Nothing yet. The guard records what it flags, refuses or quarantines here. Some refusals made inside the runtime are not shown yet.</p>
     {/if}
   </section>
 </Overlay>

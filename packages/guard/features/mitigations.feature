@@ -24,10 +24,11 @@ Feature: Mitigation descriptions
     When the guard describes the mitigations for the "strict" profile
     Then no guard mitigation names a protocol
 
-  Scenario: nothing the shell only observes is described as held or blocked
+  Scenario: what the shell refuses before dispatch is described as refused, never as held
     When the guard describes the mitigations for the "strict" profile
-    Then the guard mitigations "focus-tightening,hidden-deferral,ingress-flood" never claim to hold, queue, block or refuse
-    And the guard mitigation "focus-tightening" says "When an applet window is not the one you are working in, the shell counts its requests against a smaller allowance and tells you when it goes over. Going over is reported, not refused: the shell counts each request as it arrives but cannot hold it back, so it is still handled. The budget above still applies."
+    Then the guard mitigations "focus-tightening,hidden-deferral,ingress-flood" never claim to hold, queue or pause
+    And the guard mitigations "focus-tightening,hidden-deferral,ingress-flood" say they refuse and never that they only report
+    And the guard mitigation "focus-tightening" says "When an applet window is not the one you are working in, the shell counts its requests against a smaller allowance. A request over it is refused before it is handled, and the shell tells you; the applet can try again once you switch to it. The budget above still applies."
 
   Scenario: the sealed frame cannot open frames of its own (D-014)
     When the guard describes the mitigations for the "strict" profile
@@ -40,8 +41,8 @@ Feature: Mitigation descriptions
 
   Scenario: quarantine drops the message that crossed the limit
     When the guard describes the mitigations for the "strict" profile
-    Then the guard mitigation "ingress-flood" says "The shell counts every message an applet sends. Bursts above the per-second rate are reported to you. An applet that keeps flooding is quarantined: the message that crossed the limit is dropped, and the shell closes the applet and tells you."
-    And the guard mitigation "hidden-deferral" says "While an applet is minimised or hidden, the shell counts its downloads. One that downloads past its allowance is quarantined: the download that crossed the allowance is dropped, and the shell closes the applet and tells you. Other requests from a hidden applet are recorded, not held back."
+    Then the guard mitigation "ingress-flood" says "The shell counts every message an applet sends. Requests in a burst above the per-second rate are refused before they are handled, and the shell tells you; messages that keep the window controllable still get through. An applet that keeps flooding is quarantined: the message that crossed the limit is dropped, and the shell closes the applet and tells you."
+    And the guard mitigation "hidden-deferral" says "While an applet is minimised or hidden, the shell refuses its requests before they are handled, except the messages that let you close, theme or reach it; the applet can try again once it is visible. One that keeps asking for downloads past its allowance is quarantined: the download that crossed the allowance is dropped, and the shell closes the applet and tells you."
 
   Scenario: every overwrite or erasure of the account's record is put to the user
     When the guard describes the mitigations for the "strict" profile

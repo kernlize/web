@@ -132,6 +132,11 @@ When('the pipeline profile is set to {string}', (world: CoreWorld, profile: Guar
   state(world).pipeline.setProfile(profile);
 });
 
+When('the pipeline observes {int} port envelopes of type {string} from window {string}', (world: CoreWorld, count: number, type: string, windowId: string) => {
+  const s = state(world);
+  for (let i = 0; i < count; i += 1) s.disposition = s.pipeline.observe(windowId, s.windows.get(windowId) ?? 'unknown', { type });
+});
+
 When('the pipeline observes a port envelope of type {string} from window {string}', (world: CoreWorld, type: string, windowId: string) => {
   const s = state(world);
   s.disposition = s.pipeline.observe(windowId, s.windows.get(windowId) ?? 'unknown', { type });

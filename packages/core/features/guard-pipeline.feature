@@ -1,7 +1,8 @@
 Feature: Guard pipeline
   The guard sits in front of kehto's bridge: ingress flood control, then the
   visibility gate, then the focus-aware firewall. Window-level messages can be
-  held or dropped; port traffic is observed and answered reactively (D-001).
+  held or dropped; port traffic is judged just before kehto dispatches it, and
+  whatever the pipeline will not let through is refused by the caller (D-012).
 
   Background:
     Given a kernl guard pipeline using the "strict" profile with a controlled clock
@@ -88,6 +89,27 @@ Feature: Guard pipeline
     Given a kernl guard pipeline using the "strict" profile with default options
     And pipeline window "w1" runs applet "chat"
     When a window message of type "napplet.hello" arrives from window "w1"
+    Then the pipeline disposition was "pass"
+
+  Scenario: a hidden window's port traffic is rejected while its control messages pass
+    Given pipeline window "w1" is hidden
+    When the pipeline observes a port envelope of type "relay.subscribe" from window "w1"
+    Then the pipeline disposition was "reject"
+    And the pipeline emitted guard events with reasons "hidden:relay:subscribe"
+    When the pipeline observes a port envelope of type "shell.ready" from window "w1"
+    Then the pipeline disposition was "pass"
+
+  Scenario: a hidden window's port traffic is rejected with default options too
+    Given a kernl guard pipeline using the "strict" profile with default options
+    And pipeline window "w1" runs applet "chat"
+    And pipeline window "w1" is hidden
+    When the pipeline observes a port envelope of type "relay.subscribe" from window "w1"
+    Then the pipeline disposition was "reject"
+
+  Scenario: a port burst above the per-second rate is deferred for refusal, but control is not
+    When the pipeline observes 9 port envelopes of type "relay.subscribe" from window "w1"
+    Then the pipeline disposition was "defer"
+    When the pipeline observes a port envelope of type "shell.ready" from window "w1"
     Then the pipeline disposition was "pass"
 
   Scenario: changing the profile rebuilds the layers but keeps visibility

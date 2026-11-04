@@ -167,6 +167,43 @@ Feature: The composed shell
     Then the applet received a "resource.bytes.result"
     And the fake bridges were asked for "https://files.example/a.txt" by applet "chat"
 
+  Scenario: an applet you are not using is refused past its smaller budget until you focus it
+    Given a kernl shell over that host and pool with fake bridges and a manual clock
+    And a mounted applet granted "resource" that has said hello
+    When the applet window becomes "visible but not focused"
+    And the applet sends 25 "storage.set" requests over its port, 125 ms apart
+    Then "storage.set" requests 1 to 15 were answered
+    And at least one "storage.set" request was refused by the firewall
+    And the shell guard events included "rate:storage:write"
+    When the applet window becomes "focused"
+    And the applet sends 1 "storage.set" requests over its port, 125 ms apart
+    Then "storage.set" requests 26 to 26 were answered
+
+  Scenario: a burst above the per-second rate is refused, and control messages still get through
+    Given a kernl shell over that host and pool with fake bridges and a manual clock
+    And a mounted applet granted "resource" that has said hello
+    When the applet sends 8 "resource.bytes" requests over its port, 0 ms apart
+    Then "resource.bytes" requests 1 to 6 were answered
+    And "resource.bytes" requests 7 to 8 were refused by the firewall
+    And the shell guard events included "flood:burst"
+    When the applet sends 1 "storage.get" requests over its port, 0 ms apart
+    Then "storage.get" requests 1 to 1 were answered
+
+  Scenario: a hidden applet's requests are refused until it is visible, while control messages are answered
+    Given a kernl shell over that host and pool with fake bridges and a manual clock
+    And a mounted applet granted "resource" that has said hello
+    When the applet window becomes "hidden"
+    And the applet sends 1 "resource.bytes" requests over its port, 1000 ms apart
+    Then "resource.bytes" requests 1 to 1 were refused by the firewall
+    And the fake bridges were asked for nothing
+    And the shell guard events included "hidden:resource:bytes"
+    When the applet sends 1 "storage.get" requests over its port, 1000 ms apart
+    Then "storage.get" requests 1 to 1 were answered
+    When the applet window becomes "focused"
+    And the applet sends 1 "resource.bytes" requests over its port, 1000 ms apart
+    Then "resource.bytes" requests 2 to 2 were answered
+    And the fake bridges were asked for "https://files.example/a.txt" by applet "chat"
+
   Scenario: a refused dispatch puts the runtime policy back as it was
     Given a kernl shell over that host and pool
     And the runtime firewall holds the policy "ask" for "asker"

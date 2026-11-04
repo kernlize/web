@@ -197,7 +197,7 @@ document.addEventListener('visibilitychange', () => {
 });
 ```
 
-**Checkpoint.** A quiet applet produces no events, so the log stays empty while you play. Switch to another tab and back: the guard now knows the window was hidden, and a hidden applet that keeps downloading past its allowance would be quarantined and reported as `flood:hidden-resource`. What each reason means is in [Guard](../concepts/guard.md#dispositions-and-reasons).
+**Checkpoint.** A quiet applet produces no events, so the log stays empty while you play. Switch to another tab and back: the guard now knows the window was hidden. A request the applet made while hidden, other than a control message, would have been refused and logged as `hidden:<class>`, and one that kept downloading past its allowance would be quarantined and logged as `flood:hidden-resource`. What each reason means is in [Guard](../concepts/guard.md#dispositions-and-reasons).
 
 ## What you built
 
