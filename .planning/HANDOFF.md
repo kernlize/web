@@ -1,6 +1,6 @@
 # kernl handoff
 
-Living document for the next session. Updated as background agents report. Last update: 2026-11-04 (all three agents shipped in c9cb0a7).
+Living document for the next session. Updated as background agents report. Last update: 2026-11-04 (all work shipped; nothing in flight).
 
 ## Goal (owner's /goal, abridged)
 
@@ -13,13 +13,13 @@ Owner direction since (2026-11-04):
 
 ## Where things are
 
-- Source: `kernlize/web` (private), branch `main`, pushed. Last shipped commit `103d75a` (kehto 0.30.0 lock).
+- Source: `kernlize/web` (private), branch `main`, pushed. Last shipped feature commit `c9cb0a7` (ratchet + group messaging, in-kernl downloads).
 - Site: https://kernlize.github.io/ (docs `/docs/`, shell `/app/`, preview `/app/?preview=1`), published from `kernlize/kernlize.github.io` by `pnpm site:publish` (manual, owner's choice).
-- Gates (all passing at `103d75a`): `pnpm check` (build, type-check, 820 tests at 100% coverage, deps, astro check, docs:check incl. jsdoc + doc samples, pages build, vocabulary, agent-ready 22/22, slop 100), `pnpm exec playwright test` (41/41, also against production with `PLAYWRIGHT_BASE_URL=https://kernlize.github.io`). CI on GitHub green. Live amiagentready 90.
-- Context docs: `SOUL.md`, `DECISIONS.md` (D-001…D-015; D-016+ being added by agents), `AGENTS.md`.
+- Gates (all passing at `c9cb0a7`): `pnpm check` (build, type-check, 887 tests at 100% coverage, deps, astro check, docs:check incl. jsdoc + doc samples, pages build, vocabulary, agent-ready 22/22, slop 100), `pnpm exec playwright test` (43/43, also against production with `PLAYWRIGHT_BASE_URL=https://kernlize.github.io`). CI on GitHub green. Live amiagentready 90.
+- Context docs: `SOUL.md`, `DECISIONS.md` (D-001…D-018), `AGENTS.md`.
 - kehto issues filed: kehto/web #397–#400 (API gaps). `@kehto/shell` 0.30.0 released (was stuck: CI run on the Version Packages commit was cancelled by a follow-up merge; release.yml dispatched manually).
 
-## In flight (background agents, not yet shipped)
+## Recently shipped (background agents)
 
 | Work | Scope | Status |
 |---|---|---|
@@ -31,7 +31,7 @@ Agents do not run git. When each reports: run `pnpm check` and `pnpm exec playwr
 
 ## Open items needing the owner
 
-- Release PRs: enable "Allow GitHub Actions to create and approve pull requests" at the `kernlize` org (blocked; needs `admin:org` scope: `gh auth refresh -h github.com -s admin:org`).
+- Release PRs: enable "Allow GitHub Actions to create and approve pull requests" at the `kernlize` org. Still blocking: the Version Packages run on `c9cb0a7` and `7cecea2` pushed `changeset-release/main` but failed to open the PR ("GitHub Actions is not permitted to create or approve pull requests"). After enabling, re-run the latest Version Packages workflow ( needs `admin:org` scope: `gh auth refresh -h github.com -s admin:org`).
 - Report kehto's creation-only lock bypass routes (customized built-in `new`, XSLT, prefixed XHTML via importNode/adoptNode) — owner reporting privately; written up in D-014. kernl's insertion lock blocks them.
 - Optional: file kehto's release race (cancel-in-progress CI vs Version Packages gate) as a kehto issue.
 
@@ -79,4 +79,4 @@ All three agents are done. Ship: re-run `pnpm check` and `pnpm exec playwright t
 
 ## Shipped — 2026-11-04
 
-Commit `c9cb0a7` on `main` (pushed over HTTPS with the gh login; SSH push was refused with "Permission denied (publickey)" — the owner should check their SSH key). Site republished. CI on GitHub: build/test/docs/gates success, browser success. Live amiagentready 90 (11 pass, 3 warn, 0 fail). Playwright against production 43/43. Nothing in flight.
+Commit `c9cb0a7` on `main` (pushed over HTTPS with the gh login; SSH push was refused with "Permission denied (publickey)" — the owner should check their SSH key). Site republished. CI on GitHub: build/test/docs/gates success, browser success. Live amiagentready 90 (11 pass, 3 warn, 0 fail). Playwright against production 43/43. Nothing in flight. Follow-up check: CI on `7cecea2` success; `/`, `/docs/`, `/app/`, `/llms.txt` serve 200.
