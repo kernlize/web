@@ -1,6 +1,6 @@
 # kernl handoff
 
-Living document for the next session. Updated as background agents report. Last update: 2026-11-04.
+Living document for the next session. Updated as background agents report. Last update: 2026-11-04 (all three agents shipped in c9cb0a7).
 
 ## Goal (owner's /goal, abridged)
 
@@ -23,9 +23,9 @@ Owner direction since (2026-11-04):
 
 | Work | Scope | Status |
 |---|---|---|
-| NDR / ratchet messaging | `ratchet-backend.ts` + `ratchet-storage.ts` on `nostr-double-ratchet` 0.0.183; NAP-DM scenario; D-016 | **done, not shipped** (see report 1) |
-| Marmot (MLS) + messaging NIP inventory | `group` provider on `@internet-privacy/marmot-ts` 0.9; NIP inventory; NAP-DM scenario; D-018 | **done, not shipped** (see report 3) |
-| In-shell downloads | `webtorrent-backend.ts`, `createDefaultBridges({ torrent })`, `webtorrent` 3.0.21 lazy in host page, Downloads panel, Settings choice; D-017 | **done, not shipped** (see report 2) |
+| NDR / ratchet messaging | `ratchet-backend.ts` + `ratchet-storage.ts` on `nostr-double-ratchet` 0.0.183; NAP-DM scenario; D-016 | **shipped** c9cb0a7 |
+| Marmot (MLS) + messaging NIP inventory | `group` provider on `@internet-privacy/marmot-ts` 0.9; NIP inventory; NAP-DM scenario; D-018 | **shipped** c9cb0a7 |
+| In-shell downloads | `webtorrent-backend.ts`, `createDefaultBridges({ torrent })`, `webtorrent` 3.0.21 lazy in host page, Downloads panel, Settings choice; D-017 | **shipped** c9cb0a7 |
 
 Agents do not run git. When each reports: run `pnpm check` and `pnpm exec playwright test`, commit (Conventional Commits, `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`), `git push origin main`, `pnpm site:publish`, then confirm CI (`gh run list -R kernlize/web --workflow ci.yml`) and the live site (amiagentready scan with a cache-busting query; Playwright against production).
 
@@ -76,3 +76,7 @@ Agents do not run git. When each reports: run `pnpm check` and `pnpm exec playwr
 ## Next step
 
 All three agents are done. Ship: re-run `pnpm check` and `pnpm exec playwright test`, commit (one commit per agent's area or one combined), `git push origin main`, `pnpm site:publish`, confirm CI and the live site (amiagentready + Playwright with `PLAYWRIGHT_BASE_URL=https://kernlize.github.io`). Then mark this document "shipped" and commit it.
+
+## Shipped — 2026-11-04
+
+Commit `c9cb0a7` on `main` (pushed over HTTPS with the gh login; SSH push was refused with "Permission denied (publickey)" — the owner should check their SSH key). Site republished. CI on GitHub: build/test/docs/gates success, browser success. Live amiagentready 90 (11 pass, 3 warn, 0 fail). Playwright against production 43/43. Nothing in flight.
