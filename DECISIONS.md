@@ -162,6 +162,8 @@ The window-level `hello` is the one message kernl can hold or drop before kehto 
 
 **Publishing is manual, by the maintainer's choice (2026-11-03).** `pnpm site:publish` builds, runs the vocabulary and agent-readiness gates, and pushes `.pages/` to the site repository. CI builds and audits on every push; it would publish only if a scoped `SITE_PUBLISH_TOKEN` were added, and none is.
 
+**Superseded in part by D-019 (2026-11-04).** Production moved to https://kernl.run/ on bunny.net, and publishing is automatic on every push to `main`. The domain-root reasoning above still holds.
+
 **Reversal cost.** Low; only deployment configuration.
 
 ## D-014 · Applets cannot open nested frames: kehto's nested-context lock, plus kernl's insertion lock
@@ -242,3 +244,13 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Consequences.** Group sessions work with any account that can `nip44`, including extensions and remote signers, which are asked once per sealed store per page load and on every write. An account is one member of a group, as the library enforces, so only one of a person's devices joins. Applets reach `group` like every provider, through the `dm` composite as `group:<group id>`. The vocabulary check also refuses "marmot" and "mls" on the public site.
 
 **Reversal cost.** Low; the backend sits behind `MessagingBackend` and `KernlOptions.messagingBackends.group`. A host can replace it, or drop the provider by registering its own registry.
+
+## D-019 · The site is served at kernl.run by a bunny.net static site, deployed on every push to main
+
+**Context.** D-013 served the artifact at the root of `kernlize.github.io` from a public repository holding only built output, published by hand. The project now has its own domain, `kernl.run`. bunny.net static sites keep each deploy as an immutable directory in a storage zone and point a pull zone's edge rule at the live one, so publishing and rollback are a retarget and a cache purge. The same account already serves other sites from the maintainer's projects, deployed from GitHub Actions.
+
+**Decision.** The bunny.net site `kernl` serves `.pages/` at https://kernl.run/. `.github/workflows/pages.yml` (Publish site) builds and audits on every push to `main` and deploys with `BunnyWay/actions/deploy-site`, pinned to the `deploy-site@0.1.2` commit, which records each deploy in the repository's Environments. Deploys are never cancelled in flight. The workflow needs one secret, `BUNNYNET_API_KEY`, and reads the variables `BUNNY_SITE`, `SITE_URL` and `SITE_BASE`; `scripts/setup-bunny-secrets.sh` sets all four from the bunny CLI login without prompting, so it is safe to re-run. `pnpm site:publish` deploys the same artifact from a checkout. The source defaults (`SITE_URL` and the absolute links in copy) name `https://kernl.run/`.
+
+**Consequences.** Without the secret the workflow builds, audits and stops with a notice, as before. Rolling back is `bunny sites deployments publish --previous --force`. The account API key in the secret can manage every bunny.net resource on the account, not only this site; bunny.net offers no narrower key for site deploys. The pull zone does not yet answer `Accept: text/markdown` (D-013's 92 needs a middleware Edge Script implementing `scripts/serve-pages.mjs`'s rule), so the expected score at kernl.run is 90 until then. `kernlize.github.io` is no longer updated and can be retired.
+
+**Reversal cost.** Low; only deployment configuration and the default origin.

@@ -16,13 +16,13 @@ The person at the keyboard is the only principal that matters.
 ![agent readiness: 90](https://img.shields.io/badge/agent%20readiness-90-0b0b0b)
 [![license: MIT](https://img.shields.io/badge/license-MIT-0b0b0b)](./LICENSE)
 
-[**Try the shell**](https://kernlize.github.io/app/?preview=1) · [Website](https://kernlize.github.io/) · [Docs](https://kernlize.github.io/docs/) · [Why](https://kernlize.github.io/why/)
+[**Try the shell**](https://kernl.run/app/?preview=1) · [Website](https://kernl.run/) · [Docs](https://kernl.run/docs/) · [Why](https://kernl.run/why/)
 
 <br />
 
 </div>
 
-> **Alpha.** kernl is a first draft: the guard, the contracts, the composition over kehto and the shell are real and tested; private, legacy and ratchet messages work for accounts that can encrypt (ratchet sessions are experimental), and downloads, sharing and mail only hand off to apps on your device. The source is private and the `@kernl/*` packages are not on npm yet; the [site and docs](https://kernlize.github.io/) are public. Read [`docs/alpha-status.md`](./docs/alpha-status.md) before relying on anything, and note that the badges are measured by `pnpm check` and an agent-readiness scan, not live CI.
+> **Alpha.** kernl is a first draft: the guard, the contracts, the composition over kehto and the shell are real and tested; private, legacy and ratchet messages work for accounts that can encrypt (ratchet sessions are experimental), and downloads, sharing and mail only hand off to apps on your device. The source is private and the `@kernl/*` packages are not on npm yet; the [site and docs](https://kernl.run/) are public. Read [`docs/alpha-status.md`](./docs/alpha-status.md) before relying on anything, and note that the badges are measured by `pnpm check` and an agent-readiness scan, not live CI.
 
 <p align="center">
   <img src=".github/assets/shell.png" alt="The kernl preview shell in its tiled layout: the Notes and Pulse sample applets side by side, Notes granted network access and Pulse not, each listing actions such as Publish a note (no prompt), Update your profile and Delete a note (ask first), with the guard indicator reading strict and no events." width="880" />
@@ -85,7 +85,7 @@ scripts               build, audit and guard scripts
 
 ## Run it
 
-No install: [open the preview](https://kernlize.github.io/app/?preview=1). It runs the shell in your browser, offline, with the live shell's consent and guard behaviour, two sample applets and a throwaway account.
+No install: [open the preview](https://kernl.run/app/?preview=1). It runs the shell in your browser, offline, with the live shell's consent and guard behaviour, two sample applets and a throwaway account.
 
 From source, for maintainers only during the alpha, because the repository is private (Node 22 or newer, pnpm 10 via `corepack enable`):
 
@@ -114,7 +114,7 @@ Applets are ordinary NIP-5D napplets; kernl changes the posture, not the wire fo
 pnpm check
 ```
 
-That runs, in order: build, type-check, features with 100% coverage, dependency rules, docs gate, site build, public-vocabulary scan, agent-readiness audit, slop gate. `pnpm test:e2e` adds the browser suite, and `PLAYWRIGHT_BASE_URL=https://kernlize.github.io pnpm exec playwright test` runs it against the live site. `pnpm site:publish` publishes.
+That runs, in order: build, type-check, features with 100% coverage, dependency rules, docs gate, site build, public-vocabulary scan, agent-readiness audit, slop gate. `pnpm test:e2e` adds the browser suite, and `PLAYWRIGHT_BASE_URL=https://kernl.run pnpm exec playwright test` runs it against the live site. `pnpm site:publish` publishes.
 
 ## How behaviour is specified
 
@@ -146,7 +146,7 @@ Features live in `packages/*/features/` and run inside vitest through [quickpick
 
 ## Documentation
 
-The docs are a product. Start at [`docs/index.md`](./docs/index.md), or on the site at [/docs/](https://kernlize.github.io/docs/). Agents can read [`/llms.txt`](https://kernlize.github.io/llms.txt) and [`/docs/llms.txt`](https://kernlize.github.io/docs/llms.txt); every page has a Markdown twin, except the generated API reference, which is HTML only.
+The docs are a product. Start at [`docs/index.md`](./docs/index.md), or on the site at [/docs/](https://kernl.run/docs/). Agents can read [`/llms.txt`](https://kernl.run/llms.txt) and [`/docs/llms.txt`](https://kernl.run/docs/llms.txt); every page has a Markdown twin, except the generated API reference, which is HTML only.
 
 | Need | Page |
 |---|---|
