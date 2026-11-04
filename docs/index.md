@@ -24,7 +24,7 @@ kernl does not fork kehto ([D-001](./decisions.md#d-001)). When kehto lacks a ho
 
 ## Three doors
 
-**Use the shell.** Try the hosted preview at [kernlize.github.io/app/?preview=1](https://kernlize.github.io/app/?preview=1), which needs no install and no account, or open the live shell, sign in with a browser extension or a remote signer, and open an applet by its address. Start with [Run the shell](./tutorials/run-the-shell.md), then read [Grant and revoke](./how-tos/grant-and-revoke.md) to understand what the shell asks you and why.
+**Use the shell.** Try the hosted preview at [kernl.run/app/?preview=1](https://kernl.run/app/?preview=1), which needs no install and no account, or open the live shell, sign in with a browser extension or a remote signer, and open an applet by its address. Start with [Run the shell](./tutorials/run-the-shell.md), then read [Grant and revoke](./how-tos/grant-and-revoke.md) to understand what the shell asks you and why.
 
 **Build an applet for it.** Applets are ordinary NIP-5D napplets; kernl adds nothing to the wire format. What kernl changes is the posture: fewer domains advertised until granted, including the user's account, rate limits, no frames of the applet's own, closer watch while hidden or unfocused, and quarantine for floods. [Write an applet](./tutorials/write-an-applet.md) builds, tests, publishes and opens one; [Applets under kernl](./concepts/applets-under-kernl.md) tells you what to expect and how to test against it.
 
@@ -50,4 +50,4 @@ Agents reading this site should start at [Agent access](./agent-access.md).
 
 ## Licence and cost
 
-kernl is free software under the MIT licence. Every package and the shell cost $0; there is no paid tier and no account to buy. During the alpha the source repository is private; the site, these docs and the [decisions](./decisions.md) are public at [kernlize.github.io](https://kernlize.github.io/).
+kernl is free software under the MIT licence. Every package and the shell cost $0; there is no paid tier and no account to buy. During the alpha the source repository is private; the site, these docs and the [decisions](./decisions.md) are public at [kernl.run](https://kernl.run/).

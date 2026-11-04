@@ -1,16 +1,17 @@
 name: Publish site
 
-# D-013: the site is served at the root of https://kernlize.github.io/ from the public
-# kernlize/kernlize.github.io repository, which holds only the built artifact. This
-# repository stays private. Publishing needs SITE_PUBLISH_TOKEN: a fine-grained token
-# with Contents read/write on kernlize/kernlize.github.io. Without it the job builds,
-# audits and stops.
+# D-019: the site is served at the root of https://kernl.run/ by a bunny.net static
+# site. Every push to main builds, audits and deploys .pages/ as an immutable deploy;
+# roll back with `bunny sites deployments publish --previous --force`.
+# scripts/setup-bunny-secrets.sh sets the BUNNYNET_API_KEY secret and the BUNNY_SITE,
+# SITE_URL and SITE_BASE variables. Without the secret the job builds, audits and stops.
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
+# Never cancel a deploy in flight: that leaves a half-written deploy directory.
 concurrency:
   group: publish-site
   cancel-in-progress: false
@@ -19,13 +20,16 @@ permissions:
   contents: read
 
 env:
-  SITE_URL: ${{ vars.SITE_URL || 'https://kernlize.github.io/' }}
+  SITE_URL: ${{ vars.SITE_URL || 'https://kernl.run/' }}
   SITE_BASE: ${{ vars.SITE_BASE || '/' }}
   VITEPRESS_BASE: ${{ vars.SITE_BASE || '/' }}docs/
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -37,17 +41,24 @@ jobs:
       - run: pnpm site:build
       - run: pnpm check:vocabulary
       - run: pnpm check:agent-ready
-      - name: Publish to kernlize/kernlize.github.io
-        if: ${{ env.SITE_PUBLISH_TOKEN != '' }}
+      - name: Check deploy credentials
+        id: bunny
         env:
-          SITE_PUBLISH_TOKEN: ${{ secrets.SITE_PUBLISH_TOKEN }}
+          BUNNYNET_API_KEY: ${{ secrets.BUNNYNET_API_KEY }}
         run: |
-          git clone --depth 1 "https://x-access-token:${SITE_PUBLISH_TOKEN}@github.com/kernlize/kernlize.github.io.git" site
-          find site -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-          cp -R .pages/. site/
-          cd site
-          git config user.name "kernl publisher"
-          git config user.email "actions@users.noreply.github.com"
-          git add -A
-          git diff --cached --quiet || git commit -m "Publish kernl site from ${GITHUB_SHA::7}"
-          git push origin HEAD:main
+          if [ -n "$BUNNYNET_API_KEY" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::BUNNYNET_API_KEY is not set; built and audited without deploying. Run scripts/setup-bunny-secrets.sh."
+          fi
+      - name: Deploy to bunny.net
+        id: deploy
+        if: steps.bunny.outputs.enabled == 'true' && github.ref == 'refs/heads/main'
+        uses: BunnyWay/actions/deploy-site@931a74b9c45ea9f9f01435fbbf1649830e67d3b3 # deploy-site@0.1.2
+        with:
+          site: ${{ vars.BUNNY_SITE || 'kernl' }}
+          directory: .pages
+          api_key: ${{ secrets.BUNNYNET_API_KEY }}
+      - name: Report the live URL
+        if: steps.deploy.outcome == 'success'
+        run: echo "::notice::Deployed ${{ steps.deploy.outputs.deploy-id }} to ${{ steps.deploy.outputs.url }} (unchanged=${{ steps.deploy.outputs.unchanged }})"
