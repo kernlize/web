@@ -79,4 +79,4 @@ All three agents are done. Ship: re-run `pnpm check` and `pnpm exec playwright t
 
 ## Shipped — 2026-11-04
 
-Commit `c9cb0a7` on `main` (pushed over HTTPS with the gh login; SSH push was refused with "Permission denied (publickey)" — the owner should check their SSH key). Site republished. CI on GitHub: build/test/docs/gates success, browser success. Live amiagentready 90 (11 pass, 3 warn, 0 fail). Playwright against production 43/43. Nothing in flight. Follow-up check: CI on `7cecea2` success; `/`, `/docs/`, `/app/`, `/llms.txt` serve 200.
+Commit `c9cb0a7` on `main` (pushed over HTTPS with the gh login; SSH push was refused with "Permission denied (publickey)" — the owner should check their SSH key). Site republished. CI on GitHub: build/test/docs/gates success, browser success. Live amiagentready 90 (11 pass, 3 warn, 0 fail). Playwright against production 43/43. Nothing in flight. Re-verified at `e3519d4` (2026-11-04): `pnpm check` green (887/887, 100% coverage, agent-ready, vocabulary clean, slop 100); Playwright 43/43 locally and 43/43 against production; live amiagentready 90 (12 pass, 3 warn, 1 info, 0 fail); CI on `7cecea2` success.
