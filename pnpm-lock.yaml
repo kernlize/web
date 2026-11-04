@@ -32,6 +32,9 @@ importers:
       aislop:
         specifier: ^0.20.0
         version: 0.20.0
+      esbuild:
+        specifier: ^0.27.7
+        version: 0.27.7
       nostr-tools:
         specifier: ^2.25.2
         version: 2.25.5(typescript@5.9.3)

@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { expect, test, type Request } from '@playwright/test';
@@ -62,20 +61,30 @@ function plan(indexHtml: string) {
   return core.planMount({ summary: summaryFor('escape'), indexHtml, adapter: adapter as never, guardProfile: 'strict', windowId: 'escape-1' });
 }
 
-/** `mountApplet` from the built core, bundled for the browser with the esbuild binary the workspace already has. */
-function bundleMount(): string {
+/** `mountApplet` from the built core, bundled for the browser with esbuild (a root devDependency). */
+async function bundleMount(): Promise<string> {
+  const { build } = await import('esbuild');
   const entry = `export { mountApplet } from ${JSON.stringify(resolve(ROOT, 'packages/core/dist/index.js'))};`;
-  const bundled = execFileSync(resolve(ROOT, 'node_modules/.bin/esbuild'), ['--bundle', '--format=iife', '--global-name=kernlMount', '--platform=browser', '--log-level=error'], { input: entry, encoding: 'utf8' });
-  return bundled.replace(/<\/script/gi, '<\\/script');
+  const result = await build({
+    stdin: { contents: entry, resolveDir: ROOT, loader: 'js' },
+    bundle: true,
+    format: 'iife',
+    globalName: 'kernlMount',
+    platform: 'browser',
+    logLevel: 'error',
+    write: false,
+  });
+  return (result.outputFiles[0]?.text ?? '').replace(/<\/script/gi, '<\\/script');
 }
 
 test.beforeAll(async () => {
   core = (await import(pathToFileURL(resolve(ROOT, 'packages/core/dist/index.js')).href)) as Core;
   const mountPlan = plan(APPLET_HTML);
+  const mountBundle = await bundleMount();
   hostHtml = `<!doctype html>
 <html><head>${core.KERNL_FRAME_POLICY_META}<title>Host</title></head>
 <body>
-<script>${bundleMount()}</script>
+<script>${mountBundle}</script>
 <script>
 window.control = new Promise((done) => {
   const types = [];
