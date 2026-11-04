@@ -31,7 +31,7 @@ Agents do not run git. When each reports: run `pnpm check` and `pnpm exec playwr
 
 ## Open items needing the owner
 
-- Release PRs: enable "Allow GitHub Actions to create and approve pull requests" at the `kernlize` org. Still blocking: the Version Packages run on `c9cb0a7` and `7cecea2` pushed `changeset-release/main` but failed to open the PR ("GitHub Actions is not permitted to create or approve pull requests"). After enabling, re-run the latest Version Packages workflow ( needs `admin:org` scope: `gh auth refresh -h github.com -s admin:org`).
+- Release PRs: enable "Allow GitHub Actions to create and approve pull requests" at the `kernlize` org. Still blocking: the Version Packages run on `c9cb0a7` and `7cecea2` pushed `changeset-release/main` but failed to open the PR ("GitHub Actions is not permitted to create or approve pull requests"). After enabling, re-run the latest Version Packages workflow. Changing the setting needs `admin:org` scope: `gh auth refresh -h github.com -s admin:org`.
 - Report kehto's creation-only lock bypass routes (customized built-in `new`, XSLT, prefixed XHTML via importNode/adoptNode) — owner reporting privately; written up in D-014. kernl's insertion lock blocks them.
 - Optional: file kehto's release race (cancel-in-progress CI vs Version Packages gate) as a kehto issue.
 
