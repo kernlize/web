@@ -1,30 +1,49 @@
 # Deploy
 
-kernl deploys as one static artifact: the landing site at the root, the shell at `/app/`, the docs at `/docs/` and the generated API reference at `/docs/api/`. `scripts/build-pages.mjs` assembles it into `.pages/`, and GitHub Pages serves it. No server-side code is involved.
+kernl deploys as one static artifact: the landing site at the root, the shell at `/app/`, the docs at `/docs/` and the generated API reference at `/docs/api/`. `scripts/build-pages.mjs` assembles it into `.pages/`, and a bunny.net static site serves it at **https://kernl.run/** ([D-019](../decisions.md#d-019)). No server-side code is involved.
 
 ## The three variables
 
-| Variable | Used by | Meaning | Default | Pages value |
+| Variable | Used by | Meaning | Default | kernl.run value |
 | --- | --- | --- | --- | --- |
-| `SITE_URL` | Astro site, docs `llms.txt` | Absolute URL of the deployment root. Canonical tags, sitemap, JSON-LD and the absolute links in `llms.txt` are derived from it. | `https://kernlize.github.io/` | `https://kernlize.github.io/` |
+| `SITE_URL` | Astro site, docs `llms.txt` | Absolute URL of the deployment root. Canonical tags, sitemap, JSON-LD and the absolute links in `llms.txt` are derived from it. | `https://kernl.run/` | `https://kernl.run/` |
 | `SITE_BASE` | Astro site | Path prefix the site is served under. | `/` | `/` |
 | `VITEPRESS_BASE` | Docs site | Path prefix the docs are served under. Always `SITE_BASE` plus `docs/`. | `/docs/` | `/docs/` |
 
-The Pages workflow reads `SITE_URL` and `SITE_BASE` from repository variables (`vars.SITE_URL`, `vars.SITE_BASE`) and falls back to the domain root: `https://kernlize.github.io/` and `/`. It sets `VITEPRESS_BASE` to `SITE_BASE` followed by `docs/`. When a custom domain is chosen, set those two variables; nothing in the source references a host ([D-008](../decisions.md#d-008)).
+The Publish site workflow reads `SITE_URL` and `SITE_BASE` from repository variables (`vars.SITE_URL`, `vars.SITE_BASE`) and falls back to the domain root: `https://kernl.run/` and `/`. It sets `VITEPRESS_BASE` to `SITE_BASE` followed by `docs/`. When a custom domain is chosen, set those two variables; nothing in the source references a host ([D-008](../decisions.md#d-008)).
 
 ## Serve at a domain root
 
-The site is served at the root of its own origin, **https://kernlize.github.io/**, because agent-readiness scanners grade the origin: they read `robots.txt` and `llms.txt` from the domain root whatever path they are given, and a project subpath such as `kernlize.github.io/web/` has neither ([D-013](../decisions.md#d-013)).
+The site is served at the root of its own origin, **https://kernl.run/**, because agent-readiness scanners grade the origin: they read `robots.txt` and `llms.txt` from the domain root whatever path they are given, and a project subpath has neither ([D-013](../decisions.md#d-013)).
 
-The source repository is private, so it does not serve Pages itself. The built `.pages/` artifact is published to the public `kernlize/kernlize.github.io` repository, which holds nothing else. Publishing is manual by decision ([D-013](../decisions.md#d-013)): one command builds, runs the vocabulary and agent-readiness gates, and pushes the artifact.
+The host is a bunny.net static site named `kernl`: a storage zone holding one immutable directory per deploy and a pull zone whose edge rule points at the live one ([D-019](../decisions.md#d-019)). The domain's DNS points `kernl.run` at the pull zone's `b-cdn.net` host.
+
+### One-time setup
+
+```bash
+bunny login
+bunny sites create kernl --no-link --domain kernl.run   # once per account
+scripts/setup-bunny-secrets.sh                          # safe to re-run
+```
+
+`scripts/setup-bunny-secrets.sh` reads the API key from `BUNNYNET_API_KEY` or the bunny CLI profile, checks it and the site, and sets the `BUNNYNET_API_KEY` secret and the `BUNNY_SITE`, `SITE_URL` and `SITE_BASE` variables on the repository. It never prompts, so every run converges on the same state; variables are written only when they differ. Override any value through the environment (`BUNNY_SITE`, `SITE_URL`, `SITE_BASE`, `BUNNY_PROFILE`) or pass `owner/repo` as the first argument.
+
+### Publishing
+
+Every push to `main` deploys. To deploy from a checkout instead:
 
 ```bash
 pnpm site:publish
 ```
 
-`.github/workflows/pages.yml` builds and audits the same artifact on every push to `main`. It publishes only if a `SITE_PUBLISH_TOKEN` secret (a fine-grained token with Contents read/write on `kernlize/kernlize.github.io`) is ever added; none is configured.
+That builds, runs the vocabulary and agent-readiness gates, and runs `bunny sites deploy .pages --site kernl`. A deploy whose content is already live is a no-op. To roll back:
 
-To move to a custom domain, set the `SITE_URL` repository variable to `https://<domain>/`, keep `SITE_BASE` at `/`, and add a `CNAME` file to the published artifact. GitHub Pages cannot answer `Accept: text/markdown`; a host that should needs a rule that serves the page's `.md` twin with `Vary: Accept`. `scripts/serve-pages.mjs` implements the rule and is the reference.
+```bash
+bunny sites deployments list kernl
+bunny sites deployments publish --previous --force
+```
+
+bunny.net does not answer `Accept: text/markdown` by itself; a host that should needs a rule that serves the page's `.md` twin with `Vary: Accept`. `scripts/serve-pages.mjs` implements the rule and is the reference; on bunny.net it would be a middleware Edge Script on the pull zone, which is not set up yet.
 
 ## Build locally
 
@@ -72,7 +91,7 @@ The server resolves directory URLs to `index.html` and VitePress clean URLs to t
 
 ```yaml
 env:
-  SITE_URL: ${{ vars.SITE_URL || 'https://kernlize.github.io/' }}
+  SITE_URL: ${{ vars.SITE_URL || 'https://kernl.run/' }}
   SITE_BASE: ${{ vars.SITE_BASE || '/' }}
   VITEPRESS_BASE: ${{ vars.SITE_BASE || '/' }}docs/
 steps:
@@ -80,10 +99,10 @@ steps:
   - run: pnpm site:build
   - run: pnpm check:vocabulary
   - run: pnpm check:agent-ready
-  - name: Publish to kernlize/kernlize.github.io   # needs SITE_PUBLISH_TOKEN
+  - name: Deploy to bunny.net   # BunnyWay/actions/deploy-site, needs BUNNYNET_API_KEY
 ```
 
-`pnpm site:build` includes the docs gate, so a deployment with a missing package page, a missing Markdown twin or a broken TypeDoc module does not happen. `pnpm check:vocabulary` and `pnpm check:agent-ready` run in the same workflow against `.pages/`.
+`pnpm site:build` includes the docs gate, so a deployment with a missing package page, a missing Markdown twin or a broken TypeDoc module does not happen. `pnpm check:vocabulary` and `pnpm check:agent-ready` run in the same workflow against `.pages/`. Without the `BUNNYNET_API_KEY` secret the workflow builds, audits and stops with a notice. Deploys are never cancelled in flight, since that would leave a half-written deploy directory.
 
 ## TypeDoc source links
 
