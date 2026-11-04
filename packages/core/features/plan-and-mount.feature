@@ -15,12 +15,13 @@ Feature: Planning and mounting an applet
     And the plan is missing required domains "relay"
     And the plan srcdoc starts with the CSP meta and contains the namespace prelude and the verified html
 
-  Scenario: the frame lock runs after kehto's prelude and before any applet script (D-014)
+  Scenario: kehto's nested-context lock is on and the insertion lock follows its prelude (D-014)
     Given a verified applet summary for "chat" with markup '<!doctype html><html><head><script>applet()</script></head><body>hi</body></html>'
     When the shell plans the mount in window "w1" under the "strict" profile
-    Then the plan srcdoc holds, in order, "the CSP meta,kehto's prelude,the frame lock,the applet script"
+    Then the plan srcdoc holds, in order, "the CSP meta,kehto's prelude,the insertion lock,the applet script"
     And the plan srcdoc CSP ends with "require-trusted-types-for 'script'; trusted-types default"
-    And the plan srcdoc has exactly 1 frame lock
+    And the plan srcdoc prelude is kehto's locked prelude
+    And the plan srcdoc has exactly 1 insertion lock
 
   Scenario: markup that declares a nested frame is refused before it is planned (D-014)
     Given a verified applet summary for "chat" with markup '<!doctype html><html><body><iframe srcdoc="x"></iframe></body></html>'
@@ -28,9 +29,9 @@ Feature: Planning and mounting an applet
     Then the shell refused with "denied:nested-frame"
 
   Scenario: a srcdoc kehto shaped differently is refused rather than mounted unlocked
-    When the frame lock splices "<b>" into "a<i>c"
+    When the insertion lock splices "<b>" into "a<i>c"
     Then the shell refused with "unavailable:frame-lock"
-    When the frame lock splices "<b>" into "a<b>c<b>"
+    When the insertion lock splices "<b>" into "a<b>c<b>"
     Then the spliced text is "a<b><lock>c<b>"
 
   Scenario: mounting follows the NIP-5D order and hardens the frame

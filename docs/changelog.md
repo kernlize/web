@@ -10,6 +10,13 @@ Each entry says what ships, per package and app. [Alpha status](./alpha-status.m
 - `createLegacyMessagesBackend`: NIP-04 kind 4 messages through `signer.nip04`, normalised the same way and still marked metadata-exposing.
 - `createKernl` wires both by default unless `KernlOptions.messagingBackends` overrides them, so `private` and `legacy` work in the live shell. Availability follows the active account: `private` needs a signer with `nip44`, `legacy` one with `nip04`.
 - **Breaking.** `MESSAGING_UNAVAILABLE_REASONS` now holds `sign-in-required`, `signer-cannot-encrypt` and `no-runtime`. `needs-local-key-signer` and `not-implemented` are removed. See [Error reasons](./reference/errors.md).
+- **Breaking.** `planMount` enables kehto's released nested-context lock, `experimental: { nestedContextLock: true }` from `@kehto/shell` 0.30.0, in place of kernl's port of it. kehto now renders the Trusted Types directives, installs the `default` policy and pins the element factories; its `assertNappletHasNoFrame` still maps to `denied:nested-frame`. Frame creation inside an applet now throws `TypeError('kehto: napplets may not create nested browsing contexts')`; insertion still throws `denied:nested-frame` ([D-014](./decisions.md#d-014)).
+- `@kehto/shell` is now `^0.30.0`. The other kehto packages are unchanged.
+
+### `@kernl/guard`
+
+- `renderFrameLockScript` is renamed `renderInsertionLockScript` and emits `<script data-kernl-insertion-lock>`, which applies only the insertion lock: the DOM insertion pins, the refusal of custom elements that extend frame elements, and the removal of `XSLTProcessor`. kehto's lock guards creation only, so the insertion lock stays until kehto guards insertion; the four routes past kehto's lock are to be reported upstream.
+- **Breaking.** Removed `appletMarkupHasFrame`, `assertAppletHasNoFrame`, `TRUSTED_TYPES_DIRECTIVES` and the `trustedTypes` field of `AppletCsp`. `createAppletCsp` returns the 14 baseline directives only, and `@kernl/guard` no longer throws outside the applet realm.
 
 ### Shell and site (`apps/web`)
 

@@ -2,14 +2,15 @@
  * The guard: every protection kernl places between an applet and the user.
  *
  * Flood control, visibility deferral and the focus-aware firewall run in
- * front of the kehto bridge (D-001); the CSP, the nested-frame lock (D-014) and
- * the mitigation descriptions feed the mount plan and the grants panel (D-003).
+ * front of the kehto bridge (D-001); the CSP, the insertion lock that completes
+ * kehto's nested-context lock (D-014) and the mitigation descriptions feed the
+ * mount plan and the grants panel (D-003).
  *
  * @packageDocumentation
  */
 export { classifyEnvelope, estimateEnvelopeSize } from './classify.js';
 export { createAppletCsp, renderCsp, type AppletCsp } from './csp.js';
-export { appletMarkupHasFrame, assertAppletHasNoFrame, renderFrameLockScript, TRUSTED_TYPES_DIRECTIVES } from './frame-lock.js';
+export { renderInsertionLockScript } from './insertion-lock.js';
 export { createFocusFirewall, type FocusFirewallOptions } from './focus-firewall.js';
 export { createIngressGuard, QUARANTINE_WINDOW_MS, type IngressGuardOptions } from './ingress-guard.js';
 export { describeMitigations } from './mitigations.js';

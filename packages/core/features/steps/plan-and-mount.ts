@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
-import type { ShellAdapter, ShellEnvironment } from '@kehto/shell';
+import { renderNappletNamespacePrelude, type ShellAdapter, type ShellEnvironment } from '@kehto/shell';
 import type { GuardProfile, WindowVisibility } from '@kernl/guard';
 import { AccountManager } from 'applesauce-accounts';
 import { createRelayTiers, createShellAdapter, mountApplet, planMount, resolveApplet, type AppletStatus, type AppletSummary, type MountDeps, type MountPlan, type MountedApplet } from '@kernl/core';
@@ -123,7 +123,7 @@ When('the shell tries to plan the mount in window {string}', async (world: CoreW
 const SRCDOC_LANDMARKS: Readonly<Record<string, string>> = {
   'the CSP meta': '<meta http-equiv="Content-Security-Policy"',
   "kehto's prelude": '<script data-kehto-nip5d-injection>',
-  'the frame lock': '<script data-kernl-frame-lock>',
+  'the insertion lock': '<script data-kernl-insertion-lock>',
   'the applet script': '<script>applet()</script>',
 };
 
@@ -142,11 +142,18 @@ Then('the plan srcdoc CSP ends with {string}', (world: CoreWorld, directives: st
   expect(policy).toContain("frame-src 'none'");
 });
 
-Then('the plan srcdoc has exactly {int} frame lock', (world: CoreWorld, count: number) => {
-  expect(plan(world).srcdoc.split('data-kernl-frame-lock').length - 1).toBe(count);
+Then("the plan srcdoc prelude is kehto's locked prelude", (world: CoreWorld) => {
+  const { srcdoc, environment } = plan(world);
+  const locked = renderNappletNamespacePrelude({ domains: environment.capabilities.domains, experimental: { nestedContextLock: true } });
+  expect(locked).not.toBe(renderNappletNamespacePrelude({ domains: environment.capabilities.domains }));
+  expect(srcdoc).toContain(locked);
 });
 
-When('the frame lock splices {string} into {string}', async (world: CoreWorld, find: string, text: string) => {
+Then('the plan srcdoc has exactly {int} insertion lock', (world: CoreWorld, count: number) => {
+  expect(plan(world).srcdoc.split('data-kernl-insertion-lock').length - 1).toBe(count);
+});
+
+When('the insertion lock splices {string} into {string}', async (world: CoreWorld, find: string, text: string) => {
   await attempt(world, () => {
     scratch(world).spliced = spliceOnce(text, find, `${find}<lock>`);
   });

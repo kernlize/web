@@ -23,7 +23,7 @@
     "check:agent-ready": "node scripts/audit-agent-readiness.mjs",
     "check:deps": "node scripts/check-dependency-rules.mjs",
     "slop": "aislop scan --json . | node scripts/assert-slop-score.mjs",
-    "check": "pnpm build && pnpm type-check && pnpm test && pnpm check:deps && pnpm docs:check && pnpm --filter @kernl/web build && node scripts/build-pages.mjs && pnpm check:vocabulary && pnpm check:agent-ready && pnpm slop",
+    "check": "pnpm build && pnpm type-check && pnpm test && pnpm check:deps && pnpm docs:check && pnpm --filter @kernl/web check && pnpm --filter @kernl/web build && node scripts/build-pages.mjs && pnpm check:vocabulary && pnpm check:agent-ready && pnpm slop",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "site:publish": "bash scripts/publish-site.sh"

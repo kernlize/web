@@ -10,6 +10,7 @@
     "check": "astro check"
   },
   "dependencies": {
+    "@kehto/shell": "^0.30.0",
     "@kernl/bridges": "workspace:^",
     "@kernl/core": "workspace:^",
     "@kernl/guard": "workspace:^",

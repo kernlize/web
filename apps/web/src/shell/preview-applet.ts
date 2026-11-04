@@ -1,4 +1,12 @@
-import { assertAppletHasNoFrame, renderFrameLockScript } from '@kernl/guard';
+import {
+  assertNappletHasNoFrame,
+  prepareNappletSrcdoc,
+  renderNappletCspMeta,
+  renderNappletNamespacePrelude,
+  type NappletCspOptions,
+  type NappletExperimentalOptions,
+} from '@kehto/shell';
+import { renderInsertionLockScript } from '@kernl/guard';
 import type { AppletSummary, SampleApplet } from './contract';
 
 const PUBLISHER = '7f3a9c1e5b2d4a6f8e0c1b3d5f7a9c2e4b6d8f0a1c3e5b7d9f1a3c5e7b9d0f2c';
@@ -85,7 +93,8 @@ export function sampleAddressOf(identity: { readonly dTag: string }): string | u
 
 export interface PreviewAppletInput {
   readonly title: string;
-  readonly csp: string;
+  /** The guard's policy, rendered by kehto with its Trusted Types directives. */
+  readonly csp: NappletCspOptions;
   readonly domains: readonly string[];
   readonly domainLabels: readonly string[];
   readonly identity: string;
@@ -167,20 +176,6 @@ document.querySelectorAll('[data-action]').forEach((button) => {
 send('hello');
 `;
 
-/**
- * kehto's prelude removes every WebRTC constructor before applet code runs, since a peer
- * connection would be a network path around the shell. The preview has no kehto prelude,
- * so it carries the same sweep as the first script after the CSP. The guard's frame lock
- * follows it, before any applet script, as the live mount plan places it (D-014).
- */
-const RTC_SWEEP = `(() => {
-  const names = new Set(Object.getOwnPropertyNames(window).filter((name) => /^(RTC|webkitRTC|mozRTC)/.test(name)));
-  for (const name of ['webkitRTCPeerConnection', 'mozRTCPeerConnection', 'webkitRTCSessionDescription', 'mozRTCSessionDescription', 'webkitRTCIceCandidate', 'mozRTCIceCandidate']) names.add(name);
-  for (const name of names) {
-    try { Object.defineProperty(window, name, { value: undefined, writable: false, configurable: false, enumerable: false }); } catch {}
-  }
-})();`;
-
 const STYLE = `
 :root { color-scheme: light dark; }
 body { margin: 0; font: 15px/1.5 system-ui, sans-serif; background: #f6f3ec; color: #16181c; padding: 20px; }
@@ -203,17 +198,23 @@ summary { cursor: pointer; font-size: 14px; margin-bottom: 8px; }
 @media (prefers-color-scheme: dark) { body { background: #12151b; color: #e9e4d8; } .card { background: #1a1e26; border-color: #2b303b; } button { background: #242933; color: inherit; border-color: #3a4050; } textarea { border-color: #3a4050; } #log li[data-tone=ok] { color: #8fd8a6; } #log li[data-tone=warn] { color: #f0b85a; } }
 `;
 
-const SWEEP_SCRIPT = `<script>${RTC_SWEEP}</script>`;
+const NESTED_CONTEXT_LOCK: NappletExperimentalOptions = Object.freeze({ nestedContextLock: true });
 
 /**
- * The static document the preview mounts instead of verified applet bytes. Like the live mount
- * plan, the applet's own markup is refused if it declares a frame, and the frame lock goes in
- * after the markup is checked.
+ * The static document the preview mounts instead of verified applet bytes. It is sealed the way
+ * the live mount plan seals an applet (D-014): markup that declares a frame is refused by kehto's
+ * scan (the template escapes everything it shows, so it never does), then
+ * kehto puts its CSP (with the Trusted Types directives) and its locked namespace prelude, which
+ * removes every WebRTC constructor and closes the frame factories, first in `<head>`, and the
+ * guard's insertion lock follows the prelude, before any applet script. The prelude's handshake
+ * message carries no `kernlPreview` field, so the preview shell ignores it.
  */
 export function renderPreviewApplet(input: PreviewAppletInput): string {
   const markup = appletMarkup(input);
-  assertAppletHasNoFrame(markup);
-  return markup.replace(SWEEP_SCRIPT, () => SWEEP_SCRIPT + renderFrameLockScript());
+  assertNappletHasNoFrame(markup);
+  const prepared = prepareNappletSrcdoc(markup, { domains: input.domains, csp: input.csp, experimental: NESTED_CONTEXT_LOCK });
+  const head = renderNappletCspMeta(input.csp, true) + renderNappletNamespacePrelude({ domains: input.domains, experimental: NESTED_CONTEXT_LOCK });
+  return prepared.replace(head, () => head + renderInsertionLockScript());
 }
 
 function appletMarkup(input: PreviewAppletInput): string {
@@ -222,8 +223,6 @@ function appletMarkup(input: PreviewAppletInput): string {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="${escapeHtml(input.csp)}">
-${SWEEP_SCRIPT}
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(input.title)}</title>
 <style>${STYLE}</style>

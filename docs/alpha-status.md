@@ -6,7 +6,7 @@ kernl is a first draft. This page says what runs, what is a contract without an 
 
 | Area | Package | State |
 | --- | --- | --- |
-| Guard | `@kernl/guard` | Three profiles (`createGuardConfig`, `applyNappletRules`), envelope classification, ingress flood control with quarantine, visibility gate, focus-aware firewall over `@kehto/firewall`'s `evaluate()`, the fixed zero-network CSP, a port of kehto's unreleased nested-frame lock ([D-014](./decisions.md#d-014)), eleven mitigation descriptions for the UI. Pure, fully specified in `packages/guard/features/`. |
+| Guard | `@kernl/guard` | Three profiles (`createGuardConfig`, `applyNappletRules`), envelope classification, ingress flood control with quarantine, visibility gate, focus-aware firewall over `@kehto/firewall`'s `evaluate()`, the fixed zero-network CSP, an insertion lock on top of kehto's nested-context lock ([D-014](./decisions.md#d-014)), eleven mitigation descriptions for the UI. Pure, fully specified in `packages/guard/features/`. |
 | Messaging | `@kernl/messaging` | `MessagingProvider`, `MessagingBackend`, `MessagingRegistry` with saved-preference restore, the composite backend with `provider:innerId` namespacing, `describeProvider` rows, a complete in-memory backend (`createMemoryBackend`) used by the preview and the tests, and three providers (`private`, `legacy`, `ratchet`) built with `defineProvider` from backends the shell injects. The network backends for `private` and `legacy` are in `@kernl/core` (`createPrivateMessagesBackend`, `createLegacyMessagesBackend`) and are wired in the live shell ([below](#messaging-providers-in-the-live-shell)). |
 | Bridges | `@kernl/bridges` | `Locator` parsing for the web schemes, `magnet:`, `nzb:`, `slsk:` and `mailto:`, the `Bridge` contract, the registry with its `authorize` hook and outcome events, a complete HTTP bridge with SSRF policy, the four backend-driven bridges up to their backend interface, `createHandoffBackends`, which serves all four by opening the locator in an app on the user's device, `createBridgeResourceResolver` for kehto's resource service, and `describeBridge` rows. |
 | Composition | `@kernl/core` | `createKernl` over one applesauce `EventStore`, `RelayPool` and `AccountManager`, with kehto's real `createShellBridge` exercised end to end in `kernl.feature`: an applet is decoded, resolved, planned and mounted, binds its port through the guarded `handleWindowMessage`, completes `shell.ready`, is answered by the theme, identity and resource services, and is quarantined and revoked when it floods. Relay tiers, the applesauce adapters, the guard pipeline and runtime firewall rules, grants over `bridge.runtime.aclState`, consent summaries, the default registries and the layouts each have their own feature file. |
@@ -52,7 +52,7 @@ kernl composes kehto rather than forking it ([D-001](./decisions.md#d-001)). Fou
 
 A fifth observation, not a gap kernl needs closed: the transport internals `createNip5dTransport` and `createShellReadyState` are not exported, so kernl uses `createShellBridge` unchanged.
 
-One mitigation is carried locally rather than waiting upstream: `@kehto/shell` 0.29.0 leaves an applet free to create a child frame whose fresh realm still has WebRTC, and the lock that closes this exists only on kehto main behind `experimental.nestedContextLock`. `@kernl/guard` ports it and `planMount` always applies it, until a kehto release ships the flag ([D-014](./decisions.md#d-014)).
+One mitigation goes beyond kehto: `@kehto/shell` 0.30.0 ships `experimental.nestedContextLock`, which stops an applet creating a child frame whose fresh realm still has WebRTC, and `planMount` always enables it. kehto's lock guards creation only, and four creation routes get past it (a customized built-in constructed with `new`, XSLT, and a namespace-prefixed XHTML element brought in with `importNode` or `adoptNode`), so `@kernl/guard` adds an insertion lock on top until kehto guards insertion. The routes are to be reported to kehto ([D-014](./decisions.md#d-014)).
 
 ## Corrections
 
@@ -67,7 +67,7 @@ One mitigation is carried locally rather than waiting upstream: `@kehto/shell` 0
 | `@kehto/acl` | `^0.20.2` |
 | `@kehto/firewall` | `^0.6.3` |
 | `@kehto/runtime` | `^0.27.2` |
-| `@kehto/shell` | `^0.29.0` |
+| `@kehto/shell` | `^0.30.0` |
 | `@kehto/services` | `^0.29.0` |
 | `@kehto/nip` | `^0.8.0` |
 | `@kehto/wm` | `^0.0.2` |

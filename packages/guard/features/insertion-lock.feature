@@ -1,9 +1,10 @@
 Feature: Insertion lock
-  A frame element only becomes a fresh realm once it is connected to a
-  document. Creation routes are many, so the lock also guards every insertion
-  method, reads node identity through native getters captured before applet
-  code runs, refuses custom elements that extend frames and removes the XSLT
-  processor (D-014).
+  kehto's nested-context lock refuses frame creation at string sinks and
+  element factories. A frame element only becomes a fresh realm once it is
+  connected to a document, and some creation routes slip past those factories,
+  so kernl also guards every insertion method, reads node identity through
+  native getters captured before applet code runs, refuses custom elements that
+  extend frames and removes the XSLT processor (D-014).
 
   Background:
     Given an insertion-lock realm with every insertion method
@@ -70,6 +71,8 @@ Feature: Insertion lock
     When the insertion lock is applied to the realm
     Then the insertion lock did not throw
 
-  Scenario: the frame-lock script applies both locks
-    When the guard renders the frame-lock script
-    Then the frame-lock script applies the insertion lock
+  Scenario: the insertion-lock script is one inline element that applies the lock to its window
+    When the guard renders the insertion-lock script
+    Then the insertion-lock script opens with "<script data-kernl-insertion-lock>(" and closes with ")(window);</script>"
+    And the insertion-lock script closes no element before its end
+    And the insertion-lock script applies the insertion lock

@@ -7,7 +7,7 @@ Opinionated shell composition over kehto and applesauce. Browser-agnostic: the D
 | Package | `@kernl/core` |
 | Version | `0.1.0` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts` |
-| Dependencies | `@kernl/guard`, `@kernl/messaging`, `@kernl/bridges` (`workspace:^`); `@kehto/acl ^0.20.2`, `@kehto/firewall ^0.6.3`, `@kehto/runtime ^0.27.2`, `@kehto/shell ^0.29.0`, `@kehto/services ^0.29.0`, `@kehto/nip ^0.8.0`, `@kehto/wm ^0.0.2`; `applesauce-core ^7.0.3`, `applesauce-relay ^7.0.0`, `applesauce-signers ^7.0.1`, `applesauce-accounts ^7.0.2`, `applesauce-loaders ^7.0.2`; `rxjs ^7.8.2` |
+| Dependencies | `@kernl/guard`, `@kernl/messaging`, `@kernl/bridges` (`workspace:^`); `@kehto/acl ^0.20.2`, `@kehto/firewall ^0.6.3`, `@kehto/runtime ^0.27.2`, `@kehto/shell ^0.30.0`, `@kehto/services ^0.29.0`, `@kehto/nip ^0.8.0`, `@kehto/wm ^0.0.2`; `applesauce-core ^7.0.3`, `applesauce-relay ^7.0.0`, `applesauce-signers ^7.0.1`, `applesauce-accounts ^7.0.2`, `applesauce-loaders ^7.0.2`; `rxjs ^7.8.2` |
 | Peer dependencies | `@napplet/core >=0.37.0 <0.38.0`, `@napplet/nap >=0.36.0 <0.37.0`, `@napplet/shim >=0.30.0`, `nostr-tools >=2.23.3 <=2.x` (required by kehto and applesauce; never imported here) |
 | Side effects | none |
 
@@ -93,7 +93,7 @@ The host is the only way the core reaches the user or the page. Applets never re
 
 `resolve(pointer)` fetches the manifest from the pointer's relay hints plus the `apps` tier (newest event wins for addresses), throws `unavailable:manifest` when nobody serves one, and verifies the manifest and artifact through kehto's `resolveNapplet`, with `host.fetchBlob` or `defaultFetchBlob` for the bytes and the artifact cache when the page has Cache Storage. Failures are rethrown as `unavailable:blob` or `invalid:<kehto code>` (`invalid:blob-hash-mismatch`, `invalid:invalid-signature`, …). The verified `index.html` is kept inside the lifecycle, keyed by identity; the caller gets an `AppletSummary` whose `requires` and `optional` are advisory.
 
-`plan(summary)` throws `invalid:unresolved` for a summary this shell did not resolve. It calls `grants.ensure(identity)` so the ACL holds the applet's record, numbers the window `applet-1`, `applet-2`, … and returns a `MountPlan`: the environment from kehto's `resolveShellEnvironment` narrowed by the grants, the `srcdoc` with the guard's zero-network CSP and the namespace prelude inserted by `prepareNappletSrcdoc`, then the Trusted Types directives appended to that CSP and the frame lock inserted right after the prelude ([D-014](../decisions.md#d-014)), `sandbox: 'allow-scripts'`, and `missingRequired`, the required domains the environment does not include. The host decides what to do with `missingRequired`; the core mounts whatever it is given.
+`plan(summary)` throws `invalid:unresolved` for a summary this shell did not resolve. It calls `grants.ensure(identity)` so the ACL holds the applet's record, numbers the window `applet-1`, `applet-2`, … and returns a `MountPlan`: the environment from kehto's `resolveShellEnvironment` narrowed by the grants, the `srcdoc` with the guard's zero-network CSP and the namespace prelude inserted by `prepareNappletSrcdoc` with kehto's `experimental.nestedContextLock` on (which adds the Trusted Types directives to that CSP), then kernl's insertion lock inserted right after the prelude ([D-014](../decisions.md#d-014)), `sandbox: 'allow-scripts'`, and `missingRequired`, the required domains the environment does not include. The host decides what to do with `missingRequired`; the core mounts whatever it is given.
 
 `mount(plan, frame)` runs in this order:
 
@@ -274,7 +274,7 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `openDefaultArtifactCache` | `() => Promise<NappletArtifactCache \| undefined>` | kehto's verified-artifact cache over Cache Storage, or nothing. |
 | `resolveApplet` | `(options: ResolveAppletOptions) => Promise<ResolvedApplet>` | kehto's `resolveNapplet` with kernl's reasons: `unavailable:blob` or `invalid:<code>`. |
 | `summarize` | `(resolved: ResolvedNapplet) => AppletSummary` | The verified manifest reduced to what the shell shows. |
-| `planMount` | `(options: PlanMountOptions) => MountPlan` | Environment, CSP-prepared `srcdoc` with the frame lock, `missingRequired`. No DOM. Throws `denied:nested-frame` when the verified markup declares a frame, and `unavailable:frame-lock` when kehto's prepared head is not where it expects it ([D-014](../decisions.md#d-014)). |
+| `planMount` | `(options: PlanMountOptions) => MountPlan` | Environment, CSP-prepared `srcdoc` with kehto's nested-context lock and kernl's insertion lock, `missingRequired`. No DOM. Throws `denied:nested-frame` when kehto's `assertNappletHasNoFrame` finds a frame in the verified markup, and `unavailable:frame-lock` when kehto's CSP meta and prelude are not where it expects them ([D-014](../decisions.md#d-014)). |
 | `mountApplet` | `(plan: MountPlan, frame: FrameLike, deps: MountDeps) => MountedApplet` | The NIP-5D mount order; throws `invalid:frame-detached`. Calls `frame.setAttribute('sandbox', 'allow-scripts')`. |
 | `CONTROLLER_DENY_POLICY` | `string` | `gamepad 'none'; hid 'none'; usb 'none'`. |
 | `BLOB_TIMEOUT_MS` | `20_000` | |

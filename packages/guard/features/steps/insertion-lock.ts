@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
-import { renderFrameLockScript } from '@kernl/guard';
-import { appletInsertionLock, type InsertionLockWindow } from '../../src/frame-lock.js';
+import { renderInsertionLockScript } from '@kernl/guard';
+import { appletInsertionLock, type InsertionLockWindow } from '../../src/insertion-lock.js';
 import type { GuardWorld } from './world.js';
 
 const HTML_NS = 'http://www.w3.org/1999/xhtml';
@@ -247,8 +247,25 @@ Then("the realm's insertion methods cannot be redefined", (world: InsertionWorld
   expect(descriptor?.writable).toBe(false);
 });
 
-Then('the frame-lock script applies the insertion lock', (world: InsertionWorld) => {
-  const script = world.script ?? renderFrameLockScript();
-  expect(script).toContain('appletInsertionLock');
-  expect(script.match(/\(window\);/g)).toHaveLength(2);
+function script(world: InsertionWorld): string {
+  if (world.script === undefined) throw new Error('render the insertion-lock script first');
+  return world.script;
+}
+
+When('the guard renders the insertion-lock script', (world: InsertionWorld) => {
+  world.script = renderInsertionLockScript();
+});
+
+Then('the insertion-lock script opens with {string} and closes with {string}', (world: InsertionWorld, open: string, close: string) => {
+  expect(script(world).startsWith(open)).toBe(true);
+  expect(script(world).endsWith(close)).toBe(true);
+});
+
+Then('the insertion-lock script closes no element before its end', (world: InsertionWorld) => {
+  expect(script(world).indexOf('</')).toBe(script(world).length - '</script>'.length);
+});
+
+Then('the insertion-lock script applies the insertion lock', (world: InsertionWorld) => {
+  expect(script(world)).toContain('appletInsertionLock');
+  expect(script(world).match(/\(window\);/g)).toHaveLength(1);
 });

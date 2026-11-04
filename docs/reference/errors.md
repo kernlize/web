@@ -20,8 +20,8 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 | `invalid:invalid-signature`, `invalid:invalid-manifest`, `invalid:aggregate-mismatch`, `invalid:blob-hash-mismatch`, `invalid:missing-index` | `@kernl/core` | `resolveApplet` | Verification failed. The part after `invalid:` is kehto's `NappletResolutionErrorCode`. Nothing runs. |
 | `invalid:unresolved` | `@kernl/core` | `Kernl.plan` | The summary was not produced by this shell's `resolve`, so no verified bytes are held for it. |
 | `denied:blocked` | `@kernl/core` | `Kernl.plan` | The user blocked this applet identity. |
-| `denied:nested-frame` | `@kernl/guard`, `@kernl/core` | `assertAppletHasNoFrame`, so `planMount` and `Kernl.plan`; in the applet's realm, the frame lock | The verified markup contains an `iframe`, `frame`, `frameset`, `object`, `embed`, `portal` or `fencedframe` element, so the applet is not mounted. Inside a running applet the frame lock throws it as a `TypeError` when applet code tries to create a frame by element factory or HTML string ([D-014](../decisions.md#d-014)). |
-| `unavailable:frame-lock` | `@kernl/core` | `planMount`, so `Kernl.plan` | The srcdoc kehto prepared does not contain the CSP meta and namespace prelude where kernl expects them, so the frame lock cannot be inserted and the applet is not mounted. Seen only with a kehto release whose output changed. |
+| `denied:nested-frame` | `@kernl/core`, `@kernl/guard` | `planMount`, so `Kernl.plan`; in the applet's realm, the insertion lock | kehto's `assertNappletHasNoFrame` found an `iframe`, `frame`, `frameset`, `object`, `embed`, `portal` or `fencedframe` element in the verified markup, so the applet is not mounted. Inside a running applet kernl's insertion lock throws it as a `TypeError` when applet code tries to connect a node that is or contains a frame element. A frame created by element factory or HTML string is refused earlier by kehto's nested-context lock, as `TypeError('kehto: napplets may not create nested browsing contexts')` ([D-014](../decisions.md#d-014)). |
+| `unavailable:frame-lock` | `@kernl/core` | `planMount`, so `Kernl.plan` | The srcdoc kehto prepared does not contain the CSP meta and namespace prelude where kernl expects them, so the insertion lock cannot be placed after kehto's lock and the applet is not mounted. Seen only with a kehto release whose output changed. |
 | `invalid:frame-detached` | `@kernl/core` | `mountApplet`, so `Kernl.mount` | The frame has no `contentWindow`; it is not in the document. |
 | `invalid:domain` | `@kernl/core` | `Grants.allowDomain` | The shell does not offer this domain in its current configuration. |
 | `denied:baseline-domain` | `@kernl/core` | `Grants.revokeDomain` | Baseline domains (`shell`, `inc`, `theme`, `storage`) cannot be revoked. |
@@ -59,7 +59,7 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 | `unavailable:timeout`, `unavailable:aborted`, `unavailable:network <message>` | `@kernl/bridges` | HTTP bridge | The time limit expired, the caller cancelled, or `fetch` failed for another reason. In a browser a CORS refusal and a network failure are the same `TypeError`, so both surface as `unavailable:network Failed to fetch`. |
 | `unavailable:network <type> response` | `@kernl/bridges` | HTTP bridge | Any status-0 answer other than an opaque redirect, for example `unavailable:network opaque response`. |
 
-Apart from `assertAppletHasNoFrame`, `@kernl/guard` throws nothing. Its decisions are events.
+`@kernl/guard` throws nothing outside the applet realm. Its decisions are events.
 
 ## Guard event reasons
 

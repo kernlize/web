@@ -59,6 +59,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@kehto/shell':
+        specifier: ^0.30.0
+        version: 0.30.0(@napplet/core@0.37.0)(@napplet/nap@0.36.0(typescript@5.9.3))(nostr-tools@2.25.5(typescript@5.9.3))
       '@kernl/bridges':
         specifier: workspace:^
         version: link:../../packages/bridges
@@ -151,8 +154,8 @@ importers:
         specifier: ^0.29.0
         version: 0.29.0(@napplet/core@0.37.0)(@napplet/nap@0.36.0(typescript@5.9.3))(nostr-tools@2.25.5(typescript@5.9.3))
       '@kehto/shell':
-        specifier: ^0.29.0
-        version: 0.29.0(@napplet/core@0.37.0)(@napplet/nap@0.36.0(typescript@5.9.3))(nostr-tools@2.25.5(typescript@5.9.3))
+        specifier: ^0.30.0
+        version: 0.30.0(@napplet/core@0.37.0)(@napplet/nap@0.36.0(typescript@5.9.3))(nostr-tools@2.25.5(typescript@5.9.3))
       '@kehto/wm':
         specifier: ^0.0.2
         version: 0.0.2
@@ -1257,8 +1260,8 @@ packages:
       nostr-tools:
         optional: true
 
-  '@kehto/shell@0.29.0':
-    resolution: {integrity: sha512-bGnF/8G1UbiKp3QpTCaXlZGS76jXjBfSX91/ubDBQWagrZbhn56arZYW4DFlENCU8G94CWCcBQ1dC0DOlvDVoA==}
+  '@kehto/shell@0.30.0':
+    resolution: {integrity: sha512-o7vtS8VJr36omVoCxHqusyX1FGV1V4o5b3cU6jeF4g85M2sNguCyboCsyWBUvC4TtcAr2SKrhCkwQ84ablMaFg==}
     peerDependencies:
       '@napplet/core': '>=0.32.0 <0.38.0'
       '@napplet/nap': '>=0.32.0 <0.37.0'
@@ -5617,7 +5620,7 @@ snapshots:
     optionalDependencies:
       nostr-tools: 2.25.5(typescript@5.9.3)
 
-  '@kehto/shell@0.29.0(@napplet/core@0.37.0)(@napplet/nap@0.36.0(typescript@5.9.3))(nostr-tools@2.25.5(typescript@5.9.3))':
+  '@kehto/shell@0.30.0(@napplet/core@0.37.0)(@napplet/nap@0.36.0(typescript@5.9.3))(nostr-tools@2.25.5(typescript@5.9.3))':
     dependencies:
       '@kehto/acl': 0.20.2(@napplet/core@0.37.0)(@napplet/nap@0.36.0(typescript@5.9.3))
       '@kehto/runtime': 0.27.2(@napplet/core@0.37.0)(@napplet/nap@0.36.0(typescript@5.9.3))

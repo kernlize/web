@@ -10,13 +10,13 @@ import {
   createTorrentBridge,
   type BridgeRegistry,
 } from '@kernl/bridges';
+import type { NappletCspDirectives } from '@kehto/shell';
 import {
   createAppletCsp,
   createGuardConfig,
   createIngressGuard,
   createVisibilityGate,
   describeMitigations,
-  renderCsp,
   type GuardEvent,
   type GuardProfile,
   type IngressGuard,
@@ -339,7 +339,7 @@ export function createPreviewKernl(host: KernlHost): ShellKernl {
         summary,
         srcdoc: renderPreviewApplet({
           title: summary.title,
-          csp: `${renderCsp(csp.directives)}; ${csp.trustedTypes}`,
+          csp: { connectOrigins: csp.connectOrigins, directives: csp.directives as NappletCspDirectives },
           domains,
           domainLabels: domains.filter((domain) => !baseline.includes(domain)).map(domainLabel),
           identity: shortId(summary.identity.hash),

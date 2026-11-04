@@ -34,8 +34,8 @@ Feature: Preview applet
     Then the preview applet document contains "<title>Notes &lt;&amp;&gt; &quot;quoted&quot;</title>"
     And the preview applet document contains "Granted: <strong>Network, Notifications</strong>"
     And the preview applet document contains "preview applet · notes@preview"
-    And the preview applet escapes the policy into its meta tag
-    And the preview applet runs the network sweep, then the frame lock, before its own scripts
+    And the preview applet carries kehto's locked policy in its meta tag
+    And the preview applet runs kehto's locked prelude, then the insertion lock, before its own scripts
 
   Scenario: granted buttons are available and the rest say so
     Given the preview applet is granted "relay" shown as "Network"

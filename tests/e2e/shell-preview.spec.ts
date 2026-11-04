@@ -95,10 +95,11 @@ test('preview applets have no WebRTC constructors and carry the guard CSP', asyn
   expect(policy).toContain("connect-src 'none'");
   const srcdoc = (await page.locator('iframe[data-window-id]').getAttribute('srcdoc')) ?? '';
   expect(srcdoc.indexOf('Content-Security-Policy')).toBeLessThan(srcdoc.indexOf('RTC'));
-  // The frame lock follows the sweep and comes before any applet script, as the live mount plan places it.
-  expect(policy).toContain("require-trusted-types-for 'script'");
-  expect(srcdoc.indexOf('RTC')).toBeLessThan(srcdoc.indexOf('data-kernl-frame-lock'));
-  expect(srcdoc.indexOf('data-kernl-frame-lock')).toBeLessThan(srcdoc.indexOf('kernlPreview'));
+  // kehto's locked prelude sweeps WebRTC; the insertion lock follows it and comes before any applet script, as the live mount plan places it.
+  expect(policy).toContain("require-trusted-types-for 'script'; trusted-types default");
+  expect(srcdoc.indexOf('data-kehto-nip5d-injection')).toBeLessThan(srcdoc.indexOf('RTC'));
+  expect(srcdoc.indexOf('RTC')).toBeLessThan(srcdoc.indexOf('data-kernl-insertion-lock'));
+  expect(srcdoc.indexOf('data-kernl-insertion-lock')).toBeLessThan(srcdoc.indexOf('kernlPreview'));
 });
 
 test('a running preview applet cannot open a frame of its own', async ({ page }) => {
@@ -111,7 +112,7 @@ test('a running preview applet cannot open a frame of its own', async ({ page })
         attempt();
         return 'created';
       } catch (error) {
-        return error instanceof Error ? error.message : String(error);
+        return error instanceof Error ? `${error.name}: ${error.message}` : String(error);
       }
     };
     return [
@@ -122,7 +123,9 @@ test('a running preview applet cannot open a frame of its own', async ({ page })
       }),
     ];
   });
-  expect(attempts).toEqual(['denied:nested-frame', 'denied:nested-frame', 'denied:nested-frame']);
+  // kehto's factory pins and Trusted Types policy refuse creation; kernl's insertion lock refuses connection.
+  expect(attempts).toHaveLength(3);
+  for (const attempt of attempts) expect(attempt).toMatch(/^TypeError: (denied:nested-frame|kehto: napplets may not create nested browsing contexts)$/);
   expect(await frame!.evaluate(() => document.querySelectorAll('iframe').length)).toBe(0);
 });
 

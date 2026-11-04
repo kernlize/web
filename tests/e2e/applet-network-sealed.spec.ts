@@ -6,8 +6,10 @@ import { APPLET_HTML, HINT_HOSTS, NAVIGATE_URL, STUN_URL, type EscapeResults } f
 /**
  * Proves in a real browser that an applet frame, built by kernl's own
  * `planMount`, has no network of its own: the kehto prelude removes the
- * peer-connection globals, kernl's frame lock (D-014) refuses every way to
- * open a child frame whose fresh realm would still have them, and the guard's
+ * peer-connection globals, kehto's nested-context lock (enabled by the plan)
+ * refuses every way to create a child frame whose fresh realm would still have
+ * them, kernl's insertion lock (D-014) refuses connecting one that slipped past
+ * creation, and the guard's
  * zero-network policy refuses every other way out.
  *
  * The spec does not use the served site. The host page is answered by a route on
@@ -30,7 +32,10 @@ import { APPLET_HTML, HINT_HOSTS, NAVIGATE_URL, STUN_URL, type EscapeResults } f
 
 const HOST_URL = 'https://kernl-host.test/';
 const ROOT = resolve(import.meta.dirname, '../..');
-const DENIED = 'threw TypeError: denied:nested-frame';
+/** Creation routes meet kehto's Trusted Types policy and factory pins. */
+const KEHTO_DENIED = 'threw TypeError: kehto: napplets may not create nested browsing contexts';
+/** Insertion routes meet kernl's insertion lock. */
+const KERNL_DENIED = 'threw TypeError: denied:nested-frame';
 
 /** What each of the further frame routes must come to: refused, unsupported by this browser, or a node that never became a frame. */
 const MORE_FRAME_OUTCOMES: Record<string, RegExp> = {
@@ -42,7 +47,7 @@ const MORE_FRAME_OUTCOMES: Record<string, RegExp> = {
 };
 
 /** Every insertion route must be refused by the insertion lock, or be unsupported by the browser. */
-const INSERTION_OUTCOME = new RegExp(`^(${DENIED}|threw TypeError: unsupported)$`);
+const INSERTION_OUTCOME = new RegExp(`^(${KERNL_DENIED}|threw TypeError: unsupported)$`);
 
 type Core = typeof import('@kernl/core');
 type AppletSummary = import('@kernl/core').AppletSummary;
@@ -114,9 +119,9 @@ test('planMount refuses applet markup that declares a frame of its own', () => {
   }
 });
 
-test('the frame lock runs after the kehto prelude and before the applet script', () => {
+test('the insertion lock runs after the kehto prelude and before the applet script', () => {
   const { srcdoc } = plan(APPLET_HTML);
-  const order = ['<meta http-equiv="Content-Security-Policy"', '<script data-kehto-nip5d-injection>', '<script data-kernl-frame-lock>', '<pre id="results">'].map((marker) => srcdoc.indexOf(marker));
+  const order = ['<meta http-equiv="Content-Security-Policy"', '<script data-kehto-nip5d-injection>', '<script data-kernl-insertion-lock>', '<pre id="results">'].map((marker) => srcdoc.indexOf(marker));
   expect(order.every((at) => at >= 0)).toBe(true);
   expect([...order].sort((a, b) => a - b)).toEqual(order);
   expect(srcdoc).toContain("frame-src 'none'; media-src 'none'");
@@ -154,8 +159,8 @@ test('an applet frame cannot reach the network on its own, directly or through a
   expect(hardened.sandbox).toBe('allow-scripts');
   expect(hardened.allow).toBe(core.CONTROLLER_DENY_POLICY);
 
-  expect(results.written).toEqual({ whole: DENIED, split: DENIED });
-  for (const [routeName, outcome] of Object.entries(results.frames)) expect(outcome, routeName).toBe(DENIED);
+  expect(results.written).toEqual({ whole: KEHTO_DENIED, split: KEHTO_DENIED });
+  for (const [routeName, outcome] of Object.entries(results.frames)) expect(outcome, routeName).toBe(KEHTO_DENIED);
   expect(Object.keys(results.frames)).toHaveLength(15);
   // Soft, so one escaped route still lets every other check below report.
   expect(Object.keys(results.moreFrames).sort()).toEqual(Object.keys(MORE_FRAME_OUTCOMES).sort());

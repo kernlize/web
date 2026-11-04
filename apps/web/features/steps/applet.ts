@@ -1,8 +1,12 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
+import { renderNappletCspMeta, renderNappletNamespacePrelude, type NappletCspOptions } from '@kehto/shell';
 import type { AppletSummary } from '../../src/shell/contract.ts';
 import { SAMPLES, renderPreviewApplet, sampleAddressOf, sampleSummary } from '../../src/shell/preview-applet.ts';
 import './preview-state.ts';
+
+/** A policy that differs from kehto's baseline, so the meta shows the guard's directives were applied. */
+const PREVIEW_CSP: NappletCspOptions = { directives: { 'img-src': ['data:'] } };
 
 interface AppletScratch {
   summary?: AppletSummary | undefined;
@@ -89,7 +93,7 @@ When('the preview applet renders sample {string} titled {string}', (world: Apple
   const { domains, labels } = state(world);
   state(world).html = renderPreviewApplet({
     title,
-    csp: "default-src 'none'; script-src 'unsafe-inline'",
+    csp: PREVIEW_CSP,
     domains,
     domainLabels: labels,
     identity: `${sample}@preview`,
@@ -105,20 +109,24 @@ Then('the preview applet document does not contain {string}', (world: AppletWorl
   expect(html(world)).not.toContain(text);
 });
 
-Then('the preview applet escapes the policy into its meta tag', (world: AppletWorld) => {
-  expect(html(world)).toContain('content="default-src &#39;none&#39;; script-src &#39;unsafe-inline&#39;"');
+Then("the preview applet carries kehto's locked policy in its meta tag", (world: AppletWorld) => {
+  const doc = html(world);
+  expect(doc).toContain(renderNappletCspMeta(PREVIEW_CSP, true));
+  expect(doc).toContain("img-src data:; font-src");
+  expect(doc).toContain("; require-trusted-types-for 'script'; trusted-types default\">");
 });
 
-Then('the preview applet runs the network sweep, then the frame lock, before its own scripts', (world: AppletWorld) => {
+Then("the preview applet runs kehto's locked prelude, then the insertion lock, before its own scripts", (world: AppletWorld) => {
   const doc = html(world);
   const policy = doc.indexOf('Content-Security-Policy');
-  const sweep = doc.indexOf('<script>(() => {');
-  const lock = doc.indexOf('<script data-kernl-frame-lock>');
-  expect(doc.split('<script data-kernl-frame-lock>')).toHaveLength(2);
+  const prelude = doc.indexOf('<script data-kehto-nip5d-injection>');
+  const lock = doc.indexOf('<script data-kernl-insertion-lock>');
+  expect(doc.split('<script data-kernl-insertion-lock>')).toHaveLength(2);
   expect(policy).toBeGreaterThan(-1);
-  expect(sweep).toBeGreaterThan(policy);
-  expect(doc.slice(sweep, lock)).toContain('RTCPeerConnection');
-  expect(lock).toBeGreaterThan(sweep);
+  expect(prelude).toBeGreaterThan(policy);
+  expect(doc).toContain(renderNappletNamespacePrelude({ domains: state(world).domains, experimental: { nestedContextLock: true } }) + '<script data-kernl-insertion-lock>');
+  expect(doc.slice(prelude, lock)).toContain('RTCPeerConnection');
+  expect(doc.slice(prelude, lock)).toContain('kehto: napplets may not create nested browsing contexts');
   expect(lock).toBeLessThan(doc.indexOf('<title>'));
 });
 
