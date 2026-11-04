@@ -83,7 +83,7 @@ Code, features, step definitions and docs change in the same PR.
 
 ## Releases
 
-Changesets. Add one per package whose shipped output changed; on 0.x a breaking change is a `minor` bump. `publish.yml` opens the Version Packages PR; `release.yml` is the only publisher.
+Changesets. Add one per package whose shipped output changed; on 0.x a breaking change is a `minor` bump. `publish.yml` opens the Version Packages PR through `pnpm version-packages`, which also rewrites the `| Version |` rows in `docs/packages/` so the docs gate passes; `release.yml` is the only publisher.
 
 ## Private references
 

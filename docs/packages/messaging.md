@@ -9,7 +9,7 @@ This package ships no backend that sends anything over a network; the only backe
 | Field | Value |
 | --- | --- |
 | Package | `@kernl/messaging` |
-| Version | `0.1.0` |
+| Version | `0.2.0` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts` |
 | Dependencies | none |
 | Peer dependencies | `@napplet/core >=0.37.0 <0.38.0` (the `Dm*` wire types) |
