@@ -4,7 +4,7 @@ Ordered by the tie-breakers in `SOUL.md`: the user's safety and agency first, pr
 
 ## 1. Upstream pull requests to kehto
 
-None is filed yet. Each item shrinks kernl when it lands; see [Alpha status](./alpha-status.md#upstream-gaps).
+Filed as [kehto/web #397](https://github.com/kehto/web/issues/397), [#398](https://github.com/kehto/web/issues/398), [#399](https://github.com/kehto/web/issues/399) and [#400](https://github.com/kehto/web/issues/400). Each item shrinks kernl when it lands; see [Alpha status](./alpha-status.md#upstream-gaps).
 
 - Forward `getFocusContext`, `onFirewallEvent` and `firewallPersistence` through `ShellAdapter` so the runtime's own firewall can be focus-aware without a second engine in front of it.
 - Let the host choose the ACL default policy in `createRuntime`, so a restrictive shell does not have to write every capability explicitly.

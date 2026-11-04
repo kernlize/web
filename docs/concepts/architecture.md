@@ -39,7 +39,7 @@ kehto is the runtime authority for how a NIP-5D shell composes. kernl uses these
 | `@kehto/nip` | `resolveNapplet`, `openNappletArtifactCache` and `NAPPLET_KINDS` from `@kehto/nip/5d`. |
 | `@kehto/wm` | `LayoutStrategy`, `WindowState`, `Rect` and `WindowPlacement`, which the layouts implement. |
 
-kernl never re-implements a kehto primitive. When a seam is too narrow, kernl composes in front of it and takes the gap upstream; the four gaps found so far, still to be filed, are in [Alpha status](../alpha-status.md#upstream-gaps).
+kernl never re-implements a kehto primitive. When a seam is too narrow, kernl composes in front of it and takes the gap upstream; the four gaps found so far, filed upstream as kehto/web #397–#400, are in [Alpha status](../alpha-status.md#upstream-gaps).
 
 ## One event layer
 

@@ -169,7 +169,7 @@ The docs are a product. Start at [`docs/index.md`](./docs/index.md), or on the s
 
 ## Relationship to the ecosystem
 
-- [kehto](https://github.com/kehto/web) supplies the runtime, shell adapter, services, ACL, firewall and NIP-5D verification. kernl composes them and records upstream gaps (to be filed) instead of forking; see [`DECISIONS.md`](./DECISIONS.md) D-001.
+- [kehto](https://github.com/kehto/web) supplies the runtime, shell adapter, services, ACL, firewall and NIP-5D verification. kernl composes them and records upstream gaps filed upstream as kehto/web #397–#400 instead of forking; see [`DECISIONS.md`](./DECISIONS.md) D-001.
 - The applet format is [NIP-5D](https://github.com/nostr-protocol/nips/pull/2303) with per-domain [NAPs](https://github.com/napplet/naps). Applet-side packages and the format's own site live at [napplet.run](https://napplet.run).
 - [applesauce](https://applesauce.build) is the event layer.
 

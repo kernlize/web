@@ -20,7 +20,7 @@ kehto ships `@kehto/{acl,firewall,runtime,shell,services,nip,wm}` and deliberate
 | Protocols | One identity layer, many [bridges](./concepts/bridges.md) named by what they do for the user, never by the wire format. Web fetch runs in the shell behind an SSRF policy. Downloads, sharing and mail hand the address to an app on the user's device after the user confirms leaving kernl: kernl connects to nothing for them, and the device app's own network behaviour is outside kernl. |
 | Messaging | Any reasonable private-messaging protocol, exposed through one contract. [Providers](./concepts/messaging.md) describe their security properties truthfully and the shell does not rank them. `private` and `legacy` work in the live shell when the signed-in account's signer can encrypt; `ratchet` needs a runtime and is unavailable; the preview runs all three over the in-memory backend. |
 
-kernl does not fork kehto ([D-001](./decisions.md#d-001)). When kehto lacks a hook kernl needs, kernl composes around it and takes the gap upstream. The four gaps found so far, still to be filed upstream, are listed in [Alpha status](./alpha-status.md#upstream-gaps).
+kernl does not fork kehto ([D-001](./decisions.md#d-001)). When kehto lacks a hook kernl needs, kernl composes around it and takes the gap upstream. The four gaps found so far, filed upstream as kehto/web #397–#400, are listed in [Alpha status](./alpha-status.md#upstream-gaps).
 
 ## Three doors
 
