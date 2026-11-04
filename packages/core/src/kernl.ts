@@ -15,7 +15,7 @@ import { decodePointer } from './applets/pointer.js';
 import { defaultFetchBlob, openDefaultArtifactCache } from './applets/resolve.js';
 import type { MountedApplet } from './applets/mount.js';
 import { createGuardPipeline, type GuardPipeline } from './guard/pipeline.js';
-import { refuseCurrentDispatch } from './guard/runtime-rules.js';
+import { applyRuntimeFirewallProfile, applyRuntimeFirewallRules, createRuntimeFirewallHooks } from './guard/runtime-rules.js';
 import { createEnvironmentResolver, createGrants, type KernlGrants } from './grants/grants.js';
 import { createConsentHandler, createSigningConsent, lookupReplaceable } from './consent/handler.js';
 import { abbreviate } from './consent/describe-change.js';
@@ -140,6 +140,7 @@ export function createKernl(options: KernlOptions): Kernl {
       bridge.revokeNapplet(windowId, 'host');
     },
     getVisibility: (windowId) => host.getVisibility(windowId),
+    onRelease: (windowId) => bridge.releaseDeferred(windowId),
   });
 
   const identityOf = (windowId: string): AppletIdentity | undefined => handles.get(windowId)?.summary.identity;
@@ -172,17 +173,22 @@ export function createKernl(options: KernlOptions): Kernl {
     services: services.registry,
     resolveEnvironment: (identity, available) => createEnvironmentResolver(grants)(identity, available),
     onNappletRevoked: ({ windowId, reason }) => handles.get(windowId)?.revoked(reason),
-    onNappletMessage: (windowId, message) => {
-      const napplet = identityOf(windowId)?.dTag ?? 'unknown';
-      const disposition = pipeline.observe(windowId, napplet, message);
-      // kehto ignores this callback's answer, so what the guard will not let through is refused by the runtime firewall for this one dispatch (D-012).
-      if (disposition === 'defer' || disposition === 'reject') refuseCurrentDispatch(bridge.runtime.firewallState, napplet);
-    },
+    filterNappletMessage: (windowId, message) => pipeline.observe(windowId, identityOf(windowId)?.dTag ?? 'unknown', message),
+    getFocusContext: (windowId) => ({ focused: pipeline.getVisibility(windowId).focused }),
+    runtimeFirewall: createRuntimeFirewallHooks({
+      storage: host.storage,
+      onEvent: (event) => guardEvents$.next(event),
+      ...(host.now ? { now: host.now.bind(host) } : {}),
+    }),
   });
   const bridge = createShellBridge(adapter);
   grants = createGrants({ acl: bridge.runtime.aclState, storage: host.storage, availableDomains: () => buildShellCapabilities(adapter).domains });
   bridge.registerConsentHandler(createConsentHandler(host, lookupBefore, identityOf));
 
+  subscriptions.add(pipeline.profile$.subscribe(() => {
+    applyRuntimeFirewallProfile(bridge.runtime.firewallState, pipeline.config);
+    for (const handle of handles.values()) applyRuntimeFirewallRules(bridge.runtime.firewallState, pipeline.config, handle.summary.identity.dTag);
+  }));
   subscriptions.add(accounts.active$.subscribe((account) => {
     session$.next(account ? toSession(account) : null);
     bridge.publishIdentityChanged(account?.pubkey ?? '');

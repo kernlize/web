@@ -124,7 +124,7 @@ describeMitigations(config).find((m) => m.id === 'ingress-flood')?.limit; // '8 
 - Does not decide grants. Whether a domain is allowed is `@kehto/acl`'s question, surfaced through `@kernl/core`.
 - Does not touch the shell's DOM or the iframe. The shell applies `createAppletCsp(profile)` through kehto's `prepareNappletSrcdoc`, with kehto's nested-context lock enabled, and `planMount` in `@kernl/core` inserts the insertion lock's script, which runs only inside the applet realm.
 - Does not carry the Trusted Types policy, the element-factory pins or the static frame scan. Those are kehto's (`experimental.nestedContextLock`, `assertNappletHasNoFrame`).
-- Does not supply `initElapsedMs` to kehto, so `GuardConfig.firewall.burstGuard` never fires inside this package. The startup burst that does fire is kehto's runtime firewall's own, at kehto's default of 20 operations in the first 3 s ([Guard](../concepts/guard.md#layers)).
+- Does not supply `initElapsedMs` to kehto, so `GuardConfig.firewall.burstGuard` never fires inside this package. `@kernl/core` installs it, with `unfocusedMultiplier`, in kehto's runtime firewall, which supplies `initElapsedMs` and focus, so the profile's startup burst applies there ([Guard](../concepts/guard.md#layers)).
 
 ## Specification
 

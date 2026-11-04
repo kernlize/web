@@ -3,7 +3,7 @@ import { Given, Then, When } from 'quickpickle';
 import { renderNappletNamespacePrelude, type ShellAdapter, type ShellEnvironment } from '@kehto/shell';
 import type { GuardProfile, WindowVisibility } from '@kernl/guard';
 import { AccountManager } from 'applesauce-accounts';
-import { createRelayTiers, createShellAdapter, mountApplet, planMount, resolveApplet, type AppletStatus, type AppletSummary, type MountDeps, type MountPlan, type MountedApplet } from '@kernl/core';
+import { createRelayTiers, createRuntimeFirewallHooks, createShellAdapter, mountApplet, planMount, resolveApplet, type AppletStatus, type AppletSummary, type MountDeps, type MountPlan, type MountedApplet } from '@kernl/core';
 import { spliceOnce } from '../../src/applets/plan.js';
 import { allowAllSigning, attempt, createFakeFrame, scratch, signManifest, splitList, type CoreWorld, type FakeFrame } from './world.js';
 
@@ -37,7 +37,9 @@ function fakeAdapter(world: CoreWorld, allowed: string[]): ShellAdapter {
       services: available.services.filter((service) => allowed.includes(service)),
     }),
     onNappletRevoked: () => undefined,
-    onNappletMessage: () => undefined,
+    filterNappletMessage: () => 'dispatch',
+    getFocusContext: () => ({ focused: true }),
+    runtimeFirewall: createRuntimeFirewallHooks({ storage: scratch(world).storage, onEvent: () => undefined }),
   });
 }
 

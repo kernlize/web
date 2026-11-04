@@ -1,4 +1,5 @@
 import { BehaviorSubject, type Observable } from 'rxjs';
+import type { NappletMessageDecision } from '@kehto/shell';
 import {
   classifyEnvelope,
   createFocusFirewall,
@@ -14,6 +15,7 @@ import {
   type GuardEvent,
   type GuardProfile,
   type IngressGuard,
+  type OpClass,
   type VisibilityGate,
   type WindowVisibility,
 } from '@kernl/guard';
@@ -34,6 +36,8 @@ export interface GuardPipelineOptions {
   readonly onQuarantine?: (windowId: string, napplet: string) => void;
   /** Visibility for a window the pipeline has not been told about yet. */
   readonly getVisibility?: (windowId: string) => WindowVisibility;
+  /** Called when a window becomes visible; kernl releases the port envelopes kehto held for it here. */
+  readonly onRelease?: (windowId: string) => void;
 }
 
 /** What the pipeline decided about a message. `unrouted` means no registered window sent it. */
@@ -59,19 +63,16 @@ export interface GuardPipeline {
    */
   handleWindowMessage(event: MessageEvent, resolveWindow: (event: MessageEvent) => WindowResolution | null, forward: (event: MessageEvent) => void): PipelineDisposition;
   /**
-   * Judge one envelope that arrived over a bound port. kehto calls this
-   * synchronously just before it dispatches the envelope to the runtime, so
-   * nothing can be held or delayed here; the caller refuses instead. A
-   * `defer` or `reject` answer means the envelope must not be handled:
-   * `createKernl` refuses it for that one dispatch with
-   * `refuseCurrentDispatch`. That covers bursts above the per-second rate,
-   * the focus-aware firewall, size caps, and every non-control envelope from
-   * a window that is not visible (reason `hidden:<class>`), which the applet
-   * can retry once it is visible. Control envelopes are never refused. A
-   * quarantine triggers `onQuarantine`, and when that revokes the binding
-   * kehto no longer finds the window's session and drops the envelope.
+   * Decide one envelope that arrived over a bound port, for kehto's
+   * `filterNappletMessage`. `defer` holds every non-control envelope from a
+   * window that is not visible (reason `hidden:<class>`) until it is visible
+   * again, up to `deferQueue` envelopes. `drop` discards an envelope over its
+   * size cap, a burst above the per-second rate, a request over the
+   * focus-aware firewall's budget, a hidden window's envelope past the defer
+   * queue, and the envelope that triggers a quarantine. Control envelopes are
+   * dispatched unless the window is quarantined.
    */
-  observe(windowId: string, napplet: string, message: unknown): GuardDisposition;
+  observe(windowId: string, napplet: string, message: unknown): NappletMessageDecision;
   setVisibility(windowId: string, visibility: WindowVisibility): void;
   getVisibility(windowId: string): WindowVisibility;
   /** Lift quarantine after the user chose to. */
@@ -107,43 +108,41 @@ interface PortEnvelope {
   readonly visibility: WindowVisibility;
 }
 
+/** How the pipeline holds a hidden window's port envelope: counted against `deferQueue`, reported, and left with kehto. */
+type HoldPort = (port: PortEnvelope, opClass: OpClass) => NappletMessageDecision;
+
 /**
  * What the pipeline answers for a port envelope once the ingress guard has
- * admitted it. Control envelopes always pass; a hidden window's other
- * envelopes are rejected with `hidden:<class>`; the rest go to the firewall.
+ * admitted it. Control envelopes are dispatched; a hidden window's other
+ * envelopes are held; the rest go to the firewall.
  */
-function judgePort(port: PortEnvelope, admitted: GuardDisposition, firewall: FocusFirewall, emit: (event: Omit<GuardEvent, 'at'>) => void): GuardDisposition {
+function judgePort(port: PortEnvelope, admitted: GuardDisposition, firewall: FocusFirewall, hold: HoldPort): NappletMessageDecision {
   const { windowId, napplet, envelope, visibility } = port;
-  if (admitted === 'quarantine') return admitted;
+  if (admitted === 'quarantine') return 'drop';
   const opClass = classifyEnvelope(envelope);
   if (opClass === 'control') {
     if (admitted === 'pass') firewall.observe(windowId, napplet, envelope, visibility);
-    return 'pass';
+    return 'dispatch';
   }
-  if (admitted !== 'pass') return admitted;
-  if (!visibility.visible) {
-    emit({ disposition: 'reject', windowId, napplet, opClass, reason: `hidden:${opClass}` });
-    return 'reject';
-  }
-  return firewall.observe(windowId, napplet, envelope, visibility).decision === 'pass' ? 'pass' : 'reject';
+  if (admitted !== 'pass') return 'drop';
+  if (!visibility.visible) return hold(port, opClass);
+  return firewall.observe(windowId, napplet, envelope, visibility).decision === 'pass' ? 'dispatch' : 'drop';
 }
 
 /**
  * Compose the guard: ingress flood control, then the visibility gate, then the
  * focus-aware firewall, then kehto's bridge.
  *
- * What is enforced where (D-001): kehto binds NAP traffic to a `MessagePort`
- * the bridge owns, so the only window-level message the pipeline can hold or
- * drop is `napplet.hello`. Port traffic reaches the pipeline through
- * `ShellAdapter.onNappletMessage`, which kehto calls synchronously before it
- * dispatches each envelope and whose answer kehto ignores. `observe` returns
- * a disposition instead, and `createKernl` refuses every `defer` or `reject`
- * for that one dispatch with `refuseCurrentDispatch` (D-012), so the applet
- * gets a firewall error and can retry. Control envelopes are never refused.
- * Quarantine revokes the window inside the callback; kehto then finds no
- * session for it, and the envelope that crossed the limit is dropped along
- * with everything after it. The runtime firewall configured by
- * `applyRuntimeFirewallRules` adds the profile's per-class rates.
+ * What is enforced where (D-020): kehto binds NAP traffic to a `MessagePort`
+ * the bridge owns. Window-level messages, of which only `napplet.hello` is
+ * legitimate, are held or dropped by `handleWindowMessage`. Port traffic
+ * reaches `observe` through kehto's `filterNappletMessage`, whose answer
+ * kehto follows: dispatch, hold until `releaseDeferred`, or drop. Hidden
+ * windows' envelopes are held and `onRelease` is called when the window is
+ * visible again. Quarantine revokes the window inside the filter, and kehto
+ * discards what it held. The runtime firewall configured by
+ * `applyRuntimeFirewallRules` adds the profile's per-class rates to every
+ * envelope it dispatches, held ones included.
  *
  * @param options - Configuration, clock, event sink and quarantine callback.
  * @returns The pipeline.
@@ -218,6 +217,14 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
     return disposition;
   }
 
+  function holdPort(port: PortEnvelope, opClass: OpClass): NappletMessageDecision {
+    const { windowId, napplet } = port;
+    deferring = napplet;
+    if (!layers.gate.defer(windowId, port.envelope)) return 'drop';
+    options.onEvent?.({ disposition: 'defer', windowId, napplet, opClass, reason: `hidden:${opClass}`, at: clock() });
+    return 'defer';
+  }
+
   function drainAll(windowId: string): void {
     const released = layers.ingress.drain(windowId).length;
     for (const pending of take(heldByIngress, windowId, released)) pastGate(windowId, pending);
@@ -253,12 +260,14 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
     observe(windowId, napplet, message) {
       const envelope = toEnvelope(message);
       const port: PortEnvelope = { windowId, napplet, envelope, visibility: visibilityOf(windowId) };
-      return judgePort(port, admit(windowId, napplet, envelope, { hold: false }), layers.firewall, (event) => options.onEvent?.({ ...event, at: clock() }));
+      return judgePort(port, admit(windowId, napplet, envelope, { hold: false }), layers.firewall, holdPort);
     },
     setVisibility(windowId, visibility) {
       known.set(windowId, visibility);
       layers.gate.setVisibility(windowId, visibility);
-      if (visibility.visible) drainAll(windowId);
+      if (!visibility.visible) return;
+      drainAll(windowId);
+      options.onRelease?.(windowId);
     },
     getVisibility: visibilityOf,
     release: (windowId) => layers.ingress.release(windowId),

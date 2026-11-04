@@ -75,11 +75,17 @@ export {
   type WindowResolution,
 } from './guard/pipeline.js';
 export {
+  RUNTIME_FIREWALL_STORAGE_KEY,
   RUNTIME_OP_CLASSES,
+  applyRuntimeFirewallProfile,
   applyRuntimeFirewallRules,
-  refuseCurrentDispatch,
+  createRuntimeFirewallHooks,
   runtimeFirewallRules,
+  toGuardEvent,
+  type RuntimeFirewallHooks,
+  type RuntimeFirewallHooksOptions,
   type RuntimeFirewallRules,
+  type RuntimeFirewallState,
   type RuntimeRateRule,
 } from './guard/runtime-rules.js';
 

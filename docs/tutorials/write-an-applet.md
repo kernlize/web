@@ -99,7 +99,7 @@ What each part does:
 - **Feature detection, not assumption.** `napplet.shell.supports('relay')` is true only when the shell put `relay` on `window.napplet`, which in kernl means the user granted it. The same holds for `identity`: kernl's baseline is `shell`, `inc`, `theme` and `storage`, so an applet is not told who is signed in until the user grants "your account". Check `supports('identity')` before you read it, and say what the grant would add.
 - **`shell.ready()`** waits for the shell's answer to the applet's `hello`, so the domains are settled before the applet reads them.
 - **Routine writes only.** A kind 1 note is routine, so kernl signs it without a prompt. If your applet updated the user's profile (kind 0) or deleted something (kind 5), kernl would show the user what changes and wait; a refusal arrives as an error that names `denied:consent`.
-- **Errors are shown, not thrown away.** A publish over the shell's budget is refused with an error that starts `firewall:`; the applet prints it.
+- **Errors are shown, not thrown away.** A publish the shell refuses fails with an error, for example one starting `firewall:` or `denied:`, and the applet prints it. A publish kernl drops for going over its budget gets no reply at all ([D-020](../decisions.md#d-020)); at one post per click this applet never gets near the budget.
 - **No frames, no Trusted Types policy of its own.** The list is built with `createElement` and `textContent`. kernl refuses to mount markup that contains an `iframe`, `object`, `embed` or other frame element, makes every attempt to create one throw `denied:nested-frame`, and reserves the Trusted Types `default` policy for that lock, so an applet must not create a frame or register a Trusted Types policy ([Applets under kernl](../concepts/applets-under-kernl.md#what-the-strict-profile-means-for-you)).
 
 The file has no network access of its own and needs none: inline script and style are allowed, and everything else goes through the shell ([No network path](../concepts/guard.md#no-network-path)).
@@ -112,15 +112,15 @@ Under kernl's `strict` profile, which every load starts in, the limits that matt
 
 | What the applet does | Limit in `strict` | What happens past it |
 | --- | --- | --- |
-| Posts notes (`relay.publish`) | 20 per 60 s per applet | kehto's runtime firewall refuses the publish; the applet sees an error starting `firewall:` |
-| Reads the network (`relay.subscribe`) | 30 per 60 s | refused the same way |
-| Sends messages to the shell in its first 3 s | 20 | kehto's runtime firewall refuses the rest of the burst with a `firewall:` error |
-| Sends messages to the shell at all | 8 per second | requests past it are refused with a `firewall:` error; control messages still pass |
-| Is not the focused window | 25% of each rate above | refused with a `firewall:` error until it is focused |
-| Asks for anything while hidden, other than control messages | none | refused with a `firewall:` error; retry once visible |
+| Posts notes (`relay.publish`) | 20 per 60 s per applet | kernl drops the publish with no reply; the runtime enforces the same budget with a `firewall:` error for requests it handles |
+| Reads the network (`relay.subscribe`) | 30 per 60 s | dropped the same way |
+| Sends messages to the shell in its first second | 8 | kehto's runtime firewall refuses the rest of the burst with a `firewall:` error |
+| Sends messages to the shell at all | 8 per second | requests past it are dropped with no reply; control messages still pass |
+| Is not the focused window | 25% of each rate above | dropped with no reply until it is focused |
+| Asks for anything while hidden, other than control messages | 200 held | held, and answered once the window is visible; past 200, dropped with no reply |
 | Sends messages to the shell at all | 300 in any 10 s | the applet is quarantined: the message that crossed the limit is dropped and the applet is closed |
 | Downloads while hidden (`resource.*`) | 8 | the ninth quarantines the applet |
-| Asks for a download or a query larger than the cap | 64 KiB for `resource.*`, 256 KiB for subscriptions and queries | refused before it is handled, with a `firewall:` error |
+| Asks for a download or a query larger than the cap | 64 KiB for `resource.*`, 256 KiB for subscriptions and queries | dropped before it is handled, with no reply |
 
 This applet sends a handful of messages at start-up, opens one subscription and publishes once per click, so it stays far inside every limit. The full list is in [Guard](../concepts/guard.md#profiles).
 

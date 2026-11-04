@@ -30,7 +30,7 @@ const description =
         <li><h3>Old or repeated posts are not sent</h3><p>When the shell posts for an applet, it refuses a post it has already sent in the last half minute, one dated too far in the past, or one dated in the future. A message from a window other than the applet's own is ignored.</p></li>
         <li><h3>Behavioural rate limits</h3><p>Reading, publishing, messaging, storage and downloads each have an allowance per applet, set before it starts. A request over its allowance is refused until the allowance refills. Deletions count against publishing, and are also counted on their own so you can see an applet that deletes a lot.</p></li>
         <li><h3>Focus-aware tightening</h3><p>An applet you are not looking at is measured against a smaller budget. A request over it is refused before it is handled, and the guard tells you; the applet can try again once you switch to it. The budget above still applies. The shell decides what is focused; the applet is never asked.</p></li>
-        <li><h3>Hidden applets cannot act until you can see them</h3><p>While an applet is minimised or hidden, the shell refuses its requests before they are handled, except the messages that let you close, theme or reach it; the applet can try again once it is visible. One that keeps asking for downloads past its allowance is quarantined: the download that crossed the allowance is dropped, and the shell closes it and tells you.</p></li>
+        <li><h3>Hidden applets cannot act until you can see them</h3><p>While an applet is minimised or hidden, the shell holds its requests and handles them, in order, once you can see it again; you can still close it. One that keeps asking for downloads past its allowance is quarantined: the download that crossed the allowance is dropped, the requests it held are discarded, and the shell closes it and tells you.</p></li>
         <li><h3>Flood control and quarantine</h3><p>The shell counts every message an applet sends. Requests in a burst above the per-second rate are refused before they are handled, and the shell tells you; messages that keep the window controllable still get through. One that keeps flooding is quarantined: the message that crossed the limit is dropped, and the shell closes the applet and tells you. You can open it again when you choose.</p></li>
         <li><h3>Oversized requests are refused</h3><p>Requests for files and long-running searches are measured against a maximum size. One that is too large is refused before it is handled, so nothing it asked for is fetched, and the shell tells you.</p></li>
         <li><h3>Device permissions denied</h3><p>Camera, microphone, location and the rest are off for every applet. There is no prompt to be tricked into.</p></li>
@@ -45,7 +45,7 @@ const description =
         <div class="reveal">
           <p class="label">What you see</p>
           <h2 id="see-title">What it reports, it explains.</h2>
-          <p>The guard records what it reports, refuses or quarantines, each with a stable reason you can read. Some refusals made inside the runtime that runs applets are not shown yet; they will be listed as soon as the runtime reports them.</p>
+          <p>The guard records what it holds, refuses or quarantines, each with a stable reason you can read, including refusals made inside the runtime that runs applets. What an applet sent is never part of the record.</p>
         </div>
         <div class="reveal">
           <p class="label">Loosening it</p>

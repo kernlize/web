@@ -4,14 +4,13 @@ Ordered by the tie-breakers in `SOUL.md`: the user's safety and agency first, pr
 
 ## 1. Upstream pull requests to kehto
 
-Filed as [kehto/web #397](https://github.com/kehto/web/issues/397), [#398](https://github.com/kehto/web/issues/398), [#399](https://github.com/kehto/web/issues/399) and [#400](https://github.com/kehto/web/issues/400). Each item shrinks kernl when it lands; see [Alpha status](./alpha-status.md#upstream-gaps).
+The four gaps filed as [kehto/web #397](https://github.com/kehto/web/issues/397), [#398](https://github.com/kehto/web/issues/398), [#399](https://github.com/kehto/web/issues/399) and [#400](https://github.com/kehto/web/issues/400) are released and in use ([D-020](./decisions.md#d-020)). What is left:
 
-- Forward `getFocusContext`, `onFirewallEvent` and `firewallPersistence` through `ShellAdapter` so the runtime's own firewall can be focus-aware without a second engine in front of it.
-- Let the host choose the ACL default policy in `createRuntime`, so a restrictive shell does not have to write every capability explicitly.
-- Offer a hook that can hold or drop port traffic, so the visibility gate can hold a hidden applet's envelopes instead of only observing them before dispatch.
-- Release `experimental.nestedContextLock` in `@kehto/shell`, so kernl can pass the flag to `prepareNappletSrcdoc` and delete its port of the lock ([D-014](./decisions.md#d-014)).
-- Let the runtime firewall measure envelopes without an `event`, so its size matchers see downloads and queries and kernl can drop `refuseCurrentDispatch` ([D-012](./decisions.md#d-012)).
-- Expose a setter for the runtime firewall's `unfocusedMultiplier`. Together with the forwarded `getFocusContext`, it lets the runtime refuse an unfocused window at the profile's tightened budget instead of treating every window as focused.
+- Follow [kehto/web#336](https://github.com/kehto/web/pull/336) when it is released. It makes kehto's firewall a shared approval authority and moves rate limiting into a separate runtime budget. kernl will move `packages/core/src/guard/runtime-rules.ts` from the firewall setters, `onFirewallEvent` and `firewallPersistence` to `permissions.setRateLimit` and `onRateLimit`, drop `kernl:firewall:v1`, and decide how admission approvals meet the restrictive ACL. `getFocusContext`, `aclDefaultPolicy`, `filterNappletMessage` and `releaseDeferred` stay.
+- Ask for an event when a stored deny refuses a request on a host that configures #336's permissions, so the host can show it; until then kernl's own guard layers report what they refuse.
+- Ask for a reply kehto can send for a request the host drops, so an applet does not wait for an answer that will not come. NAP defines none today.
+- Let the runtime measure envelopes without an `event`, so its size limits see downloads and queries and kernl's size caps could move into kehto.
+- Report the four creation routes past `experimental.nestedContextLock` and ask kehto to guard insertion, so kernl can drop its insertion lock ([D-014](./decisions.md#d-014)).
 
 ## 2. Bridge backends
 

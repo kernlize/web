@@ -31,15 +31,15 @@ kehto is the runtime authority for how a NIP-5D shell composes. kernl uses these
 
 | kehto package | What kernl takes from it |
 | --- | --- |
-| `@kehto/shell` | `createShellBridge`, `buildShellCapabilities`, `resolveShellEnvironment`, `prepareNappletSrcdoc`, `denyNappletControllerAccess`, `renderNappletFramePolicyMeta`, `originRegistry`, the `ShellAdapter` hooks and the revocation model. |
-| `@kehto/runtime` | The protocol engine behind the bridge: dispatch, the ACL gate (`bridge.runtime.aclState`, `ALL_CAPABILITIES`), the runtime firewall (`bridge.runtime.firewallState`), the `ServiceRegistry` and `ConsentRequest`. |
+| `@kehto/shell` | `createShellBridge`, `buildShellCapabilities`, `resolveShellEnvironment`, `prepareNappletSrcdoc`, `denyNappletControllerAccess`, `renderNappletFramePolicyMeta`, `originRegistry`, the `ShellAdapter` hooks (including `filterNappletMessage`, `getFocusContext`, `onFirewallEvent`, `firewallPersistence` and `aclDefaultPolicy`), `ShellBridge.releaseDeferred` and the revocation model. |
+| `@kehto/runtime` | The protocol engine behind the bridge: dispatch, the ACL gate (`bridge.runtime.aclState`), the runtime firewall (`bridge.runtime.firewallState`, with `setUnfocusedMultiplier` and `setBurstGuard`), the `ServiceRegistry` and `ConsentRequest`. |
 | `@kehto/acl` | The grant store the runtime enforces, keyed by `dTag:hash`. kernl reaches it only through `bridge.runtime.aclState`. |
 | `@kehto/firewall` | The pure `evaluate()` engine `@kernl/guard` runs, and the `NappletRules` and `RateLimit` types `runtimeFirewallRules` translates into. |
 | `@kehto/services` | `createRelayPoolService`, `createIdentityService`, `createThemeService`, `createNotifyService`, `createLinkService`, `createResourceService`, `createDmService`, `createOutboxService` and `createRelayPoolOutboxRouter`. |
 | `@kehto/nip` | `resolveNapplet`, `openNappletArtifactCache` and `NAPPLET_KINDS` from `@kehto/nip/5d`. |
 | `@kehto/wm` | `LayoutStrategy`, `WindowState`, `Rect` and `WindowPlacement`, which the layouts implement. |
 
-kernl never re-implements a kehto primitive. When a seam is too narrow, kernl composes in front of it and takes the gap upstream; the four gaps found so far, filed upstream as kehto/web #397–#400, are in [Alpha status](../alpha-status.md#upstream-gaps).
+kernl never re-implements a kehto primitive. When a seam is too narrow, kernl composes in front of it and takes the gap upstream. The four gaps found first, filed as kehto/web #397–#400, are released in `@kehto/shell` 0.32.0 and in use ([D-020](../decisions.md#d-020)); what is still open is in [Alpha status](../alpha-status.md#upstream-gaps).
 
 ## One event layer
 

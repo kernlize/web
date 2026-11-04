@@ -25,7 +25,7 @@
   },
   "dependencies": {},
   "peerDependencies": {
-    "@napplet/core": ">=0.37.0 <0.38.0"
+    "@napplet/core": ">=0.37.0 <0.39.0"
   },
   "devDependencies": {
     "tsup": "^8.5.0",

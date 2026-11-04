@@ -1,5 +1,5 @@
 import { Subject } from 'rxjs';
-import { ALL_CAPABILITIES, type AclStateContainer, type Capability } from '@kehto/runtime';
+import type { AclStateContainer, Capability } from '@kehto/runtime';
 import type { CapabilityHooks } from '@kehto/shell';
 import type { AppletIdentity, GrantRecord, Grants, StorageLike } from '../types.js';
 import { createNamespacedStore } from '../persistence/store.js';
@@ -25,7 +25,7 @@ export interface GrantsOptions {
 
 /** The grants surface plus the hook the shell calls when an applet is about to run. */
 export interface KernlGrants extends Grants {
-  /** Make sure the runtime ACL reflects this applet's record; returns the record. */
+  /** Write this applet's record into the runtime ACL before it runs; returns the record. */
   ensure(identity: AppletIdentity): GrantRecord;
 }
 
@@ -36,11 +36,12 @@ function keyOf(identity: AppletIdentity): string {
 /**
  * User-facing grants over kehto's ACL state.
  *
- * kehto's runtime defaults to a permissive ACL (D-001), so kernl writes the
- * complete capability set for every applet it runs: the baseline domains plus
- * what the user allowed are granted, everything else is revoked explicitly.
- * The per-identity record is persisted at `kernl:grants:v1`; the ACL itself is
- * persisted by kehto. Blocking an applet blocks it in the ACL and empties its
+ * The runtime ACL is restrictive (`aclDefaultPolicy`, D-020): an applet with
+ * no entry holds nothing. kernl grants the baseline domains plus what the user
+ * allowed, and revokes whatever the applet's entry holds beyond that, which
+ * covers a domain the user took back and an entry kept from an earlier
+ * posture. The per-identity record is persisted at `kernl:grants:v1`; the ACL
+ * itself is persisted by kehto. Blocking an applet blocks it in the ACL and empties its
  * environment through {@link createEnvironmentResolver}.
  *
  * @param options - ACL container, storage and the live domain list.
@@ -75,10 +76,9 @@ export function createGrants(options: GrantsOptions): KernlGrants {
 
   function syncAcl(entry: StoredGrant): void {
     const wanted = new Set<Capability>(capabilitiesForDomains([...BASELINE_DOMAINS, ...entry.domains]));
-    for (const capability of ALL_CAPABILITIES) {
-      if (wanted.has(capability)) options.acl.grant('', entry.dTag, entry.hash, capability);
-      else options.acl.revoke('', entry.dTag, entry.hash, capability);
-    }
+    const held = options.acl.getEntry('', entry.dTag, entry.hash)?.capabilities ?? [];
+    for (const capability of held) if (!wanted.has(capability)) options.acl.revoke('', entry.dTag, entry.hash, capability);
+    for (const capability of wanted) options.acl.grant('', entry.dTag, entry.hash, capability);
     if (entry.blocked) options.acl.block('', entry.dTag, entry.hash);
     else options.acl.unblock('', entry.dTag, entry.hash);
     options.acl.persist();

@@ -1,6 +1,24 @@
-import type { FirewallStateContainer } from '@kehto/runtime';
-import type { NappletPolicy, NappletRules, RateLimit } from '@kehto/firewall';
-import { applyNappletRules, type GuardConfig, type OpClass } from '@kernl/guard';
+import type { FirewallEvent, FirewallPersistence, FirewallStateContainer } from '@kehto/runtime';
+import type { NappletRules, RateLimit } from '@kehto/firewall';
+import { applyNappletRules, type GuardConfig, type GuardEvent, type OpClass } from '@kernl/guard';
+import type { StorageLike } from '../types.js';
+
+/*
+ * Every call kernl makes into the runtime firewall's own configuration lives in
+ * this module. kehto/web#336 replaces these seams on hosts that configure
+ * permissions (`permissions.setRateLimit`, `onRateLimit`), so moving there is a
+ * change to this file only (D-020).
+ */
+
+/**
+ * Where kernl stores the runtime firewall's configuration in the host storage.
+ *
+ * @example
+ * ```ts
+ * localStorage.getItem(RUNTIME_FIREWALL_STORAGE_KEY); // the serialised kehto firewall config
+ * ```
+ */
+export const RUNTIME_FIREWALL_STORAGE_KEY = 'kernl:firewall:v1';
 
 /**
  * How the guard's operation classes appear inside kehto's runtime firewall.
@@ -67,15 +85,18 @@ export function runtimeFirewallRules(config: GuardConfig, napplet: string): Runt
   return { rates, globalRate: rules.globalRate as RateLimit };
 }
 
+/** The runtime firewall's state, as far as kernl configures it. */
+export type RuntimeFirewallState = Pick<FirewallStateContainer, 'setRateLimit' | 'setGlobalRate' | 'setUnfocusedMultiplier' | 'setBurstGuard' | 'persist'>;
+
 /**
  * Install the guard profile's rates for an applet in the runtime firewall.
  *
- * This is the pre-dispatch half of kernl's guard: `ShellAdapter` does not
- * forward kehto's firewall hooks (D-001), but the runtime's own firewall still
- * runs before every dispatch, so the profile's limits are pushed into it when
- * a window binds. No policy is set: kehto's `allow` policy bypasses every rate,
- * matcher and burst check, and the user's choices to deny or block live in the
- * grants layer, not here.
+ * The runtime's firewall runs before every dispatch, including the envelopes
+ * kernl held for a hidden window and released later, so the profile's limits
+ * are pushed into it when a window mounts and again when the profile changes.
+ * No policy is set: kehto's `allow` policy bypasses every rate, matcher and
+ * burst check, and the user's choices to deny or block live in the grants
+ * layer, not here.
  *
  * @param firewallState - `bridge.runtime.firewallState`.
  * @param config - Current guard configuration.
@@ -86,11 +107,7 @@ export function runtimeFirewallRules(config: GuardConfig, napplet: string): Runt
  * applyRuntimeFirewallRules(bridge.runtime.firewallState, guardConfig, summary.identity.dTag);
  * ```
  */
-export function applyRuntimeFirewallRules(
-  firewallState: Pick<FirewallStateContainer, 'setRateLimit' | 'setGlobalRate' | 'persist'>,
-  config: GuardConfig,
-  napplet: string,
-): void {
+export function applyRuntimeFirewallRules(firewallState: RuntimeFirewallState, config: GuardConfig, napplet: string): void {
   const rules = runtimeFirewallRules(config, napplet);
   for (const rule of rules.rates) firewallState.setRateLimit(napplet, rule.opClass, rule.limit);
   firewallState.setGlobalRate(napplet, rules.globalRate);
@@ -98,33 +115,89 @@ export function applyRuntimeFirewallRules(
 }
 
 /**
- * Make the runtime firewall refuse the envelope kehto is about to dispatch for
- * an applet, and only that one.
- *
- * kehto calls `onNappletMessage` synchronously, then evaluates the runtime
- * firewall and dispatches in the same call, and ignores the callback's answer
- * (D-012). kernl's guard layers judge each envelope in that callback: a burst
- * above the per-second rate, a request over the unfocused budget, an
- * oversized download or query (the runtime measures size only for envelopes
- * that carry an event), and any non-control request from a hidden window.
- * When one of them will not let an envelope through, the applet's policy is
- * set to `deny` for the rest of this dispatch: kehto answers the request with
- * a firewall denial instead of handing it to a service, and the previous
- * policy returns in a microtask, before the next port message can arrive.
+ * Apply a profile's shell-wide limits to the runtime firewall: the unfocused
+ * multiplier, which the runtime applies with the focus kernl reports through
+ * `getFocusContext`, and the startup burst guard.
  *
  * @param firewallState - `bridge.runtime.firewallState`.
- * @param napplet - Applet identity (dTag) of the window whose envelope is being dispatched.
- * @returns Nothing; the policy is restored in a microtask.
+ * @param config - The guard configuration of the profile now in force.
+ * @returns Nothing; the firewall state is mutated and persisted.
  * @example
  * ```ts
- * onNappletMessage: (windowId, message) => {
- *   if (pipeline.observe(windowId, dTag, message) === 'reject') refuseCurrentDispatch(bridge.runtime.firewallState, dTag);
- * };
+ * applyRuntimeFirewallProfile(bridge.runtime.firewallState, createGuardConfig('balanced'));
+ * bridge.runtime.firewallState.getConfig().unfocusedMultiplier; // 0.5
  * ```
  */
-export function refuseCurrentDispatch(firewallState: Pick<FirewallStateContainer, 'getConfig' | 'setPolicy'>, napplet: string): void {
-  // An absent policy is restored as `undefined`, which kehto's engine reads as no policy.
-  const previous = firewallState.getConfig().napplets[napplet]?.policy as NappletPolicy;
-  firewallState.setPolicy(napplet, 'deny');
-  queueMicrotask(() => firewallState.setPolicy(napplet, previous));
+export function applyRuntimeFirewallProfile(firewallState: RuntimeFirewallState, config: GuardConfig): void {
+  firewallState.setUnfocusedMultiplier(config.firewall.unfocusedMultiplier);
+  firewallState.setBurstGuard(config.firewall.burstGuard);
+  firewallState.persist();
+}
+
+const GUARD_OP_CLASSES: ReadonlyMap<string, OpClass> = new Map(
+  Object.entries(RUNTIME_OP_CLASSES).flatMap(([opClass, runtimeClass]) => (runtimeClass ? [[runtimeClass, opClass as OpClass] as const] : [])),
+);
+
+/**
+ * Turn a runtime firewall event into a guard event. The runtime's event
+ * carries the applet's message; the guard event never does, so nothing the
+ * applet sent reaches the guard log. Reasons follow the guard's vocabulary:
+ * a rate is `rate:<class>`, the startup burst is `flood:startup`, anything
+ * else is `runtime:<ruleId>`.
+ *
+ * @param event - What the runtime firewall reported.
+ * @param at - When it happened.
+ * @returns The guard event.
+ * @example
+ * ```ts
+ * toGuardEvent({ windowId: 'w1', napplet: 'chat', opClass: 'state:write', decision: 'reject', action: 'block', ruleId: 'rate:opclass', reason: '…' }, 0).reason;
+ * // 'rate:storage:write'
+ * ```
+ */
+export function toGuardEvent(event: FirewallEvent, at: number): GuardEvent {
+  const opClass = GUARD_OP_CLASSES.get(event.opClass) ?? 'generic';
+  const reason = event.ruleId === 'burst' ? 'flood:startup' : event.ruleId.startsWith('rate:') ? `rate:${opClass}` : `runtime:${event.ruleId}`;
+  const disposition = event.decision === 'pass' ? 'flag' : 'reject';
+  return { disposition, windowId: event.windowId, napplet: event.napplet, opClass, reason, at };
+}
+
+/** The runtime firewall hooks kernl hands to `createShellAdapter`. */
+export interface RuntimeFirewallHooks {
+  readonly firewallPersistence: FirewallPersistence;
+  readonly onFirewallEvent: (event: FirewallEvent) => void;
+}
+
+/** Options for {@link createRuntimeFirewallHooks}. */
+export interface RuntimeFirewallHooksOptions {
+  /** The host storage; the config is kept under {@link RUNTIME_FIREWALL_STORAGE_KEY}. */
+  readonly storage: StorageLike;
+  /** Receives every runtime refusal and flag as a guard event. */
+  readonly onEvent: (event: GuardEvent) => void;
+  readonly now?: () => number;
+}
+
+/**
+ * The runtime firewall's persistence and event sink, through kernl's host
+ * storage and guard event stream. These report what the runtime itself
+ * refused, which is the startup burst and anything over budget when held
+ * envelopes are released; what kernl drops before the runtime sees it is
+ * reported by kernl's own guard layers.
+ *
+ * @param options - Host storage, the guard event sink and a clock.
+ * @returns `firewallPersistence` and `onFirewallEvent` for the `ShellAdapter`.
+ * @example
+ * ```ts
+ * const hooks = createRuntimeFirewallHooks({ storage: localStorage, onEvent: (event) => log.push(event) });
+ * const adapter: ShellAdapter = { ...rest, ...hooks };
+ * ```
+ */
+export function createRuntimeFirewallHooks(options: RuntimeFirewallHooksOptions): RuntimeFirewallHooks {
+  const now = options.now ?? Date.now;
+  return {
+    firewallPersistence: {
+      persist: (data) => options.storage.setItem(RUNTIME_FIREWALL_STORAGE_KEY, data),
+      load: () => options.storage.getItem(RUNTIME_FIREWALL_STORAGE_KEY),
+    },
+    onFirewallEvent: (event) => options.onEvent(toGuardEvent(event, now())),
+  };
 }

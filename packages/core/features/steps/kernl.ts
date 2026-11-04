@@ -101,6 +101,7 @@ export function boot(world: CoreWorld, options: Partial<KernlOptions> = {}, host
 }
 
 After((world: CoreWorld) => {
+  vi.useRealTimers();
   const value = scratch(world).kernl as KernlScratch | undefined;
   if (!value) return;
   value.channel?.port1.close();
@@ -156,6 +157,7 @@ Given('a kernl shell over that host and pool with fake bridges', (world: CoreWor
 
 Given('a kernl shell over that host and pool with fake bridges and a manual clock', (world: CoreWorld) => {
   scratch(world).clock = 1_700_000_000_000;
+  vi.useFakeTimers({ toFake: ['Date'], now: scratch(world).clock as number });
   bootWithFakeBridges(world, { now: () => scratch(world).clock as number });
 });
 
