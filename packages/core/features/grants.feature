@@ -1,11 +1,11 @@
 Feature: Grants
   A grant is something the user gave and can take back. Every applet starts
   with the read-only, no-network baseline, which does not include the signed-in
-  account; kehto's permissive ACL default is overwritten explicitly for every
-  applet the shell runs (D-001).
+  account. The runtime ACL is restrictive, so an applet holds nothing the
+  grants layer did not write (D-020).
 
   Background:
-    Given a kehto ACL state in memory
+    Given a restrictive kehto ACL state in memory
     And kernl grants over empty storage offering "shell,inc,theme,identity,storage,relay,notify,resource"
 
   Scenario: the baseline is read-only and offline
@@ -23,6 +23,16 @@ Feature: Grants
     And the ACL denies "relay:read" for "chat"
     And the ACL denies "relay:write" for "chat"
     And 1 grant changes were observed
+
+  Scenario: an applet the shell never ran holds nothing
+    Then the ACL denies "theme:read" for "stranger"
+    And the ACL denies "relay:read" for "stranger"
+
+  Scenario: an ACL entry from an earlier posture is narrowed to the record
+    Given the ACL already grants "relay:read" to "chat"
+    When the shell ensures grants for "chat"
+    Then the ACL denies "relay:read" for "chat"
+    And the ACL allows "theme:read" for "chat"
 
   Scenario: allowing a domain grants its capabilities
     When the shell allows "relay" for "chat"

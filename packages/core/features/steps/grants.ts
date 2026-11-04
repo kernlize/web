@@ -37,9 +37,13 @@ function create(world: CoreWorld, available: string[]): void {
   state.available = available;
 }
 
-Given('a kehto ACL state in memory', (world: CoreWorld) => {
+Given('a restrictive kehto ACL state in memory', (world: CoreWorld) => {
   let persisted: string | null = null;
-  scratch(world).acl = createAclState({ persist: (data) => void (persisted = data), load: () => persisted });
+  scratch(world).acl = createAclState({ persist: (data) => void (persisted = data), load: () => persisted }, 'restrictive');
+});
+
+Given('the ACL already grants {string} to {string}', (world: CoreWorld, capability: Capability, dTag: string) => {
+  acl(world).grant('', dTag, HASH, capability);
 });
 
 Given('kernl grants over empty storage offering {string}', (world: CoreWorld, domains: string) => {

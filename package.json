@@ -30,9 +30,9 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.30.0",
-    "@napplet/core": "^0.37.0",
-    "@napplet/nap": "^0.36.0",
-    "@napplet/shim": "^0.35.0",
+    "@napplet/core": "^0.38.0",
+    "@napplet/nap": "^0.37.0",
+    "@napplet/shim": "^0.36.0",
     "@playwright/test": "^1.64.1",
     "@types/node": "^24.0.0",
     "@vitest/coverage-v8": "^5.1.0",

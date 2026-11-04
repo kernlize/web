@@ -13,7 +13,7 @@ Feature: Mitigation descriptions
       | verified-artifacts   | kehto    |
       | replay-detection     | kehto    |
       | rate-limits          | both     |
-      | focus-tightening     | kernl    |
+      | focus-tightening     | both     |
       | hidden-deferral      | kernl    |
       | ingress-flood        | kernl    |
       | size-caps            | both     |
@@ -26,8 +26,8 @@ Feature: Mitigation descriptions
 
   Scenario: what the shell refuses before dispatch is described as refused, never as held
     When the guard describes the mitigations for the "strict" profile
-    Then the guard mitigations "focus-tightening,hidden-deferral,ingress-flood" never claim to hold, queue or pause
-    And the guard mitigations "focus-tightening,hidden-deferral,ingress-flood" say they refuse and never that they only report
+    Then the guard mitigations "focus-tightening,ingress-flood" never claim to hold, queue or pause
+    And the guard mitigations "focus-tightening,ingress-flood" say they refuse and never that they only report
     And the guard mitigation "focus-tightening" says "When an applet window is not the one you are working in, the shell counts its requests against a smaller allowance. A request over it is refused before it is handled, and the shell tells you; the applet can try again once you switch to it. The budget above still applies."
 
   Scenario: the sealed frame cannot open frames of its own (D-014)
@@ -39,10 +39,13 @@ Feature: Mitigation descriptions
     Then the guard mitigation "size-caps" is titled "Oversized requests are refused"
     And the guard mitigation "size-caps" says "The shell measures download and long-running query requests against a maximum size. One that is too large is refused before it is handled, so nothing it asked for is fetched, and the shell tells you."
 
+  Scenario: a hidden applet's requests are held until you can see it (D-020)
+    When the guard describes the mitigations for the "strict" profile
+    Then the guard mitigation "hidden-deferral" says "While an applet is minimised or hidden, the shell holds its requests and handles them, in order, once you can see it again; you can still close it. One that keeps asking for downloads past its allowance is quarantined: the download that crossed the allowance is dropped, the requests it held are discarded, and the shell closes the applet and tells you."
+
   Scenario: quarantine drops the message that crossed the limit
     When the guard describes the mitigations for the "strict" profile
     Then the guard mitigation "ingress-flood" says "The shell counts every message an applet sends. Requests in a burst above the per-second rate are refused before they are handled, and the shell tells you; messages that keep the window controllable still get through. An applet that keeps flooding is quarantined: the message that crossed the limit is dropped, and the shell closes the applet and tells you."
-    And the guard mitigation "hidden-deferral" says "While an applet is minimised or hidden, the shell refuses its requests before they are handled, except the messages that let you close, theme or reach it; the applet can try again once it is visible. One that keeps asking for downloads past its allowance is quarantined: the download that crossed the allowance is dropped, and the shell closes the applet and tells you."
 
   Scenario: every overwrite or erasure of the account's record is put to the user
     When the guard describes the mitigations for the "strict" profile

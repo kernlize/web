@@ -20,14 +20,13 @@ function mitigation(id: string, provider: Provider, title: string, summary: stri
  * The list is what the grants panel renders (D-003). Titles and summaries
  * avoid protocol vocabulary: they say network, applet and account. Every
  * mitigation is enabled in every profile; only the `limit` text changes.
- * Each summary claims only what is enforced where D-012 places it. kernl
- * sees each request just before the runtime handles it and cannot hold it
- * back, but it can have the runtime refuse that one request: a burst above
- * the per-second rate, a request over the smaller unfocused budget, an
- * oversized request, and any request from a hidden applet other than the
- * messages that keep its window controllable are described as refused.
- * Quarantine closes the applet before the request that crossed the limit is
- * handled, so that request is described as dropped.
+ * Each summary claims only what is enforced where D-020 places it. kernl
+ * decides each request before the runtime handles it: a burst above the
+ * per-second rate, a request over the smaller unfocused budget and an
+ * oversized request are described as refused, and a hidden applet's
+ * requests as held until it is visible. Quarantine closes the applet before
+ * the request that crossed the limit is handled, so that request is
+ * described as dropped.
  *
  * @param config - The guard configuration whose limits appear in the text.
  * @returns One description per mitigation, in the order the UI shows them.
@@ -74,7 +73,7 @@ export function describeMitigations(config: GuardConfig): readonly MitigationDes
     ),
     mitigation(
       'focus-tightening',
-      'kernl',
+      'both',
       'Applets you are not using are measured against a smaller budget',
       'When an applet window is not the one you are working in, the shell counts its requests against a smaller allowance. A request over it is refused before it is handled, and the shell tells you; the applet can try again once you switch to it. The budget above still applies.',
       `${limits.unfocusedMultiplier * 100}% of the focused budget`,
@@ -83,7 +82,7 @@ export function describeMitigations(config: GuardConfig): readonly MitigationDes
       'hidden-deferral',
       'kernl',
       'Hidden applets cannot act until you can see them',
-      'While an applet is minimised or hidden, the shell refuses its requests before they are handled, except the messages that let you close, theme or reach it; the applet can try again once it is visible. One that keeps asking for downloads past its allowance is quarantined: the download that crossed the allowance is dropped, and the shell closes the applet and tells you.',
+      'While an applet is minimised or hidden, the shell holds its requests and handles them, in order, once you can see it again; you can still close it. One that keeps asking for downloads past its allowance is quarantined: the download that crossed the allowance is dropped, the requests it held are discarded, and the shell closes the applet and tells you.',
       `${limits.hiddenResourceAllowance} downloads while hidden`,
     ),
     mitigation(

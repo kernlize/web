@@ -13,6 +13,7 @@ import {
   createDefaultBridges,
   createDefaultMessaging,
   createKernlServices,
+  createRuntimeFirewallHooks,
   createShellAdapter,
   isTheme,
   resourceInitFor,
@@ -224,7 +225,9 @@ Given('a kernl shell adapter', (world: CoreWorld) => {
     services: state(world).services.registry,
     resolveEnvironment: (_identity, available) => available,
     onNappletRevoked: () => undefined,
-    onNappletMessage: () => undefined,
+    filterNappletMessage: (windowId) => (windowId === 'hidden' ? 'defer' : 'dispatch'),
+    getFocusContext: (windowId) => ({ focused: windowId === 'focused' }),
+    runtimeFirewall: createRuntimeFirewallHooks({ storage: scratch(world).storage, onEvent: () => undefined }),
     onUnroutedMessage: (info) => void unrouted.push(info),
   });
   s.adapter = adapter;
@@ -278,6 +281,14 @@ Then('the adapter has no network suggestions', (world: CoreWorld) => {
   expect(adapter(world).relayConfig.getNip66Suggestions()).toBeNull();
 });
 
+Then('the adapter keeps a restrictive ACL and asks the shell about focus and every port message', (world: CoreWorld) => {
+  const shell = adapter(world);
+  expect(shell.aclDefaultPolicy).toBe('restrictive');
+  expect([shell.getFocusContext?.('focused'), shell.getFocusContext?.('other')]).toEqual([{ focused: true }, { focused: false }]);
+  expect([shell.filterNappletMessage?.('hidden', { type: 'relay.subscribe' }), shell.filterNappletMessage?.('w1', { type: 'relay.subscribe' })]).toEqual(['defer', 'dispatch']);
+  expect(shell.firewallPersistence?.load()).toBeNull();
+});
+
 Then('the adapter forwards unrouted messages when asked to', (world: CoreWorld) => {
   adapter(world).onUnroutedMessage?.({ origin: 'null', reason: 'no-source-window' });
   expect(scratch(world).unrouted).toHaveLength(1);
@@ -289,7 +300,9 @@ Then('the adapter forwards unrouted messages when asked to', (world: CoreWorld) 
     services: {},
     resolveEnvironment: (_identity, available) => available,
     onNappletRevoked: () => undefined,
-    onNappletMessage: () => undefined,
+    filterNappletMessage: () => 'dispatch',
+    getFocusContext: () => ({ focused: true }),
+    runtimeFirewall: createRuntimeFirewallHooks({ storage: scratch(world).storage, onEvent: () => undefined }),
   });
   expect(silent.onUnroutedMessage).toBeUndefined();
 });

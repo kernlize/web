@@ -76,6 +76,7 @@ Feature: Shell services and adapter
     Then the adapter creates no windows, has no worker relay, forwards no hotkeys and shows update banners
     And the adapter verifies a signed event and rejects a forged one
     And the adapter advertises the link domain and its services
+    And the adapter keeps a restrictive ACL and asks the shell about focus and every port message
     When the adapter adds "wss://relay.mine" to tier "outbox" and "wss://ignored" to tier "nonsense"
     Then the adapter relay config has outbox "wss://relay.mine"
     When the adapter removes "wss://relay.mine" from tier "outbox" and "wss://ignored" from tier "nonsense"

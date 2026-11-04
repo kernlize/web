@@ -1,11 +1,12 @@
 import type { AccountManager } from 'applesauce-accounts';
 import { verifyEvent } from 'applesauce-core/helpers';
-import type { CapabilityHooks, NappletMessage, NappletRevocation, ShellAdapter, UnroutedMessageInfo } from '@kehto/shell';
+import type { CapabilityHooks, NappletRevocation, ShellAdapter, UnroutedMessageInfo } from '@kehto/shell';
 import type { ServiceRegistry } from '@kehto/runtime';
 import type { RelayTier, RelayTiers } from './types.js';
 import { createAuthHooks } from './applesauce/auth-hooks.js';
 import type { SigningConsent } from './consent/handler.js';
 import { createRelayPoolHooks, type ApplesaucePool } from './applesauce/relay-hooks.js';
+import type { RuntimeFirewallHooks } from './guard/runtime-rules.js';
 
 const TIERS: readonly string[] = ['discovery', 'apps', 'outbox', 'super'];
 
@@ -19,7 +20,12 @@ export interface ShellAdapterDeps {
   readonly services: ServiceRegistry;
   readonly resolveEnvironment: NonNullable<CapabilityHooks['resolveEnvironment']>;
   readonly onNappletRevoked: (revocation: NappletRevocation) => void;
-  readonly onNappletMessage: (windowId: string, message: NappletMessage) => void;
+  /** Decides every port envelope before kehto's runtime sees it; see `GuardPipeline.observe`. */
+  readonly filterNappletMessage: NonNullable<ShellAdapter['filterNappletMessage']>;
+  /** Whether a window has focus, as the shell's window manager reports it. */
+  readonly getFocusContext: (windowId: string) => { focused: boolean };
+  /** The runtime firewall's persistence and event sink; see `createRuntimeFirewallHooks`. */
+  readonly runtimeFirewall: RuntimeFirewallHooks;
   readonly onUnroutedMessage?: (info: UnroutedMessageInfo) => void;
 }
 
@@ -35,7 +41,9 @@ function isTier(tier: string): tier is RelayTier {
  * not forwarded; there is no worker relay, the applesauce pool is the only
  * event source; every signature made for an applet window passes the consent
  * gate; update behaviour is `banner`; event signatures are verified by
- * applesauce; and every applet's environment is narrowed by the grants layer.
+ * applesauce; every applet's environment is narrowed by the grants layer; the
+ * ACL is restrictive, so an applet holds only what the grants layer wrote; and
+ * every port envelope passes kernl's guard before the runtime sees it.
  *
  * @param deps - Pool, tiers, accounts, services and the shell's hooks.
  * @returns The adapter for `createShellBridge`.
@@ -71,7 +79,10 @@ export function createShellAdapter(deps: ShellAdapterDeps): ShellAdapter {
     services: deps.services,
     capabilities: { resolveEnvironment: deps.resolveEnvironment },
     onNappletRevoked: deps.onNappletRevoked,
-    onNappletMessage: deps.onNappletMessage,
+    filterNappletMessage: deps.filterNappletMessage,
+    getFocusContext: deps.getFocusContext,
+    ...deps.runtimeFirewall,
+    aclDefaultPolicy: 'restrictive',
     ...(deps.onUnroutedMessage ? { onUnroutedMessage: deps.onUnroutedMessage } : {}),
   };
 }

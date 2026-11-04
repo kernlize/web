@@ -19,8 +19,8 @@ kernl keeps no local copy of a specification text. A copy drifts; a link does no
 
 When kernl needs something a specification or an upstream package does not provide, the order is:
 
-1. **Compose it from what exists.** Most of kernl is this: the guard composes `@kehto/firewall`'s `evaluate()`, the restrictive posture composes `resolveEnvironment` and `aclState.grant`.
-2. **Propose it upstream.** An issue or pull request on `kehto/web`, `napplet/naps` or `nostr-protocol/nips`, as appropriate. The four kehto gaps kernl has found, filed upstream as kehto/web #397–#400, are listed in [Alpha status](../alpha-status.md#upstream-gaps).
+1. **Compose it from what exists.** Most of kernl is this: the guard composes `@kehto/firewall`'s `evaluate()` and kehto's `filterNappletMessage`, the restrictive posture composes `aclDefaultPolicy`, `resolveEnvironment` and `aclState.grant`.
+2. **Propose it upstream.** An issue or pull request on `kehto/web`, `napplet/naps` or `nostr-protocol/nips`, as appropriate. The first four kehto gaps kernl found, filed as kehto/web #397–#400, are released and in use ([D-020](../decisions.md#d-020)); what is still open is in [Alpha status](../alpha-status.md#upstream-gaps).
 3. **Implement it locally with a recorded gap.** Only when 1 is impossible and 2 is pending. The local implementation sits behind an interface, cites the upstream issue, and is removed when upstream lands.
 
 kernl never re-implements a kehto primitive because it was easier than reading kehto's source, and never invents wire format. When a NAP is ambiguous, kernl prefers an upstream issue over a guess and records the ambiguity next to the code.

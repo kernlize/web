@@ -45,12 +45,16 @@ The [Roadmap](./roadmap.md) orders this list.
 
 ## Upstream gaps
 
-kernl composes kehto rather than forking it ([D-001](./decisions.md#d-001)). Four seams in kehto are narrower than kernl wants. All four are filed upstream against `kehto/web` rather than patched locally ([#397](https://github.com/kehto/web/issues/397), [#398](https://github.com/kehto/web/issues/398), [#399](https://github.com/kehto/web/issues/399), [#400](https://github.com/kehto/web/issues/400)). Each has a kernl layer that shrinks when it lands ([D-012](./decisions.md#d-012)):
+kernl composes kehto rather than forking it ([D-001](./decisions.md#d-001)). The four seams kernl filed against `kehto/web` ([#397](https://github.com/kehto/web/issues/397), [#398](https://github.com/kehto/web/issues/398), [#399](https://github.com/kehto/web/issues/399), [#400](https://github.com/kehto/web/issues/400)) are closed in `@kehto/shell` 0.32.0, `@kehto/runtime` 0.28.0 and `@kehto/firewall` 0.7.0, and kernl uses them ([D-020](./decisions.md#d-020)):
 
-1. **`ShellAdapter` does not forward `getFocusContext`, `onFirewallEvent` or `firewallPersistence` to the runtime.** Without `getFocusContext` the runtime firewall treats every window as focused. kernl runs its focus-aware firewall in `@kernl/guard`, in front of the bridge for the window-level `hello` and as an observer of port traffic, using the pure `evaluate()` engine with visibility supplied by the host; what it rejects on port traffic is refused before dispatch (gap 3). Because that layer never supplies `initElapsedMs`, kehto's init-burst guard does not fire there, and the guard config's `burstGuard` is unused. The runtime does supply it, so the runtime's own startup burst guard (kehto's default, 20 operations in the first 3 s, `block`) refuses before dispatch. Without `onFirewallEvent` the runtime's refusals reach the applet as `firewall:` errors but not the host, so the guard panel shows kernl's own count of the same rates. ([kehto/web#397](https://github.com/kehto/web/issues/397))
-2. **`createRuntime` hardcodes the ACL default policy to `'permissive'`.** kernl produces its restrictive posture with `KernlGrants.ensure`, which writes an explicit grant or revoke for every capability of every applet it plans, plus `capabilities.resolveEnvironment`, which narrows the advertised domains to the baseline and the user's grants. The permissive default is never reached for an applet kernl runs. ([kehto/web#398](https://github.com/kehto/web/issues/398))
-3. **There is no hook that can hold or delay port traffic.** kehto calls `onNappletMessage` synchronously before it dispatches each envelope, but ignores its answer. kernl closes the refusal half of this gap itself: whenever its ingress guard, focus firewall or hidden-window check will not let an envelope through (a size cap, a burst above the per-second rate, the smaller unfocused budget, or a non-control request from a window that is not visible), it sets the applet's runtime policy to `deny` for that one synchronous dispatch (`refuseCurrentDispatch`), so kehto refuses the envelope with a `firewall:` error. Quarantine revokes the binding inside the hook, so kehto finds no session and drops the envelope that crossed the limit. Control envelopes are never refused. What remains is the gentler half: a hidden window's requests are refused, and the applet must retry once visible, where a hook that let the shell defer them would hold them instead. See [Guard](./concepts/guard.md#where-enforcement-happens). ([kehto/web#399](https://github.com/kehto/web/issues/399))
-4. **The runtime firewall never applies an unfocused multiplier.** Because of gap 1 the runtime sees every window as focused, so its multiplier, whatever the value, never applies; and `FirewallStateContainer` has no setter for `unfocusedMultiplier`, so kernl could not install the profile's value even if focus were forwarded. The profile's value is applied only by kernl's focus firewall, whose overruns kernl refuses through `refuseCurrentDispatch`. ([kehto/web#400](https://github.com/kehto/web/issues/400))
+1. **Firewall hooks through `ShellAdapter` (#397).** kernl passes `getFocusContext` (only `focused`), `onFirewallEvent`, which feeds the guard log without the applet's message, and `firewallPersistence`, which keeps the runtime firewall's configuration under `kernl:firewall:v1` in the host storage.
+2. **ACL default policy (#398).** The adapter sets `aclDefaultPolicy: 'restrictive'`. `KernlGrants.ensure` grants the baseline and the user's domains and revokes only what an applet's stored entry holds beyond them.
+3. **A hook that can hold or drop port traffic (#399).** `filterNappletMessage` runs kernl's guard pipeline for every port envelope. What the guard will not let through is dropped, with no reply to the applet. A hidden window's requests are held and released with `releaseDeferred` when it is visible. See [Guard](./concepts/guard.md#where-enforcement-happens).
+4. **Unfocused multiplier and burst guard setters (#400).** On boot and on every profile change kernl sets the profile's `unfocusedMultiplier` and `burstGuard` on the runtime firewall and reinstalls the rates of open windows.
+
+kernl's own layers stay in front of kehto where kehto cannot see what they see: envelope size for downloads and queries, window visibility, a separate deletion budget, and flood quarantine. The focus-aware firewall overlaps the runtime now and stays so that kernl's own decisions remain a complete source of guard events ([D-020](./decisions.md#d-020)).
+
+One change upstream is pending. [kehto/web#336](https://github.com/kehto/web/pull/336) makes kehto's firewall a shared approval authority and moves rate limiting into a separate runtime budget. On a host that configures it, the multiplier and burst setters, `onFirewallEvent` and `firewallPersistence` are ignored, and `getFocusContext` is read for `focused` only. kernl keeps every use of those in one module, `packages/core/src/guard/runtime-rules.ts`, and will move it to `permissions.setRateLimit` and `onRateLimit` when #336 is released. `aclDefaultPolicy`, `filterNappletMessage` and `releaseDeferred` are unchanged by #336.
 
 A fifth observation, not a gap kernl needs closed: the transport internals `createNip5dTransport` and `createShellReadyState` are not exported, so kernl uses `createShellBridge` unchanged.
 
@@ -60,20 +64,22 @@ One mitigation goes beyond kehto: `@kehto/shell` 0.30.0 ships `experimental.nest
 
 - **Rate enforcement (corrected 2026-11-03).** Earlier drafts of these docs, the README and D-012 said kehto's runtime firewall refused envelopes over the profile's rates. It did not: `applyRuntimeFirewallRules` also set each applet's runtime policy to `allow`, and kehto's `evaluate()` returns `pass` for an `allow` policy before it looks at any rate, matcher or burst. No rate was refused before dispatch; only kernl's reports and quarantine applied. The policy call is removed, the rates and kehto's startup burst guard now refuse before dispatch, and D-012 is rewritten to match.
 - **Size caps (corrected 2026-11-03).** The guard's size matchers were described as able to report `matcher:size:<class>` in the shell. They cannot fire there: the ingress guard rejects the same envelopes first. Oversized downloads and queries were reported but still handled; they are now refused before dispatch.
-- **Focus tightening, bursts and hidden windows (changed 2026-11-04).** These were reported to the user but still handled. They are now refused before dispatch the same way size caps are (`refuseCurrentDispatch`): a request over the smaller unfocused budget, a request in a burst above the per-second rate, and any non-control request from a hidden window get a `firewall:` error. Control envelopes are never refused. See [D-012](./decisions.md#d-012).
+- **Focus tightening, bursts and hidden windows (changed 2026-11-04).** These were reported to the user but still handled. They were then refused before dispatch the same way size caps were (`refuseCurrentDispatch`): a request over the smaller unfocused budget, a request in a burst above the per-second rate, and any non-control request from a hidden window got a `firewall:` error. Control envelopes were never refused. See [D-012](./decisions.md#d-012).
+- **Dropped and held, not refused (changed with kehto 0.32.0).** kernl now decides each port envelope through kehto's `filterNappletMessage`. Oversized requests, bursts and requests over the unfocused budget are dropped and get no reply; a hidden window's requests are held and answered once it is visible. The runtime's startup burst is the profile's (8 operations in a window's first second in `strict`) rather than kehto's default of 20 in 3 s. See [D-020](./decisions.md#d-020).
 
 ## Versions this draft is built against
 
 | Dependency | Range |
 | --- | --- |
-| `@kehto/acl` | `^0.20.2` |
-| `@kehto/firewall` | `^0.6.3` |
-| `@kehto/runtime` | `^0.27.2` |
-| `@kehto/shell` | `^0.30.0` |
-| `@kehto/services` | `^0.29.0` |
+| `@kehto/acl` | `^0.20.3` |
+| `@kehto/firewall` | `^0.7.0` |
+| `@kehto/runtime` | `^0.28.0` |
+| `@kehto/shell` | `^0.32.0` |
+| `@kehto/services` | `^0.30.1` |
 | `@kehto/nip` | `^0.8.0` |
 | `@kehto/wm` | `^0.0.2` |
 | `applesauce-*` | `^7.0.x` |
-| `@napplet/core` | `>=0.37.0 <0.38.0` |
+| `@napplet/core` | `>=0.38.0 <0.39.0` (`@kernl/core`); `>=0.37.0 <0.39.0` (`@kernl/guard`, `@kernl/messaging`) |
+| `@napplet/nap` | `>=0.37.0 <0.38.0` |
 
 The protocol itself is a draft. NIP-5D is [nostr-protocol/nips PR #2303](https://github.com/nostr-protocol/nips/pull/2303) and the NAP documents live at [napplet/naps](https://github.com/napplet/naps). kernl keeps no local copy of either; see [Spec conformance](./policies/spec-conformance.md).

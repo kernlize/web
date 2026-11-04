@@ -28,6 +28,7 @@ const VERBS: Readonly<Record<GuardEvent['disposition'], string>> = {
 function because(event: GuardEvent): string {
   const { reason, opClass } = event;
   if (reason === 'flood:burst') return 'a burst of messages';
+  if (reason === 'flood:startup') return 'a burst of messages as it started';
   if (reason === 'flood:queue-full' || reason === 'defer:queue-full') return 'its queue is full';
   if (reason === 'flood:quarantine') return 'it kept flooding the shell';
   if (reason === 'flood:hidden-resource') return 'too many web fetches while hidden';
@@ -37,8 +38,9 @@ function because(event: GuardEvent): string {
   return reason;
 }
 
-/** "Applet Notes went over its allowance: too many network reads". kernl reports these; the rates that refuse requests run inside the runtime. */
+/** "Applet Notes went over a limit: too many network reads". A hidden applet's held requests read as waiting, not as a limit. */
 export function describeGuardEvent(event: GuardEvent, title: string): string {
+  if (event.reason.startsWith('hidden:')) return `Applet ${title} is waiting until you can see it: its ${OP_WORDS[event.opClass]} are held`;
   return `Applet ${title} ${VERBS[event.disposition]}: ${because(event)}`;
 }
 

@@ -25,6 +25,7 @@ The prefix keeps kernl's keys apart from kehto's and from the host app's in the 
 | `kernl:grants:v1` | `createGrants` | One record per verified applet build, keyed `<dTag>:<hash>`: `{ dTag, hash, domains, blocked }`. See [Identity and grants](./identity-and-grants.md). |
 | `kernl:relays:v1` | `createRelayTiers` | The four relay tiers, each a list of URLs. See [Relay tiers](./relay-tiers.md). |
 | `kernl:messaging:v1` | `createDefaultMessaging` | `MessagingPreferences`: the `enabled` provider ids and the optional `defaultProvider`. See [Messaging](./messaging.md). |
+| `kernl:firewall:v1` | `createRuntimeFirewallHooks`, as kehto's `firewallPersistence` | kehto's serialised runtime firewall configuration: the per-applet rates kernl installs, the unfocused multiplier and the startup burst guard. Counters are never stored. kehto writes it whenever kernl changes the configuration and loads it when the bridge is created; kernl reapplies the profile on every boot, so a stored value never loosens the profile in force. The string is kehto's format and is written as is, not through `createNamespacedStore`. See [Guard](./guard.md#where-enforcement-happens). |
 
 On boot, `createKernlAccounts` restores the accounts and makes the stored id active if that account still exists. `createGrants` loads its records, and `createRelayTiers` and `createDefaultMessaging` start from the stored value when there is one.
 
@@ -40,7 +41,7 @@ The public website also remembers its colour scheme as `kernl-theme` (`light` or
 
 ## Keys kehto writes
 
-kernl passes no persistence hooks of its own to `createShellBridge`, so kehto uses its defaults from `@kehto/shell`, which write to `localStorage` directly rather than to `host.storage`. In `@kehto/shell` 0.29.0 those are `napplet:acl` (the runtime ACL, which `kernl:grants:v1` mirrors per applet build), `napplet:manifest-cache`, `napplet-shell-secret`, `napplet-guid:<windowId>`, and the scoped keys behind the `storage` NAP domain, where an applet's own data lives. kernl does not read or migrate these keys; their format is kehto's.
+Apart from the runtime firewall's configuration above, kernl passes no persistence hooks of its own to `createShellBridge`, so kehto uses its defaults from `@kehto/shell`, which write to `localStorage` directly rather than to `host.storage`. In `@kehto/shell` 0.32.0 those are `napplet:acl` (the runtime ACL, which `kernl:grants:v1` mirrors per applet build; kernl's `aclDefaultPolicy: 'restrictive'` replaces the policy stored there on load), `napplet:manifest-cache`, `napplet-shell-secret`, `napplet-guid:<windowId>`, and the scoped keys behind the `storage` NAP domain, where an applet's own data lives. kernl does not read or migrate these keys; their format is kehto's.
 
 ## What is never persisted
 

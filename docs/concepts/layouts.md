@@ -47,7 +47,7 @@ The shell app (`apps/web`) does not call the `@kernl/core` strategies. Its windo
 
 At 720 px wide or less the shell is compact: every window fills the desktop, whatever the mode ([Alpha status](../alpha-status.md#what-does-not-work-yet)).
 
-Minimising matters beyond layout. A minimised window is hidden, and the guard watches a hidden window more closely: its resource requests are counted against the hidden-window allowance, and the visibility gate holds its first window-level message ([Guard](./guard.md)).
+Minimising matters beyond layout. A minimised window is hidden, and the guard watches a hidden window more closely: its requests are held until it is shown again, and its resource requests are counted against the hidden-window allowance ([Guard](./guard.md)).
 
 An embedding host that renders its own windows can pass any `LayoutStrategy`, including the four above, to whatever arranges them; the core does not hold a layout of its own.
 

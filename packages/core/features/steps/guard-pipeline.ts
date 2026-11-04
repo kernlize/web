@@ -1,7 +1,9 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import { createGuardConfig, type GuardEvent, type GuardProfile, type WindowVisibility } from '@kernl/guard';
-import { createGuardPipeline, type GuardPipeline, type PipelineDisposition, type WindowResolution } from '@kernl/core';
+import type { NappletMessageDecision } from '@kehto/shell';
+import type { Decision } from '@kehto/firewall';
+import { createGuardPipeline, createRuntimeFirewallHooks, type GuardPipeline, type PipelineDisposition, type WindowResolution } from '@kernl/core';
 import { scratch, splitList, type CoreWorld } from './world.js';
 
 interface PipelineRecord {
@@ -12,7 +14,8 @@ interface PipelineRecord {
   origins: WeakMap<MessageEvent, string>;
   hostVisibility: Map<string, WindowVisibility>;
   quarantines: Array<{ windowId: string; napplet: string }>;
-  disposition?: PipelineDisposition;
+  released: string[];
+  disposition?: PipelineDisposition | NappletMessageDecision;
   profiles: GuardProfile[];
 }
 
@@ -21,7 +24,7 @@ interface PipelineScratch extends PipelineRecord {
 }
 
 function freshRecord(): PipelineRecord {
-  return { clock: { now: 0 }, events: [], forwarded: [], windows: new Map(), origins: new WeakMap(), hostVisibility: new Map(), quarantines: [], profiles: [] };
+  return { clock: { now: 0 }, events: [], forwarded: [], windows: new Map(), origins: new WeakMap(), hostVisibility: new Map(), quarantines: [], released: [], profiles: [] };
 }
 
 const HIDDEN: WindowVisibility = { visible: false, focused: false };
@@ -60,6 +63,7 @@ Given('a kernl guard pipeline using the {string} profile with a controlled clock
     onEvent: (event) => void record.events.push(event),
     onQuarantine: (windowId, napplet) => void record.quarantines.push({ windowId, napplet }),
     getVisibility: (windowId) => record.hostVisibility.get(windowId) ?? VISIBLE,
+    onRelease: (windowId) => void record.released.push(windowId),
   });
   pipeline.profile$.subscribe((value) => record.profiles.push(value));
   scratch(world).pipeline = { ...record, pipeline } satisfies PipelineScratch;
@@ -137,6 +141,14 @@ When('the pipeline observes {int} port envelopes of type {string} from window {s
   for (let i = 0; i < count; i += 1) s.disposition = s.pipeline.observe(windowId, s.windows.get(windowId) ?? 'unknown', { type });
 });
 
+When('the pipeline observes {int} paced port envelopes of type {string} from window {string}', (world: CoreWorld, count: number, type: string, windowId: string) => {
+  const s = state(world);
+  for (let i = 0; i < count; i += 1) {
+    if (i > 0 && i % 8 === 0) s.clock.now += 1000;
+    s.disposition = s.pipeline.observe(windowId, s.windows.get(windowId) ?? 'unknown', { type });
+  }
+});
+
 When('the pipeline observes a port envelope of type {string} from window {string}', (world: CoreWorld, type: string, windowId: string) => {
   const s = state(world);
   s.disposition = s.pipeline.observe(windowId, s.windows.get(windowId) ?? 'unknown', { type });
@@ -144,7 +156,7 @@ When('the pipeline observes a port envelope of type {string} from window {string
 
 When('the pipeline observes port envelopes of type {string} from window {string} until it quarantines, at most {int}', (world: CoreWorld, type: string, windowId: string, max: number) => {
   const s = state(world);
-  for (let i = 0; i < max && s.disposition !== 'quarantine'; i += 1) {
+  for (let i = 0; i < max && s.quarantines.length === 0; i += 1) {
     s.disposition = s.pipeline.observe(windowId, s.windows.get(windowId) ?? 'unknown', { type });
   }
 });
@@ -192,7 +204,27 @@ Then('the pipeline reports window {string} as hidden', (world: CoreWorld, window
   expect(state(world).pipeline.getVisibility(windowId)).toEqual(HIDDEN);
 });
 
+Then('the pipeline asked to release nothing', (world: CoreWorld) => {
+  expect(state(world).released).toEqual([]);
+});
+
+Then('the pipeline asked to release window {string}', (world: CoreWorld, windowId: string) => {
+  expect(state(world).released).toEqual([windowId]);
+});
+
 Then('the pipeline profile is {string}', (world: CoreWorld, profile: GuardProfile) => {
   expect(state(world).pipeline.config.profile).toBe(profile);
   expect(state(world).profiles.at(-1)).toBe(profile);
+});
+
+When('the runtime firewall reports rule {string} with decision {string} for {string}', (world: CoreWorld, ruleId: string, decision: Decision, opClass: string) => {
+  const events: GuardEvent[] = [];
+  const hooks = createRuntimeFirewallHooks({ storage: scratch(world).storage, onEvent: (event) => void events.push(event) });
+  hooks.onFirewallEvent({ windowId: 'w1', napplet: 'chat', opClass, decision, action: 'block', ruleId, reason: 'secret detail', message: { type: 'storage.set', value: 'secret' } as never });
+  scratch(world).runtimeEvents = events;
+});
+
+Then('the guard was told of a {string} of {string} because {string}, and nothing else', (world: CoreWorld, disposition: string, opClass: string, reason: string) => {
+  const events = scratch(world).runtimeEvents as GuardEvent[];
+  expect(events).toEqual([{ disposition, windowId: 'w1', napplet: 'chat', opClass, reason, at: expect.any(Number) }]);
 });

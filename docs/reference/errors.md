@@ -65,26 +65,29 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 
 The guard reports each non-pass decision as a `GuardEvent` with a `disposition` (`defer`, `reject`, `quarantine`, `flag`) and one of these reasons. They reach the user through `kernl.guard.events$` and the shell's guard panel. The numbers are per profile; see [Guard](../concepts/guard.md#profiles).
 
-For an applet's port traffic these layers observe each envelope just before kehto dispatches it but cannot hold it ([D-012](../decisions.md#d-012)): an event records what happened. Two reasons change the outcome. `size:<class>` makes kehto's runtime firewall refuse that envelope (`refuseCurrentDispatch`), and `quarantine` revokes the binding, which also stops the envelope that crossed the limit. Otherwise `defer` and `reject` hold or drop only the window-level `hello`.
+For an applet's port traffic these layers decide each envelope through kehto's `filterNappletMessage` before the runtime sees it ([D-020](../decisions.md#d-020)). A `reject` drops the envelope, and the applet gets no reply. A `defer` with reason `hidden:<class>` holds it until the window is visible; a `flood:burst` `defer` on port traffic drops it. A `quarantine` revokes the binding, which also stops the envelope that crossed the limit and discards what the window held. For the window-level `hello`, `defer` and `reject` hold or drop it.
 
-Refusals by kehto's runtime firewall (the per-class rates and the startup burst) are not guard events: kehto answers the applet with an error whose message starts `firewall:`, and `ShellAdapter` does not forward the runtime's firewall events to the host ([upstream gap 1](../alpha-status.md#upstream-gaps)). The focus firewall's `rate:<class>` events count the same rates, so the user still sees an applet that runs out.
+kehto's runtime firewall refuses what it handles over the per-class rates, the unfocused budget or the startup burst with an error whose message starts `firewall:`, and reports each refusal through `onFirewallEvent`; kernl turns those into guard events with the reasons in the last three rows, without the applet's message.
 
 | Reason | Emitted by | Disposition | Meaning |
 | --- | --- | --- | --- |
-| `flood:burst` | ingress guard (`ingress-guard.ts`) | `defer` | More messages in one second than `ingressBurst` allows. A `hello` is held; for port traffic this is a report. |
-| `flood:queue-full` | ingress guard | `reject` | More than `ingressQueue` messages over the burst. A `hello` is dropped; for port traffic this is a report. |
+| `flood:burst` | ingress guard (`ingress-guard.ts`) | `defer` | More messages in one second than `ingressBurst` allows. A `hello` is held; a port envelope other than a control one is dropped. |
+| `flood:queue-full` | ingress guard | `reject` | More than `ingressQueue` messages over the burst. A `hello` is dropped; a port envelope other than a control one is dropped. |
 | `flood:quarantine` | ingress guard | `quarantine` | `quarantineThreshold` messages in a rolling 10 s, or any message from a window already quarantined. The binding is revoked. |
 | `flood:hidden-resource` | ingress guard | `quarantine` | A hidden window made more `resource.*` requests than `hiddenResourceAllowance`. The binding is revoked. |
-| `size:<class>` | ingress guard | `reject` | The envelope is over the size cap for `resource:bytes`, `relay:subscribe` or `outbox:subscribe`. In the composed shell the runtime firewall refuses it before dispatch, so the applet receives a `firewall:` error and nothing is fetched. |
-| `defer:queue-full` | visibility gate (`visibility-gate.ts`) | `reject` | The hidden window's deferral queue is full. Only the window-level `hello` passes through the gate. |
-| `rate:<class>` | focus firewall (`focus-firewall.ts`) | `reject`, or `flag` when the rate's action is `flag` | kehto's `rate:opclass`, `rate:global` or `rate:default` rule fired; the reason names the class, for example `rate:relay:publish`. |
+| `size:<class>` | ingress guard | `reject` | The envelope is over the size cap for `resource:bytes`, `relay:subscribe` or `outbox:subscribe`. In the composed shell the envelope is dropped before dispatch: nothing is fetched and the applet gets no reply. |
+| `hidden:<class>` | guard pipeline (`pipeline.ts`) | `defer` | A non-control port envelope from a window that is not visible. It is held and handled once the window is visible. |
+| `defer:queue-full` | visibility gate (`visibility-gate.ts`) | `reject` | The hidden window already holds `deferQueue` envelopes; this one is dropped. |
+| `rate:<class>` | focus firewall (`focus-firewall.ts`), or the runtime firewall through `onFirewallEvent` | `reject`, or `flag` when the rate's action is `flag` | kehto's `rate:opclass`, `rate:global` or `rate:default` rule fired; the reason names the class, for example `rate:relay:publish`. From the focus firewall the envelope is dropped; from the runtime it is refused with a `firewall:` error. |
 | `matcher:<id>` | focus firewall | `reject` | A kehto content matcher fired; the rule id is passed through unchanged. The guard's own matchers are `size:resource:bytes`, `size:relay:subscribe` and `size:outbox:subscribe`, and in the composed shell they cannot fire: the ingress guard rejects the same envelopes with `size:<class>` first, and the focus firewall sees only what it passed. A caller that runs the focus firewall alone can see `matcher:size:<class>`. |
 | `policy:deny` | focus firewall | `reject` | The applet's policy in the guard's own firewall configuration is `deny`. kernl sets no policy there, so this appears only if a caller set one. |
 | `prompt:<ruleId>` | focus firewall | `reject` | kehto's engine asked for a prompt (for example `prompt:policy:ask`); the guard has no UI and treats it as a rejection. |
+| `flood:startup` | runtime firewall, through `onFirewallEvent` | `reject` | More operations in a window's first second than the profile's `ingressBurst`; the runtime refuses the excess with a `firewall:` error. |
+| `runtime:<ruleId>` | runtime firewall, through `onFirewallEvent` | `reject`, or `flag` when it passed with a flag | Any other runtime firewall decision, with kehto's rule id, for example `runtime:policy:deny`. |
 
 ## Revocation reasons
 
-`KernlHost.onRevoked(windowId, reason)` receives kehto's revocation reasons (`window-message`, `second-hello`, `invalid-hello`, `second-load`, `port-closed`, `host`) or `quarantine` when the guard quarantined the window. See [Architecture](../concepts/architecture.md#the-mount-path).
+`KernlHost.onRevoked(windowId, reason)` receives kehto's revocation reasons (`window-message`, `second-hello`, `invalid-hello`, `second-load`, `port-closed`, `deferred-overflow`, `host`) or `quarantine` when the guard quarantined the window. See [Architecture](../concepts/architecture.md#the-mount-path).
 
 ## Related
 

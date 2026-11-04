@@ -359,8 +359,8 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend): S
       if (!entry || !isPreviewMessage(event.data)) return;
       const envelope = ENVELOPES[event.data.kernlPreview] ?? { type: 'generic' };
       const visibility = host.getVisibility(entry.plan.windowId);
-      // Observe-only, as the live shell is for applet traffic (D-012): the guard records what it
-      // sees and holds nothing back; only a quarantine stops the applet.
+      // The preview's sample applets talk over window messages, not a bound port, so its guard
+      // records what it sees and holds nothing back; only a quarantine stops the applet (D-011).
       const disposition = guard.ingress().admit(entry.plan.windowId, entry.plan.summary.identity.dTag, envelope, visibility);
       if (disposition === 'quarantine') entry.revoke('quarantine');
       else perform(entry, event.data);

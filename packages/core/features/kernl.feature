@@ -15,6 +15,8 @@ Feature: The composed shell
     And the shell messaging provider "private" is unavailable
     And the shell bridges are "http,torrent,nzb,soulseek,mail"
     And the frame policy meta locks frame navigation
+    And the runtime ACL refuses "relay:read" to an applet the user never granted anything
+    And the runtime firewall scales unfocused budgets by 0.25 and allows 8 operations in a window's first 1000 ms
 
   Scenario: the shell's downloads, sharing and mail hand off through the host's link opener
     Given a kernl shell over that host and pool without a blob fetcher
@@ -212,65 +214,79 @@ Feature: The composed shell
     When the applet asks "identity.getPublicKey" over its port
     Then the applet received a "identity.getPublicKey.result"
 
-  Scenario: an oversized download request is refused before any service sees it
+  Scenario: an oversized download request is dropped before any service sees it
     Given a kernl shell over that host and pool with fake bridges
     And a mounted applet granted "resource" that has said hello
     When the applet asks "resource.bytes" for an address of 65 KiB over its port
-    Then the applet received a "resource.bytes.error" naming the firewall
+    Then the oversized "resource.bytes" request got no answer
     And the fake bridges were asked for nothing
     And the shell guard events included "size:resource:bytes"
     When the applet asks "resource.bytes" for "https://files.example/a.txt" over its port
     Then the applet received a "resource.bytes.result"
     And the fake bridges were asked for "https://files.example/a.txt" by applet "chat"
 
-  Scenario: an applet you are not using is refused past its smaller budget until you focus it
+  Scenario: an applet you are not using is stopped past its smaller budget until you focus it
     Given a kernl shell over that host and pool with fake bridges and a manual clock
     And a mounted applet granted "resource" that has said hello
     When the applet window becomes "visible but not focused"
     And the applet sends 25 "storage.set" requests over its port, 125 ms apart
     Then "storage.set" requests 1 to 15 were answered
-    And at least one "storage.set" request was refused by the firewall
+    And at least one "storage.set" request got no answer
     And the shell guard events included "rate:storage:write"
     When the applet window becomes "focused"
     And the applet sends 1 "storage.set" requests over its port, 125 ms apart
     Then "storage.set" requests 26 to 26 were answered
 
-  Scenario: a burst above the per-second rate is refused, and control messages still get through
+  Scenario: a burst above the per-second rate is dropped, and control messages still get through
     Given a kernl shell over that host and pool with fake bridges and a manual clock
     And a mounted applet granted "resource" that has said hello
-    When the applet sends 8 "resource.bytes" requests over its port, 0 ms apart
-    Then "resource.bytes" requests 1 to 6 were answered
-    And "resource.bytes" requests 7 to 8 were refused by the firewall
+    When the applet sends 9 "resource.bytes" requests over its port, 0 ms apart
+    Then "resource.bytes" requests 1 to 7 were answered
+    And "resource.bytes" requests 8 to 9 got no answer
     And the shell guard events included "flood:burst"
     When the applet sends 1 "storage.get" requests over its port, 0 ms apart
     Then "storage.get" requests 1 to 1 were answered
 
-  Scenario: a hidden applet's requests are refused until it is visible, while control messages are answered
+  Scenario: a hidden applet's requests are held until it is visible, while control messages are answered
     Given a kernl shell over that host and pool with fake bridges and a manual clock
     And a mounted applet granted "resource" that has said hello
     When the applet window becomes "hidden"
-    And the applet sends 1 "resource.bytes" requests over its port, 1000 ms apart
-    Then "resource.bytes" requests 1 to 1 were refused by the firewall
+    And the applet sends 1 "theme.get" requests over its port, 1000 ms apart
+    Then "theme.get" requests 1 to 1 were answered
+    When the applet sends 1 "resource.bytes" requests over its port, 1000 ms apart
+    Then "resource.bytes" requests 1 to 1 got no answer
     And the fake bridges were asked for nothing
     And the shell guard events included "hidden:resource:bytes"
-    When the applet sends 1 "storage.get" requests over its port, 1000 ms apart
-    Then "storage.get" requests 1 to 1 were answered
     When the applet window becomes "focused"
-    And the applet sends 1 "resource.bytes" requests over its port, 1000 ms apart
-    Then "resource.bytes" requests 2 to 2 were answered
+    Then "resource.bytes" requests 1 to 1 were answered
     And the fake bridges were asked for "https://files.example/a.txt" by applet "chat"
 
-  Scenario: a refused dispatch puts the runtime policy back as it was
-    Given a kernl shell over that host and pool
-    And the runtime firewall holds the policy "ask" for "asker"
-    When the shell refuses the current dispatch for "asker" and for "stranger"
-    Then during that dispatch the runtime firewall policies were "deny" and "deny"
-    And afterwards the runtime firewall policy for "asker" is "ask" and for "stranger" is "none"
+  Scenario: held requests meet the runtime's smaller unfocused budget when they are released
+    Given a kernl shell over that host and pool with fake bridges and a manual clock
+    And a mounted applet granted "resource" that has said hello
+    And the applet's startup window has passed
+    When the applet window becomes "hidden"
+    And the applet sends 20 "storage.set" requests over its port, 125 ms apart
+    Then "storage.set" requests 1 to 20 got no answer
+    When the applet window becomes "visible but not focused"
+    Then "storage.set" requests 1 to 15 were answered
+    And "storage.set" requests 16 to 20 were refused by the firewall
+    And the shell guard events included "rate:storage:write"
+    And no guard event carries the applet's message
 
-  Scenario: mounting installs the profile's rates without bypassing them
+  Scenario: a window kehto revokes for holding too many messages is removed
+    Given a kernl shell over that host and pool
+    And a mounted applet
+    When kehto revokes the mounted window for "deferred-overflow"
+    Then the host was told the window was revoked for "deferred-overflow"
+    And the mounted frame was removed
+    And the shell has 0 applets
+
+  Scenario: mounting installs the profile's rates without bypassing them, and stores them through the host
     Given a kernl shell over that host and pool
     And a mounted applet
     Then the runtime firewall holds no policy for "chat" and a "resource:fetch" rate of 120 per 10000 ms
+    And the host storage holds the runtime firewall config under "kernl:firewall:v1"
 
   Scenario: messages from windows the shell does not know go to the bridge unguarded
     Given a kernl shell over that host and pool with fake bridges
@@ -388,9 +404,12 @@ Feature: The composed shell
 
   Scenario: the guard facade changes the profile and lifts quarantine
     Given a kernl shell over that host and pool
+    And a mounted applet
     When the shell guard profile is set to "relaxed"
     Then the shell guard profile is "relaxed" with mitigations described
     And the shell guard profile stream ends with "relaxed"
+    And the runtime firewall scales unfocused budgets by 0.75 and allows 24 operations in a window's first 1000 ms
+    And the runtime firewall holds no policy for "chat" and a "resource:fetch" rate of 360 per 10000 ms
     And releasing window "applet-1" from the guard does nothing harmful
 
   Scenario: destroying the shell closes every applet and the bridge

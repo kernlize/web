@@ -43,7 +43,7 @@ for (const handle of kernl.applets()) {
 
 `GrantRecord` is `{ identity, domains, capabilities, blocked, stateQuotaBytes }`. `domains` are the ones the user allowed beyond the baseline; `capabilities` is `capabilitiesForDomains([...BASELINE_DOMAINS, ...domains])`.
 
-Every change commits the record, which does three things in order: persist it to `kernl:grants:v1`, write the full capability set into kehto's ACL (each capability in `ALL_CAPABILITIES` granted or revoked explicitly, then `block` or `unblock`, then `acl.persist()`), and emit the new `GrantRecord` on `changes$`. A call that changes nothing (allowing a domain twice, revoking one that was never allowed, allowing a baseline domain) commits nothing and emits nothing.
+Every change commits the record, which does three things in order: persist it to `kernl:grants:v1`, write it into kehto's restrictive ACL (each capability the record needs granted, whatever the applet's entry holds beyond that revoked, then `block` or `unblock`, then `acl.persist()`), and emit the new `GrantRecord` on `changes$`. A call that changes nothing (allowing a domain twice, revoking one that was never allowed, allowing a baseline domain) commits nothing and emits nothing.
 
 - **`allowDomain`** refuses a domain the shell does not offer with `invalid:domain`. A newly allowed domain is in the ACL at once; a running applet was told its environment at mount and is not told again, so the domain appears in its `shell.init` the next time it is opened.
 - **`revokeDomain`** refuses the baseline with `denied:baseline-domain`. The ACL loses the domain's capabilities at once, and kehto refuses the applet's next envelope that needs one of them.
