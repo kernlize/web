@@ -1,6 +1,6 @@
 export const SITE_NAME = 'kernl';
 /** The source is private during alpha; public readers get the decisions record instead. */
-export const DECISIONS_URL = 'https://kernlize.github.io/docs/decisions';
+export const DECISIONS_URL = 'https://kernl.run/docs/decisions';
 export const TOOLKIT_URL = 'https://github.com/kehto/web';
 export const APPLET_FORMAT_URL = 'https://napplet.run/';
 
@@ -23,7 +23,7 @@ const base = (): string => {
 };
 
 const site = (): string => {
-  const raw = import.meta.env.SITE ?? 'https://kernlize.github.io/';
+  const raw = import.meta.env.SITE ?? 'https://kernl.run/';
   return raw.endsWith('/') ? raw : `${raw}/`;
 };
 

@@ -11,7 +11,7 @@ The shell runs, but it is a first draft. Expect rough edges in the UI and read [
 Open the hosted preview:
 
 ```
-https://kernlize.github.io/app/?preview=1
+https://kernl.run/app/?preview=1
 ```
 
 The preview runs the same shell UI over an offline stand-in for the `Kernl` contract, with two sample applets and no network ([D-011](../decisions.md#d-011)). It behaves like the live shell where it stands in for it: it asks before a write only for the kinds `@kernl/core` rates destructive, using the core's own `isDestructiveKind` and `describeChange`; its guard observes and stops an applet only by quarantine; it starts in `strict` on every load; and its sample applets remove WebRTC the way kehto's prelude does. Messaging here goes nowhere; in the live shell private and legacy messages are sent for real once you sign in with an account that can encrypt ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)).
@@ -22,7 +22,7 @@ The preview runs the same shell UI over an offline stand-in for the `Kernl` cont
 - **Update your profile** and **Delete a note** ask first: the consent dialog shows what changes, and nothing happens until you answer.
 - **Flood the shell** sends 40 network reads at once; the guard panel (*Guard · strict · N* in the bar) records the burst.
 
-Without `?preview=1`, `https://kernlize.github.io/app/` is the live shell: everything below from step 3 on works there too, against real relays.
+Without `?preview=1`, `https://kernl.run/app/` is the live shell: everything below from step 3 on works there too, against real relays.
 
 ## Prerequisites for running from source
 

@@ -59,7 +59,7 @@ function summaryOf(spec: SampleSpec): AppletSummary {
     requires: spec.requires,
     optional: spec.optional,
     archetypes: [],
-    source: 'https://kernlize.github.io/docs/',
+    source: 'https://kernl.run/docs/',
     manifest: {
       format: 'current',
       artifactHash: spec.hash,
@@ -168,7 +168,7 @@ const handlers = {
   notify: () => send('notify', { text: 'The preview applet says hello.' }),
   flood: () => { for (let i = 0; i < 40; i += 1) send('subscribe', { seq: ++count }); log('Sent 40 network reads at once.'); },
   download: () => send('download', { url: 'magnet:?xt=urn:btih:${'ab'.repeat(20)}&dn=Sample' }),
-  link: () => send('link', { url: 'https://kernlize.github.io/docs/' }),
+  link: () => send('link', { url: 'https://kernl.run/docs/' }),
 };
 document.querySelectorAll('[data-action]').forEach((button) => {
   button.addEventListener('click', () => handlers[button.dataset.action]());

@@ -80,7 +80,7 @@ The first version of every package and of the shell. Nothing is published to npm
 - Open an applet by address, with its required and optional domains as choices.
 - Floating and tiled windows, with a compact layout at 720 px and below.
 - A grants panel per window, the shell-wide guard panel with its event log, the provider picker, and Settings for relay tiers.
-- The offline preview behind `?preview=1` ([D-011](./decisions.md#d-011)), hosted at [kernlize.github.io/app/?preview=1](https://kernlize.github.io/app/?preview=1).
+- The offline preview behind `?preview=1` ([D-011](./decisions.md#d-011)), hosted at [kernl.run/app/?preview=1](https://kernlize.github.io/app/?preview=1).
 
 ### Docs
 
