@@ -1,6 +1,6 @@
 ---
-import Site from '../../layouts/Site.astro';
-import { href } from '../../lib/site';
+import Site from '../../../layouts/Site.astro';
+import { ABOUT, href } from '../../../lib/site';
 
 const description =
   'Bridges let kernl reach other networks for you. Web fetch and downloads from peers work inside kernl today; newsgroup downloads, sharing and mail hand off to an app on your device.';
@@ -65,7 +65,7 @@ const description =
       </div>
       <ol class="steps reveal">
         <li><h3>An applet asks; the shell resolves</h3><p>The applet never touches the other network. It hands the shell a link and gets back bytes or a conversation, or a reason.</p></li>
-        <li><h3>Not yet: seeing each request</h3><p>Bridge requests are not listed in the <a href={href('guard/')}>guard</a> yet, and there is no per-applet allowance for them. Until those exist, the shell does not claim either.</p></li>
+        <li><h3>Not yet: seeing each request</h3><p>Bridge requests are not listed in the <a href={href(`${ABOUT}guard/`)}>guard</a> yet, and there is no per-applet allowance for them. Until those exist, the shell does not claim either.</p></li>
         <li><h3>Named for people</h3><p>"Downloads", "sharing", "mail". Not the name of the wire format underneath. If you care which one it is, the documentation says.</p></li>
       </ol>
     </div>
