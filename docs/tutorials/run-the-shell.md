@@ -26,7 +26,7 @@ Without `?preview=1`, `https://kernl.run/app/` is the live shell: everything bel
 
 ## Prerequisites for running from source
 
-- Access to the kernl source repository. It is private during the alpha; the packages are not on npm either ([Packages](../packages/index.md#install)). Without access, use the hosted shell above.
+- Access to the kernl source repository. It is private during the alpha; the packages are not released on npm (`@kernlize/*`) or JSR (`@kernl/*`) either ([Packages](../packages/index.md#install)). Without access, use the hosted shell above.
 - Node 22 or newer and pnpm 10. The repository pins `pnpm@10.24.0` through `packageManager`; `corepack enable` picks it up.
 - A way to sign: a browser extension that speaks NIP-07, a remote signer that speaks NIP-46, or nothing, in which case the shell creates a local account protected by a password. kernl never asks for a private key directly and never stores one in plaintext.
 - The address of an applet to open, which you get from the applet's publisher (an `naddr1…` or `nevent1…` string, or a coordinate). The [napplet.run app store](https://napplet.run/apps/) lists published applets; step 4 gives one you can try.
