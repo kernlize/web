@@ -133,3 +133,20 @@ export { LINK_PROTOCOLS, createKernlServices, isTheme, resourceInitFor, type Ker
 export { createShellAdapter, type ShellAdapterDeps } from './kernl-adapter.js';
 export { createAppletLifecycle, resolveWindow, type AppletLifecycle, type LifecycleContext } from './kernl-lifecycle.js';
 export { createKernl, toSession } from './kernl.js';
+export { addressOf, newestEntries, toCatalogEntry, type CatalogEntry } from './catalog/entry.js';
+export { CATALOG_LIMIT, CATALOG_TIMEOUT_MS, catalogRelays, loadCatalog, type LoadCatalogOptions } from './catalog/fetch.js';
+export { fuzzyScore, popularTopics, searchCatalog, type CatalogQuery, type TopicCount } from './catalog/search.js';
+export { createInstalledApplets, type InstallableApplet, type InstalledApplet, type InstalledApplets, type InstalledContract } from './intents/installed.js';
+export {
+  HANDLER_PREFERENCES_KIND,
+  catalogIdForRef,
+  parseHandlerPreferences,
+  preferenceTemplate,
+  preferredHandlers,
+  refForCatalogId,
+  type HandlerPreferences,
+} from './intents/preferences.js';
+export { createHandlerDefaults, preferenceRelays, type HandlerDefaults, type HandlerDefaultsOptions, type PreferenceSigner } from './intents/defaults.js';
+export { createIntentRouter, type IntentRouter, type IntentRouterOptions } from './intents/router.js';
+export { DELIVERY_RETRY, createIntentDelivery, type IntentDeliveryOptions } from './intents/delivery.js';
+export { createKernlIntents, type KernlIntentDeps, type KernlIntents } from './kernl-intents.js';

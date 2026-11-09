@@ -9,6 +9,7 @@ import { mountApplet, type MountedApplet } from './applets/mount.js';
 import type { GuardPipeline, WindowResolution } from './guard/pipeline.js';
 import { applyRuntimeFirewallRules } from './guard/runtime-rules.js';
 import type { KernlGrants } from './grants/grants.js';
+import type { InstalledApplets } from './intents/installed.js';
 
 /** What the applet lifecycle needs from the composed shell. */
 export interface LifecycleContext {
@@ -18,6 +19,8 @@ export interface LifecycleContext {
   readonly bridge: ShellBridge;
   readonly pipeline: GuardPipeline;
   readonly grants: KernlGrants;
+  /** Every planned applet is installed, so others can hand it work. */
+  readonly installed: InstalledApplets;
   readonly host: Pick<KernlHost, 'onRevoked'>;
   /** Live handles keyed by window id; shared with the bridge's revocation hook. */
   readonly handles: Map<string, MountedApplet>;
@@ -27,7 +30,7 @@ export interface LifecycleContext {
 }
 
 /** The applet half of {@link Kernl}. */
-export type AppletLifecycle = Pick<Kernl, 'resolve' | 'plan' | 'mount' | 'applets' | 'handleWindowMessage'>;
+export type AppletLifecycle = Pick<Kernl, 'resolve' | 'install' | 'plan' | 'mount' | 'applets' | 'handleWindowMessage'>;
 
 function keyOf(identity: AppletIdentity): string {
   return `${identity.dTag}:${identity.hash}`;
@@ -53,7 +56,7 @@ export function resolveWindow(handles: ReadonlyMap<string, MountedApplet>, event
 
 /**
  * The applet lifecycle: `resolve` fetches and verifies, `plan` narrows the
- * environment under the user's grants, `mount` performs the NIP-5D mount order
+ * environment under the user's grants and installs the applet, `mount` performs the NIP-5D mount order
  * and `handleWindowMessage` runs the guard in front of the bridge.
  *
  * @param context - The composed shell's parts.
@@ -74,15 +77,22 @@ export function createAppletLifecycle(context: LifecycleContext): AppletLifecycl
       const event = await fetchManifestEvent(context.pool, context.tiers, pointer);
       const cache = await context.openCache();
       const { fetchBlob } = context;
-      const resolved = await resolveApplet(cache ? { event, fetchBlob, cache } : { event, fetchBlob });
+      const relays = pointer.relays;
+      const resolved = await resolveApplet(cache ? { event, fetchBlob, cache, relays } : { event, fetchBlob, relays });
       verified.set(keyOf(resolved.summary.identity), resolved.indexHtml);
       return resolved.summary;
+    },
+    install(summary: AppletSummary) {
+      if (!verified.has(keyOf(summary.identity))) throw new Error('invalid:unresolved');
+      context.grants.ensure(summary.identity);
+      return context.installed.install(summary);
     },
     async plan(summary: AppletSummary): Promise<MountPlan> {
       const indexHtml = verified.get(keyOf(summary.identity));
       if (indexHtml === undefined) throw new Error('invalid:unresolved');
       if (context.grants.get(summary.identity)?.blocked) throw new Error('denied:blocked');
       context.grants.ensure(summary.identity);
+      context.installed.install(summary);
       windowCounter += 1;
       return planMount({ summary, indexHtml, adapter: context.adapter, guardProfile: pipeline.config.profile, windowId: `applet-${windowCounter}` });
     },

@@ -216,6 +216,29 @@ function vanish(event: NostrEvent, applet: AppletIdentity): ConsentSummary {
   return destructive(event, applet, 'Ask services to erase your account', lines);
 }
 
+/** The user's preferred applets for an archetype; an applet writing it could route other applets' requests to itself. */
+const HANDLER_PREFERENCES = 31129;
+
+/** An applet named the way the user can recognise it: its name and publisher, or a pinned version's id. */
+function appletName(ref: string): string {
+  const [, pubkey = '', name = ''] = ref.split(':');
+  if (HEX_KEY.test(ref)) return `pinned applet ${abbreviate(ref)}`;
+  return name ? `applet "${name}" by person ${abbreviate(pubkey)}` : `applet by person ${abbreviate(pubkey)}`;
+}
+
+function handlerEntries(event: NostrEvent | undefined): string[] {
+  return (event?.tags ?? [])
+    .filter((tag) => (tag[0] === 'a' || tag[0] === 'e' || tag[0] === 'i') && typeof tag[1] === 'string')
+    .map((tag) => (tag[0] === 'i' ? `${appletName(tag[2] ?? '')} for "${(tag[1] as string).replace(/^napplet:/, '')}"` : appletName(tag[1] as string)));
+}
+
+function handlerPreferences(event: NostrEvent, before: NostrEvent | undefined, applet: AppletIdentity): ConsentSummary {
+  const archetype = tagValues(event, 'd')[0] ?? 'some requests';
+  const lines = changeLines(handlerEntries(before), handlerEntries(event), 'Applets', (entry) => entry);
+  if (before !== undefined && before.content !== event.content) lines.push({ label: 'Private choices', after: 'Replaced' });
+  return destructive(event, applet, `Change which applets open "${archetype}" for you`, lines);
+}
+
 function preview(content: string): string {
   const flat = content.replace(/\s+/g, ' ').trim();
   return flat.length > PREVIEW_LENGTH ? `${flat.slice(0, PREVIEW_LENGTH)}…` : flat;
@@ -233,7 +256,10 @@ function destructive(event: NostrEvent, applet: AppletIdentity, title: string, l
  * (a person by key prefix, a server by its name); any other
  * replaceable or addressable record diffs its tags and says when its content
  * is replaced, without copying it; deletions list the events and addresses
- * that disappear; a request to vanish names the services asked. Those kinds
+ * that disappear; a request to vanish names the services asked; a change to
+ * the user's preferred applets names the archetype and the applets added and
+ * removed, because an applet that wrote it could route other applets'
+ * requests to itself. Those kinds
  * are `destructive` because they replace or erase the account's public record. Everything else is `routine` and shows
  * a content preview. Nothing here is protocol vocabulary the user has to know,
  * and nothing secret is copied out of the event; the event itself rides along
@@ -259,6 +285,8 @@ export function describeChange(event: NostrEvent, before: NostrEvent | undefined
       return deletion(event, applet);
     case VANISH:
       return vanish(event, applet);
+    case HANDLER_PREFERENCES:
+      return handlerPreferences(event, before, applet);
     case 10002:
       return destructive(event, applet, 'Change your connections list', changeLines(relayEntries(before), relayEntries(event), 'Connections', (item) => item));
     default:

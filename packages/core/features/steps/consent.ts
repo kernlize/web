@@ -123,6 +123,33 @@ When('the shell describes signing a kind {int} record {string} with content {str
   describe(world, await record(kind, identifier, content, entries));
 });
 
+/** `a=viewer` prefers the named applet "viewer"; `e=pinned` a pinned version; `r=` a root applet; `i=<convention>>name` an intent-specific choice. */
+function preferenceTags(archetype: string, entries: string): string[][] {
+  const named = (name: string): string => (name === '' ? `15129:${hex('c')}:` : `35129:${hex('c')}:${name}`);
+  const tags = splitList(entries).map((entry) => {
+    const [tag = '', value = ''] = entry.split('=');
+    if (tag === 'e') return ['e', hex(value.charAt(0))];
+    if (tag === 'i') {
+      const [convention = '', name = ''] = value.split('>');
+      return name === '?' ? ['i', convention] : ['i', convention, named(name)];
+    }
+    return tag === 'r' ? ['a', named('')] : [tag, named(value)];
+  });
+  return [['d', archetype], ...tags];
+}
+
+Given('the current handler preferences for {string} are {string}', async (world: CoreWorld, archetype: string, entries: string) => {
+  scratch(world).before = await signEvent({ kind: 31129, tags: preferenceTags(archetype, entries), content: '' });
+});
+
+When('the shell describes an applet setting the handler preferences for {string} to {string} with private choices', async (world: CoreWorld, archetype: string, entries: string) => {
+  describe(world, await signEvent({ kind: 31129, tags: preferenceTags(archetype, entries), content: 'sealed' }));
+});
+
+When('the shell describes an applet setting handler preferences without an archetype to {string}', async (world: CoreWorld, entries: string) => {
+  describe(world, await signEvent({ kind: 31129, tags: preferenceTags('', entries).slice(1), content: '' }));
+});
+
 Then('kinds {string} are destructive', (_world: CoreWorld, kinds: string) => {
   expect(splitList(kinds).filter((kind) => !isDestructiveKind(Number(kind)))).toEqual([]);
 });

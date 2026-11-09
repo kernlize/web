@@ -20,3 +20,7 @@ import './ratchet-backend.js';
 import './kernl-dm.js';
 import './group-sessions.js';
 import './kernl-bridges.js';
+import './catalog.js';
+import './intents.js';
+import './intent-routing.js';
+import './kernl-intents.js';

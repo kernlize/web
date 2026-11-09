@@ -218,7 +218,7 @@ function fakeResolved(manifest: Partial<NappletManifest>, dTag: string): Resolve
 }
 
 Then('summarizing a resolved napplet without title, description or archetype slugs uses the d tag and archetype slugs', () => {
-  const result = summarize(fakeResolved({}, 'notes'));
+  const result = summarize(fakeResolved({}, 'notes'), 'naddr1notes');
   expect(result.title).toBe('notes');
   expect(result.description).toBe('');
   expect(result.archetypes).toEqual(['profile']);
@@ -226,7 +226,7 @@ Then('summarizing a resolved napplet without title, description or archetype slu
 });
 
 Then('summarizing a root napplet without a title is called {string}', (_world: CoreWorld, title: string) => {
-  expect(summarize(fakeResolved({}, '')).title).toBe(title);
+  expect(summarize(fakeResolved({}, ''), '').title).toBe(title);
 });
 
 Then('the default artifact cache is absent without Cache Storage', async () => {

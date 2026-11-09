@@ -36,8 +36,9 @@ function isTier(tier: string): tier is RelayTier {
 /**
  * Build kehto's `ShellAdapter` from kernl's parts.
  *
- * Choices kehto left open, decided here: windows are created by the host
- * through intents, not by applets (`createWindow` returns null); hotkeys are
+ * Choices kehto left open, decided here: windows are created by the host,
+ * which opens an intent's target for it, not by applets (`createWindow`
+ * returns null); the `intent` domain is offered, served by kernl's router; hotkeys are
  * not forwarded; there is no worker relay, the applesauce pool is the only
  * event source; every signature made for an applet window passes the consent
  * gate; update behaviour is `banner`; event signatures are verified by
@@ -76,6 +77,7 @@ export function createShellAdapter(deps: ShellAdapterDeps): ShellAdapter {
     workerRelay: { getWorkerRelay: () => null },
     crypto: { verifyEvent: (event) => Promise.resolve(verifyEvent(event)) },
     link: { isAvailable: () => true },
+    intent: { isAvailable: () => true },
     services: deps.services,
     capabilities: { resolveEnvironment: deps.resolveEnvironment },
     onNappletRevoked: deps.onNappletRevoked,

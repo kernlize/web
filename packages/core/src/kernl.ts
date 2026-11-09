@@ -4,7 +4,7 @@ import { RelayPool } from 'applesauce-relay';
 import type { AccountManager, IAccount } from 'applesauce-accounts';
 import type { ISigner } from 'applesauce-signers';
 import type { MessagingRegistry } from '@kernlize/messaging';
-import { buildShellCapabilities, createShellBridge, type ShellAdapter } from '@kehto/shell';
+import { buildShellCapabilities, createShellBridge, type ShellAdapter, type ShellBridge } from '@kehto/shell';
 import { createGuardConfig, describeMitigations, type GuardEvent } from '@kernlize/guard';
 import type { AppletIdentity, GuardFacade, Kernl, KernlOptions, RelayTiers, Session } from './types.js';
 import { createKernlAccounts } from './applesauce/accounts.js';
@@ -29,6 +29,8 @@ import { createDefaultBridges } from './bridges/default-registry.js';
 import { createKernlServices, isTheme } from './kernl-services.js';
 import { createShellAdapter } from './kernl-adapter.js';
 import { createAppletLifecycle } from './kernl-lifecycle.js';
+import { createKernlIntents } from './kernl-intents.js';
+import { loadCatalog } from './catalog/fetch.js';
 
 /**
  * Describe an account as a session the UI can show.
@@ -44,6 +46,42 @@ export function toSession(account: IAccount): Session {
   const metadata = account.metadata as { name?: unknown } | undefined;
   const label = typeof metadata?.name === 'string' ? metadata.name : (account.name ?? abbreviate(account.pubkey));
   return { accountId: account.id, pubkey: account.pubkey, label, readOnly: isReadOnlyAccount(account) };
+}
+
+interface ShellState {
+  readonly pipeline: GuardPipeline;
+  readonly bridge: ShellBridge;
+  readonly handles: ReadonlyMap<string, MountedApplet>;
+  readonly accounts: AccountManager;
+  readonly session$: BehaviorSubject<Session | null>;
+}
+
+/** Keep the runtime firewall on the guard's profile and the session on the active account. */
+function followShellState({ pipeline, bridge, handles, accounts, session$ }: ShellState): Subscription {
+  const subscriptions = new Subscription();
+  subscriptions.add(pipeline.profile$.subscribe(() => {
+    applyRuntimeFirewallProfile(bridge.runtime.firewallState, pipeline.config);
+    for (const handle of handles.values()) applyRuntimeFirewallRules(bridge.runtime.firewallState, pipeline.config, handle.summary.identity.dTag);
+  }));
+  subscriptions.add(accounts.active$.subscribe((account) => {
+    session$.next(account ? toSession(account) : null);
+    bridge.publishIdentityChanged(account?.pubkey ?? '');
+  }));
+  return subscriptions;
+}
+
+/** Signing in and out. The session itself is a getter on the shell, so spreading this never copies a stale value. */
+function createSignIn(accounts: AccountManager): Pick<Kernl, 'login' | 'logout'> {
+  return {
+    async login(account) {
+      if (!accounts.getAccount(account.id)) accounts.addAccount(account);
+      accounts.setActive(account);
+      return toSession(account);
+    },
+    async logout() {
+      accounts.clearActive();
+    },
+  };
 }
 
 function createGuardFacade(pipeline: GuardPipeline, events$: Subject<GuardEvent>): GuardFacade {
@@ -90,11 +128,22 @@ function createAccountMessaging(options: KernlOptions, parts: MessagingParts): M
   });
 }
 
+/** The host's messaging and bridge registries, or kernl's defaults over the shell's parts. */
+function registriesFor(options: KernlOptions, parts: MessagingParts): Pick<Kernl, 'messaging' | 'bridges'> {
+  const { host } = options;
+  return {
+    messaging: options.messaging ?? createAccountMessaging(options, parts),
+    // host.openLink asks before leaving kernl, so every hand-off is confirmed by the user (D-010).
+    bridges: options.bridges ?? createDefaultBridges({ handoff: (uri) => host.openLink(uri), ...(options.torrent ? { torrent: options.torrent } : {}) }),
+  };
+}
+
 /**
  * Compose the shell: one `EventStore`, one `RelayPool`, one `AccountManager`,
  * the relay tiers, the guard pipeline, the grants layer, the messaging and
- * bridge registries, kehto's services and `createShellBridge`, plus the applet
- * lifecycle `decodePointer` → `resolve` → `plan` → `mount`.
+ * bridge registries, kehto's services (intents included) and
+ * `createShellBridge`, the applet store's catalogue, plus the applet lifecycle
+ * `decodePointer` → `resolve` → `plan` → `mount`.
  *
  * Anything the host passes in `options` is used as is; anything missing is
  * created with kernl's defaults. The host wires `handleWindowMessage` to the
@@ -119,11 +168,7 @@ export function createKernl(options: KernlOptions): Kernl {
   const pool = options.pool ?? new RelayPool();
   const accounts = options.accounts ?? createKernlAccounts(host.storage);
   const tiers = createRelayTiers(host.storage, options.relays ?? {});
-  const messaging = options.messaging ?? createAccountMessaging(options, { eventStore, pool, tiers, accounts });
-  // host.openLink asks before leaving kernl, so every hand-off is confirmed by the user (D-010).
-  const bridges =
-    options.bridges ??
-    createDefaultBridges({ handoff: (uri) => host.openLink(uri), ...(options.torrent ? { torrent: options.torrent } : {}) });
+  const { messaging, bridges } = registriesFor(options, { eventStore, pool, tiers, accounts });
 
   const handles = new Map<string, MountedApplet>();
   const guardEvents$ = new Subject<GuardEvent>();
@@ -165,6 +210,8 @@ export function createKernl(options: KernlOptions): Kernl {
     },
   });
 
+  const intents = createKernlIntents({ host, pool, tiers, accounts, handles, ...(options.intentRetry ? { retry: options.intentRetry } : {}) });
+  services.registry.intent = intents.handler;
   const adapter: ShellAdapter = createShellAdapter({
     pool,
     tiers,
@@ -185,14 +232,7 @@ export function createKernl(options: KernlOptions): Kernl {
   grants = createGrants({ acl: bridge.runtime.aclState, storage: host.storage, availableDomains: () => buildShellCapabilities(adapter).domains });
   bridge.registerConsentHandler(createConsentHandler(host, lookupBefore, identityOf));
 
-  subscriptions.add(pipeline.profile$.subscribe(() => {
-    applyRuntimeFirewallProfile(bridge.runtime.firewallState, pipeline.config);
-    for (const handle of handles.values()) applyRuntimeFirewallRules(bridge.runtime.firewallState, pipeline.config, handle.summary.identity.dTag);
-  }));
-  subscriptions.add(accounts.active$.subscribe((account) => {
-    session$.next(account ? toSession(account) : null);
-    bridge.publishIdentityChanged(account?.pubkey ?? '');
-  }));
+  subscriptions.add(followShellState({ pipeline, bridge, handles, accounts, session$ }));
 
   const lifecycle = createAppletLifecycle({
     pool,
@@ -201,6 +241,7 @@ export function createKernl(options: KernlOptions): Kernl {
     bridge,
     pipeline,
     grants,
+    installed: intents.installed,
     host,
     handles,
     subscriptions,
@@ -218,24 +259,20 @@ export function createKernl(options: KernlOptions): Kernl {
     relays: tiers,
     messaging,
     bridges,
+    catalog: { load: (loadOptions) => loadCatalog(pool, tiers, loadOptions) },
+    intents: intents.intents,
     session$,
     get session() {
       return session$.value;
     },
-    async login(account) {
-      if (!accounts.getAccount(account.id)) accounts.addAccount(account);
-      accounts.setActive(account);
-      return toSession(account);
-    },
-    async logout() {
-      accounts.clearActive();
-    },
+    ...createSignIn(accounts),
     decodePointer,
     ...lifecycle,
     destroy() {
       const open = [...handles.values()];
       for (const handle of open) handle.close();
       subscriptions.unsubscribe();
+      intents.close();
       services.dm.dispose();
       bridge.destroy();
       if (ownsMessaging) messaging.close();

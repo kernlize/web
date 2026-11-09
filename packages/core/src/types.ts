@@ -9,6 +9,10 @@ import type { NostrEvent } from '@napplet/core';
 import type { GuardConfig, GuardEvent, GuardProfile, MitigationDescription, WindowVisibility } from '@kernlize/guard';
 import type { MessagingBackend, MessagingRegistry } from '@kernlize/messaging';
 import type { BridgeRegistry, TorrentBackend } from '@kernlize/bridges';
+import type { CatalogEntry } from './catalog/entry.js';
+import type { LoadCatalogOptions } from './catalog/fetch.js';
+import type { HandlerDefaults } from './intents/defaults.js';
+import type { InstalledApplet } from './intents/installed.js';
 
 
 /** The two values an applet's grants are keyed on. Both come from verification, never from the applet. */
@@ -25,6 +29,8 @@ export type AppletPointer =
 /** What the shell shows before the user agrees to run an applet. Derived from the verified manifest. */
 export interface AppletSummary {
   readonly identity: AppletIdentity;
+  /** A shareable address for the manifest (`naddr1…`, or `nevent1…` for a pinned version). */
+  readonly address: string;
   readonly title: string;
   readonly description: string;
   readonly publisher: string;
@@ -159,6 +165,37 @@ export interface StorageLike {
   removeItem(key: string): void;
 }
 
+/** One installed applet the handler chooser offers. */
+export interface HandlerOption {
+  /** The runtime-assigned catalogue id. */
+  readonly id: string;
+  readonly title: string;
+  readonly address: string;
+  /** The user's published preferences name it for this request. */
+  readonly preferred: boolean;
+}
+
+/** What the chooser asks: which applet should take a request one applet made of another. */
+export interface HandlerPrompt {
+  readonly archetype: string;
+  readonly action: string;
+  /** The stable convention identity, such as `napplet:profile/open`. */
+  readonly convention: string;
+  /** The asking applet's title. */
+  readonly source: string;
+  /** Installed applets that accept the convention, preferred first. Empty when none is installed. */
+  readonly options: readonly HandlerOption[];
+  /** A coordinate the asking applet recommended; untrusted, a suggestion only. */
+  readonly recommended?: string;
+}
+
+/** The user's answer. The id may be an applet installed while the chooser was open. */
+export interface HandlerChoice {
+  readonly id: string;
+  /** Make it the default for the archetype. */
+  readonly remember: boolean;
+}
+
 /** Host hooks the core calls. Applets never reach these. */
 export interface KernlHost {
   readonly storage: StorageLike;
@@ -172,6 +209,15 @@ export interface KernlHost {
   getVisibility(windowId: string): WindowVisibility;
   /** Called after the core removed a frame because its binding was revoked. */
   onRevoked(windowId: string, reason: string): void;
+  /**
+   * Ask the user which applet should take a request. Resolve `undefined` on
+   * dismiss. Without it, requests with several handlers and no default are refused.
+   */
+  chooseHandler?(prompt: HandlerPrompt): Promise<HandlerChoice | undefined>;
+  /** Open the applet at an address, under its existing grants; resolve its window id, or undefined when it did not open. */
+  openApplet?(address: string): Promise<string | undefined>;
+  /** Bring a running applet's window to the front. */
+  focusApplet?(windowId: string): void;
   /** Verify an artifact blob. Defaults to `fetch` over the manifest's servers. */
   fetchBlob?(sha256: string, servers: readonly string[]): Promise<Uint8Array>;
   now?(): number;
@@ -210,6 +256,24 @@ export interface KernlOptions {
   readonly messagingBackends?: MessagingBackendFactories;
   /** Opens the verified-artifact cache. Defaults to Cache Storage when the page has it, otherwise none. */
   readonly artifactCache?: () => Promise<NappletArtifactCache | undefined>;
+  /** How intent delivery waits for a target to come up; `DELIVERY_RETRY` by default. */
+  readonly intentRetry?: { readonly intervalMs: number; readonly attempts: number };
+}
+
+/** The applet store's catalogue. */
+export interface AppletCatalog {
+  /** List the applets published to the store's relays, newest first. */
+  load(options?: LoadCatalogOptions): Promise<readonly CatalogEntry[]>;
+}
+
+/** Applets handing work to each other: what is installed, and which applet the user prefers for what. */
+export interface Intents {
+  /** Replays the installed list to new subscribers. */
+  readonly installed$: Observable<readonly InstalledApplet[]>;
+  installed(): readonly InstalledApplet[];
+  /** Forget an applet; other applets can no longer hand work to it. */
+  uninstall(catalogId: string): void;
+  readonly defaults: HandlerDefaults;
 }
 
 /** The guard as the UI sees it. */
@@ -234,6 +298,8 @@ export interface Kernl {
   readonly relays: RelayTiers;
   readonly messaging: MessagingRegistry;
   readonly bridges: BridgeRegistry;
+  readonly catalog: AppletCatalog;
+  readonly intents: Intents;
   readonly session$: Observable<Session | null>;
   readonly session: Session | null;
   login(account: IAccount): Promise<Session>;
@@ -242,6 +308,8 @@ export interface Kernl {
   decodePointer(input: string): AppletPointer;
   /** Fetch and verify the manifest and bytes. Throws `unavailable:` or `invalid:` reasons. */
   resolve(pointer: AppletPointer): Promise<AppletSummary>;
+  /** Remember a verified applet so other applets can hand it work, without opening it. Throws `invalid:unresolved` for a summary this shell did not verify. */
+  install(summary: AppletSummary): InstalledApplet;
   /** Build the mount plan for a verified applet under the user's current grants. */
   plan(summary: AppletSummary): Promise<MountPlan>;
   /** Put the applet in the frame. Performs the mount order and tracks the handle. */
