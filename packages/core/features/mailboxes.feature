@@ -128,6 +128,23 @@ Feature: Account mailboxes
     Then the shell refused with "invalid:relay-url"
     And nothing was published
 
+  Scenario: a save over a pool that answers one server at a time reports as it goes, and the list shows once one holds it
+    Given the servers answer publishes one at a time, "wss://look2.example" never answering, then the stream completes
+    And "wss://out.example" refuses publishes with "blocked: not on the list"
+    When the signed-in account's mailboxes are watched
+    And the account saves inboxes "wss://in.example" and outboxes "wss://out.example", watching progress
+    Then the progress went "0/1:missing,1/2:found,2/3:found"
+    And the save succeeded
+    And "wss://look2.example/" refused it with "no answer"
+    And the person is told "Saved to 2 of 4 servers"
+
+  Scenario: a streamed save whose stream fails still counts every server
+    Given the servers answer publishes one at a time, "wss://look1.example,wss://look2.example" never answering, then the stream fails
+    When the signed-in account's mailboxes are watched
+    And the account saves inboxes "wss://in.example" and outboxes "wss://in.example", watching progress
+    Then the progress went "1/1:found"
+    And the person is told "Saved to 1 of 3 servers"
+
   Scenario: saving keeps the other tags and the content, and moves time forward
     Given "wss://look1.example" holds a mailbox list from 1900000000 with content "kept" and
       | tag    | url              | marker |

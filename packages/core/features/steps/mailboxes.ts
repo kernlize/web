@@ -309,3 +309,39 @@ Then('the published list has content {string} and was created at {int}', (world:
 Then('the mailboxes of no list are empty', () => {
   expect(mailboxesFromEvent(undefined)).toEqual({ inboxes: [], outboxes: [] });
 });
+
+Given('the servers answer publishes one at a time, {string} never answering, then the stream {word}', (world: CoreWorld, silent: string, ending: string) => {
+  const network = world$(world).network;
+  const quiet = new Set(splitList(silent).map(normalizeRelayUrl));
+  network.event = (relays, event) =>
+    new Observable<PublishResponse>((observer) => {
+      network.published.push({ relays: relays as string[], event: event as NostrEvent });
+      const answering = (relays as string[]).filter((url) => !quiet.has(url));
+      let at = 0;
+      const timer = setInterval(() => {
+        const from = answering[at];
+        at += 1;
+        if (from === undefined) {
+          clearInterval(timer);
+          if (ending === 'fails') observer.error(new Error('timeout'));
+          else observer.complete();
+          return;
+        }
+        const reason = network.refusing.get(from);
+        observer.next(reason ? { ok: false, from, message: reason } : { ok: true, from });
+      }, 2);
+      return () => clearInterval(timer);
+    });
+});
+
+When('the account saves inboxes {string} and outboxes {string}, watching progress', async (world: CoreWorld, inboxes: string, outboxes: string) => {
+  const progress: string[] = [];
+  scratch(world).progress = progress;
+  scratch(world).outcome = await mailboxes(world).save({ inboxes: splitList(inboxes), outboxes: splitList(outboxes) }, (sofar) => {
+    progress.push(`${sofar.accepted.length}/${sofar.accepted.length + sofar.refused.length}:${current(world).status}`);
+  });
+});
+
+Then('the progress went {string}', (world: CoreWorld, steps: string) => {
+  expect(scratch(world).progress).toEqual(splitList(steps));
+});

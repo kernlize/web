@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import type { MailboxState, PublishOutcome, RelayDirectory, RelayListing, SuggestOptions } from '@kernlize/core';
-import { completionsFor, draftChanged, draftOf, savedWords, suggestionsFor, withoutServer, withServer, type MailboxDraft, type MailboxSide } from '../../src/shell/mailbox-draft.ts';
+import { completionsFor, draftChanged, draftOf, progressWords, savedWords, suggestionsFor, withoutServer, withServer, type MailboxDraft, type MailboxSide } from '../../src/shell/mailbox-draft.ts';
 
 interface MailboxWorld {
   draft?: MailboxDraft;
@@ -106,4 +106,8 @@ Then('a save accepted by {string} and refused by {string} reads {string}', (_wor
 Then('a save refused by {string} reads {string}', (_world: MailboxWorld, refused: string, words: string) => {
   const outcome = { accepted: [], refused: list(refused).map((url) => ({ url, reason: 'blocked' })), ok: false };
   expect(savedWords(outcome, describeCount)).toBe(words);
+});
+
+Then('a save under way held by {string} reads {string}', (_world: MailboxWorld, accepted: string, words: string) => {
+  expect(progressWords({ accepted: list(accepted), refused: [], ok: accepted !== '' })).toBe(words);
 });

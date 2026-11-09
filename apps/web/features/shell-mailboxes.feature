@@ -29,12 +29,15 @@ Feature: Editing the inbox and outbox in Settings
     And the draft needs saving against the found list with inbox "wss://in.test/" and outbox ""
 
   Scenario: what the person types is completed from monitored servers they do not already have
-    Given a directory that knows "wss://nos.lol/,wss://nostr.mom/,wss://relay.nos.social/"
+    Given a directory that knows "wss://nos.lol/,wss://nostr.mom/,wss://relay.nos.social/,wss://nostr.box.test/inbox"
     Then completing "n" offers ""
-    And completing "nos" without "wss://nos.lol/" offers "nostr.mom,nos.social"
-    And suggestions for the inbox of a draft holding "wss://nos.lol/" are "nostr.mom,nos.social"
+    And completing "nos" without "wss://nos.lol/" offers "nostr.mom,nos.social,box.test/inbox"
+    And suggestions for the inbox of a draft holding "wss://nos.lol/" are "nostr.mom,nos.social,box.test/inbox"
     And suggestions for the outbox of a draft holding "" are "nos.lol,nostr.mom,nos.social"
 
   Scenario: a save is described by how many servers took it
     Then a save accepted by "a,b" and refused by "c" reads "2 of 3"
     And a save refused by "a" reads "none. Your list is unchanged; try again or pick other servers."
+    And a save under way held by "" reads "Publishing…"
+    And a save under way held by "a" reads "Saved to 1 server so far…"
+    And a save under way held by "a,b" reads "Saved to 2 servers so far…"

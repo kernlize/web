@@ -20,7 +20,13 @@ const COMPLETIONS = 6;
 const SUGGESTIONS = 3;
 const ADDRESS = /^wss?:\/\/[^\s/.]+\.[^\s]+$/i;
 
-const choice = (url: string): ServerChoice => ({ url, label: serverName(url) });
+/** The server's name, with its path when it has one, so two lists on one host read apart (`example.com/inbox`). */
+const labelOf = (url: string): string => {
+  const { pathname } = new URL(url);
+  return pathname === '/' ? serverName(url) : `${serverName(url)}${pathname.replace(/\/$/, '')}`;
+};
+
+const choice = (url: string): ServerChoice => ({ url, label: labelOf(url) });
 
 /** One spelling per server, as the core stores it: lower-case host and a path, so `wss://nos.lol` and `wss://NOS.lol/` are one. */
 const canonical = (url: string): string => new URL(url).href;
@@ -72,6 +78,12 @@ export function completionsFor(directory: RelayDirectory, text: string, exclude:
 /** A few well-monitored servers this side does not have yet. */
 export function suggestionsFor(directory: RelayDirectory, side: MailboxSide, draft: MailboxDraft): readonly ServerChoice[] {
   return directory.suggest({ purpose: PURPOSE[side], exclude: draft[side], limit: SUGGESTIONS }).map((listing) => choice(listing.url));
+}
+
+/** A save still under way: how many servers hold the list so far. */
+export function progressWords(sofar: PublishOutcome): string {
+  const held = sofar.accepted.length;
+  return held === 0 ? 'Publishing…' : `Saved to ${held} ${held === 1 ? 'server' : 'servers'} so far…`;
 }
 
 /** What a save did, in words: how many servers took the list, never their protocol messages. */

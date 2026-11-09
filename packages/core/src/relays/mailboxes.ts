@@ -5,7 +5,7 @@ import type { ISigner } from 'applesauce-signers';
 import { unixNow, type NostrEvent } from 'applesauce-core/helpers';
 import { subscribeWithEose } from '../applesauce/relay-hooks.js';
 import { DEFAULT_SUGGESTIONS, type RelayDirectory } from './directory.js';
-import { relayUrls, summarizePublish, toRelayUrl, type PublishOutcome } from './publish-outcome.js';
+import { relayUrls, summarizePublish, toRelayUrl, type PublishAnswer, type PublishOutcome } from './publish-outcome.js';
 
 /** The NIP-65 relay list kind. */
 const RELAY_LIST_KIND = 10002;
@@ -31,15 +31,18 @@ export interface AccountMailboxes {
   readonly state$: Observable<MailboxState>;
   /** The state as of now. */
   state(): MailboxState;
-  /** Publish a new list. Resolves with who accepted it; rejects with `denied:read-only` or `invalid:relay-url`. */
-  save(next: Mailboxes): Promise<PublishOutcome>;
+  /**
+   * Publish a new list. Resolves with who accepted it; rejects with `denied:read-only` or `invalid:relay-url`.
+   * `onProgress` hears the outcome so far each time a server answers, when the pool can report answers one by one.
+   */
+  save(next: Mailboxes, onProgress?: (sofar: PublishOutcome) => void): Promise<PublishOutcome>;
 }
 
 /** The signer surface saving needs. */
 export type MailboxSigner = Pick<ISigner, 'getPublicKey' | 'signEvent'>;
 
 /** The pool surface the mailboxes need. */
-export type MailboxPool = Pick<RelayPool, 'req' | 'publish'>;
+export type MailboxPool = Pick<RelayPool, 'req' | 'publish'> & Partial<Pick<RelayPool, 'event'>>;
 
 /** Options for {@link createAccountMailboxes}. */
 export interface AccountMailboxesOptions {
@@ -163,7 +166,26 @@ function stateFor(options: AccountMailboxesOptions, pubkey: string | undefined):
   );
 }
 
-async function publishList(options: AccountMailboxesOptions, signer: MailboxSigner, next: Mailboxes): Promise<PublishOutcome> {
+/** Publish through the pool's per-server stream, reporting each answer; a server that never answers counts as refusing. */
+function publishStreaming(publish: NonNullable<MailboxPool['event']>, relays: string[], event: NostrEvent, onProgress: (sofar: PublishOutcome) => void): Promise<PublishOutcome> {
+  const answers: PublishAnswer[] = [];
+  return new Promise((resolve) => {
+    const finish = (): void => {
+      const silent = relays.filter((url) => !answers.some((answer) => answer.from === url));
+      resolve(summarizePublish([...answers, ...silent.map((from) => ({ ok: false, from, message: 'no answer' }))]));
+    };
+    publish(relays, event).subscribe({
+      next(answer) {
+        answers.push(answer);
+        onProgress(summarizePublish(answers));
+      },
+      error: finish,
+      complete: finish,
+    });
+  });
+}
+
+async function publishList(options: AccountMailboxesOptions, signer: MailboxSigner, next: Mailboxes, onProgress?: (sofar: PublishOutcome) => void): Promise<PublishOutcome> {
   const pubkey = await signer.getPublicKey();
   const previous = options.store.getReplaceable(RELAY_LIST_KIND, pubkey);
   const tags = mailboxTags(next, previous);
@@ -172,6 +194,15 @@ async function publishList(options: AccountMailboxesOptions, signer: MailboxSign
   const old = mailboxesFromEvent(previous);
   // NIP-65: the list goes to where the account writes and is read, old and new, and to the indexers.
   const relays = relayUrls([...next.outboxes, ...old.outboxes, ...next.inboxes, ...options.lookupRelays()]);
+  const stream = options.pool.event?.bind(options.pool);
+  if (stream && onProgress) {
+    // The list is shown as soon as one server holds it; the rest keep answering.
+    const progress = (sofar: PublishOutcome): void => {
+      if (sofar.ok) options.store.add(event);
+      onProgress(sofar);
+    };
+    return publishStreaming(stream, relays, event, progress);
+  }
   const outcome = await options.pool.publish(relays, event).then(summarizePublish, (error: unknown) => ({
     accepted: [],
     refused: relays.map((url) => ({ url, reason: String(error).replace(/^Error: /, '') })),
@@ -216,10 +247,10 @@ export function createAccountMailboxes(options: AccountMailboxesOptions): Accoun
   return {
     state$: state$.asObservable(),
     state: () => state$.value,
-    async save(next) {
+    async save(next, onProgress) {
       const signer = options.signer();
       if (!signer) throw new Error('denied:read-only');
-      return publishList(options, signer, next);
+      return publishList(options, signer, next, onProgress);
     },
   };
 }

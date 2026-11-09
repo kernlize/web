@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import type { MailboxState, PublishOutcome } from '@kernlize/core';
   import type { BootMode, ShellKernl } from './contract';
-  import { completionsFor, draftChanged, draftOf, savedWords, suggestionsFor, withoutServer, withServer, type MailboxDraft, type MailboxSide } from './mailbox-draft';
+  import { completionsFor, draftChanged, draftOf, progressWords, savedWords, suggestionsFor, withoutServer, withServer, type MailboxDraft, type MailboxSide } from './mailbox-draft';
   import { observe } from './observe.svelte';
   import { serverName } from './servers';
 
@@ -75,7 +75,7 @@
     error = null;
     try {
       const { describeOutcome } = await import('@kernlize/core');
-      const outcome: PublishOutcome = await kernl.mailboxes.save(draft);
+      const outcome: PublishOutcome = await kernl.mailboxes.save(draft, (sofar) => (saved = progressWords(sofar)));
       saved = savedWords(outcome, describeOutcome);
       if (outcome.ok) edited = undefined;
     } catch {
