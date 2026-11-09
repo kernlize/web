@@ -32,22 +32,67 @@ Feature: Shell words
   Scenario: an applet's first run lists required domains first and presets the account
     Given an applet that requires "identity, storage" and may use "storage, relay, zap"
     And the shell baseline is "storage"
+    And the shell can offer "identity, relay"
     And the applet was earlier granted "relay"
     When the shell lists the domain choices
     Then the domain choices are:
-      | domain   | label              | required | baseline | granted | preset |
-      | identity | your account       | yes      | no       | no      | yes    |
-      | storage  | its own storage    | yes      | yes      | yes     | no     |
-      | relay    | network            | no       | no       | yes     | no     |
-      | zap      | another capability | no       | no       | no      | no     |
+      | domain   | label              | required | baseline | granted | preset | available |
+      | identity | your account       | yes      | no       | no      | yes    | yes       |
+      | storage  | its own storage    | yes      | yes      | yes     | no     | yes       |
+      | relay    | network            | no       | no       | yes     | no     | yes       |
+      | zap      | another capability | no       | no       | no      | no     | no        |
 
   Scenario: the account is not preset once the person has decided before
     Given an applet that requires "identity" and may use "identity"
+    And the shell can offer "identity"
     And the person has decided for this applet before
     When the shell lists the domain choices
     Then the domain choices are:
-      | domain   | label        | required | baseline | granted | preset |
-      | identity | your account | yes      | no       | no      | no     |
+      | domain   | label        | required | baseline | granted | preset | available |
+      | identity | your account | yes      | no       | no      | no     | yes       |
+
+  Scenario: a domain this shell cannot offer is listed but can never be switched on
+    Given an applet that requires "identity, outbox" and may use "config, theme"
+    And the shell baseline is "theme"
+    And the shell can offer "outbox"
+    And the applet was earlier granted "config, identity"
+    When the shell lists the domain choices
+    Then the domain choices are:
+      | domain   | label                   | required | baseline | granted | preset | available |
+      | identity | your account            | yes      | no       | no      | no     | no        |
+      | outbox   | posting to your network | yes      | no       | no      | no     | yes       |
+      | config   | its settings            | no       | no       | no      | no     | no        |
+      | theme    | your theme              | no       | yes      | yes     | no     | yes       |
+    And the domain choices are captioned:
+      | domain   | note                                                            |
+      | identity | the applet says it needs this, and this shell cannot provide it |
+      | outbox   | the applet says it needs this                                   |
+      | config   | not available in this shell                                     |
+      | theme    | always on                                                       |
+
+  Scenario: an optional domain the shell can offer is captioned optional
+    Given an applet that requires "" and may use "relay"
+    And the shell can offer "relay"
+    When the shell lists the domain choices
+    Then the domain choices are captioned:
+      | domain | note     |
+      | relay  | optional |
+
+  Scenario: every reason an applet cannot be opened has plain words
+    Then the shell explains the open failure "invalid:pointer" as "That does not look like an applet address."
+    And the shell explains the open failure "unavailable:manifest" as "No applet was found at that address. Check it and try again."
+    And the shell explains the open failure "unavailable:network" as "None of the servers that list applets could be reached. Check your connection and try again."
+    And the shell explains the open failure "unavailable:blob" as "The applet was found, but its file could not be downloaded right now. Try again later."
+    And the shell explains the open failure "invalid:domain" as "This shell cannot provide something that was switched on for this applet. Look it up again."
+    And the shell explains the open failure "invalid:blob-hash-mismatch" as "This applet did not pass the shell's checks, so it was not opened."
+    And the shell explains the open failure "unavailable:somewhere else" as "The applet cannot be reached right now. Try again later."
+    And the shell explains the open failure "denied:because" as "The shell refused to open this applet."
+    And the shell explains the open failure "timeout" as "Looking up the applet took too long. Try again."
+    And the shell explains the thrown open failure "denied:blocked" as "You blocked this applet. Unblock it from its grants first."
+
+  Scenario: a failure the shell has no reason for is said generically and flagged as unexpected
+    Then the shell explains the unexpected open failure "All relays failed" as "Could not open the applet. Try again, or try another address."
+    And the shell explains the unexpected open failure "" as "Could not open the applet. Try again, or try another address."
 
   Scenario Outline: byte counts read in binary units
     Then the shell shows <bytes> bytes as "<text>"
