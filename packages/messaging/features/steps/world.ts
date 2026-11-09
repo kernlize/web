@@ -14,6 +14,9 @@ import type {
   MessagingProvider,
   MessagingRegistry,
   ProviderAvailability,
+  ReplyAnswer,
+  ReplyChoice,
+  ReplyPrompt,
 } from '@kernlize/messaging';
 
 export interface FakeProvider {
@@ -21,6 +24,8 @@ export interface FakeProvider {
   created: number;
   closed: boolean;
   closable: boolean;
+  /** The memory backend the registry created for the provider, once it is enabled. */
+  backend?: MemoryBackend;
 }
 
 export interface MessagingState {
@@ -43,6 +48,12 @@ export interface MessagingState {
   provider?: MessagingProvider;
   available: ProviderAvailability;
   injected?: MessagingBackend;
+  /** Reply choices the composite offered its host. */
+  replyChoices: ReplyChoice[];
+  /** Reply questions the registry put to the user. */
+  replyPrompts: ReplyPrompt[];
+  /** What the user answers; `undefined` dismisses. */
+  replyAnswer?: ReplyAnswer;
 }
 
 export interface MessagingWorld {
@@ -57,6 +68,8 @@ export function state(world: MessagingWorld): MessagingState {
     enabled: [],
     delivered: [],
     available: { available: true },
+    replyChoices: [],
+    replyPrompts: [],
   };
   return world.messaging;
 }

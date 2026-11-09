@@ -18,10 +18,14 @@ export type {
   MessagingRegistry,
   ProviderAvailability,
   ProviderEntry,
+  ReplyAnswer,
+  ReplyPrompt,
+  ReplyRule,
+  SavedMessagingPreferences,
   SecurityProperties,
 } from './types.js';
 export { namespaceId, splitId, type NamespacedId } from './ids.js';
-export { createCompositeBackend, type EnabledBackend, type WithProvider } from './composite.js';
+export { createCompositeBackend, type CompositeOptions, type EnabledBackend, type ReplyChoice, type WithProvider } from './composite.js';
 export { createMessagingRegistry, type MessagingRegistryOptions } from './registry.js';
 export {
   createMemoryBackend,

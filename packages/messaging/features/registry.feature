@@ -1,7 +1,8 @@
 Feature: Messaging registry
   The shell holds one registry of messaging providers. It enables and disables
-  them, remembers the user's default, restores saved preferences as providers
-  arrive, and hands out one composite backend for the dm service.
+  them, keeps them in the user's order, restores saved preferences as providers
+  arrive, and hands out one composite backend for the dm service. The first
+  enabled provider in the order is the default.
 
   Background:
     Given a messaging registry
@@ -34,10 +35,10 @@ Feature: Messaging registry
     And I enable messaging provider "private"
     Then messaging provider "private" is listed as enabled
     And the backend for messaging provider "private" was created 1 time
-    And the messaging preferences are enabled "private" with no default
+    And the messaging preferences are enabled "private" with default "private"
     And the messaging change listener fired 1 time
 
-  Scenario: disabling closes the backend and clears a default that pointed at it
+  Scenario: disabling closes the backend and leaves no default when nothing else is enabled
     When I register the messaging provider "private"
     And I enable messaging provider "private"
     And I set the default messaging provider to "private"
@@ -104,7 +105,7 @@ Feature: Messaging registry
     And I close the messaging registry
     Then the backend for messaging provider "private" is closed
     And the backend for messaging provider "legacy" is closed
-    And the messaging preferences are enabled "private, legacy" with no default
+    And the messaging preferences are enabled "private, legacy" with default "private"
 
   Scenario: a registry without options or listener still works
     Given a bare messaging registry
@@ -116,9 +117,9 @@ Feature: Messaging registry
   Scenario: saved preferences enable providers as they register
     Given a messaging registry restoring enabled "private, legacy" with default "legacy"
     When I register the messaging provider "private"
-    Then the messaging preferences are enabled "private" with no default
+    Then the messaging preferences are enabled "private" with default "private"
     When I register the messaging provider "legacy"
-    Then the messaging preferences are enabled "private, legacy" with default "legacy"
+    Then the messaging preferences are enabled "legacy, private" with default "legacy"
     And the messaging change listener fired 2 times
 
   Scenario: a saved provider that is unavailable stays disabled
@@ -142,3 +143,60 @@ Feature: Messaging registry
     And I set the default messaging provider to "private"
     And I register the messaging provider "legacy"
     Then the messaging preferences are enabled "private, legacy" with default "private"
+
+  Scenario: providers are listed in the order they were registered until the user says otherwise
+    When I register the messaging provider "private"
+    And I register the messaging provider "legacy"
+    And I register the messaging provider "ratchet"
+    Then the messaging provider list is "private, legacy, ratchet"
+    And the messaging provider order is "private, legacy, ratchet"
+
+  Scenario: the user reorders the providers
+    When I register the messaging provider "private"
+    And I register the messaging provider "legacy"
+    And I register the messaging provider "ratchet"
+    And I order the messaging providers "ratchet, private, legacy"
+    Then the messaging provider list is "ratchet, private, legacy"
+    And the messaging change listener fired 1 time
+
+  Scenario: providers left out of a new order keep their place after the ones named
+    When I register the messaging provider "private"
+    And I register the messaging provider "legacy"
+    And I register the messaging provider "ratchet"
+    And I order the messaging providers "ratchet, ratchet"
+    Then the messaging provider order is "ratchet, private, legacy"
+
+  Scenario: an order that names an unknown provider is rejected
+    When I register the messaging provider "private"
+    And I order the messaging providers "ghost, private"
+    Then the messaging error is "invalid:unknown-provider"
+    And the messaging provider order is "private"
+
+  Scenario: the default is the first provider in the order that is enabled
+    When I register the messaging provider "private"
+    And I register the messaging provider "legacy"
+    And I enable messaging provider "private"
+    And I order the messaging providers "legacy, private"
+    Then the messaging preferences are enabled "private" with default "private"
+    When I enable messaging provider "legacy"
+    Then the messaging preferences are enabled "legacy, private" with default "legacy"
+
+  Scenario: making a provider the default moves it to the top
+    When I register the messaging provider "private"
+    And I register the messaging provider "legacy"
+    And I enable messaging provider "legacy"
+    And I set the default messaging provider to "legacy"
+    Then the messaging provider order is "legacy, private"
+
+  Scenario: a saved order is restored, and a provider it does not name joins the end
+    Given a messaging registry restoring the order "ratchet, legacy"
+    When I register the messaging provider "private"
+    And I register the messaging provider "legacy"
+    And I register the messaging provider "ratchet"
+    Then the messaging provider order is "ratchet, legacy, private"
+
+  Scenario: preferences saved before there was an order start with their default on top
+    Given a messaging registry restoring enabled "private, legacy" with default "legacy"
+    When I register the messaging provider "private"
+    And I register the messaging provider "legacy"
+    Then the messaging provider order is "legacy, private"
