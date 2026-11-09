@@ -5,7 +5,7 @@ Locator parsing, the bridge contract, the registry that routes and authorises, a
 | Field | Value |
 | --- | --- |
 | Package | `@kernlize/bridges` |
-| Version | `0.2.0` |
+| Version | `0.2.1` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts` |
 | Dependencies | none |
 | Peer dependencies | none |

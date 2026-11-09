@@ -1,6 +1,6 @@
 {
   "name": "@kernlize/guard",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Ingress flood control, visibility gating, focus-aware firewall and CSP profile for the kernl shell",
   "type": "module",
   "main": "./dist/index.js",
