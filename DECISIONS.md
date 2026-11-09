@@ -325,7 +325,22 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 
 **Reversal cost.** Low. Removing `<ClientRouter />` and `<Stage />` from `Site.astro` returns the site to plain page loads with nothing else to change; moving the pages back is a rename and the redirect list.
 
-## D-024 · The shell has a store, and applets hand work to each other through intents
+## D-024 · Outside a secure context the shell fills in Web Crypto from audited pure-JS primitives
+
+**Context.** kernl is meant to be reachable from overlay networks: an onion service, or a FIPS mesh address, served over plain HTTP because the network already authenticates and encrypts the path. A browser treats such a page as an insecure context and withholds `crypto.subtle` and `crypto.randomUUID`, keeping only `crypto.getRandomValues`. The shell's dependencies call both: the applet runtime and its applet-side prelude for request ids, applesauce for remote-signer transports, the MLS group stack for HPKE (X25519, HKDF, AES-GCM) and Ed25519 signatures, the download client for SHA-1 and SHA-256. Over such an address the shell stopped at the sign-in screen with `crypto.randomUUID is not a function`.
+
+**Decision.**
+
+- `@kernlize/core/crypto` exports `installCryptoFallback`. It adds `crypto.randomUUID`, built on `getRandomValues`, and a `crypto.subtle` from `createFallbackSubtle`, built on `@noble/hashes`, `@noble/ciphers` and `@noble/curves`. It never replaces an implementation the platform has, so over HTTPS it does nothing.
+- The fallback covers only what the shell's dependencies call: SHA-1/256/384/512 digests; HMAC and Ed25519 sign and verify; AES-GCM (128-bit tag) and AES-CBC; X25519 and HKDF `deriveBits`; Ed25519 and X25519 keys in `raw`, `pkcs8` and `jwk`. Anything else rejects with `NotSupportedError`, as a browser does for an algorithm it lacks. Its output matches the platform's byte for byte, which the features check against Node's Web Crypto.
+- `crypto-fallback.ts` is the first module `Shell.svelte` imports, so the fallback is in place before any other module evaluates. It is its own entry for the same reason `wm` is (D-022): the shell loads the core on demand.
+- An applet frame is an opaque origin and inherits its parent's insecure context, so the mount plan puts a `randomUUID` fallback script after the insertion lock (D-014) and before any applet script. Applets get only `randomUUID`; an applet that needs `crypto.subtle` must bring its own.
+
+**Consequences.** `@kernlize/core` gains three direct dependencies, all already in the tree through the MLS stack. Key material made by the fallback lives in JavaScript memory rather than behind the browser's non-extractable key boundary; `extractable: false` is honoured by `exportKey` but is not a hardware or process boundary. The fallback is not constant-time beyond what the noble libraries guarantee. Both are acceptable for an address the person chose to reach over an authenticated overlay, and neither applies over HTTPS, where the platform's implementation is used.
+
+**Reversal cost.** Low. Deleting the import in `Shell.svelte` and the script in the mount plan returns the shell to the platform's Web Crypto alone.
+
+## D-025 · The shell has a store, and applets hand work to each other through intents
 
 **Context.** The launcher offered two hard-coded sample applets and a field for pasting an address, so finding an applet meant being handed its address. Applets advertise what they are for in their signed manifests: `t` tags for topics, `R`/`O` for the domains they need and can use, and `z`/`i` for the roles and requests they take (NAP-INTENT). kehto ships NAP-INTENT as `createIntentService`, `createCatalogIntentResolver` and `manifestToIntentCatalogEntry`, and a shell offers the `intent` domain by answering `ShellAdapter.intent.isAvailable()`. A user's preferred handlers can be published as kind 31129 ("Napplet Handler Preferences"), which an applet such as an intent-preferences manager can also write. kehto's ACL (0.20.3, also on `main`) maps `intent.deliver` to no recipient capability, so the runtime's recipient-checked `sendToEligibleNapplet` refuses every delivery; kehto's own reference host, Paja, posts the delivery on the target's bound port with `originRegistry.postToNapplet`.
 

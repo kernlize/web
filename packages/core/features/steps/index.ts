@@ -25,3 +25,4 @@ import './catalog.js';
 import './intents.js';
 import './intent-routing.js';
 import './kernl-intents.js';
+import './crypto-fallback.js';

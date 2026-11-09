@@ -103,7 +103,7 @@ export function createKernlIntents(deps: KernlIntentDeps): KernlIntents {
     ...(host.focusApplet ? { focus: host.focusApplet.bind(host) } : {}),
     // kehto's ACL gives `intent.deliver` no recipient capability, so the runtime's recipient-checked
     // send refuses it. Like kehto's own Paja host, the delivery goes over the target's bound port,
-    // and only to a live session that holds the receiving grant (DECISIONS.md D-024).
+    // and only to a live session that holds the receiving grant (DECISIONS.md D-025).
     send: (windowId, message) => context?.hasCapability(windowId, 'intent:read') === true && originRegistry.postToNapplet(windowId, message),
     ...(deps.retry ? { retry: deps.retry } : {}),
   });

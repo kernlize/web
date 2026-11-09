@@ -7,8 +7,8 @@ Opinionated shell composition over kehto and applesauce. Browser-agnostic: the D
 | npm | `@kernlize/core` |
 | JSR | `@kernl/core` |
 | Version | `0.3.1` |
-| Entry | `./dist/index.js`, types `./dist/index.d.ts`; `@kernlize/core/wm` (`@kernl/core/wm` on JSR) is `./dist/wm/index.js`, the layouts and the window manager without the network stack |
-| Dependencies | `@internet-privacy/marmot-ts ^0.9.0`; `@kehto/acl ^0.20.3`; `@kehto/firewall ^0.7.0`; `@kehto/nip ^0.8.0`; `@kehto/runtime ^0.28.0`; `@kehto/services ^0.30.1`; `@kehto/shell ^0.32.0`; `@kehto/wm ^0.0.2`; `@kernlize/bridges workspace:^`; `@kernlize/guard workspace:^`; `@kernlize/messaging workspace:^`; `applesauce-accounts ^7.0.2`; `applesauce-common ^7.0.0`; `applesauce-core ^7.0.3`; `applesauce-loaders ^7.0.2`; `applesauce-relay ^7.0.0`; `applesauce-signers ^7.0.1`; `nostr-double-ratchet ^0.0.183`; `rxjs ^7.8.2` |
+| Entry | `./dist/index.js`, types `./dist/index.d.ts`; `@kernlize/core/wm` (`@kernl/core/wm` on JSR) is `./dist/wm/index.js`, the layouts and the window manager without the network stack; `@kernlize/core/crypto` (`@kernl/core/crypto` on JSR) is `./dist/crypto/index.js`, the Web Crypto fallback |
+| Dependencies | `@internet-privacy/marmot-ts ^0.9.0`; `@kehto/acl ^0.20.3`; `@kehto/firewall ^0.7.0`; `@kehto/nip ^0.8.0`; `@kehto/runtime ^0.28.0`; `@kehto/services ^0.30.1`; `@kehto/shell ^0.32.0`; `@kehto/wm ^0.0.2`; `@kernlize/bridges workspace:^`; `@kernlize/guard workspace:^`; `@kernlize/messaging workspace:^`; `@noble/ciphers ^2.4.0`; `@noble/curves ^2.4.0`; `@noble/hashes ^2.4.0`; `applesauce-accounts ^7.0.2`; `applesauce-common ^7.0.0`; `applesauce-core ^7.0.3`; `applesauce-loaders ^7.0.2`; `applesauce-relay ^7.0.0`; `applesauce-signers ^7.0.1`; `nostr-double-ratchet ^0.0.183`; `rxjs ^7.8.2` |
 | Peer dependencies | `@napplet/core >=0.38.0 <0.39.0`; `@napplet/nap >=0.37.0 <0.38.0`; `@napplet/shim >=0.30.0`; `nostr-tools >=2.23.3 <=2.x` |
 | Side effects | none |
 
@@ -327,6 +327,18 @@ windows.snapshot().windows[0]?.rect; // { x: 0, y: 0, w: 1440, h: 900 }
 
 Writing a manager of your own against the `WindowManager` interface, and the one rule it must keep, is in [Write your own window manager](../how-tos/write-a-window-manager.md).
 
+### Web Crypto outside a secure context
+
+Over plain HTTP from an onion or overlay network address, the browser withholds `crypto.subtle` and `crypto.randomUUID`. `installCryptoFallback` fills in whichever is missing, from audited pure-JS primitives, and leaves the platform's own alone ([D-024](../decisions.md#d-024)). Call it once before anything uses Web Crypto; `@kernlize/core/crypto` exports it without the network stack, so a shell can call it first.
+
+```ts
+import { installCryptoFallback } from '@kernlize/core/crypto';
+
+installCryptoFallback(); // { randomUUID: false, subtle: false } over HTTPS
+```
+
+The fallback `SubtleCrypto` covers SHA-1/256/384/512 digests; HMAC and Ed25519 sign and verify; AES-GCM (128-bit tag) and AES-CBC; X25519 and HKDF `deriveBits`; Ed25519 and X25519 keys in `raw`, `pkcs8` and `jwk`. Anything else rejects with `NotSupportedError`. The mount plan gives every applet frame a `randomUUID` fallback too, before its own scripts; applets do not get the `SubtleCrypto` fallback.
+
 ## Exports
 
 Signatures are abbreviated; the generated reference has the full ones.
@@ -463,6 +475,11 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `floatingLayout`, `createDwindleLayout`, `createColumnsLayout`, `createMasterStackLayout` | `LayoutStrategy` and `(options?) => LayoutStrategy` | The layouts above. |
 | `createLayoutRegistry`, `createDefaultLayouts` | `(entries?: readonly LayoutEntry[]) => LayoutRegistry`, `(options?: LayoutOptions) => LayoutRegistry` | The layouts a window manager offers. |
 | `createWindowManager` | `(options?: WindowManagerOptions) => WindowManager` | kernl's window manager. |
+| `installCryptoFallback` | `(scope?: { crypto?: Crypto }) => CryptoFallbackReport` | Adds `crypto.randomUUID` and `crypto.subtle` where the platform withholds them. Also on `@kernlize/core/crypto`. |
+| `createFallbackSubtle` | `() => SubtleCrypto` | The pure-JS `SubtleCrypto` described above. |
+| `randomUuidFallback` | `(scope: { crypto?: Crypto }) => boolean` | Adds only `crypto.randomUUID`; self-contained, so it can be serialised into a frame. |
+| `renderRandomUuidFallbackScript` | `() => string` | The applet-side `<script>` the mount plan inserts. |
+| `CryptoFallbackReport` | type | `{ randomUUID, subtle }`: what was added. |
 | `createNamespacedStore` | `(storage: StorageLike, prefix: string) => NamespacedStore` | `getJson`, `setJson`, `remove` under `<prefix>:`; corrupt JSON reads as the fallback. |
 | `DefaultMessagingOptions`, `DefaultBridgesOptions`, `LayoutOptions`, `MasterStackOptions`, `NamespacedStore` | types | |
 | `LayoutChoice`, `LayoutEntry`, `LayoutRegistry`, `ManagedWindow`, `VisibilityTarget`, `WindowManager`, `WindowManagerOptions`, `WindowManagerState`, `WindowSize` | types | The window-management surface. |

@@ -131,6 +131,7 @@ export {
   type WindowSize,
   type WindowState,
 } from './wm/index.js';
+export { createFallbackSubtle, installCryptoFallback, randomUuidFallback, renderRandomUuidFallbackScript, type CryptoFallbackReport, type CryptoScope } from './crypto/index.js';
 
 export { createDefaultMessaging, type DefaultMessagingOptions } from './messaging/default-registry.js';
 export { MESSAGING_UNAVAILABLE_REASONS, messagingSigner, signerAvailability, type MessagingEncryption } from './messaging/availability.js';
