@@ -6,5 +6,5 @@ export default defineConfig({
   dts: true,
   sourcemap: true,
   clean: true,
-  external: [/^@kehto\//, /^@kernl\//, /^@napplet\//, /^applesauce-/, 'nostr-tools', 'rxjs'],
+  external: [/^@kehto\//, /^@kernlize\//, /^@napplet\//, /^applesauce-/, 'nostr-tools', 'rxjs'],
 });

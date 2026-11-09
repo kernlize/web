@@ -7,14 +7,14 @@
 import { renderNappletFramePolicyMeta } from '@kehto/shell';
 
 /**
- * The published name of this package.
+ * The npm package name, shared by both registry builds.
  *
  * @example
  * ```ts
- * PACKAGE_NAME; // '@kernl/core'
+ * PACKAGE_NAME; // '@kernlize/core'
  * ```
  */
-export const PACKAGE_NAME = '@kernl/core';
+export const PACKAGE_NAME = '@kernlize/core';
 
 /**
  * The `<meta>` element the host page puts in its `<head>` so applet frames can

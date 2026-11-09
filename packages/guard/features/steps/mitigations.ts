@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { Then, When, type DataTable } from 'quickpickle';
-import { createGuardConfig, describeMitigations, type GuardProfile } from '@kernl/guard';
+import { createGuardConfig, describeMitigations, type GuardProfile } from '@kernlize/guard';
 import { scratch, type GuardWorld } from './world.js';
 
 const PROTOCOL_WORDS = /nostr|nip|relay|napplet|pubkey|npub/i;

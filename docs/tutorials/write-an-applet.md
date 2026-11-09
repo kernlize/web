@@ -129,7 +129,7 @@ This applet sends a handful of messages at start-up, opens one subscription and 
 kernl's guard is a pure package, so you can replay your applet's traffic through it in a test, without a browser, and see which events the user would see. This needs the kernl source ([Packages](../packages/index.md#install)). The function below feeds the guard each message the way the shell does: the ingress guard counts it first, and the focus firewall measures it unless it was held or quarantined.
 
 ```ts
-import { createFocusFirewall, createGuardConfig, createIngressGuard, type GuardEnvelope, type GuardEvent } from '@kernl/guard';
+import { createFocusFirewall, createGuardConfig, createIngressGuard, type GuardEnvelope, type GuardEvent } from '@kernlize/guard';
 
 const events: GuardEvent[] = [];
 let clock = 0;

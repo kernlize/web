@@ -5,7 +5,7 @@ import { EventStore } from 'applesauce-core';
 import { PrivateKeySigner } from 'applesauce-signers';
 import type { AddressPointerLoader, LoadableAddressPointer } from 'applesauce-loaders/loaders';
 import type { NostrEvent } from '@napplet/core';
-import { createIdentityProviders, type IdentityProfile, type IdentityProviders, type RelayTiers } from '@kernl/core';
+import { createIdentityProviders, type IdentityProfile, type IdentityProviders, type RelayTiers } from '@kernlize/core';
 import { scratch, splitList, type CoreWorld } from './world.js';
 
 const signers = new Map<string, PrivateKeySigner>();

@@ -6,9 +6,9 @@ import type { ShellBridge, ShellEnvironment } from '@kehto/shell';
 import type { Capability } from '@kehto/runtime';
 import type { NappletArtifactCache, NappletManifest } from '@kehto/nip/5d';
 import type { NostrEvent } from '@napplet/core';
-import type { GuardConfig, GuardEvent, GuardProfile, MitigationDescription, WindowVisibility } from '@kernl/guard';
-import type { MessagingBackend, MessagingRegistry } from '@kernl/messaging';
-import type { BridgeRegistry, TorrentBackend } from '@kernl/bridges';
+import type { GuardConfig, GuardEvent, GuardProfile, MitigationDescription, WindowVisibility } from '@kernlize/guard';
+import type { MessagingBackend, MessagingRegistry } from '@kernlize/messaging';
+import type { BridgeRegistry, TorrentBackend } from '@kernlize/bridges';
 
 
 /** The two values an applet's grants are keyed on. Both come from verification, never from the applet. */

@@ -9,7 +9,7 @@ import {
   describeProvider,
   type MessagingProvider,
   type ProviderDeps,
-} from '@kernl/messaging';
+} from '@kernlize/messaging';
 import { state, type MessagingWorld } from './world.js';
 
 const BUILT_IN: Record<string, (deps: ProviderDeps) => MessagingProvider> = {

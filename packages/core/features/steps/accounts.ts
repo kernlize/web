@@ -4,7 +4,7 @@ import type { AccountManager, IAccount } from 'applesauce-accounts';
 import { PrivateKeyAccount, ReadonlyAccount } from 'applesauce-accounts/accounts';
 import { PrivateKeySigner } from 'applesauce-signers';
 import type { Signer } from '@kehto/runtime';
-import { createAuthHooks, createKernlAccounts, isReadOnlyAccount, wrapAccountSigner } from '@kernl/core';
+import { createAuthHooks, createKernlAccounts, isReadOnlyAccount, wrapAccountSigner } from '@kernlize/core';
 import { allowAllSigning, attempt, passwordAccount, scratch, type CoreWorld } from './world.js';
 
 function accounts(world: CoreWorld): AccountManager {

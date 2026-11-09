@@ -1,5 +1,5 @@
 {
-  "name": "@kernl/web",
+  "name": "@kernlize/web",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,10 +11,10 @@
   },
   "dependencies": {
     "@kehto/shell": "^0.32.0",
-    "@kernl/bridges": "workspace:^",
-    "@kernl/core": "workspace:^",
-    "@kernl/guard": "workspace:^",
-    "@kernl/messaging": "workspace:^",
+    "@kernlize/bridges": "workspace:^",
+    "@kernlize/core": "workspace:^",
+    "@kernlize/guard": "workspace:^",
+    "@kernlize/messaging": "workspace:^",
     "applesauce-accounts": "^7.0.2",
     "applesauce-signers": "^7.0.1",
     "rxjs": "^7.8.2",

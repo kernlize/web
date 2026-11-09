@@ -15,10 +15,10 @@ The four non-HTTP bridges are complete up to the backend interface they call. In
 
 ## 2. Implement it outside the published packages
 
-A backend talks to something: a seedbox's web API, a downloader daemon, a mail account. That belongs in the host app (`apps/web`, or your own page) or in a package of its own with its own dependencies, not in `@kernl/bridges`, which stays dependency-free. The samples on this page are one module, read top to bottom, and are type-checked by `node scripts/check-doc-samples.mjs` as part of `pnpm docs:check`.
+A backend talks to something: a seedbox's web API, a downloader daemon, a mail account. That belongs in the host app (`apps/web`, or your own page) or in a package of its own with its own dependencies, not in `@kernlize/bridges`, which stays dependency-free. The samples on this page are one module, read top to bottom, and are type-checked by `node scripts/check-doc-samples.mjs` as part of `pnpm docs:check`.
 
 ```ts
-import type { BridgeContext, TorrentBackend } from '@kernl/bridges';
+import type { BridgeContext, TorrentBackend } from '@kernlize/bridges';
 
 interface SeedboxLike {
   add(magnet: string): { infoHash: string; name: string; ready: Promise<void> };
@@ -48,7 +48,7 @@ The shell's bridges are registered by `createDefaultBridges` in `packages/core/s
 
 <!-- sample:continues -->
 ```ts
-import { createKernl, type KernlHost } from '@kernl/core';
+import { createKernl, type KernlHost } from '@kernlize/core';
 
 declare const host: KernlHost;
 declare const client: SeedboxLike;
@@ -70,7 +70,7 @@ import {
   createTorrentBridge,
   type BridgeRegistry,
   type HandoffOpener,
-} from '@kernl/bridges';
+} from '@kernlize/bridges';
 
 export function createBridgesWithTorrent(torrent: TorrentBackend, open: HandoffOpener): BridgeRegistry {
   const handoff = createHandoffBackends(open);
@@ -93,7 +93,7 @@ Check the bridge's `exposure`. The torrent bridge declares `revealsAddress: true
 
 <!-- sample:continues -->
 ```ts
-import type { Bridge } from '@kernl/bridges';
+import type { Bridge } from '@kernlize/bridges';
 
 export function createTunnelledTorrentBridge(torrent: TorrentBackend): Bridge {
   const stock = createTorrentBridge(torrent);

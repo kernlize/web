@@ -1,7 +1,7 @@
 import { Observable, of, type Subscriber } from 'rxjs';
 import { matchFilters, normalizeRelayUrl, type Filter, type NostrEvent } from 'applesauce-core/helpers';
 import type { PublishResponse } from 'applesauce-relay';
-import type { ApplesaucePool } from '@kernl/core';
+import type { ApplesaucePool } from '@kernlize/core';
 import type { ReqMessage } from './world.js';
 
 interface LiveReq {

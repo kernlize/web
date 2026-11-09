@@ -4,14 +4,14 @@ import { Subject } from 'rxjs';
 import { PrivateKeySigner, type ISigner } from 'applesauce-signers';
 import { ReadonlyAccount } from 'applesauce-accounts/accounts';
 import type { DmMessage } from '@napplet/core';
-import type { MessagingBackend, MessagingRegistry } from '@kernl/messaging';
+import type { MessagingBackend, MessagingRegistry } from '@kernlize/messaging';
 import {
   createDefaultMessaging,
   createRatchetMessagesBackend,
   createRelayTiers,
   createSealedRatchetStorage,
   messagingSigner,
-} from '@kernl/core';
+} from '@kernlize/core';
 import type { StorageAdapter } from 'nostr-double-ratchet';
 import { createRelayNetwork, type RelayNetwork } from './relay-network.js';
 import { MemoryStorage, scratch, splitList, type CoreWorld } from './world.js';

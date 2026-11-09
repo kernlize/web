@@ -10,3 +10,4 @@ One task per page, with the exact calls. Each assumes you have the kernl source 
 | [Add a messaging provider](./add-a-messaging-provider.md) | Define a provider and its backend, and register it in the shell's messaging registry. |
 | [Add a bridge backend](./add-a-bridge-backend.md) | Supply a backend that turns an `unavailable` bridge, such as downloads, into a working one. |
 | [Deploy](./deploy.md) | Build the site, shell, docs and API reference into one static artifact and publish it to kernl.run on bunny.net. |
+| [Publish packages](./publish-packages.md) | Configure npm and JSR, validate artifacts, release and retry. |

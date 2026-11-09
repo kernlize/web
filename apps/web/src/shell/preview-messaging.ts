@@ -8,7 +8,7 @@ import {
   type MemoryBackend,
   type MessagingPreferences,
   type MessagingRegistry,
-} from '@kernl/messaging';
+} from '@kernlize/messaging';
 import type { StorageLike } from './contract';
 
 const PREFERENCES_KEY = 'kernl:preview:messaging:v1';

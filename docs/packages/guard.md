@@ -1,10 +1,10 @@
-# @kernl/guard
+# @kernlize/guard
 
 Ingress flood control, visibility gating, focus-aware firewall, CSP profile and nested-frame insertion lock for the kernl shell. Pure: no DOM, no timers. Every factory takes an optional `now` clock and defaults to `Date.now`.
 
 | Field | Value |
 | --- | --- |
-| Package | `@kernl/guard` |
+| Package | `@kernlize/guard` |
 | Version | `0.1.0` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts` |
 | Dependencies | `@kehto/firewall ^0.6.3` |
@@ -13,10 +13,10 @@ Ingress flood control, visibility gating, focus-aware firewall, CSP profile and 
 
 ## Install
 
-`@kernl/guard` is not yet published to npm, so `pnpm add @kernl/guard` fails. During the alpha it is built from the kernl source repository, which is private, and consumed as a workspace dependency. The [package index](./index.md#install) has the steps.
+`@kernlize/guard` is not yet published to npm, so `pnpm add @kernlize/guard` fails. During the alpha it is built from the kernl source repository, which is private, and consumed as a workspace dependency. The [package index](./index.md#install) has the steps.
 
 ```json
-{ "dependencies": { "@kernl/guard": "workspace:^" } }
+{ "dependencies": { "@kernlize/guard": "workspace:^" } }
 ```
 
 ## Purpose
@@ -102,7 +102,7 @@ Removed in favour of kehto's released lock: `appletMarkupHasFrame`, `assertApple
 ## Example
 
 ```ts
-import { applyNappletRules, createGuardConfig, createIngressGuard, describeMitigations } from '@kernl/guard';
+import { applyNappletRules, createGuardConfig, createIngressGuard, describeMitigations } from '@kernlize/guard';
 
 const config = createGuardConfig('strict');
 config.limits.ingressBurst; // 8
@@ -121,10 +121,10 @@ describeMitigations(config).find((m) => m.id === 'ingress-flood')?.limit; // '8 
 
 - Pure functions and small stateful objects keyed by `windowId`. Call `forget(windowId)` on every revocation.
 - Does not parse NAP envelopes beyond `type`, `kind` and `size`; the shell passes those fields and may use `estimateEnvelopeSize` for the third.
-- Does not decide grants. Whether a domain is allowed is `@kehto/acl`'s question, surfaced through `@kernl/core`.
-- Does not touch the shell's DOM or the iframe. The shell applies `createAppletCsp(profile)` through kehto's `prepareNappletSrcdoc`, with kehto's nested-context lock enabled, and `planMount` in `@kernl/core` inserts the insertion lock's script, which runs only inside the applet realm.
+- Does not decide grants. Whether a domain is allowed is `@kehto/acl`'s question, surfaced through `@kernlize/core`.
+- Does not touch the shell's DOM or the iframe. The shell applies `createAppletCsp(profile)` through kehto's `prepareNappletSrcdoc`, with kehto's nested-context lock enabled, and `planMount` in `@kernlize/core` inserts the insertion lock's script, which runs only inside the applet realm.
 - Does not carry the Trusted Types policy, the element-factory pins or the static frame scan. Those are kehto's (`experimental.nestedContextLock`, `assertNappletHasNoFrame`).
-- Does not supply `initElapsedMs` to kehto, so `GuardConfig.firewall.burstGuard` never fires inside this package. `@kernl/core` installs it, with `unfocusedMultiplier`, in kehto's runtime firewall, which supplies `initElapsedMs` and focus, so the profile's startup burst applies there ([Guard](../concepts/guard.md#layers)).
+- Does not supply `initElapsedMs` to kehto, so `GuardConfig.firewall.burstGuard` never fires inside this package. `@kernlize/core` installs it, with `unfocusedMultiplier`, in kehto's runtime firewall, which supplies `initElapsedMs` and focus, so the profile's startup burst applies there ([Guard](../concepts/guard.md#layers)).
 
 ## Specification
 
@@ -132,4 +132,4 @@ describeMitigations(config).find((m) => m.id === 'ingress-flood')?.limit; // '8 
 
 ## API reference
 
-Generated module: [`_kernl_guard`](../api/modules/_kernl_guard.html){target="_self"}
+Generated module: [`_kernlize_guard`](../api/modules/_kernlize_guard.html){target="_self"}

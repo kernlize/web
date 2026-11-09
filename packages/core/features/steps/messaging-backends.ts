@@ -9,7 +9,7 @@ import { createConversationIdentifier } from 'applesauce-common/helpers/messages
 import { PrivateKeySigner, type ISigner } from 'applesauce-signers';
 import { ReadonlyAccount } from 'applesauce-accounts/accounts';
 import type { DmConversation, DmMessage, DmSendResult } from '@napplet/core';
-import type { MessagingBackend } from '@kernl/messaging';
+import type { MessagingBackend } from '@kernlize/messaging';
 import {
   createGroupMessagesBackend,
   createLegacyMessagesBackend,
@@ -18,7 +18,7 @@ import {
   messagingSigner,
   signerAvailability,
   type SignerMessagingOptions,
-} from '@kernl/core';
+} from '@kernlize/core';
 import { createRelayNetwork, type RelayNetwork } from './relay-network.js';
 import { MemoryStorage, passwordAccount, scratch, splitList, type CoreWorld } from './world.js';
 

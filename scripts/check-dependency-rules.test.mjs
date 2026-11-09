@@ -45,9 +45,9 @@ test('importSpecifiers finds static, type-only, re-exported and dynamic imports'
 
 test('findNostrToolsImports flags direct and subpath imports in any package src', () => {
   const root = packages({
-    'core/package.json': manifest('@kernl/core'),
+    'core/package.json': manifest('@kernlize/core'),
     'core/src/index.ts': "import { finalizeEvent } from 'nostr-tools';\nimport { npubEncode } from 'nostr-tools/nip19';\n",
-    'guard/package.json': manifest('@kernl/guard'),
+    'guard/package.json': manifest('@kernlize/guard'),
     'guard/src/index.ts': "import { evaluate } from '@kehto/firewall';\n",
     'guard/src/types.d.ts': "import type { X } from 'nostr-tools';\n",
   });
@@ -59,26 +59,26 @@ test('findNostrToolsImports flags direct and subpath imports in any package src'
 
 test('findKehtoImports allows guard → @kehto/firewall and nothing else in leaf packages', () => {
   const root = packages({
-    'guard/package.json': manifest('@kernl/guard'),
+    'guard/package.json': manifest('@kernlize/guard'),
     'guard/src/index.ts': "import type { FirewallConfig } from '@kehto/firewall';\nimport { grant } from '@kehto/acl';\n",
-    'messaging/package.json': manifest('@kernl/messaging'),
+    'messaging/package.json': manifest('@kernlize/messaging'),
     'messaging/src/index.ts': "import { createDmService } from '@kehto/services';\n",
-    'bridges/package.json': manifest('@kernl/bridges'),
-    'bridges/src/index.ts': "export const PACKAGE_NAME = '@kernl/bridges';\n",
-    'core/package.json': manifest('@kernl/core'),
+    'bridges/package.json': manifest('@kernlize/bridges'),
+    'bridges/src/index.ts': "export const PACKAGE_NAME = '@kernlize/bridges';\n",
+    'core/package.json': manifest('@kernlize/core'),
     'core/src/index.ts': "import { createShellBridge } from '@kehto/shell';\n",
   });
   expect(findKehtoImports(root)).toEqual([
-    'guard/src/index.ts imports @kehto/acl; only @kernl/core composes kehto (guard may import @kehto/firewall)',
-    'messaging/src/index.ts imports @kehto/services; only @kernl/core composes kehto (guard may import @kehto/firewall)',
+    'guard/src/index.ts imports @kehto/acl; only @kernlize/core composes kehto (guard may import @kehto/firewall)',
+    'messaging/src/index.ts imports @kehto/services; only @kernlize/core composes kehto (guard may import @kehto/firewall)',
   ]);
 });
 
 test('findFrameworkDependencies flags frameworks in every dependency field', () => {
   const root = packages({
-    'guard/package.json': manifest('@kernl/guard', { dependencies: { svelte: '^5.0.0' }, devDependencies: { lit: '^3.0.0' } }),
-    'core/package.json': manifest('@kernl/core', { peerDependencies: { react: '^19.0.0' }, dependencies: { rxjs: '^7.8.2' } }),
-    'bridges/package.json': manifest('@kernl/bridges'),
+    'guard/package.json': manifest('@kernlize/guard', { dependencies: { svelte: '^5.0.0' }, devDependencies: { lit: '^3.0.0' } }),
+    'core/package.json': manifest('@kernlize/core', { peerDependencies: { react: '^19.0.0' }, dependencies: { rxjs: '^7.8.2' } }),
+    'bridges/package.json': manifest('@kernlize/bridges'),
   });
   expect(findFrameworkDependencies(root)).toEqual([
     'packages/core/package.json lists react in peerDependencies; published packages have zero framework dependencies (D-004)',
@@ -89,9 +89,9 @@ test('findFrameworkDependencies flags frameworks in every dependency field', () 
 
 test('checkDependencyRules passes a clean workspace and handles a missing directory', () => {
   const root = packages({
-    'guard/package.json': manifest('@kernl/guard', { dependencies: { '@kehto/firewall': '^0.6.3' } }),
-    'guard/src/index.ts': "import { evaluate } from '@kehto/firewall';\nexport const PACKAGE_NAME = '@kernl/guard';\n",
-    'core/package.json': manifest('@kernl/core'),
+    'guard/package.json': manifest('@kernlize/guard', { dependencies: { '@kehto/firewall': '^0.6.3' } }),
+    'guard/src/index.ts': "import { evaluate } from '@kehto/firewall';\nexport const PACKAGE_NAME = '@kernlize/guard';\n",
+    'core/package.json': manifest('@kernlize/core'),
     'core/src/index.ts': "import { EventStore } from 'applesauce-core';\nimport { createShellBridge } from '@kehto/shell';\n",
   });
   expect(checkDependencyRules(root)).toEqual([]);
@@ -100,7 +100,7 @@ test('checkDependencyRules passes a clean workspace and handles a missing direct
 
 test('findAppNostrToolsImports flags nostr-tools in app scripts, Svelte and Astro files', () => {
   const root = packages({
-    'src/shell/ok.ts': "import { x } from '@kernl/core';",
+    'src/shell/ok.ts': "import { x } from '@kernlize/core';",
     'src/shell/bad.ts': "import { nip19 } from 'nostr-tools';",
     'src/shell/Bad.svelte': "<script lang=\"ts\">\n  import { getPublicKey } from 'nostr-tools/pure';\n</script>",
     'src/pages/bad.astro': "---\nimport { finalizeEvent } from 'nostr-tools';\n---",
@@ -116,7 +116,7 @@ test('findAppNostrToolsImports flags nostr-tools in app scripts, Svelte and Astr
 
 test('checkDependencyRules includes the web app when its source directory is given', () => {
   const root = packages({
-    'packages/guard/package.json': manifest('@kernl/guard'),
+    'packages/guard/package.json': manifest('@kernlize/guard'),
     'packages/guard/src/index.ts': 'export {};',
     'apps/web/src/a.ts': "import 'nostr-tools';",
   });

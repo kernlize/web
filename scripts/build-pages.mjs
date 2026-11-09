@@ -6,7 +6,7 @@ const repoRoot = resolve(new URL('..', import.meta.url).pathname);
 const outputRoot = resolve(repoRoot, process.env.PAGES_OUT_DIR || '.pages');
 
 const inputs = [
-  { source: join(repoRoot, 'apps', 'web', 'dist'), target: outputRoot, marker: 'index.html', label: 'Astro site build (pnpm --filter @kernl/web build)' },
+  { source: join(repoRoot, 'apps', 'web', 'dist'), target: outputRoot, marker: 'index.html', label: 'Astro site build (pnpm --filter @kernlize/web build)' },
   { source: join(repoRoot, 'docs', '.vitepress', 'dist'), target: join(outputRoot, 'docs'), marker: 'index.html', label: 'VitePress docs build (pnpm docs:build)' },
   { source: join(repoRoot, 'docs', 'api'), target: join(outputRoot, 'docs', 'api'), marker: 'index.html', label: 'TypeDoc API build (pnpm docs:api)' },
 ];

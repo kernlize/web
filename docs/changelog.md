@@ -4,12 +4,12 @@ Each entry says what ships, per package and app. [Alpha status](./alpha-status.m
 
 ## Unreleased
 
-### `@kernl/bridges`
+### `@kernlize/bridges`
 
 - `createWebTorrentBackend({ client, trackers?, now?, progressIntervalMs? })`: a `TorrentBackend` that downloads inside the page through a structural `WebTorrentLike` client or a loader for one. It keeps only `wss://` trackers plus `DEFAULT_WEBRTC_TRACKERS` (`webTrackers` is the filter) and adds `jobs`, `subscribe`, `pause`, `resume`, `remove` and `files`. Errors: `invalid:info-hash`, `unavailable:<why>`, `unavailable:not-finished`, `denied:unknown-download` ([D-017](./decisions.md#d-017)).
 - `BackendTraits.handoff` is typed `true | undefined` and is read on every availability check, so a backend may switch between moving data itself and handing off.
 
-### `@kernl/core`
+### `@kernlize/core`
 
 - `createDefaultBridges` takes an optional `torrent` backend that replaces the hand-off for magnet links only; `KernlOptions.torrent` passes one through `createKernl`.
 
@@ -22,14 +22,14 @@ Each entry says what ships, per package and app. [Alpha status](./alpha-status.m
 - **Breaking.** `planMount` enables kehto's released nested-context lock, `experimental: { nestedContextLock: true }` from `@kehto/shell` 0.30.0, in place of kernl's port of it. kehto now renders the Trusted Types directives, installs the `default` policy and pins the element factories; its `assertNappletHasNoFrame` still maps to `denied:nested-frame`. Frame creation inside an applet now throws `TypeError('kehto: napplets may not create nested browsing contexts')`; insertion still throws `denied:nested-frame` ([D-014](./decisions.md#d-014)).
 - `@kehto/shell` is now `^0.30.0`. The other kehto packages are unchanged.
 
-### `@kernl/messaging`
+### `@kernlize/messaging`
 
 - `createGroupMessagesProvider`: the `group` provider, "Group sessions". Forward secrecy, post-compromise security and groups; experimental; specification `Marmot (MLS, RFC 9420; supersedes NIP-EE)`.
 
-### `@kernl/guard`
+### `@kernlize/guard`
 
 - `renderFrameLockScript` is renamed `renderInsertionLockScript` and emits `<script data-kernl-insertion-lock>`, which applies only the insertion lock: the DOM insertion pins, the refusal of custom elements that extend frame elements, and the removal of `XSLTProcessor`. kehto's lock guards creation only, so the insertion lock stays until kehto guards insertion; the four routes past kehto's lock are to be reported upstream.
-- **Breaking.** Removed `appletMarkupHasFrame`, `assertAppletHasNoFrame`, `TRUSTED_TYPES_DIRECTIVES` and the `trustedTypes` field of `AppletCsp`. `createAppletCsp` returns the 14 baseline directives only, and `@kernl/guard` no longer throws outside the applet realm.
+- **Breaking.** Removed `appletMarkupHasFrame`, `assertAppletHasNoFrame`, `TRUSTED_TYPES_DIRECTIVES` and the `trustedTypes` field of `AppletCsp`. `createAppletCsp` returns the 14 baseline directives only, and `@kernlize/guard` no longer throws outside the applet realm.
 
 ### Shell and site (`apps/web`)
 
@@ -43,35 +43,35 @@ Each entry says what ships, per package and app. [Alpha status](./alpha-status.m
 
 The first version of every package and of the shell. Nothing is published to npm yet; the packages are used from the source repository, which is private during the alpha ([Packages](./packages/index.md#install)).
 
-### `@kernl/guard` 0.1.0
+### `@kernlize/guard` 0.1.0
 
 - Three profiles, `strict`, `balanced` and `relaxed`, from `createGuardConfig`, and `applyNappletRules` for kehto's runtime firewall.
 - Envelope classification, ingress flood control with quarantine, the visibility gate, and the focus-aware firewall over `@kehto/firewall`'s `evaluate()`.
 - The fixed zero-network CSP from `createAppletCsp`, with the Trusted Types directives the frame lock needs.
 - The nested-frame lock: a port of kehto's unreleased `experimental.nestedContextLock` ([D-014](./decisions.md#d-014)), described under Security below.
-- Eleven mitigation descriptions for the guard panel. Pure; its one dependency is `@kehto/firewall`. See [`@kernl/guard`](./packages/guard.md).
+- Eleven mitigation descriptions for the guard panel. Pure; its one dependency is `@kehto/firewall`. See [`@kernlize/guard`](./packages/guard.md).
 
-### `@kernl/messaging` 0.1.0
+### `@kernlize/messaging` 0.1.0
 
 - The `MessagingProvider`, `MessagingBackend` and `MessagingRegistry` contracts, with saved-preference restore.
 - The composite backend with `provider:innerId` namespacing, and `describeProvider` rows.
 - A complete in-memory backend, `createMemoryBackend`, used by the preview and the tests.
-- Three providers, `private`, `legacy` and `ratchet`, built with `defineProvider` from backends the host injects. No real backend ships, so all three are unavailable in the live shell. See [`@kernl/messaging`](./packages/messaging.md).
+- Three providers, `private`, `legacy` and `ratchet`, built with `defineProvider` from backends the host injects. No real backend ships, so all three are unavailable in the live shell. See [`@kernlize/messaging`](./packages/messaging.md).
 
-### `@kernl/bridges` 0.1.0
+### `@kernlize/bridges` 0.1.0
 
 - `parseLocator` for the web schemes, `magnet:`, `nzb:`, `slsk:` and `mailto:`, with `formatLocator` and `isNzbUrl`.
 - The `Bridge` contract, the registry with its `authorize` hook and outcome events, and `describeBridge` rows.
 - A complete HTTP bridge with an SSRF policy: `https` only, private and local destinations blocked, a byte limit on the streamed body, and opaque redirects refused in the browser.
 - The torrent, NZB, Soulseek and mail bridges, and `createHandoffBackends`, which serves all four by opening the locator's canonical address in an app on the user's device ([Bridges](./concepts/bridges.md#hand-off-backends)).
-- `createBridgeResourceResolver` for kehto's resource service. See [`@kernl/bridges`](./packages/bridges.md).
+- `createBridgeResourceResolver` for kehto's resource service. See [`@kernlize/bridges`](./packages/bridges.md).
 
-### `@kernl/core` 0.1.0
+### `@kernlize/core` 0.1.0
 
 - `createKernl`, the composition root: one applesauce `EventStore`, `RelayPool` and `AccountManager` over kehto's `createShellBridge`, exercised end to end in `kernl.feature`.
 - Applet pointer decoding, manifest resolution, the mount plan and mounting.
 - Grants over `bridge.runtime.aclState`, the restrictive environment resolver, and consent summaries for destructive writes.
-- [Relay tiers](./concepts/relay-tiers.md), [persistence](./concepts/persistence.md) under the `kernl:` prefix with plaintext keys refused, the guard pipeline and runtime firewall rules, the default messaging and bridge registries, and four [layouts](./concepts/layouts.md). See [`@kernl/core`](./packages/core.md).
+- [Relay tiers](./concepts/relay-tiers.md), [persistence](./concepts/persistence.md) under the `kernl:` prefix with plaintext keys refused, the guard pipeline and runtime firewall rules, the default messaging and bridge registries, and four [layouts](./concepts/layouts.md). See [`@kernlize/core`](./packages/core.md).
 
 ### Shell and site (`apps/web`)
 

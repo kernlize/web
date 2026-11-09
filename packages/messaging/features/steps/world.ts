@@ -14,7 +14,7 @@ import type {
   MessagingProvider,
   MessagingRegistry,
   ProviderAvailability,
-} from '@kernl/messaging';
+} from '@kernlize/messaging';
 
 export interface FakeProvider {
   availability: ProviderAvailability;

@@ -14,7 +14,7 @@ import { expectClean } from './vocabulary';
  * built core, whose names include words a person must never read (D-006).
  */
 
-type Core = typeof import('@kernl/core');
+type Core = typeof import('@kernlize/core');
 const core = (await import(pathToFileURL(resolve(import.meta.dirname, '../../packages/core/dist/index.js')).href)) as Core;
 const ACCOUNT = getPublicKey(generateSecretKey());
 const ADDRESS = nip19.naddrEncode({ kind: 35128, pubkey: ACCOUNT, identifier: 'probe', relays: ['wss://relay.example.org'] });

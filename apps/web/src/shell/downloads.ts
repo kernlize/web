@@ -1,4 +1,4 @@
-import { createHandoffBackends, createWebTorrentBackend, type HandoffOpener, type TorrentBackend, type WebTorrentBackend, type WebTorrentLike } from '@kernl/bridges';
+import { createHandoffBackends, createWebTorrentBackend, type HandoffOpener, type TorrentBackend, type WebTorrentBackend, type WebTorrentLike } from '@kernlize/bridges';
 import type { StorageLike } from './contract';
 
 /** Where a link from peers goes: kernl downloads it, or an app on the device takes it. */

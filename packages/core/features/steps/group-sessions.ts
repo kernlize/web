@@ -5,11 +5,11 @@ import { giftWrap } from 'applesauce-common/operations/gift-wrap';
 import { EventStore } from 'applesauce-core';
 import { PrivateKeySigner } from 'applesauce-signers';
 import type { DmMessage } from '@napplet/core';
-import type { MessagingBackend } from '@kernl/messaging';
+import type { MessagingBackend } from '@kernlize/messaging';
 import { MarmotClient, createApplicationMessageIntent, createChatRumor } from '@internet-privacy/marmot-ts';
 import { InMemoryKeyValueStore } from '@internet-privacy/marmot-ts/extra';
 import { addDevice, conversationWith, device, m, person, pubkeys, send, settle } from './messaging-backends.js';
-import { createGroupMessagesBackend, createGroupNetwork, createSealedGroupStore } from '@kernl/core';
+import { createGroupMessagesBackend, createGroupNetwork, createSealedGroupStore } from '@kernlize/core';
 import { k } from './kernl.js';
 import { MemoryStorage, scratch, type CoreWorld } from './world.js';
 

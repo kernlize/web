@@ -1,6 +1,6 @@
 import type { IAccount } from 'applesauce-accounts';
 import type { ISigner } from 'applesauce-signers';
-import type { ProviderAvailability } from '@kernl/messaging';
+import type { ProviderAvailability } from '@kernlize/messaging';
 import { isReadOnlyAccount } from '../applesauce/auth-hooks.js';
 
 /**

@@ -8,10 +8,10 @@ export default defineConfig({
   plugins: [quickpickle({ stepTimeout: 5000 })],
   resolve: {
     alias: {
-      '@kernl/guard': pkg('guard'),
-      '@kernl/messaging': pkg('messaging'),
-      '@kernl/bridges': pkg('bridges'),
-      '@kernl/core': pkg('core'),
+      '@kernlize/guard': pkg('guard'),
+      '@kernlize/messaging': pkg('messaging'),
+      '@kernlize/bridges': pkg('bridges'),
+      '@kernlize/core': pkg('core'),
     },
   },
   test: {

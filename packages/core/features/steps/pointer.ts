@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import { naddrEncode, neventEncode, noteEncode } from 'applesauce-core/helpers';
-import { decodePointer, type AppletPointer } from '@kernl/core';
+import { decodePointer, type AppletPointer } from '@kernlize/core';
 import { attempt, last, scratch, splitList, type CoreWorld } from './world.js';
 
 function pointer(world: CoreWorld): AppletPointer {

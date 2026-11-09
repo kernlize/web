@@ -4,7 +4,7 @@ The failures people actually hit with this draft, what each one looks like, and 
 
 ## `pnpm site:dev` before `pnpm build`
 
-**Symptom.** The dev server starts, but the shell at `/app/` fails to load: Vite reports that it cannot resolve an `@kernl/…` import, or the shell opens the preview with the notice "Running the preview: The live shell could not start (…)".
+**Symptom.** The dev server starts, but the shell at `/app/` fails to load: Vite reports that it cannot resolve an `@kernlize/…` import, or the shell opens the preview with the notice "Running the preview: The live shell could not start (…)".
 
 **Cause.** `apps/web` depends on the four packages with `workspace:^`, and each package's `exports` point at `dist/index.js`. A fresh clone has no `dist/`; `pnpm install` links the packages but does not build them.
 

@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 import { Then, When } from 'quickpickle';
 import type { NostrEvent } from '@napplet/core';
-import { describeChange, type ConsentSummary } from '@kernl/core';
+import { describeChange, type ConsentSummary } from '@kernlize/core';
 import { scratch, signEvent, splitList, type CoreWorld } from './world.js';
 
 const PROTOCOL_VOCABULARY = /\b(nostr|nip-?\d+|napplets?|relays?|pubkeys?|npub\w*|nsec\w*|naddr\w*|nevent\w*|wss?:\/\/|kind)\b/i;

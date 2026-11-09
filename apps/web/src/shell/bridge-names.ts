@@ -1,4 +1,4 @@
-import { describeBridge, type Bridge, type DescriptionRow } from '@kernl/bridges';
+import { describeBridge, type Bridge, type DescriptionRow } from '@kernlize/bridges';
 
 /**
  * Bridges share functional labels (three say "downloads"), so the settings list names each by

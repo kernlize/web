@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
-import { createMemoryBackend, type MemoryBackend } from '@kernl/messaging';
+import { createMemoryBackend, type MemoryBackend } from '@kernlize/messaging';
 import { attempt, list, state, type MessagingWorld } from './world.js';
 
 function backend(world: MessagingWorld): MemoryBackend {

@@ -60,10 +60,10 @@ None of this changes the wire format. A refusal is a normal NAP error envelope; 
 
 ## Test against the guard
 
-You can exercise the guard's layers without the full shell, because `@kernl/guard` is pure. The packages are not yet on npm, so this needs a clone of the kernl source ([Packages](../packages/index.md#install)). The visibility gate below is the layer that holds a hidden window's `hello`; the ingress guard is the one that counts and quarantines.
+You can exercise the guard's layers without the full shell, because `@kernlize/guard` is pure. The packages are not yet on npm, so this needs a clone of the kernl source ([Packages](../packages/index.md#install)). The visibility gate below is the layer that holds a hidden window's `hello`; the ingress guard is the one that counts and quarantines.
 
 ```ts
-import { createGuardConfig, createIngressGuard, createVisibilityGate, type GuardEvent } from '@kernl/guard';
+import { createGuardConfig, createIngressGuard, createVisibilityGate, type GuardEvent } from '@kernlize/guard';
 
 const events: GuardEvent[] = [];
 const config = createGuardConfig('strict');

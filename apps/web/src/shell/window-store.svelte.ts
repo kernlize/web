@@ -1,5 +1,5 @@
 /* global $state, $derived, $effect */
-import type { WindowVisibility } from '@kernl/guard';
+import type { WindowVisibility } from '@kernlize/guard';
 import type { AppletHandle, AppletStatus, FrameLike, MountPlan } from './contract';
 import { DEFAULT_WINDOW_SIZE, LAYOUT_KEY } from './contract';
 import { cascade, clampRect, dwindle, type Rect } from './layout';

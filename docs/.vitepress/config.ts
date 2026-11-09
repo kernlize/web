@@ -71,6 +71,7 @@ export const sidebar = [
       { text: 'Grant and revoke', link: '/how-tos/grant-and-revoke' },
       { text: 'Embed kernl core', link: '/how-tos/embed-kernl-core' },
       { text: 'Deploy', link: '/how-tos/deploy' },
+      { text: 'Publish packages', link: '/how-tos/publish-packages' },
     ],
   },
   {
@@ -81,10 +82,10 @@ export const sidebar = [
     text: 'Packages',
     items: [
       { text: 'Packages', link: '/packages/' },
-      { text: '@kernl/guard', link: '/packages/guard' },
-      { text: '@kernl/messaging', link: '/packages/messaging' },
-      { text: '@kernl/bridges', link: '/packages/bridges' },
-      { text: '@kernl/core', link: '/packages/core' },
+      { text: '@kernlize/guard', link: '/packages/guard' },
+      { text: '@kernlize/messaging', link: '/packages/messaging' },
+      { text: '@kernlize/bridges', link: '/packages/bridges' },
+      { text: '@kernlize/core', link: '/packages/core' },
     ],
   },
   {

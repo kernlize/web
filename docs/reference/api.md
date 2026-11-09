@@ -12,10 +12,10 @@ Do not edit the generated files. Fix the JSDoc in `packages/*/src` and rerun. `t
 
 | Package | Module page |
 | --- | --- |
-| `@kernl/guard` | [`_kernl_guard`](../api/modules/_kernl_guard.html){target="_self"} |
-| `@kernl/messaging` | [`_kernl_messaging`](../api/modules/_kernl_messaging.html){target="_self"} |
-| `@kernl/bridges` | [`_kernl_bridges`](../api/modules/_kernl_bridges.html){target="_self"} |
-| `@kernl/core` | [`_kernl_core`](../api/modules/_kernl_core.html){target="_self"} |
+| `@kernlize/guard` | [`_kernlize_guard`](../api/modules/_kernlize_guard.html){target="_self"} |
+| `@kernlize/messaging` | [`_kernlize_messaging`](../api/modules/_kernlize_messaging.html){target="_self"} |
+| `@kernlize/bridges` | [`_kernlize_bridges`](../api/modules/_kernlize_bridges.html){target="_self"} |
+| `@kernlize/core` | [`_kernlize_core`](../api/modules/_kernlize_core.html){target="_self"} |
 
 The [index page](../api/index.html){target="_self"} lists all four, and the [hierarchy page](../api/hierarchy.html){target="_self"} shows type relationships across them.
 
@@ -28,4 +28,4 @@ The [index page](../api/index.html){target="_self"} lists all four, and the [hie
 
 ## Audit
 
-`scripts/audit-docs.mjs` asserts that `docs/api/modules/_kernl_<package>.html` exists for every `packages/*/package.json`, that each package page links to it, and that the built docs carry their Markdown twins. It also reads every built page and checks that each `href` into `api/` resolves, under `VITEPRESS_BASE` (default `/docs/`), to a file TypeDoc wrote; that is why the links on this page are relative (`../api/…`). It runs as part of `pnpm docs:check`.
+`scripts/audit-docs.mjs` asserts that `docs/api/modules/_kernlize_<package>.html` exists for every `packages/*/package.json`, that each package page links to it, and that the built docs carry their Markdown twins. It also reads every built page and checks that each `href` into `api/` resolves, under `VITEPRESS_BASE` (default `/docs/`), to a file TypeDoc wrote; that is why the links on this page are relative (`../api/…`). It runs as part of `pnpm docs:check`.

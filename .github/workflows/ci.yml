@@ -25,12 +25,29 @@ jobs:
       - run: pnpm type-check
       - run: pnpm test
       - run: pnpm check:deps
+      - run: pnpm check:packages
       - run: pnpm docs:check
-      - run: pnpm --filter @kernl/web build
+      - run: pnpm --filter @kernlize/web build
       - run: node scripts/build-pages.mjs
       - run: pnpm check:vocabulary
       - run: pnpm check:agent-ready
       - run: pnpm slop
+
+  jsr:
+    name: JSR publish dry-run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9.8
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check:jsr
 
   e2e:
     name: Browser

@@ -8,7 +8,7 @@ import {
   createTorrentBridge,
   type Bridge,
   type HandoffBackends,
-} from '@kernl/bridges';
+} from '@kernlize/bridges';
 import type { BridgeWorld } from './world';
 
 const BRIDGES: Record<string, (backends: HandoffBackends) => Bridge> = {

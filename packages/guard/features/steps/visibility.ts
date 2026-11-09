@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
-import { createGuardConfig, createVisibilityGate, type GuardProfile, type OpClass, type WindowVisibility } from '@kernl/guard';
+import { createGuardConfig, createVisibilityGate, type GuardProfile, type OpClass, type WindowVisibility } from '@kernlize/guard';
 import { scratch, type GuardWorld } from './world.js';
 
 const STATES: Readonly<Record<string, WindowVisibility>> = {

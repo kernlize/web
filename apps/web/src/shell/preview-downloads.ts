@@ -1,4 +1,4 @@
-import type { WebTorrentFileLike, WebTorrentLike, WebTorrentTorrentLike } from '@kernl/bridges';
+import type { WebTorrentFileLike, WebTorrentLike, WebTorrentTorrentLike } from '@kernlize/bridges';
 
 /** Starts a repeating timer and returns the function that stops it. */
 export type Repeat = (tick: () => void, ms: number) => () => void;

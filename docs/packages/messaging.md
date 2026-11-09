@@ -1,14 +1,14 @@
-# @kernl/messaging
+# @kernlize/messaging
 
 Messaging provider contract, registry, composite direct-message backend and an in-memory backend for the kernl shell. Pure: no relay code, no signer, no kehto dependency. Providers receive their backend constructor from the shell.
 
-::: info Network backends live in `@kernl/core`
-This package ships no backend that sends anything over a network; the only backend in it is `createMemoryBackend`. The network backends for `private`, `legacy` and `ratchet` are `createPrivateMessagesBackend`, `createLegacyMessagesBackend` and `createRatchetMessagesBackend` in [`@kernl/core`](./core.md#messaging-backends), because they need the shell's event store, connection pool and account signer. `createKernl` wires them by default, so all three work in the live shell while the signed-in account's signer can encrypt; `ratchet` is experimental ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)). The offline preview (`?preview=1`) runs the same providers over the in-memory backend with a scripted correspondent, so messages sent there go nowhere.
+::: info Network backends live in `@kernlize/core`
+This package ships no backend that sends anything over a network; the only backend in it is `createMemoryBackend`. The network backends for `private`, `legacy` and `ratchet` are `createPrivateMessagesBackend`, `createLegacyMessagesBackend` and `createRatchetMessagesBackend` in [`@kernlize/core`](./core.md#messaging-backends), because they need the shell's event store, connection pool and account signer. `createKernl` wires them by default, so all three work in the live shell while the signed-in account's signer can encrypt; `ratchet` is experimental ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)). The offline preview (`?preview=1`) runs the same providers over the in-memory backend with a scripted correspondent, so messages sent there go nowhere.
 :::
 
 | Field | Value |
 | --- | --- |
-| Package | `@kernl/messaging` |
+| Package | `@kernlize/messaging` |
 | Version | `0.2.0` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts` |
 | Dependencies | none |
@@ -17,10 +17,10 @@ This package ships no backend that sends anything over a network; the only backe
 
 ## Install
 
-`@kernl/messaging` is not yet published to npm, so `pnpm add @kernl/messaging` fails. During the alpha it is built from the kernl source repository, which is private, and consumed as a workspace dependency. The [package index](./index.md#install) has the steps.
+`@kernlize/messaging` is not yet published to npm, so `pnpm add @kernlize/messaging` fails. During the alpha it is built from the kernl source repository, which is private, and consumed as a workspace dependency. The [package index](./index.md#install) has the steps.
 
 ```json
-{ "dependencies": { "@kernl/messaging": "workspace:^" } }
+{ "dependencies": { "@kernlize/messaging": "workspace:^" } }
 ```
 
 ## Purpose
@@ -39,7 +39,7 @@ One contract for every private-messaging protocol, truthful self-description ins
 | `ProviderAvailability` | union | `{ available: true }` or `{ available: false; reason: string }`. The reason is a bare word such as `sign-in-required`; the registry prefixes it as `unavailable:<reason>`. |
 | `ProviderEntry` | interface | `{ provider; enabled: boolean; availability: ProviderAvailability }`, what `MessagingRegistry.list()` and `get()` return. |
 | `MessagingPreferences` | interface | `{ enabled: readonly string[]; defaultProvider?: string }`, the persisted registry state. |
-| `PACKAGE_NAME` | `'@kernl/messaging'` | The package name as a constant. |
+| `PACKAGE_NAME` | `'@kernlize/messaging'` | The package name as a constant. |
 
 ### Registry
 
@@ -88,7 +88,7 @@ One contract for every private-messaging protocol, truthful self-description ins
 ## Example
 
 ```ts
-import { createCompositeBackend, createMemoryBackend, createMessagingRegistry, createPrivateMessagesProvider } from '@kernl/messaging';
+import { createCompositeBackend, createMemoryBackend, createMessagingRegistry, createPrivateMessagesProvider } from '@kernlize/messaging';
 
 const backend = createMemoryBackend({ owner: 'me', now: () => 1_700_000_000 });
 await backend.send({ recipients: ['alice'], content: 'hi' });
@@ -119,4 +119,4 @@ createCompositeBackend(() => [{ id: 'private', backend }], () => 'private');
 
 ## API reference
 
-Generated module: [`_kernl_messaging`](../api/modules/_kernl_messaging.html){target="_self"}
+Generated module: [`_kernlize_messaging`](../api/modules/_kernlize_messaging.html){target="_self"}

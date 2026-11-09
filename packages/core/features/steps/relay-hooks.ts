@@ -12,7 +12,7 @@ import {
   subscribeWithEose,
   type RelayTier,
   type RelayTiers,
-} from '@kernl/core';
+} from '@kernlize/core';
 import { createFakePool, last, scratch, signEvent, splitList, type CoreWorld, type ReqMessage } from './world.js';
 
 interface Delivered {

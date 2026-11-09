@@ -3,7 +3,7 @@ import { lockGiftWrap, unlockGiftWrap } from 'applesauce-common/helpers/gift-wra
 import { getConversationParticipants } from 'applesauce-common/helpers/messages';
 import { sealRumor, toRumor } from 'applesauce-common/operations/gift-wrap';
 import { PrivateKeySigner } from 'applesauce-signers';
-import type { MessagingBackend } from '@kernl/messaging';
+import type { MessagingBackend } from '@kernlize/messaging';
 import { createSignerBackend, type MessageFormat, type OpenedMessage, type SignerMessagingOptions } from './signer-backend.js';
 
 /** NIP-59 lets wraps carry a timestamp up to two days old so arrival times do not date the message. */

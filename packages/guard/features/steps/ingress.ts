@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
-import { createGuardConfig, createIngressGuard, type GuardEnvelope, type GuardProfile } from '@kernl/guard';
+import { createGuardConfig, createIngressGuard, type GuardEnvelope, type GuardProfile } from '@kernlize/guard';
 import { last, scratch, type GuardWorld } from './world.js';
 
 const NAPPLET = 'chat';

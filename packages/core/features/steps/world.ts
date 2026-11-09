@@ -6,7 +6,7 @@ import type { GroupReqMessage, PublishResponse } from 'applesauce-relay';
 import type { Filter } from 'applesauce-core/helpers';
 import type { NappletArtifactCache, WriteVerifiedResolutionInput } from '@kehto/nip/5d';
 import type { NostrEvent, NostrFilter } from '@napplet/core';
-import type { ApplesaucePool, FrameLike, SigningConsent, StorageLike } from '@kernl/core';
+import type { ApplesaucePool, FrameLike, SigningConsent, StorageLike } from '@kernlize/core';
 
 /** Map-backed storage satisfying both `StorageLike` and the parts of `Storage` kehto touches. */
 export class MemoryStorage implements StorageLike {

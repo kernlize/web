@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
-import { createRelayTiers, type RelayTier, type RelayTiers } from '@kernl/core';
+import { createRelayTiers, type RelayTier, type RelayTiers } from '@kernlize/core';
 import { attempt, scratch, splitList, type CoreWorld } from './world.js';
 
 function tiers(world: CoreWorld): RelayTiers {

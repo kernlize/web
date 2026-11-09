@@ -4,14 +4,14 @@ kernl is three layers. kehto supplies the primitives, four kernl packages supply
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│  apps/web  (@kernl/web)                        Astro 7 + Svelte 5    │
+│  apps/web  (@kernlize/web)                        Astro 7 + Svelte 5    │
 │  landing site at /         shell at /app/      docs at /docs/        │
 ├──────────────────────────────────────────────────────────────────────┤
-│  @kernl/core                                   composition root      │
+│  @kernlize/core                                   composition root      │
 │  createKernl · applesauce adapters · decodePointer → resolve →       │
 │  plan → mount · guard pipeline · grants · describeChange · layouts   │
 │       │                 │                   │                        │
-│  @kernl/guard      @kernl/messaging     @kernl/bridges               │
+│  @kernlize/guard      @kernlize/messaging     @kernlize/bridges               │
 │  ingress, gate,    provider contract,   locators, Bridge contract,   │
 │  focus firewall,   registry, composite  registry, HTTP bridge        │
 │  CSP, profiles     dm adapter           with SSRF policy             │
@@ -34,7 +34,7 @@ kehto is the runtime authority for how a NIP-5D shell composes. kernl uses these
 | `@kehto/shell` | `createShellBridge`, `buildShellCapabilities`, `resolveShellEnvironment`, `prepareNappletSrcdoc`, `denyNappletControllerAccess`, `renderNappletFramePolicyMeta`, `originRegistry`, the `ShellAdapter` hooks (including `filterNappletMessage`, `getFocusContext`, `onFirewallEvent`, `firewallPersistence` and `aclDefaultPolicy`), `ShellBridge.releaseDeferred` and the revocation model. |
 | `@kehto/runtime` | The protocol engine behind the bridge: dispatch, the ACL gate (`bridge.runtime.aclState`), the runtime firewall (`bridge.runtime.firewallState`, with `setUnfocusedMultiplier` and `setBurstGuard`), the `ServiceRegistry` and `ConsentRequest`. |
 | `@kehto/acl` | The grant store the runtime enforces, keyed by `dTag:hash`. kernl reaches it only through `bridge.runtime.aclState`. |
-| `@kehto/firewall` | The pure `evaluate()` engine `@kernl/guard` runs, and the `NappletRules` and `RateLimit` types `runtimeFirewallRules` translates into. |
+| `@kehto/firewall` | The pure `evaluate()` engine `@kernlize/guard` runs, and the `NappletRules` and `RateLimit` types `runtimeFirewallRules` translates into. |
 | `@kehto/services` | `createRelayPoolService`, `createIdentityService`, `createThemeService`, `createNotifyService`, `createLinkService`, `createResourceService`, `createDmService`, `createOutboxService` and `createRelayPoolOutboxRouter`. |
 | `@kehto/nip` | `resolveNapplet`, `openNappletArtifactCache` and `NAPPLET_KINDS` from `@kehto/nip/5d`. |
 | `@kehto/wm` | `LayoutStrategy`, `WindowState`, `Rect` and `WindowPlacement`, which the layouts implement. |
@@ -51,16 +51,16 @@ Every relay connection, event store, signer, account and loader goes through app
 | `RelayPool` | Every relay connection. | `createRelayPoolHooks` and `createRelayPoolLike` (`applesauce/relay-hooks.ts`) for `ShellAdapter.relayPool`; `createAppletRelayBackend`, `createDmRelayPool` and `createOutboxRelayPool` (`applesauce/relay-backend.ts`) for the relay, dm and outbox services. All of them route through `selectRelayTier`. |
 | `AccountManager` | The signed-in accounts and their signers. | `createKernlAccounts` (`applesauce/accounts.ts`) refuses plaintext-key account types; `createAuthHooks` and `wrapAccountSigner` (`applesauce/auth-hooks.ts`) give kehto a signer that never reveals the account. |
 
-`nostr-tools` is a peer dependency of `@kernl/core`, because kehto and applesauce require it. kernl source never imports it, and `scripts/check-dependency-rules.mjs` fails the build if it does.
+`nostr-tools` is a peer dependency of `@kernlize/core`, because kehto and applesauce require it. kernl source never imports it, and `scripts/check-dependency-rules.mjs` fails the build if it does.
 
 ## The kernl packages
 
 | Package | Depends on | Purpose |
 | --- | --- | --- |
-| [`@kernl/guard`](../packages/guard.md) | `@kehto/firewall` | Flood control, visibility gate, focus-aware firewall, CSP profile, mitigation descriptions. Pure: no DOM, no timers, time is injected. |
-| [`@kernl/messaging`](../packages/messaging.md) | `@napplet/core` (types) | The provider contract and the composite backend. Structurally identical to kehto's `DmAdapter` so a composite can be handed to `createDmService` without translation, while the package stays free of a kehto dependency. |
-| [`@kernl/bridges`](../packages/bridges.md) | nothing | Locator parsing, the `Bridge` contract, the registry with its `authorize` hook, the HTTP bridge. |
-| [`@kernl/core`](../packages/core.md) | all of the above, kehto, applesauce | Composition: adapters, the applet lifecycle, the guard pipeline and runtime firewall rules, grants, consent summaries, layouts, the namespaced store. Browser-agnostic; the DOM is reached through `KernlHost` and `FrameLike`. |
+| [`@kernlize/guard`](../packages/guard.md) | `@kehto/firewall` | Flood control, visibility gate, focus-aware firewall, CSP profile, mitigation descriptions. Pure: no DOM, no timers, time is injected. |
+| [`@kernlize/messaging`](../packages/messaging.md) | `@napplet/core` (types) | The provider contract and the composite backend. Structurally identical to kehto's `DmAdapter` so a composite can be handed to `createDmService` without translation, while the package stays free of a kehto dependency. |
+| [`@kernlize/bridges`](../packages/bridges.md) | nothing | Locator parsing, the `Bridge` contract, the registry with its `authorize` hook, the HTTP bridge. |
+| [`@kernlize/core`](../packages/core.md) | all of the above, kehto, applesauce | Composition: adapters, the applet lifecycle, the guard pipeline and runtime firewall rules, grants, consent summaries, layouts, the namespaced store. Browser-agnostic; the DOM is reached through `KernlHost` and `FrameLike`. |
 
 The three leaf packages have zero framework dependencies and import nothing from each other. Only `core` composes them. The dependency rules are enforced by `pnpm check:deps`.
 
@@ -97,4 +97,4 @@ Every revocation reason (`window-message`, `second-hello`, `invalid-hello`, `sec
 
 ## The app
 
-`apps/web` is Astro 7 with Svelte 5 islands. It owns the landing site at `/`, the shell at `/app/`, and the `KernlHost` that gives `@kernl/core` a page: `localStorage`, the consent dialog, notices, link confirmation and window visibility. It creates the iframes, wires `window.addEventListener('message', kernl.handleWindowMessage)` once, and renders the launcher, the grants panel per window, the guard panel and the provider picker. The published packages contain none of this; the app is the only framework-dependent workspace ([D-004](../decisions.md#d-004)). `?preview=1` swaps in `preview-kernl.ts`, which implements the same `Kernl` contract without a network ([D-011](../decisions.md#d-011)).
+`apps/web` is Astro 7 with Svelte 5 islands. It owns the landing site at `/`, the shell at `/app/`, and the `KernlHost` that gives `@kernlize/core` a page: `localStorage`, the consent dialog, notices, link confirmation and window visibility. It creates the iframes, wires `window.addEventListener('message', kernl.handleWindowMessage)` once, and renders the launcher, the grants panel per window, the guard panel and the provider picker. The published packages contain none of this; the app is the only framework-dependent workspace ([D-004](../decisions.md#d-004)). `?preview=1` swaps in `preview-kernl.ts`, which implements the same `Kernl` contract without a network ([D-011](../decisions.md#d-011)).

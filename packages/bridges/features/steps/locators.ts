@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { Then, When } from 'quickpickle';
-import { formatLocator, isNzbUrl, parseLocator } from '@kernl/bridges';
+import { formatLocator, isNzbUrl, parseLocator } from '@kernlize/bridges';
 import { expectReason, splitList, type BridgeWorld } from './world';
 
 When('the locator {string} is parsed', (world: BridgeWorld, uri: string) => {

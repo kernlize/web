@@ -1,4 +1,4 @@
-import type { Kernl } from '@kernl/core';
+import type { Kernl } from '@kernlize/core';
 import type { ShellDownloads } from './downloads';
 
 /**
@@ -25,7 +25,7 @@ export type {
   RelayTiers,
   Session,
   StorageLike,
-} from '@kernl/core';
+} from '@kernlize/core';
 
 /** Where the running shell came from. */
 export type BootMode = 'live' | 'preview';

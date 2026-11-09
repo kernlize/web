@@ -1,22 +1,22 @@
-# @kernl/core
+# @kernlize/core
 
 Opinionated shell composition over kehto and applesauce. Browser-agnostic: the DOM is reached only through the `KernlHost` hooks and the `FrameLike` shape, so the whole composition runs in vitest against fakes.
 
 | Field | Value |
 | --- | --- |
-| Package | `@kernl/core` |
+| Package | `@kernlize/core` |
 | Version | `0.2.0` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts` |
-| Dependencies | `@kernl/guard`, `@kernl/messaging`, `@kernl/bridges` (`workspace:^`); `@kehto/acl ^0.20.2`, `@kehto/firewall ^0.6.3`, `@kehto/runtime ^0.27.2`, `@kehto/shell ^0.30.0`, `@kehto/services ^0.29.0`, `@kehto/nip ^0.8.0`, `@kehto/wm ^0.0.2`; `applesauce-core ^7.0.3`, `applesauce-relay ^7.0.0`, `applesauce-signers ^7.0.1`, `applesauce-accounts ^7.0.2`, `applesauce-loaders ^7.0.2`; `rxjs ^7.8.2` |
+| Dependencies | `@kernlize/guard`, `@kernlize/messaging`, `@kernlize/bridges` (`workspace:^`); `@kehto/acl ^0.20.2`, `@kehto/firewall ^0.6.3`, `@kehto/runtime ^0.27.2`, `@kehto/shell ^0.30.0`, `@kehto/services ^0.29.0`, `@kehto/nip ^0.8.0`, `@kehto/wm ^0.0.2`; `applesauce-core ^7.0.3`, `applesauce-relay ^7.0.0`, `applesauce-signers ^7.0.1`, `applesauce-accounts ^7.0.2`, `applesauce-loaders ^7.0.2`; `rxjs ^7.8.2` |
 | Peer dependencies | `@napplet/core >=0.37.0 <0.38.0`, `@napplet/nap >=0.36.0 <0.37.0`, `@napplet/shim >=0.30.0`, `nostr-tools >=2.23.3 <=2.x` (required by kehto and applesauce; never imported here) |
 | Side effects | none |
 
 ## Install
 
-`@kernl/core` is not yet published to npm, so `pnpm add @kernl/core` fails. During the alpha it is built from the kernl source repository, which is private, and consumed as a workspace dependency. The [package index](./index.md#install) has the steps.
+`@kernlize/core` is not yet published to npm, so `pnpm add @kernlize/core` fails. During the alpha it is built from the kernl source repository, which is private, and consumed as a workspace dependency. The [package index](./index.md#install) has the steps.
 
 ```json
-{ "dependencies": { "@kernl/core": "workspace:^" } }
+{ "dependencies": { "@kernlize/core": "workspace:^" } }
 ```
 
 ## Purpose
@@ -24,7 +24,7 @@ Opinionated shell composition over kehto and applesauce. Browser-agnostic: the D
 This is where the five opinions in `SOUL.md` become code. `createKernl` builds one `EventStore`, one `RelayPool` and one `AccountManager`, adapts them to kehto's relay, auth and dm contracts, registers kehto's reference services, builds the `ShellAdapter` and hands it to `createShellBridge`, puts the guard pipeline in front of the bridge for the window-level `hello` and behind it, as an observer, for port traffic, wraps the account signer so destructive signatures ask the user first, and exposes the applet lifecycle (`decodePointer` → `resolve` → `plan` → `mount`), the grants surface, consent summaries and layouts to the shell app. The layering is in [Architecture](../concepts/architecture.md).
 
 ```ts
-import { createKernl, type KernlHost } from '@kernl/core';
+import { createKernl, type KernlHost } from '@kernlize/core';
 
 declare const host: KernlHost;
 declare const iframe: HTMLIFrameElement;
@@ -152,7 +152,7 @@ Availability follows the active account. An unavailable provider reports a reaso
 Preferences persist at `kernl:messaging:v1`.
 
 ```ts
-import { createKernl, createLegacyMessagesBackend, createPrivateMessagesBackend, type KernlHost } from '@kernl/core';
+import { createKernl, createLegacyMessagesBackend, createPrivateMessagesBackend, type KernlHost } from '@kernlize/core';
 
 declare const host: KernlHost;
 
@@ -254,7 +254,7 @@ Pure `LayoutStrategy` values over `@kehto/wm` types. Minimised windows are never
 | `createMasterStackLayout({ ratio?, gap? })` | The focused window (or the first) takes `ratio` of the width (default 0.6) on the left; the rest stack on the right. |
 
 ```ts
-import { createMasterStackLayout } from '@kernl/core';
+import { createMasterStackLayout } from '@kernlize/core';
 import type { WindowState } from '@kehto/wm';
 
 declare const windows: WindowState[];
@@ -279,7 +279,7 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `isTheme` | `(value: Record<string, unknown> \| undefined) => value is Theme` | True when `colors.background`, `colors.text` and `colors.primary` are strings. |
 | `resourceInitFor` | `(deps, init: ResourceFetchInit) => ResourceResolveInit` | Names the requesting applet, or `'shell'`, to the bridge resolver. |
 | `LINK_PROTOCOLS` | `readonly string[]` | `['https:', 'mailto:']`. |
-| `PACKAGE_NAME` | `'@kernl/core'` | |
+| `PACKAGE_NAME` | `'@kernlize/core'` | |
 | `KERNL_FRAME_POLICY_META` | `string` | kehto's `<meta>` for the host page's `<head>`, so applet frames cannot navigate away from their `srcdoc`. |
 | `Kernl`, `KernlOptions`, `KernlHost`, `GuardFacade`, `Session`, `StorageLike`, `MessagingBackendFactories`, `AppletLifecycle`, `LifecycleContext`, `ShellAdapterDeps`, `KernlServiceDeps`, `KernlServices` | types | |
 
@@ -383,4 +383,4 @@ Signatures are abbreviated; the generated reference has the full ones.
 
 ## API reference
 
-Generated module: [`_kernl_core`](../api/modules/_kernl_core.html){target="_self"}
+Generated module: [`_kernlize_core`](../api/modules/_kernlize_core.html){target="_self"}

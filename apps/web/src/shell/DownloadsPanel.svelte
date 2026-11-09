@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { DownloadJob } from '@kernl/bridges';
+  import type { DownloadJob } from '@kernlize/bridges';
   import type { ShellKernl } from './contract';
   import { describeDownload } from './download-words';
   import type { ShellDownloads } from './downloads';

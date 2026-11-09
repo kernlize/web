@@ -4,9 +4,9 @@ import { EventStore } from 'applesauce-core';
 import { AccountManager, type IAccount } from 'applesauce-accounts';
 import { ReadonlyAccount, registerCommonAccountTypes } from 'applesauce-accounts/accounts';
 import { originRegistry } from '@kehto/shell';
-import type { BridgeContext, BridgeRegistry } from '@kernl/bridges';
-import { createMemoryBackend, createMessagingRegistry } from '@kernl/messaging';
-import type { GuardEvent, GuardProfile } from '@kernl/guard';
+import type { BridgeContext, BridgeRegistry } from '@kernlize/bridges';
+import { createMemoryBackend, createMessagingRegistry } from '@kernlize/messaging';
+import type { GuardEvent, GuardProfile } from '@kernlize/guard';
 import {
   KERNL_FRAME_POLICY_META,
   createDefaultBridges,
@@ -19,7 +19,7 @@ import {
   type KernlOptions,
   type MountPlan,
   type Session,
-} from '@kernl/core';
+} from '@kernlize/core';
 import type { DmSendRequest } from '@napplet/core';
 import { attempt, author, createFakeArtifactCache, createFakeFrame, createFakePool, passwordAccount, passwordSigner, scratch, signManifest, splitList, type CoreWorld, type FakeFrame, type ManifestVector } from './world.js';
 

@@ -1,6 +1,6 @@
 /**
  * Plain words for every reason messaging can give. The unavailability keys are the codes
- * `MESSAGING_UNAVAILABLE_REASONS` in `@kernl/core` holds (plus the preview's own); a browser
+ * `MESSAGING_UNAVAILABLE_REASONS` in `@kernlize/core` holds (plus the preview's own); a browser
  * test checks that every core code has an entry here, so a new code cannot reach a person raw.
  * The core is not imported at runtime: the shell loads it on demand, and the preview never does.
  */

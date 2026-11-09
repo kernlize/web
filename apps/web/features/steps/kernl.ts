@@ -3,7 +3,7 @@ import type { Observable } from 'rxjs';
 import { Given, Then, When } from 'quickpickle';
 import type { IAccount } from 'applesauce-accounts';
 import { PrivateKeyAccount, ReadonlyAccount } from 'applesauce-accounts/accounts';
-import { BASELINE_DOMAINS } from '@kernl/core';
+import { BASELINE_DOMAINS } from '@kernlize/core';
 import { MemoryStorage } from '../../../../packages/core/features/steps/world.ts';
 import { abbreviate, type AppletHandle, type AppletPointer, type AppletSummary, type ConsentPrompt, type FrameLike, type KernlHost, type MountPlan, type ShellKernl } from '../../src/shell/contract.ts';
 import { sampleSummary } from '../../src/shell/preview-applet.ts';

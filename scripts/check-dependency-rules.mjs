@@ -54,7 +54,7 @@ export function findNostrToolsImports(packagesDir) {
 
 /**
  * Find `nostr-tools` imports in the web app's source, Svelte and Astro files included.
- * The shell reaches the protocol only through `@kernl/*` and applesauce (D-002).
+ * The shell reaches the protocol only through `@kernlize/*` and applesauce (D-002).
  * @param {string} appSrcDir Absolute path of `apps/web/src`.
  * @returns {string[]} One violation per offending import, with the path relative to the app directory.
  * @example
@@ -82,7 +82,7 @@ export function findKehtoImports(packagesDir) {
     const allowed = new Set(KEHTO_ALLOWANCES[slug] ?? []);
     for (const file of sourceFiles(join(packagesDir, slug, 'src'))) {
       const offending = importSpecifiers(readFileSync(file, 'utf8')).filter((spec) => spec.startsWith('@kehto/') && !allowed.has(packageOf(spec)));
-      for (const spec of offending) violations.push(`${relative(packagesDir, file)} imports ${spec}; only @kernl/core composes kehto (guard may import @kehto/firewall)`);
+      for (const spec of offending) violations.push(`${relative(packagesDir, file)} imports ${spec}; only @kernlize/core composes kehto (guard may import @kehto/firewall)`);
     }
   }
   return violations;

@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { Then } from 'quickpickle';
-import { classifyEnvelope, estimateEnvelopeSize } from '@kernl/guard';
+import { classifyEnvelope, estimateEnvelopeSize } from '@kernlize/guard';
 import type { GuardWorld } from './world.js';
 
 Then('the guard classifies {string} as {string}', (_world: GuardWorld, type: string, opClass: string) => {

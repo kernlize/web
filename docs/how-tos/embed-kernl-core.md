@@ -1,8 +1,8 @@
 # Embed kernl core
 
-`apps/web` is one host for `@kernl/core`; your own page can be another. This how-to implements `KernlHost`, calls `createKernl`, and mounts an applet in an iframe you own. The sample is type-checked with `strict` on by `node scripts/check-doc-samples.mjs`, part of `pnpm docs:check`. For a slower, step-by-step version with a complete page, follow the tutorial [Embed kernl in a page](../tutorials/embed-a-host-page.md).
+`apps/web` is one host for `@kernlize/core`; your own page can be another. This how-to implements `KernlHost`, calls `createKernl`, and mounts an applet in an iframe you own. The sample is type-checked with `strict` on by `node scripts/check-doc-samples.mjs`, part of `pnpm docs:check`. For a slower, step-by-step version with a complete page, follow the tutorial [Embed kernl in a page](../tutorials/embed-a-host-page.md).
 
-The packages are not yet published to npm, so your page lives in a clone of the kernl source as a workspace package that depends on `@kernl/core` and `@kernl/guard` with `workspace:^`, and you run `pnpm build` first ([Packages](../packages/index.md#install)).
+The packages are not yet published to npm, so your page lives in a clone of the kernl source as a workspace package that depends on `@kernlize/core` and `@kernlize/guard` with `workspace:^`, and you run `pnpm build` first ([Packages](../packages/index.md#install)).
 
 ## 1. Put the frame policy in the page head
 
@@ -12,7 +12,7 @@ The host page must stop applet frames from navigating away from their verified `
 <meta http-equiv="Content-Security-Policy" content="frame-src 'none'">
 ```
 
-Put it in the `<head>` of the HTML the server sends, before any script runs, as `apps/web/src/pages/app/index.astro` does. If your page is generated, render the constant into the head at build time (`import { KERNL_FRAME_POLICY_META } from '@kernl/core'`) rather than inserting it from client code, so the policy is in force before the first frame exists. Applets still load, because their bytes arrive as `srcdoc` rather than from a URL; a frame that tries to load or navigate to a URL is blocked.
+Put it in the `<head>` of the HTML the server sends, before any script runs, as `apps/web/src/pages/app/index.astro` does. If your page is generated, render the constant into the head at build time (`import { KERNL_FRAME_POLICY_META } from '@kernlize/core'`) rather than inserting it from client code, so the policy is in force before the first frame exists. Applets still load, because their bytes arrive as `srcdoc` rather than from a URL; a frame that tries to load or navigate to a URL is blocked.
 
 ## 2. Implement `KernlHost` and create the shell
 
@@ -30,8 +30,8 @@ Put it in the `<head>` of the HTML the server sends, before any script runs, as 
 `fetchBlob` and `now` are optional; without them the core fetches artifact blobs with `defaultFetchBlob` and uses `Date.now`.
 
 ```ts
-import { createKernl, type AppletHandle, type ConsentPrompt, type KernlHost } from '@kernl/core';
-import type { WindowVisibility } from '@kernl/guard';
+import { createKernl, type AppletHandle, type ConsentPrompt, type KernlHost } from '@kernlize/core';
+import type { WindowVisibility } from '@kernlize/guard';
 import { ReadonlyAccount } from 'applesauce-accounts/accounts';
 
 const frames = new Map<string, HTMLIFrameElement>();
@@ -97,7 +97,7 @@ export async function openApplet(address: string, container: HTMLElement): Promi
 }
 ```
 
-`createKernl({ host })` creates one `EventStore`, one `RelayPool` and one `AccountManager`, the guard pipeline in `strict`, the default messaging and bridge registries, kehto's services and the shell bridge ([`@kernl/core`](../packages/core.md#composition)). Pass any of them in `KernlOptions` to use your own. `guard: { profile }` starts the guard in `balanced` or `relaxed` instead; that changes limits only, and the sandbox, the CSP, the frame lock and consent stay as they are ([Change the guard profile](./change-guard-profile.md#what-a-profile-cannot-change)). Wire `handleWindowMessage` to `window` exactly once: it is how an applet's `hello` reaches the guard and then kehto.
+`createKernl({ host })` creates one `EventStore`, one `RelayPool` and one `AccountManager`, the guard pipeline in `strict`, the default messaging and bridge registries, kehto's services and the shell bridge ([`@kernlize/core`](../packages/core.md#composition)). Pass any of them in `KernlOptions` to use your own. `guard: { profile }` starts the guard in `balanced` or `relaxed` instead; that changes limits only, and the sandbox, the CSP, the frame lock and consent stay as they are ([Change the guard profile](./change-guard-profile.md#what-a-profile-cannot-change)). Wire `handleWindowMessage` to `window` exactly once: it is how an applet's `hello` reaches the guard and then kehto.
 
 ## 3. The mount flow
 

@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { DataTable, Then } from 'quickpickle';
-import { describeBridge, type Bridge } from '@kernl/bridges';
+import { describeBridge, type Bridge } from '@kernlize/bridges';
 import type { BridgeWorld } from './world';
 
 const PROTOCOL_WORDS = /torrent|magnet|nzb|usenet|soulseek|slsk|http|mailto|smtp|imap/i;

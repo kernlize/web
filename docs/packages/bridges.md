@@ -1,10 +1,10 @@
-# @kernl/bridges
+# @kernlize/bridges
 
 Locator parsing, the bridge contract, the registry that routes and authorises, an HTTP bridge with an SSRF policy, four backend-driven bridges for downloads, sharing and mail, hand-off backends that open an app on the user's device, the adapter that feeds a resource service, and user-facing descriptions. Zero dependencies.
 
 | Field | Value |
 | --- | --- |
-| Package | `@kernl/bridges` |
+| Package | `@kernlize/bridges` |
 | Version | `0.2.0` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts` |
 | Dependencies | none |
@@ -13,10 +13,10 @@ Locator parsing, the bridge contract, the registry that routes and authorises, a
 
 ## Install
 
-`@kernl/bridges` is not yet published to npm, so `pnpm add @kernl/bridges` fails. During the alpha it is built from the kernl source repository, which is private, and consumed as a workspace dependency. The [package index](./index.md#install) has the steps.
+`@kernlize/bridges` is not yet published to npm, so `pnpm add @kernlize/bridges` fails. During the alpha it is built from the kernl source repository, which is private, and consumed as a workspace dependency. The [package index](./index.md#install) has the steps.
 
 ```json
-{ "dependencies": { "@kernl/bridges": "workspace:^" } }
+{ "dependencies": { "@kernlize/bridges": "workspace:^" } }
 ```
 
 ## Purpose
@@ -127,7 +127,7 @@ NZB, Soulseek and mail have no in-page backend: their protocols need raw TCP soc
 ## Example
 
 ```ts
-import { createBridgeRegistry, createBridgeResourceResolver, createHandoffBackends, createHttpBridge, createTorrentBridge, formatLocator, type ResourceResolveInit } from '@kernl/bridges';
+import { createBridgeRegistry, createBridgeResourceResolver, createHandoffBackends, createHttpBridge, createTorrentBridge, formatLocator, type ResourceResolveInit } from '@kernlize/bridges';
 
 declare const lookupAddresses: (host: string) => Promise<string[]>; // the shell's DNS lookup
 declare const identityFor: (init: ResourceResolveInit) => { dTag: string; hash: string } | 'shell'; // the shell's window-to-identity map
@@ -145,7 +145,7 @@ registry.register(createTorrentBridge(handoff.torrent)); // { available: true, h
 const result = await registry.resolve('https://example.com/file.bin', { requester: 'shell' });
 if (result.kind === 'bytes') result.response.status;
 
-// what @kernl/core hands to kehto's resource service
+// what @kernlize/core hands to kehto's resource service
 const fetchLike = createBridgeResourceResolver(registry, { requesterFor: (init) => identityFor(init) });
 ```
 
@@ -153,8 +153,8 @@ const fetchLike = createBridgeResourceResolver(registry, { requesterFor: (init) 
 
 - Does not implement any transfer protocol. The hand-off backends only build an address and open it; backends that move data live in the shell app or in packages of their own.
 - Does not prompt. Consent is a `BridgeAuthorizer` the host can supply to the registry; `createKernl`'s default registry has none.
-- Does not apply the guard. Rate limits and the hidden-window allowance run in `@kernl/guard` before a request reaches the registry.
-- Does not know about NAP envelopes. `@kernl/core` maps `resource.*` requests onto `createBridgeResourceResolver(registry)`.
+- Does not apply the guard. Rate limits and the hidden-window allowance run in `@kernlize/guard` before a request reaches the registry.
+- Does not know about NAP envelopes. `@kernlize/core` maps `resource.*` requests onto `createBridgeResourceResolver(registry)`.
 
 ## Specification
 
@@ -162,4 +162,4 @@ const fetchLike = createBridgeResourceResolver(registry, { requesterFor: (init) 
 
 ## API reference
 
-Generated module: [`_kernl_bridges`](../api/modules/_kernl_bridges.html){target="_self"}
+Generated module: [`_kernlize_bridges`](../api/modules/_kernlize_bridges.html){target="_self"}

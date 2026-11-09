@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
-import { createBridgeResourceResolver, type BridgeRegistry, type ResourceResolveInit } from '@kernl/bridges';
+import { createBridgeResourceResolver, type BridgeRegistry, type ResourceResolveInit } from '@kernlize/bridges';
 import { VALID_MAGNET, capture, expectReason, type BridgeWorld } from './world';
 
 type WindowInit = ResourceResolveInit & { windowId?: string };
