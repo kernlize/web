@@ -3,6 +3,7 @@ import { After, Given, Then, When, type DataTable } from 'quickpickle';
 import { EventStore } from 'applesauce-core';
 import { AccountManager, type IAccount } from 'applesauce-accounts';
 import { ReadonlyAccount, registerCommonAccountTypes } from 'applesauce-accounts/accounts';
+import { PrivateKeySigner } from 'applesauce-signers';
 import { originRegistry } from '@kehto/shell';
 import type { BridgeContext, BridgeRegistry } from '@kernlize/bridges';
 import { createMemoryBackend, createMessagingRegistry } from '@kernlize/messaging';
@@ -653,4 +654,22 @@ Then('the fake pool published nothing', (world: CoreWorld) => {
 
 Then('the fake pool published a kind {int} event', (world: CoreWorld, kind: number) => {
   expect(published(world)).toEqual([kind]);
+});
+
+Given('the fake pool serves a profile named {string} for a fresh key', async (world: CoreWorld, name: string) => {
+  const signer = new PrivateKeySigner();
+  scratch(world).freshKey = await signer.getPublicKey();
+  scratch(world).pool.events = [await signer.signEvent({ kind: 0, tags: [], content: JSON.stringify({ name }), created_at: 1_700_000_000 })];
+});
+
+When('the shell logs in read-only as that fresh key', async (world: CoreWorld) => {
+  await k(world).kernl.login(ReadonlyAccount.fromPubkey(scratch(world).freshKey as string));
+});
+
+Then('the shell session label eventually is {string}', async (world: CoreWorld, label: string) => {
+  await expect.poll(() => k(world).kernl.session?.label, { timeout: 3000 }).toBe(label);
+});
+
+Then('the shell profile card for that fresh key is named {string}', (world: CoreWorld, name: string) => {
+  expect(k(world).kernl.profiles.card(scratch(world).freshKey as string)).toMatchObject({ name, found: true });
 });

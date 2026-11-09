@@ -10,6 +10,7 @@ import type { GuardConfig, GuardEvent, GuardProfile, MitigationDescription, Wind
 import type { MessagingBackend, MessagingRegistry, ReplyAnswer, ReplyPrompt } from '@kernlize/messaging';
 import type { BridgeRegistry, TorrentBackend } from '@kernlize/bridges';
 import type { CatalogEntry } from './catalog/entry.js';
+import type { Profiles } from './profiles/profiles.js';
 import type { LoadCatalogOptions } from './catalog/fetch.js';
 import type { HandlerDefaults } from './intents/defaults.js';
 import type { InstalledApplet } from './intents/installed.js';
@@ -294,8 +295,10 @@ export interface KernlOptions {
 
 /** The applet store's catalogue. */
 export interface AppletCatalog {
-  /** List the applets published to the store's relays, newest first. */
+  /** List the applets published to the store's relays, newest first, once every relay has finished. */
   load(options?: LoadCatalogOptions): Promise<readonly CatalogEntry[]>;
+  /** The same list, emitted again as manifests arrive; completes when every relay has finished. */
+  stream(options?: LoadCatalogOptions): Observable<readonly CatalogEntry[]>;
 }
 
 /** Applets handing work to each other: what is installed, and which applet the user prefers for what. */
@@ -331,6 +334,8 @@ export interface Kernl {
   readonly messaging: MessagingRegistry;
   readonly bridges: BridgeRegistry;
   readonly catalog: AppletCatalog;
+  /** People's names and pictures, loaded from their profiles on demand. */
+  readonly profiles: Profiles;
   readonly intents: Intents;
   readonly session$: Observable<Session | null>;
   readonly session: Session | null;

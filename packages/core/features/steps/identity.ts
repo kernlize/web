@@ -5,7 +5,7 @@ import { EventStore } from 'applesauce-core';
 import { PrivateKeySigner } from 'applesauce-signers';
 import type { AddressPointerLoader, LoadableAddressPointer } from 'applesauce-loaders/loaders';
 import type { NostrEvent } from '@napplet/core';
-import { createIdentityProviders, type IdentityProfile, type IdentityProviders, type RelayTiers } from '@kernlize/core';
+import { createIdentityProviders, lookupRelaysOf, type IdentityProfile, type IdentityProviders, type RelayTiers } from '@kernlize/core';
 import { scratch, splitList, type CoreWorld } from './world.js';
 
 const signers = new Map<string, PrivateKeySigner>();
@@ -145,15 +145,15 @@ Then('the profile is null', (world: CoreWorld) => {
   expect(scratch(world).profile).toBeNull();
 });
 
-Then('the loader was asked for kind {int} from the discovery tier', (world: CoreWorld, kind: number) => {
+Then('the loader was asked for kind {int} from the lookup relays', (world: CoreWorld, kind: number) => {
   const calls = scratch(world).loaderCalls as LoadableAddressPointer[];
   expect(calls).toHaveLength(1);
-  expect(calls[0]).toMatchObject({ kind, relays: (scratch(world).tiers as RelayTiers).get().discovery });
+  expect(calls[0]).toMatchObject({ kind, relays: lookupRelaysOf((scratch(world).tiers as RelayTiers).get()) });
 });
 
-Then('the default loader asked every discovery relay', (world: CoreWorld) => {
+Then('the default loader asked every lookup relay', (world: CoreWorld) => {
   const asked = new Set(scratch(world).pool.calls.filter((call) => call.method === 'request').flatMap((call) => call.relays.map((url) => url.replace(/\/$/, ''))));
-  expect([...asked].sort()).toEqual([...(scratch(world).tiers as RelayTiers).get().discovery].sort());
+  expect([...asked].sort()).toEqual(lookupRelaysOf((scratch(world).tiers as RelayTiers).get()).sort());
 });
 
 Then('the follows are {string}', (world: CoreWorld, pubkeys: string) => {

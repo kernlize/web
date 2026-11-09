@@ -66,13 +66,29 @@ function mutedPubkeys(event: NostrEvent): string[] {
 }
 
 /**
+ * Where a replaceable event is looked up when its pointer names no relay:
+ * the discovery tier first, then the general tier. Indexers hold most
+ * profiles and lists, but not all; the general servers catch the rest.
+ *
+ * @param config - The current tiers.
+ * @returns Deduplicated relay URLs.
+ * @example
+ * ```ts
+ * lookupRelaysOf(tiers.get()); // ['wss://purplepag.es', 'wss://relay.nos.social', 'wss://relay.damus.io', …]
+ * ```
+ */
+export function lookupRelaysOf(config: ReturnType<RelayTiers['get']>): string[] {
+  return [...new Set([...config.discovery, ...config.super])];
+}
+
+/**
  * The applesauce address loader kernl uses for replaceable and addressable
  * events the store does not hold: it asks the pointer's relays, then the
- * discovery tier, and adds what it finds to the store.
+ * discovery and general tiers, and adds what it finds to the store.
  *
  * @param store - The shell's single event store.
  * @param pool - The shared applesauce pool.
- * @param tiers - Relay tiers; the discovery tier is the lookup fallback.
+ * @param tiers - Relay tiers; discovery and general are the lookup fallback.
  * @returns A loader for {@link createIdentityProviders} and `lookupReplaceable`.
  * @example
  * ```ts
@@ -83,7 +99,7 @@ function mutedPubkeys(event: NostrEvent): string[] {
 export function createReplaceableLoader(store: EventStore, pool: ApplesaucePool, tiers: RelayTiers): AddressPointerLoader {
   return createAddressLoader((relays, filters) => pool.request(relays, filters), {
     eventStore: store,
-    lookupRelays: tiers.changes$.pipe(map((config) => [...config.discovery])),
+    lookupRelays: tiers.changes$.pipe(map(lookupRelaysOf)),
   });
 }
 
@@ -92,12 +108,12 @@ export function createReplaceableLoader(store: EventStore, pool: ApplesaucePool,
  *
  * Profile, follows, relays and mutes are read from the shell's `EventStore`
  * and, on a miss, loaded once through an applesauce address loader that asks
- * the discovery tier. Lists, zaps, blocked keys and badges return the
+ * the discovery and general tiers. Lists, zaps, blocked keys and badges return the
  * spec-shaped empty value: kernl does not claim data it has not fetched.
  *
  * @param store - The shell's single event store.
  * @param pool - The shared applesauce pool.
- * @param tiers - Relay tiers; the discovery tier serves misses.
+ * @param tiers - Relay tiers; discovery and general serve misses.
  * @param options - Loader override for tests.
  * @returns Lookup callbacks keyed as kehto's options expect.
  * @example
@@ -112,7 +128,7 @@ export function createIdentityProviders(store: EventStore, pool: ApplesaucePool,
   async function replaceable(kind: number, pubkey: string): Promise<NostrEvent | undefined> {
     const cached = store.getReplaceable(kind, pubkey);
     if (cached) return cached;
-    const loaded = await lastValueFrom(loader({ kind, pubkey, relays: [...tiers.get().discovery] }), { defaultValue: undefined });
+    const loaded = await lastValueFrom(loader({ kind, pubkey, relays: lookupRelaysOf(tiers.get()) }), { defaultValue: undefined });
     return loaded ?? store.getReplaceable(kind, pubkey);
   }
 

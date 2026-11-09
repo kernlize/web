@@ -137,6 +137,13 @@ Feature: The composed shell
     When the shell logs out
     Then the shell session is null
 
+  Scenario: an account without a name of its own is labelled by its published profile
+    Given a kernl shell over that host and pool
+    And the fake pool serves a profile named "Satoshi" for a fresh key
+    When the shell logs in read-only as that fresh key
+    Then the shell session label eventually is "Satoshi"
+    And the shell profile card for that fresh key is named "Satoshi"
+
   Scenario: an applet is resolved, planned and mounted
     Given a kernl shell over that host and pool
     When the shell resolves the manifest address

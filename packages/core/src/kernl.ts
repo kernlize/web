@@ -1,4 +1,4 @@
-import { BehaviorSubject, Subject, Subscription } from 'rxjs';
+import { BehaviorSubject, map, of, Subject, Subscription, switchMap } from 'rxjs';
 import { EventStore } from 'applesauce-core';
 import { RelayPool } from 'applesauce-relay';
 import type { AccountManager, IAccount } from 'applesauce-accounts';
@@ -9,7 +9,8 @@ import { createGuardConfig, describeMitigations, type GuardEvent } from '@kernli
 import type { AppletIdentity, GuardFacade, Kernl, KernlOptions, RelayTiers, Session } from './types.js';
 import { createKernlAccounts } from './applesauce/accounts.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
-import { createReplaceableLoader } from './applesauce/identity-providers.js';
+import { createReplaceableLoader, lookupRelaysOf } from './applesauce/identity-providers.js';
+import { createProfiles, type ProfileCard, type Profiles } from './profiles/profiles.js';
 import { createRelayTiers } from './relays/tiers.js';
 import { decodePointer } from './applets/pointer.js';
 import { defaultFetchBlob, openDefaultArtifactCache } from './applets/resolve.js';
@@ -30,7 +31,7 @@ import { createKernlServices, isTheme } from './kernl-services.js';
 import { createShellAdapter } from './kernl-adapter.js';
 import { createAppletLifecycle } from './kernl-lifecycle.js';
 import { createKernlIntents } from './kernl-intents.js';
-import { loadCatalog } from './catalog/fetch.js';
+import { loadCatalog, streamCatalog } from './catalog/fetch.js';
 
 /**
  * Describe an account as a session the UI can show.
@@ -42,9 +43,10 @@ import { loadCatalog } from './catalog/fetch.js';
  * toSession(ReadonlyAccount.fromPubkey(pubkey)).readOnly; // true
  * ```
  */
-export function toSession(account: IAccount): Session {
+export function toSession(account: IAccount, card?: ProfileCard): Session {
   const metadata = account.metadata as { name?: unknown } | undefined;
-  const label = typeof metadata?.name === 'string' ? metadata.name : (account.name ?? abbreviate(account.pubkey));
+  const named = typeof metadata?.name === 'string' ? metadata.name : account.name;
+  const label = named ?? (card?.found ? card.name : abbreviate(account.pubkey));
   return { accountId: account.id, pubkey: account.pubkey, label, readOnly: isReadOnlyAccount(account) };
 }
 
@@ -54,19 +56,20 @@ interface ShellState {
   readonly handles: ReadonlyMap<string, MountedApplet>;
   readonly accounts: AccountManager;
   readonly session$: BehaviorSubject<Session | null>;
+  readonly profiles: Profiles;
 }
 
 /** Keep the runtime firewall on the guard's profile and the session on the active account. */
-function followShellState({ pipeline, bridge, handles, accounts, session$ }: ShellState): Subscription {
+function followShellState({ pipeline, bridge, handles, accounts, session$, profiles }: ShellState): Subscription {
   const subscriptions = new Subscription();
   subscriptions.add(pipeline.profile$.subscribe(() => {
     applyRuntimeFirewallProfile(bridge.runtime.firewallState, pipeline.config);
     for (const handle of handles.values()) applyRuntimeFirewallRules(bridge.runtime.firewallState, pipeline.config, handle.summary.identity.dTag);
   }));
-  subscriptions.add(accounts.active$.subscribe((account) => {
-    session$.next(account ? toSession(account) : null);
-    bridge.publishIdentityChanged(account?.pubkey ?? '');
-  }));
+  subscriptions.add(accounts.active$.subscribe((account) => bridge.publishIdentityChanged(account?.pubkey ?? '')));
+  // The session's label follows the account's published name once it arrives.
+  const sessions = accounts.active$.pipe(switchMap((account) => (account ? profiles.card$(account.pubkey).pipe(map((card) => toSession(account, card))) : of(null))));
+  subscriptions.add(sessions.subscribe(session$));
   return subscriptions;
 }
 
@@ -191,8 +194,10 @@ export function createKernl(options: KernlOptions): Kernl {
   });
 
   const identityOf = (windowId: string): AppletIdentity | undefined => handles.get(windowId)?.summary.identity;
+  const replaceableLoader = createReplaceableLoader(eventStore, pool, tiers);
+  const profiles = createProfiles({ store: eventStore, load: replaceableLoader, lookupRelays: () => lookupRelaysOf(tiers.get()) });
   const lookupBefore = lookupReplaceable(eventStore, {
-    loader: createReplaceableLoader(eventStore, pool, tiers),
+    loader: replaceableLoader,
     relays: () => [...tiers.get().outbox, ...tiers.get().discovery],
   });
   const consent = createSigningConsent({ host, lookupBefore, resolveApplet: identityOf, pubkey: () => accounts.active?.pubkey });
@@ -234,7 +239,7 @@ export function createKernl(options: KernlOptions): Kernl {
   grants = createGrants({ acl: bridge.runtime.aclState, storage: host.storage, availableDomains: () => buildShellCapabilities(adapter).domains });
   bridge.registerConsentHandler(createConsentHandler(host, lookupBefore, identityOf));
 
-  subscriptions.add(followShellState({ pipeline, bridge, handles, accounts, session$ }));
+  subscriptions.add(followShellState({ pipeline, bridge, handles, accounts, session$, profiles }));
 
   const lifecycle = createAppletLifecycle({
     pool,
@@ -262,7 +267,8 @@ export function createKernl(options: KernlOptions): Kernl {
     relays: tiers,
     messaging,
     bridges,
-    catalog: { load: (loadOptions) => loadCatalog(pool, tiers, loadOptions) },
+    catalog: { load: (loadOptions) => loadCatalog(pool, tiers, loadOptions), stream: (streamOptions) => streamCatalog(pool, tiers, streamOptions) },
+    profiles,
     intents: intents.intents,
     session$,
     get session() {
