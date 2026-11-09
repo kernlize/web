@@ -1,6 +1,7 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import { Observable } from 'rxjs';
+import { PrivateKeySigner } from 'applesauce-signers';
 import { addSeenRelay, decodeAddressPointer, decodeEventPointer } from 'applesauce-core/helpers';
 import {
   addressOf,
@@ -205,15 +206,16 @@ When('the catalogue loads {int} manifests from the test publisher', async (world
   c(world).entries = await loadCatalog(scratch(world).pool, createRelayTiers(scratch(world).storage), { limit, publishers: [c(world).publisher as string] });
 });
 
-Then('the catalogue asked {string} for named and root manifests limited to {int}', (world: CoreWorld, relays: string, limit: number) => {
+Then('the catalogue asked {string} for named and root manifests and their deletions, limited to {int}', (world: CoreWorld, relays: string, limit: number) => {
   const [call] = scratch(world).pool.calls;
   expect(call?.relays).toEqual(splitList(relays));
-  expect(call?.filters).toEqual([{ kinds: [35129, 15129], limit }]);
+  expect(call?.filters).toEqual([{ kinds: [35129, 15129], limit }, { kinds: [5], '#k': ['35129', '15129'], limit }]);
 });
 
 Then('the catalogue asked for {int} manifests from the test publisher', (world: CoreWorld, limit: number) => {
   const [call] = scratch(world).pool.calls;
-  expect(call?.filters).toEqual([{ kinds: [35129, 15129], limit, authors: [c(world).publisher] }]);
+  const authors = [c(world).publisher];
+  expect(call?.filters).toEqual([{ kinds: [35129, 15129], limit, authors }, { kinds: [5], '#k': ['35129', '15129'], limit, authors }]);
   expect(describeEntries(c(world).entries)).toEqual(['solo@1']);
 });
 
@@ -299,4 +301,18 @@ Then('the catalogue stream emitted {int} growing lists', (world: CoreWorld, coun
 
 Then('every listed address hints {string}', (world: CoreWorld, relay: string) => {
   for (const listed of c(world).entries) expect(decodeAddressPointer(listed.address)?.relays).toEqual([relay]);
+});
+
+Given('the fake pool serves catalogue manifests {string} and deletions {string}', async (world: CoreWorld, specs: string, deletions: string) => {
+  const manifests = await signedManifests(specs);
+  const stranger = new PrivateKeySigner();
+  const deletes: NostrEvent[] = [];
+  for (const spec of splitList(deletions)) {
+    const [how = '', target = '', at = '0'] = spec.split(':');
+    const manifest = manifests.find((event) => event.tags.some((tag) => tag[0] === 'd' && tag[1] === target)) as NostrEvent;
+    const tags = how === 'id' ? [['e', manifest.id]] : [['a', `35129:${manifest.pubkey}:${target}`]];
+    const signer = how === 'forged' ? stranger : author;
+    deletes.push(await signer.signEvent({ kind: 5, tags: [...tags, ['k', '35129']], content: '', created_at: Number(at) }));
+  }
+  scratch(world).pool.events = [...manifests, ...deletes];
 });

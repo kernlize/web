@@ -5,6 +5,7 @@ import type { NostrEvent, NostrFilter } from '@napplet/core';
 import type { RelayTiers } from '../types.js';
 import { asFilters, type ApplesaucePool } from '../applesauce/relay-hooks.js';
 import { newestEntries, toCatalogEntry, type CatalogEntry } from './entry.js';
+import { DELETION_KIND, isWithdrawn, withdraw, type Withdrawals } from './withdrawn.js';
 
 /**
  * How many manifests the store asks each relay for.
@@ -65,10 +66,18 @@ export function catalogRelays(tiers: RelayTiers): readonly string[] {
   return Object.freeze([...new Set([...apps, ...shared])]);
 }
 
-function catalogFilter(options: LoadCatalogOptions): NostrFilter {
-  const filter: NostrFilter = { kinds: [NAPPLET_KIND_NAMED, NAPPLET_KIND_ROOT], limit: options.limit ?? CATALOG_LIMIT };
-  if (options.publishers) filter.authors = [...options.publishers];
-  return filter;
+function catalogFilters(options: LoadCatalogOptions): NostrFilter[] {
+  const limit = options.limit ?? CATALOG_LIMIT;
+  const authors = options.publishers ? { authors: [...options.publishers] } : {};
+  return [
+    { kinds: [NAPPLET_KIND_NAMED, NAPPLET_KIND_ROOT], limit, ...authors },
+    { kinds: [DELETION_KIND], '#k': [String(NAPPLET_KIND_NAMED), String(NAPPLET_KIND_ROOT)], limit, ...authors },
+  ];
+}
+
+interface Found {
+  readonly listed: readonly { readonly event: NostrEvent; readonly entry: CatalogEntry }[];
+  readonly withdrawn: Withdrawals;
 }
 
 function hintsFor(event: NostrEvent, relays: readonly string[]): readonly string[] {
@@ -80,7 +89,8 @@ function hintsFor(event: NostrEvent, relays: readonly string[]): readonly string
  * Stream the applets published to the store's relays.
  *
  * Root and named manifests are fetched; pinned versions are reached by
- * pasting their address. The list is emitted again as manifests arrive, so
+ * pasting their address. A manifest its publisher deleted (NIP-09) is not
+ * listed, even when a relay still serves it. The list is emitted again as manifests arrive, so
  * the first relay to answer fills the store while slower ones are still
  * talking. A relay that fails contributes nothing and never discards what
  * others sent; the stream completes when every relay has finished, or at
@@ -97,17 +107,19 @@ function hintsFor(event: NostrEvent, relays: readonly string[]): readonly string
  */
 export function streamCatalog(pool: ApplesaucePool, tiers: RelayTiers, options: LoadCatalogOptions = {}): Observable<readonly CatalogEntry[]> {
   const relays = catalogRelays(tiers);
-  const events = pool.request([...relays], asFilters([catalogFilter(options)])).pipe(
+  const events = pool.request([...relays], asFilters(catalogFilters(options))).pipe(
     takeUntil(timer(options.timeoutMs ?? CATALOG_TIMEOUT_MS)),
     catchError(() => EMPTY),
   );
-  const entries = events.pipe(
-    scan((found, event) => {
+  const found = events.pipe(
+    scan((state: Found, event): Found => {
+      if (event.kind === DELETION_KIND) return { ...state, withdrawn: withdraw(state.withdrawn, event) };
       const entry = toCatalogEntry(event, hintsFor(event, relays));
-      return entry ? [...found, entry] : found;
-    }, [] as CatalogEntry[]),
+      return entry ? { ...state, listed: [...state.listed, { event, entry }] } : state;
+    }, { listed: [], withdrawn: new Map() }),
   );
-  return entries.pipe(auditTime(options.emitMs ?? CATALOG_EMIT_MS), map(newestEntries));
+  const listed = (state: Found): readonly CatalogEntry[] => newestEntries(state.listed.filter(({ event }) => !isWithdrawn(event, state.withdrawn)).map(({ entry }) => entry));
+  return found.pipe(auditTime(options.emitMs ?? CATALOG_EMIT_MS), map(listed));
 }
 
 /**

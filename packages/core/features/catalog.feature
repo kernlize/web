@@ -56,7 +56,7 @@ Feature: The applet store's catalogue
     Given the fake pool serves catalogue manifests "older@1,newer@5,older@4" and a forged one
     When the catalogue loads from the shell's relays
     Then the catalogue lists "newer@5,older@4"
-    And the catalogue asked "wss://relay.napplet.soy,wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net" for named and root manifests limited to 500
+    And the catalogue asked "wss://relay.napplet.soy,wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net" for named and root manifests and their deletions, limited to 500
 
   Scenario: the store can be narrowed to publishers and a smaller page
     Given the fake pool serves catalogue manifests "solo@1"
@@ -74,6 +74,11 @@ Feature: The applet store's catalogue
     Then the catalogue stream emitted 3 growing lists
     And the catalogue lists "third@3,second@2,first@1"
     And every listed address hints "wss://seen.example/"
+
+  Scenario: an applet its publisher deleted is not listed, unless someone else signed the deletion
+    Given the fake pool serves catalogue manifests "gone@1,kept@2,pinned@3,later@9,forged@4" and deletions "id:pinned:5,address:gone:5,address:later:6,forged:forged:9"
+    When the catalogue loads from the shell's relays
+    Then the catalogue lists "later@9,forged@4,kept@2"
 
   Scenario: a dead relay leaves an empty store, not an error
     Given the fake pool fails requests
