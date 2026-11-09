@@ -8,7 +8,7 @@ const ERRORS: Readonly<Record<string, string>> = {
   'invalid:unresolved': 'The applet could not be prepared. Look it up again.',
   'invalid:frame-detached': 'The applet window closed before the applet could start.',
   'invalid:domain': 'This shell cannot provide something that was switched on for this applet. Look it up again.',
-  'unavailable:preview-offline': 'The preview runs offline. Pick one of the sample applets below.',
+  'unavailable:preview-offline': 'The preview runs offline. Pick one of the applets in the store.',
   'unavailable:manifest': 'No applet was found at that address. Check it and try again.',
   'unavailable:network': 'None of the servers that list applets could be reached. Check your connection and try again.',
   'unavailable:blob': 'The applet was found, but its file could not be downloaded right now. Try again later.',
@@ -39,4 +39,14 @@ export function openFailure(reason: unknown): OpenFailure {
   const [code = ''] = message.split(' ');
   const words = ERRORS[message] ?? ERRORS[code] ?? PREFIXES.find(([prefix]) => code.startsWith(prefix))?.[1];
   return words === undefined ? { words: GENERIC, expected: false } : { words, expected: true };
+}
+
+/**
+ * The words the store, the applet summary and the handler chooser show for a failure. A reason the
+ * shell has no words for is a defect, so it goes to the console, where the sentence cannot say it.
+ */
+export function explainOpenFailure(reason: unknown, warn: (message: string, reason: unknown) => void = console.warn): string {
+  const failure = openFailure(reason);
+  if (!failure.expected) warn('kernl: an applet could not be opened for an unexpected reason', reason);
+  return failure.words;
 }

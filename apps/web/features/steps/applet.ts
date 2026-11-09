@@ -2,7 +2,7 @@ import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import { renderNappletCspMeta, renderNappletNamespacePrelude, type NappletCspOptions } from '@kehto/shell';
 import type { AppletSummary } from '../../src/shell/contract.ts';
-import { SAMPLES, renderPreviewApplet, sampleAddressOf, sampleSummary } from '../../src/shell/preview-applet.ts';
+import { PREVIEW_CATALOG, renderPreviewApplet, sampleAddressOf, sampleSummary } from '../../src/shell/preview-applet.ts';
 import './preview-state.ts';
 
 /** A policy that differs from kehto's baseline, so the meta shows the guard's directives were applied. */
@@ -42,9 +42,38 @@ function actionRow(world: AppletWorld, action: string): string {
   return row;
 }
 
-Then('the preview applet offers the samples {string}', (_world: AppletWorld, titles: string) => {
-  expect(SAMPLES.map((sample) => sample.title)).toEqual(split(titles));
-  for (const sample of SAMPLES) expect(sample.blurb).not.toBe('');
+Then('the preview store lists {string}', (_world: AppletWorld, titles: string) => {
+  expect(PREVIEW_CATALOG.map((entry) => entry.title)).toEqual(split(titles));
+  for (const entry of PREVIEW_CATALOG) {
+    expect(entry.description).not.toBe('');
+    expect(entry.catalogId).toBe(`nip5d:35129:${entry.publisher}:${entry.address.slice('preview:'.length)}`);
+  }
+});
+
+function catalogEntry(title: string) {
+  const entry = PREVIEW_CATALOG.find((candidate) => candidate.title === title);
+  if (!entry) throw new Error(`no entry ${title}`);
+  return entry;
+}
+
+Then('the preview store entry {string} takes requests to {string} and carries topics {string}', (_world: AppletWorld, title: string, conventions: string, topics: string) => {
+  const entry = catalogEntry(title);
+  expect(entry.conventions).toEqual(split(conventions));
+  expect(entry.archetypes).toEqual(split(conventions).map((convention) => convention.split(':')[1]?.split('/')[0]));
+  expect(entry.topics).toEqual(split(topics));
+});
+
+Then('the preview store entry {string} takes no requests and requires {string}', (_world: AppletWorld, title: string, requires: string) => {
+  const entry = catalogEntry(title);
+  expect(entry.conventions).toEqual([]);
+  expect(entry.requires).toEqual(split(requires));
+});
+
+Then('the preview applet sample takes {string} as role {string} with address {string}', (world: AppletWorld, convention: string, role: string, address: string) => {
+  const summary = state(world).summary;
+  expect(summary?.address).toBe(address);
+  expect(summary?.archetypes).toEqual([role]);
+  expect(summary?.manifest.archetypes).toEqual([{ slug: role, convention, params: ['pubkey'] }]);
 });
 
 When('the preview applet looks up the sample at {string}', (world: AppletWorld, address: string) => {

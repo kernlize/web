@@ -14,7 +14,7 @@ import './shell-windows.ts';
 type ShellRecord = ConsentSummary['event'];
 
 interface WordsScratch {
-  applet: { requires: string[]; optional: string[]; baseline: string[]; granted: string[]; available: string[]; firstRun: boolean };
+  applet: { requires: string[]; optional: string[]; baseline: string[]; granted: string[]; available: string[]; firstRun: boolean; receives?: boolean };
   choices: DomainChoice[];
   record: ShellRecord;
   details: readonly EventDetail[];
@@ -79,6 +79,10 @@ Given('the shell can offer {string}', (world: WordsWorld, available: string) => 
 
 Given('the applet was earlier granted {string}', (world: WordsWorld, granted: string) => {
   words(world).applet.granted = list(granted);
+});
+
+Given('the applet takes requests from other applets', (world: WordsWorld) => {
+  words(world).applet.receives = true;
 });
 
 Given('the person has decided for this applet before', (world: WordsWorld) => {

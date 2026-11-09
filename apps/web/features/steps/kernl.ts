@@ -5,7 +5,7 @@ import type { IAccount } from 'applesauce-accounts';
 import { PrivateKeyAccount, ReadonlyAccount } from 'applesauce-accounts/accounts';
 import { BASELINE_DOMAINS } from '@kernlize/core';
 import { MemoryStorage } from '../../../../packages/core/features/steps/world.ts';
-import { abbreviate, type AppletHandle, type AppletPointer, type AppletSummary, type ConsentPrompt, type FrameLike, type KernlHost, type MountPlan, type ShellKernl } from '../../src/shell/contract.ts';
+import { abbreviate, type AppletHandle, type AppletPointer, type AppletSummary, type ConsentPrompt, type FrameLike, type HandlerPrompt, type KernlHost, type MountPlan, type ShellKernl } from '../../src/shell/contract.ts';
 import { sampleSummary } from '../../src/shell/preview-applet.ts';
 import { createShellDownloads } from '../../src/shell/downloads.ts';
 import { createPreviewTorrentClient } from '../../src/shell/preview-downloads.ts';
@@ -29,6 +29,12 @@ interface PreviewScratch {
   readonly revoked: Array<{ windowId: string; reason: string }>;
   readonly frames: Map<string, PreviewFrame>;
   readonly handles: Map<string, AppletHandle>;
+  readonly asked: HandlerPrompt[];
+  readonly opened: string[];
+  readonly focused: string[];
+  /** What the handler chooser does: install an applet from the store and pick it, or cancel. */
+  pickFromStore?: string;
+  openGhost: boolean;
   answer: boolean;
   account?: IAccount;
   pointer?: AppletPointer;
@@ -111,6 +117,18 @@ function post(scratch: PreviewScratch, name: string, data: unknown): void {
   scratch.kernl.handleWindowMessage({ source: frameOf(scratch, name).contentWindow, data } as MessageEvent);
 }
 
+/** The desktop's side of opening an intent target: mount it in a new frame, and let it say hello a moment later. */
+async function openFromDesktop(world: PreviewWorld, address: string): Promise<string | undefined> {
+  const scratch = preview(world);
+  scratch.opened.push(address);
+  if (scratch.openGhost) return 'ghost';
+  const name = address.slice('preview:'.length);
+  const frameName = `opened-${name}`;
+  await mountInto(world, name, frameName, false);
+  setTimeout(() => post(scratch, frameName, { kernlPreview: 'hello' }), 5);
+  return handleOf(scratch, frameName).windowId;
+}
+
 function previewKernl(world: PreviewWorld, inKernl: boolean): void {
   const prompts: ConsentPrompt[] = [];
   const notices: unknown[] = [];
@@ -126,9 +144,29 @@ function previewKernl(world: PreviewWorld, inKernl: boolean): void {
     openLink: (url) => void links.push(url),
     getVisibility: () => ({ visible: true, focused: true }),
     onRevoked: (windowId, reason) => void revoked.push({ windowId, reason }),
+    async chooseHandler(prompt) {
+      scratch.asked.push(prompt);
+      if (!scratch.pickFromStore) return undefined;
+      return { id: scratch.kernl.install(sample(scratch.pickFromStore)).catalogId, remember: false };
+    },
+    openApplet: (address) => openFromDesktop(world, address),
+    focusApplet: (windowId) => void scratch.focused.push(windowId),
   };
   const torrent = inKernl ? createShellDownloads({ storage: host.storage, client: createPreviewTorrentClient(() => () => undefined), open: host.openLink, inKernl }).torrent : undefined;
-  const scratch: PreviewScratch = { kernl: createPreviewKernl(host, torrent), prompts, notices, links, revoked, frames: new Map(), handles: new Map(), answer: true };
+  const scratch: PreviewScratch = {
+    kernl: createPreviewKernl(host, torrent, { intervalMs: 2, attempts: 20 }),
+    prompts,
+    notices,
+    links,
+    revoked,
+    frames: new Map(),
+    handles: new Map(),
+    asked: [],
+    opened: [],
+    focused: [],
+    openGhost: false,
+    answer: true,
+  };
   world.previewKernl = scratch;
 }
 
@@ -331,10 +369,11 @@ When('a stranger posts {string} to the preview kernl', (world: PreviewWorld, jso
 
 Then('the preview kernl frame {string} is answered {string} with {string}', async (world: PreviewWorld, name: string, ok: string, text: string) => {
   const frame = frameOf(preview(world), name);
-  await vi.waitFor(() => expect(frame.posts.length).toBeGreaterThan(0));
-  const last = frame.posts.at(-1);
-  expect(last).toMatchObject({ kernlPreview: 'result', ok: ok === 'yes' });
-  expect(String(last?.text)).toContain(text);
+  await vi.waitFor(() => {
+    const last = frame.posts.at(-1);
+    expect(last).toMatchObject({ kernlPreview: 'result', ok: ok === 'yes' });
+    expect(String(last?.text)).toContain(text);
+  });
 });
 
 Then('the preview kernl frame {string} hears nothing', async (world: PreviewWorld, name: string) => {
@@ -415,4 +454,59 @@ Then('the preview kernl host heard frame {string} revoked for {string}', (world:
 
 When('the preview kernl is destroyed', (world: PreviewWorld) => {
   preview(world).kernl.destroy();
+});
+
+Then('the preview kernl store lists {string}', async (world: PreviewWorld, titles: string) => {
+  expect((await preview(world).kernl.catalog.load()).map((entry) => entry.title)).toEqual(list(titles));
+});
+
+When('the preview kernl installs {string} without running it', (world: PreviewWorld, name: string) => {
+  preview(world).kernl.install(sample(name));
+});
+
+Given('the preview kernl has {string} installed', (world: PreviewWorld, name: string) => {
+  preview(world).kernl.install(sample(name));
+});
+
+Then('the preview kernl has installed {string}', (world: PreviewWorld, titles: string) => {
+  expect(preview(world).kernl.intents.installed().map((applet) => applet.title)).toEqual(list(titles));
+});
+
+Given('the preview kernl user will pick {string} from the store', (world: PreviewWorld, name: string) => {
+  preview(world).pickFromStore = name;
+});
+
+Given('the preview kernl desktop opens a window that is gone', (world: PreviewWorld) => {
+  preview(world).openGhost = true;
+});
+
+Given('the preview kernl runs {string} in frame {string}', async (world: PreviewWorld, name: string, frameName: string) => {
+  await mountInto(world, name, frameName, false);
+  post(preview(world), frameName, { kernlPreview: 'hello' });
+});
+
+Then('the preview kernl user was offered no installed applet for {string} from {string}', (world: PreviewWorld, request: string, source: string) => {
+  const [archetype, action] = request.split('/');
+  expect(preview(world).asked).toEqual([{ archetype, action, convention: `napplet:${request}`, source, options: [] }]);
+});
+
+Then('the preview kernl user was not asked to choose an applet', (world: PreviewWorld) => {
+  expect(preview(world).asked).toEqual([]);
+});
+
+Then('the preview kernl desktop opened {string}', (world: PreviewWorld, address: string) => {
+  expect(preview(world).opened).toEqual([address]);
+});
+
+Then('the preview kernl desktop opened nothing and brought the applet in frame {string} forward', (world: PreviewWorld, frameName: string) => {
+  expect(preview(world).opened).toEqual([]);
+  expect(preview(world).focused).toEqual([handleOf(preview(world), frameName).windowId]);
+});
+
+Then('the preview kernl frame {string} was handed {string}', async (world: PreviewWorld, frameName: string, text: string) => {
+  await vi.waitFor(() => expect(frameOf(preview(world), frameName).posts).toContainEqual({ kernlPreview: 'delivery', text }));
+});
+
+Then('the preview kernl host was warned {string} because {string}', async (world: PreviewWorld, title: string, body: string) => {
+  await vi.waitFor(() => expect(preview(world).notices).toContainEqual({ title, body, tone: 'warning' }));
 });

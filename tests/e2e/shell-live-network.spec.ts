@@ -30,7 +30,7 @@ test.describe('applets published on the public network', () => {
       await page.getByRole('button', { name: 'Create and sign in' }).click();
 
       await page.getByRole('button', { name: 'Open an applet' }).click();
-      await page.getByLabel('Applet address').fill(applet.address);
+      await page.getByRole('searchbox', { name: 'Find an applet' }).fill(applet.address);
       await page.getByRole('button', { name: 'Look up' }).click();
 
       const dialog = page.getByRole('dialog');

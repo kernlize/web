@@ -10,6 +10,7 @@ import {
 import type { NostrEvent, NostrFilter } from '@napplet/core';
 import type { AppletPointer, AppletSummary, RelayTiers } from '../types.js';
 import { asFilters, type ApplesaucePool } from '../applesauce/relay-hooks.js';
+import { addressOf } from '../catalog/entry.js';
 
 /**
  * Milliseconds a blob server gets before the next one is tried.
@@ -199,16 +200,18 @@ export async function defaultFetchBlob(sha256: string, servers: readonly string[
  * Reduce a verified napplet to what the shell shows before running it.
  *
  * @param resolved - The output of kehto's `resolveNapplet`.
+ * @param address - The shareable address of the manifest event.
  * @returns The summary; `requires` and `optional` are advisory, never grants.
  * @example
  * ```ts
- * summarize(resolved).identity; // { dTag: 'chat', hash: '…' }
+ * summarize(resolved, 'naddr1…').identity; // { dTag: 'chat', hash: '…' }
  * ```
  */
-export function summarize(resolved: ResolvedNapplet): AppletSummary {
+export function summarize(resolved: ResolvedNapplet, address: string): AppletSummary {
   const { manifest } = resolved;
   const summary: AppletSummary = {
     identity: { dTag: resolved.dTag, hash: resolved.aggregateHash },
+    address,
     title: manifest.title ?? (resolved.dTag || 'Untitled applet'),
     description: manifest.description ?? '',
     publisher: manifest.pubkey,
@@ -243,6 +246,8 @@ export interface ResolveAppletOptions {
   readonly event: NostrEvent;
   readonly fetchBlob: (sha256: string, servers: readonly string[]) => Promise<Uint8Array>;
   readonly cache?: NappletArtifactCache;
+  /** Relay hints carried in the summary's address. */
+  readonly relays?: readonly string[];
 }
 
 /** A verified applet: what to show and what to run. */
@@ -275,7 +280,7 @@ export async function resolveApplet(options: ResolveAppletOptions): Promise<Reso
   if (options.cache) input.cache = options.cache;
   try {
     const resolved = await resolveNapplet(input);
-    return { summary: summarize(resolved), indexHtml: resolved.indexHtml };
+    return { summary: summarize(resolved, addressOf(options.event, options.relays)), indexHtml: resolved.indexHtml };
   } catch (error) {
     if (error instanceof NappletResolutionError) throw new Error(reasonFor(error));
     throw error;

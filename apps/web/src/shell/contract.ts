@@ -12,13 +12,20 @@ export type {
   AppletIdentity,
   AppletPointer,
   AppletStatus,
+  AppletCatalog,
   AppletSummary,
+  CatalogEntry,
   ConsentPrompt,
   ConsentSummary,
   FrameLike,
   GrantRecord,
   Grants,
   GuardFacade,
+  HandlerChoice,
+  HandlerOption,
+  HandlerPrompt,
+  InstalledApplet,
+  Intents,
   KernlHost,
   MountPlan,
   RelayTier,
@@ -30,24 +37,16 @@ export type {
 /** Where the running shell came from. */
 export type BootMode = 'live' | 'preview';
 
-/** A sample applet the preview offers in the launcher. */
-export interface SampleApplet {
-  readonly address: string;
-  readonly title: string;
-  readonly blurb: string;
-}
-
 export interface Booted {
   readonly kernl: ShellKernl;
   readonly mode: BootMode;
-  readonly samples: readonly SampleApplet[];
   /** Downloads from peers: the in-page engine and the user's choice of where links go. */
   readonly downloads: ShellDownloads;
   /** Why the live shell was not used, when it was not. */
   readonly fallbackReason?: string;
 }
 
-/** Fits the sample applets without clipping; the window manager clamps it to the desktop. */
+/** Fits most applets without clipping; the window manager clamps it to the desktop. */
 export const DEFAULT_WINDOW_SIZE = { w: 720, h: 660 } as const;
 export const RECENT_KEY = 'kernl:recent:v1';
 export const LAYOUT_KEY = 'kernl:layout:v1';

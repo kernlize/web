@@ -11,6 +11,10 @@ Each entry says what ships, per package and app. [Alpha status](./alpha-status.m
 
 ### `@kernlize/core`
 
+- The applet store: `kernl.catalog.load()` over `loadCatalog`, with `toCatalogEntry`, `addressOf`, `newestEntries`, `searchCatalog`, `fuzzyScore` and `popularTopics` ([D-026](./decisions.md#d-026)).
+- Intents: `createKernl` offers the `intent` domain through kehto's `createIntentService` and kernl's `createIntentRouter` and `createIntentDelivery`. `kernl.intents` exposes the installed set and the user's handler defaults; `kernl.install(summary)` installs a verified applet without opening it, and `kernl.plan` installs the applet it plans. `KernlHost` gains the optional `chooseHandler`, `openApplet` and `focusApplet`; `KernlOptions.intentRetry` tunes delivery.
+- Handler preferences (kind 31129): `createHandlerDefaults`, `parseHandlerPreferences`, `preferenceTemplate`, `preferredHandlers`, `catalogIdForRef` and `refForCatalogId`. The signed-in account's preferences are read on sign-in; publishing is opt-in. `describeChange` names the archetype and the applets added and removed when an applet writes one.
+- **Breaking.** `AppletSummary.address` is required, and `summarize(resolved, address)` takes it.
 - `@kernlize/core/crypto` (`@kernl/core/crypto` on JSR): `installCryptoFallback` adds `crypto.randomUUID` and a pure-JS `crypto.subtle` where the browser withholds them outside a secure context, such as an onion or overlay address served over HTTP. The shell installs it first, and the mount plan gives every applet frame a `randomUUID` fallback ([D-024](./decisions.md#d-024)).
 - `createWindowManager(options?)` and the `WindowManager` interface: placement, focus, stacking, minimising and what the guard is told about each window, with no DOM, publishing `WindowManagerState` on `state$`. `createLayoutRegistry` and `createDefaultLayouts` hold the layouts it offers; a layout of your own is one `register` ([D-022](./decisions.md#d-022)).
 - `@kernlize/core/wm` (`@kernl/core/wm` on JSR): a second entry exporting the layouts, the registry and the window manager, importing only `rxjs`. The same names stay on the main entry, which now also re-exports `LayoutStrategy`, `Rect`, `WindowPlacement` and `WindowState` from `@kehto/wm`.
@@ -43,6 +47,7 @@ Each entry says what ships, per package and app. [Alpha status](./alpha-status.m
 
 ### Shell and site (`apps/web`)
 
+- The launcher is a store: fuzzy search, topic bubbles, a filter for applets this shell can run fully, and an address pasted into the search still opens. **Yours** lists installed applets and which one opens each kind of request, with an opt-in to keep those choices with the account. When an applet asks another to do something, the shell picks the user's default, or asks with a chooser that can also find a handler in the store. The sample applets are gone; the preview's store lists its own applets, and its Notes can ask its Profiles to open a profile.
 - The landing at `/` is now one screen and two adoption paths: add applets to an application you have, or start a shell from the reference one. What the home page held before is at `/about/`, with the five pages beneath it at `/about/<page>/`; their old addresses redirect. Moving between the site's pages no longer reloads the document: a WebGL curtain crosses the screen and the new page's content rises into place. Reduced motion, no WebGL and no scripts each leave a whole, still page ([D-023](./decisions.md#d-023)).
 
 - The Messages panel lists "Group sessions" beside the other providers, unranked; a send to someone who has not set it up says so in plain words. The site's vocabulary check also refuses the group protocol's names.

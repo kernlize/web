@@ -1,7 +1,7 @@
 import { expect, vi } from 'vitest';
 import { After, Given, Then, When } from 'quickpickle';
 import type { ConsentPrompt, KernlHost, StorageLike } from '../../src/shell/contract.ts';
-import { createHost, pickStorage } from '../../src/shell/host.ts';
+import { createHost, pickStorage, type AppletOpener } from '../../src/shell/host.ts';
 
 type HostDeps = Parameters<typeof createHost>[0];
 
@@ -23,6 +23,9 @@ interface HostScratch {
   readonly opened: unknown[][];
   readonly confirmations: string[];
   confirm: boolean;
+  readonly asked: unknown[];
+  readonly focused: string[];
+  readonly opener: AppletOpener;
 }
 
 interface HostWorld {
@@ -94,7 +97,12 @@ Given('the shell host with window {string} titled {string}', (world: HostWorld, 
   const windows = new Map<string, FakeWindow>([[windowId, { title }]]);
   const opened: unknown[][] = [];
   const confirmations: string[] = [];
+  const asked: unknown[] = [];
+  const focused: string[] = [];
+  const opener: AppletOpener = {};
   const deps = fake<HostDeps>({
+    handlers: { ask: async (prompt: unknown) => (asked.push(prompt), { id: 'picked', remember: true }) },
+    opener,
     storage: { getItem: () => null, setItem: () => undefined, removeItem: () => undefined },
     consent: { enqueue: (prompt: ConsentPrompt) => void queued.push(prompt) },
     notices: { push: (notice: unknown) => notices.push(notice) },
@@ -104,13 +112,14 @@ Given('the shell host with window {string} titled {string}', (world: HostWorld, 
         return window && { plan: { summary: { title: window.title } } };
       },
       visibilityOf: (id: string) => ({ visible: windows.has(id), focused: false }),
+      focus: (id: string) => void focused.push(id),
       markRevoked: (id: string, reason: string) => {
         const window = windows.get(id);
         if (window) window.revokedWith = reason;
       },
     },
   });
-  const scratch: HostScratch = { host: createHost(deps), queued, notices, windows, opened, confirmations, confirm: false };
+  const scratch: HostScratch = { host: createHost(deps), queued, notices, windows, opened, confirmations, confirm: false, asked, focused, opener };
   vi.stubGlobal('window', {
     confirm: (message: string) => {
       confirmations.push(message);
@@ -130,6 +139,18 @@ Then('the shell host forwards consent, notices and visibility for window {string
   expect(scratch.notices).toEqual([{ title: 'Saved', tone: 'info' }]);
   expect(scratch.host.getVisibility(windowId)).toEqual({ visible: true, focused: false });
   expect(scratch.host.storage.getItem('anything')).toBeNull();
+});
+
+Then('the shell host asks the chooser, opens applets through the desktop once it can, and brings windows forward', async (world: HostWorld) => {
+  const scratch = hostOf(world);
+  const prompt = { archetype: 'profile', action: 'open', convention: 'napplet:profile/open', source: 'Notes', options: [] };
+  expect(await scratch.host.chooseHandler?.(prompt)).toEqual({ id: 'picked', remember: true });
+  expect(scratch.asked).toEqual([prompt]);
+  expect(await scratch.host.openApplet?.('naddr1x')).toBeUndefined();
+  scratch.opener.open = async (address) => `window-for-${address}`;
+  expect(await scratch.host.openApplet?.('naddr1x')).toBe('window-for-naddr1x');
+  scratch.host.focusApplet?.('w1');
+  expect(scratch.focused).toEqual(['w1']);
 });
 
 When('the shell host is asked to open {string} and the user says {string}', (world: HostWorld, url: string, answer: string) => {

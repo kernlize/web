@@ -7,7 +7,7 @@ import {
   type NappletExperimentalOptions,
 } from '@kehto/shell';
 import { renderInsertionLockScript } from '@kernlize/guard';
-import type { AppletSummary, SampleApplet } from './contract';
+import type { AppletSummary, CatalogEntry } from './contract';
 
 const PUBLISHER = '7f3a9c1e5b2d4a6f8e0c1b3d5f7a9c2e4b6d8f0a1c3e5b7d9f1a3c5e7b9d0f2c';
 const SERVERS = ['https://cdn.example.net'];
@@ -21,8 +21,12 @@ interface SampleSpec {
   readonly blurb: string;
   readonly requires: readonly string[];
   readonly optional: readonly string[];
-  /** Extra buttons, by action id, that only this sample shows. */
+  readonly topics: readonly string[];
+  /** Conventions it accepts from other applets, such as `napplet:profile/open`. */
+  readonly accepts: readonly string[];
+  /** Extra buttons, by action id, that only this applet shows. */
   readonly extras: readonly string[];
+  readonly publishedAt: number;
 }
 
 const SPECS: readonly SampleSpec[] = [
@@ -33,9 +37,12 @@ const SPECS: readonly SampleSpec[] = [
     title: 'Notes',
     description: 'Write short notes and publish them to your network. Every publish and every deletion is shown to you before it happens.',
     blurb: 'Publishing, deleting and the consent dialog.',
-    requires: ['relay', 'identity'],
+    requires: ['relay', 'identity', 'intent'],
     optional: ['notify', 'storage'],
+    topics: ['writing', 'social'],
+    accepts: [],
     extras: [],
+    publishedAt: 1_793_000_300,
   },
   {
     address: 'preview:pulse',
@@ -46,9 +53,31 @@ const SPECS: readonly SampleSpec[] = [
     blurb: 'Flooding the shell and watching the guard respond.',
     requires: ['relay'],
     optional: ['notify', 'media', 'resource'],
+    topics: ['social', 'guard'],
+    accepts: [],
     extras: ['contacts', 'servers', 'vanish'],
+    publishedAt: 1_793_000_200,
+  },
+  {
+    address: 'preview:profiles',
+    dTag: 'profiles',
+    hash: 'c3e5a7b9d1f3c5e7a9b1d3f5e7c9a1b3d5f7e9a1c3b5d7f9e1a3c5b7d9f1e3a5',
+    title: 'Profiles',
+    description: 'Shows a person\'s profile when another applet asks for one. When an applet you run wants a profile opened, the shell offers this one to take it.',
+    blurb: 'Taking requests that other applets hand over.',
+    requires: [],
+    optional: ['notify'],
+    topics: ['social', 'people'],
+    accepts: ['napplet:profile/open'],
+    extras: [],
+    publishedAt: 1_793_000_100,
   },
 ];
+
+const archetypesOf = (spec: SampleSpec) =>
+  spec.accepts.map((convention) => ({ slug: convention.slice('napplet:'.length).split('/')[0] as string, convention, params: ['pubkey'] }));
+
+const catalogIdOf = (spec: SampleSpec): string => `nip5d:35129:${PUBLISHER}:${spec.dTag}`;
 
 function summaryOf(spec: SampleSpec): AppletSummary {
   return {
@@ -56,9 +85,10 @@ function summaryOf(spec: SampleSpec): AppletSummary {
     title: spec.title,
     description: spec.description,
     publisher: PUBLISHER,
+    address: spec.address,
     requires: spec.requires,
     optional: spec.optional,
-    archetypes: [],
+    archetypes: [...new Set(archetypesOf(spec).map((entry) => entry.slug))],
     source: 'https://kernl.run/docs/',
     manifest: {
       format: 'current',
@@ -67,19 +97,32 @@ function summaryOf(spec: SampleSpec): AppletSummary {
       kind: 35129,
       pubkey: PUBLISHER,
       dTag: spec.dTag,
-      catalogId: `${PUBLISHER}:${spec.dTag}`,
+      catalogId: catalogIdOf(spec),
       paths: [{ path: '/index.html', sha256: spec.hash }],
       aggregateHash: spec.hash,
       servers: [...SERVERS],
       requires: [...spec.requires],
-      archetypes: [],
+      archetypes: archetypesOf(spec),
       title: spec.title,
       description: spec.description,
     },
   };
 }
 
-export const SAMPLES: readonly SampleApplet[] = SPECS.map(({ address, title, blurb }) => ({ address, title, blurb }));
+/** What the preview's store lists: its own applets, shaped like the live store's entries. */
+export const PREVIEW_CATALOG: readonly CatalogEntry[] = SPECS.map((spec) => ({
+  catalogId: catalogIdOf(spec),
+  address: spec.address,
+  kind: 35129,
+  publisher: PUBLISHER,
+  title: spec.title,
+  description: `${spec.description} ${spec.blurb}`,
+  topics: spec.topics,
+  requires: spec.requires,
+  archetypes: [...new Set(archetypesOf(spec).map((entry) => entry.slug))],
+  conventions: spec.accepts,
+  publishedAt: spec.publishedAt,
+}));
 
 /** The summary for a preview address, or undefined when the address is not a sample. */
 export function sampleSummary(address: string): AppletSummary | undefined {
@@ -118,6 +161,7 @@ const ACTIONS: readonly Action[] = [
   { id: 'profile', label: 'Update your profile', hint: 'asks you first: it replaces your profile', domain: 'relay' },
   { id: 'delete', label: 'Delete a note', hint: 'asks you first: it cannot be undone', domain: 'relay' },
   { id: 'notify', label: 'Send a notification', hint: 'needs the notifications grant', domain: 'notify' },
+  { id: 'intent', label: 'Open a profile', hint: 'another applet shows it; the shell asks which', domain: 'intent' },
   { id: 'flood', label: 'Flood the shell', hint: '40 network reads at once; watch the guard', domain: 'relay' },
   { id: 'download', label: 'Download a shared file', hint: 'it joins your downloads, or goes to an app on your device if you chose that' },
   { id: 'link', label: 'Open a link', hint: 'the shell confirms before leaving' },
@@ -154,8 +198,9 @@ const send = (action, extra) => parent.postMessage(Object.assign({ kernlPreview:
 window.addEventListener('message', (event) => {
   if (event.source !== parent) return;
   const data = event.data;
-  if (!data || data.kernlPreview !== 'result') return;
-  log(data.text, data.ok ? 'ok' : 'warn');
+  if (!data) return;
+  if (data.kernlPreview === 'delivery') log(data.text, 'ok');
+  if (data.kernlPreview === 'result') log(data.text, data.ok ? 'ok' : 'warn');
 });
 let count = 0;
 const handlers = {
@@ -166,6 +211,7 @@ const handlers = {
   servers: () => send('servers'),
   vanish: () => send('vanish'),
   notify: () => send('notify', { text: 'The preview applet says hello.' }),
+  intent: () => send('intent', { text: '${'decade00'.repeat(8)}' }),
   flood: () => { for (let i = 0; i < 40; i += 1) send('subscribe', { seq: ++count }); log('Sent 40 network reads at once.'); },
   download: () => send('download', { url: 'magnet:?xt=urn:btih:${'ab'.repeat(20)}&dn=Sample' }),
   link: () => send('link', { url: 'https://kernl.run/docs/' }),

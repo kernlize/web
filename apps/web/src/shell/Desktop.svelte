@@ -3,6 +3,7 @@
   import type { Booted, MountPlan, Session, StorageLike } from './contract';
   import GrantsPanel from './GrantsPanel.svelte';
   import type { GuardLog } from './guard-log.svelte';
+  import type { AppletOpener } from './host';
   import GuardPanel from './GuardPanel.svelte';
   import IframeLayer from './IframeLayer.svelte';
   import DownloadsPanel from './DownloadsPanel.svelte';
@@ -20,10 +21,11 @@
     storage: StorageLike;
     windows: WindowStore;
     guardLog: GuardLog;
+    opener: AppletOpener;
     onsignout: () => void;
   }
 
-  const { booted, session, storage, windows, guardLog, onsignout }: Props = $props();
+  const { booted, session, storage, windows, guardLog, opener, onsignout }: Props = $props();
   const kernl = $derived(booted.kernl);
 
   type Overlay = { kind: 'launcher'; address?: string } | { kind: 'grants'; windowId: string } | { kind: 'guard' } | { kind: 'messages' } | { kind: 'settings' } | { kind: 'downloads' };
@@ -57,6 +59,23 @@
     overlay = null;
     windows.open(plan);
   }
+
+  // An applet asked another to do something and the user picked who: open it under the grants it already has.
+  $effect(() => {
+    opener.open = async (address) => {
+      try {
+        const plan = await kernl.plan(await kernl.resolve(kernl.decodePointer(address)));
+        overlay = null;
+        windows.open(plan);
+        return plan.windowId;
+      } catch {
+        return undefined;
+      }
+    };
+    return () => {
+      opener.open = undefined;
+    };
+  });
 
   $effect(() => {
     const element = desk;
@@ -98,7 +117,7 @@
     {/if}
 
     {#if overlay?.kind === 'launcher'}
-      <Launcher {kernl} samples={booted.samples} {storage} initialAddress={overlay.address} onclose={() => (overlay = null)} onopen={openPlan} />
+      <Launcher {kernl} mode={booted.mode} {storage} initialAddress={overlay.address} onclose={() => (overlay = null)} onopen={openPlan} />
     {:else if overlay?.kind === 'grants' && grantsWindow}
       <GrantsPanel {kernl} win={grantsWindow} {guardLog} onclose={() => (overlay = null)} />
     {:else if overlay?.kind === 'guard'}

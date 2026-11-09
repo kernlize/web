@@ -189,9 +189,9 @@ If you build with Vite instead of writing one file by hand, `@napplet/vite-plugi
 
 ## 5. Open it in kernl
 
-Open the shell, either the hosted one at `https://kernl.run/app/` or your own from [Run the shell](./run-the-shell.md), and sign in. The offline preview (`?preview=1`) cannot open your applet: it has no network and runs only its two sample applets.
+Open the shell, either the hosted one at `https://kernl.run/app/` or your own from [Run the shell](./run-the-shell.md), and sign in. The offline preview (`?preview=1`) cannot open your applet: it has no network and its store lists only its own three applets. Once published, your applet appears in the live shell's store under its title and its `t` topics; give it `z` and `i` tags and other applets can hand it work ([The store and intents](../concepts/store-and-intents.md)).
 
-1. Click **Open an applet**, paste the address into "Applet address" and click **Look up**. kernl fetches the manifest, verifies its signature, fetches your file by hash and verifies it.
+1. Click **Open an applet**, paste the address into the store's search, "Find an applet", and click **Look up**. kernl fetches the manifest, verifies its signature, fetches your file by hash and verifies it.
 2. The launcher shows the title, publisher and description, and under "What it may use" switches for *your account* and *network*, each marked "optional" and off. Click **Run** with both off first.
 3. The window shows "Allow your account to see who is signed in." and "Allow network access to see and post notes." That is your feature detection at work.
 4. Click the window's **Grants** button and turn *your account* and *network* on. The grant applies to the running window's next request, but the domains an applet was told about at start-up do not change until it is opened again, so close the window and open the applet again from "Recent" in the launcher.

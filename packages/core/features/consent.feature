@@ -147,6 +147,23 @@ Feature: Consent summaries
       | Connections added   |                      | 1: a.example (write) |
       | Connections removed | 1: a.example (read)  |                       |
 
+  Scenario: an applet changing which applets open requests for the user is named in plain words
+    Given the current handler preferences for "profile" are "a=viewer,i=napplet:profile/edit>editor"
+    When the shell describes an applet setting the handler preferences for "profile" to "a=chat,e=d,r=,i=napplet:profile/edit>chat" with private choices
+    Then the summary is "destructive" titled "Change which applets open \"profile\" for you"
+    And the summary lines are:
+      | label           | before                                                                                     | after                                                                                                     |
+      | Applets added   |                                                                                            | 4: applet "chat" by person cccccccc…, pinned applet dddddddd…, applet by person cccccccc… and 1 more     |
+      | Applets removed | 2: applet "viewer" by person cccccccc…, applet "editor" by person cccccccc… for "profile/edit" |                                                                                                           |
+      | Private choices |                                                                                            | Replaced                                                                                                  |
+
+  Scenario: handler preferences without an archetype or a handler still describe what they add
+    When the shell describes an applet setting handler preferences without an archetype to "i=napplet:note/open>?"
+    Then the summary is "destructive" titled "Change which applets open \"some requests\" for you"
+    And the summary lines are:
+      | label         | before | after                                   |
+      | Applets added |        | 1: applet by person … for "note/open"   |
+
   Scenario: list changes are named by title or identifier
     Given the current list has entries "p:x1,t:nostr"
     When the shell describes signing a kind 30000 list "friends" titled "Friends" with entries "p:x1,p:x2"

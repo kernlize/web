@@ -65,4 +65,4 @@ A `resource` request from an applet that holds the `resource` domain is resolved
 - Access to `window.nostr`, raw keys or the `EventStore`.
 - A global grant across applets.
 - A grant by a developer flag or a URL parameter.
-- A domain the shell does not serve. `DOMAIN_CAPABILITIES` has rows for `config`, `cvm`, `upload`, `intent`, `fs`, `llm` and `cache`, but `availableDomains()` does not list them and `allowDomain` refuses them with `invalid:domain`. (`keys` and `media` are listed, because kehto's runtime serves them natively, though kernl wires nothing behind them.)
+- A domain the shell does not serve. `DOMAIN_CAPABILITIES` has rows for `config`, `cvm`, `upload`, `fs`, `llm` and `cache`, but `availableDomains()` does not list them and `allowDomain` refuses them with `invalid:domain`. (`keys` and `media` are listed, because kehto's runtime serves them natively, though kernl wires nothing behind them.)

@@ -21,7 +21,8 @@ async function signInFresh(page: Page): Promise<void> {
 
 async function lookUp(page: Page, typed: string): Promise<void> {
   await page.getByRole('button', { name: 'Open an applet' }).click();
-  await page.getByLabel('Applet address').fill(typed);
+  // The store's search takes an address as well as words, and offers to look it up.
+  await page.getByRole('searchbox', { name: 'Find an applet' }).fill(typed);
   await page.getByRole('button', { name: 'Look up' }).click();
 }
 
@@ -41,8 +42,8 @@ test.describe('with one relay and one blob server down', () => {
     await expect(dialog.getByRole('heading', { name: 'Feed applet' })).toBeVisible();
     expect(network.dialled).toEqual(expect.arrayContaining(['dead.test', 'general.test', 'catalogue.test']));
     expect(network.blobRequests).toEqual([`https://down.blobs.test/${applet.hash}`, `https://blobs.test/${applet.hash}`]);
-    // The address field never echoes the address back (D-006).
-    await expect(dialog.getByLabel('Applet address')).toHaveCount(0);
+    // The search that took the address is gone once the applet is found, so it is never echoed back (D-006).
+    await expect(dialog.getByRole('searchbox', { name: 'Find an applet' })).toHaveCount(0);
 
     // Required and offered: on for the account at first run, off for posting until the person says so.
     await expect(dialog.getByRole('checkbox', { name: /your account/ })).toBeChecked();
@@ -67,6 +68,7 @@ test.describe('with one relay and one blob server down', () => {
 
     // A second look-up of a running applet, from the recent list, still resolves.
     await page.getByRole('button', { name: 'Open an applet' }).click();
+    await page.getByRole('tab', { name: 'Recent' }).click();
     await page.getByRole('dialog').getByRole('listitem').filter({ hasText: 'Feed applet' }).getByRole('button', { name: 'Open' }).click();
     await expect(page.getByRole('dialog').getByRole('checkbox', { name: /posting to your network/ })).toBeChecked();
   });
@@ -118,7 +120,7 @@ test('relays that answer without the applet say there is none at that address', 
   await lookUp(page, address);
   await expect(page.getByRole('alert')).toHaveText('No applet was found at that address. Check it and try again.');
   // What was typed stays in the field so it can be corrected.
-  await expect(page.getByLabel('Applet address')).toHaveValue(address);
+  await expect(page.getByRole('searchbox', { name: 'Find an applet' })).toHaveValue(address);
 });
 
 test('an applet its own relays do not have is found on the general relays', async ({ page }) => {
@@ -127,8 +129,12 @@ test('an applet its own relays do not have is found on the general relays', asyn
   await signInFresh(page);
   await lookUp(page, applet.address(['wss://catalogue.test']));
   await expect(page.getByRole('dialog').getByRole('heading', { name: 'Feed applet' })).toBeVisible();
-  // The general relays are asked only after the address's own relays came up empty.
-  expect(network.dialled.indexOf('nos.lol')).toBeGreaterThan(network.dialled.indexOf('catalogue.test'));
+  // The general relays are asked for the applet only after the address's own relays came up empty.
+  // The store lists the general relays' applets as soon as it opens, so connection order says nothing,
+  // and a lookup sent over a socket the store already opened is not always seen by the fake relay.
+  const own = network.lookups.indexOf('catalogue.test');
+  expect(own).toBeGreaterThanOrEqual(0);
+  expect(network.lookups.slice(0, own)).not.toEqual(expect.arrayContaining(['nos.lol']));
 });
 
 test('an applet is found on the general relays when its own relays hang up', async ({ page }) => {
@@ -155,11 +161,14 @@ test('no relay reachable is said as a connection problem, never as a mystery', a
   expect(warnings.filter((text) => text.includes('unexpected reason'))).toEqual([]);
 });
 
-test('text that is not an address is refused before anything is dialled', async ({ page }) => {
+test('text that is not an address is searched for, never looked up', async ({ page }) => {
   const applet = signApplet({ servers: ['https://blobs.test'] });
   const network = await fakeNetwork(page, applet, { 'catalogue.test': 'holds' }, { 'blobs.test': 'has' });
   await signInFresh(page);
-  await lookUp(page, 'https://applets.example/about');
-  await expect(page.getByRole('alert')).toHaveText('That does not look like an applet address.');
-  expect(network.dialled).toEqual([]);
+  await page.getByRole('button', { name: 'Open an applet' }).click();
+  await page.getByRole('searchbox', { name: 'Find an applet' }).fill('https://applets.example/about');
+  await expect(page.getByRole('status').filter({ hasText: 'No applets match.' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('button', { name: 'Look up' })).toHaveCount(0);
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  expect(network.lookups).toEqual([]);
 });

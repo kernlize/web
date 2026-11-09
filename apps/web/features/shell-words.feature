@@ -94,6 +94,51 @@ Feature: Shell words
     Then the shell explains the unexpected open failure "All relays failed" as "Could not open the applet. Try again, or try another address."
     And the shell explains the unexpected open failure "" as "Could not open the applet. Try again, or try another address."
 
+  Scenario: an applet that takes requests gets the receiving switch, on at first run
+    Given an applet that requires "identity" and may use "notify"
+    And the shell can offer "identity, notify, intent"
+    And the applet takes requests from other applets
+    When the shell lists the domain choices
+    Then the domain choices are:
+      | domain   | label                 | required | baseline | granted | preset | available |
+      | identity | your account          | yes      | no       | no      | yes    | yes       |
+      | notify   | notifications         | no       | no       | no      | no     | yes       |
+      | intent   | opening other applets | no       | no       | no      | yes    | yes       |
+
+  Scenario: a receiving applet that lists the switch itself keeps it where it listed it
+    Given an applet that requires "storage" and may use "intent"
+    And the shell can offer "storage, intent"
+    And the applet takes requests from other applets
+    When the shell lists the domain choices
+    Then the domain choices are:
+      | domain  | label                 | required | baseline | granted | preset | available |
+      | storage | its own storage       | yes      | no       | no      | no     | yes       |
+      | intent  | opening other applets | no       | no       | no      | yes    | yes       |
+    Given an applet that requires "intent" and may use ""
+    And the applet takes requests from other applets
+    And the person has decided for this applet before
+    When the shell lists the domain choices
+    Then the domain choices are:
+      | domain | label                 | required | baseline | granted | preset | available |
+      | intent | opening other applets | yes      | no       | no      | no     | yes       |
+
+  Scenario: an applet that asks others to do things gets that switch on at first run
+    Given an applet that requires "intent" and may use ""
+    And the shell can offer "intent"
+    When the shell lists the domain choices
+    Then the domain choices are:
+      | domain | label                 | required | baseline | granted | preset | available |
+      | intent | opening other applets | yes      | no       | no      | yes    | yes       |
+
+  Scenario: a shell that cannot offer the receiving switch shows it but never switches it on
+    Given an applet that requires "" and may use ""
+    And the shell can offer "relay"
+    And the applet takes requests from other applets
+    When the shell lists the domain choices
+    Then the domain choices are:
+      | domain | label                 | required | baseline | granted | preset | available |
+      | intent | opening other applets | no       | no       | no      | no     | no        |
+
   Scenario Outline: byte counts read in binary units
     Then the shell shows <bytes> bytes as "<text>"
 

@@ -2,7 +2,6 @@ import type { Kernl, KernlOptions } from '@kernlize/core';
 import { NostrConnectSigner } from 'applesauce-signers';
 import type { Booted, KernlHost } from './contract';
 import { canReachPeers, createShellDownloads, type ShellDownloads } from './downloads';
-import { SAMPLES } from './preview-applet';
 import { createPreviewTorrentClient } from './preview-downloads';
 import { createPreviewKernl } from './preview-kernl';
 import { loadWebTorrent } from './webtorrent-client';
@@ -14,7 +13,7 @@ function previewDownloads(host: KernlHost): ShellDownloads {
 
 function preview(host: KernlHost, fallbackReason?: string): Booted {
   const downloads = previewDownloads(host);
-  const base = { kernl: createPreviewKernl(host, downloads.torrent), mode: 'preview' as const, samples: SAMPLES, downloads };
+  const base = { kernl: createPreviewKernl(host, downloads.torrent), mode: 'preview' as const, downloads };
   return fallbackReason === undefined ? base : { ...base, fallbackReason };
 }
 
@@ -39,7 +38,7 @@ export async function boot(host: KernlHost, search: URLSearchParams): Promise<Bo
     const downloads = createShellDownloads({ storage: host.storage, client: loadWebTorrent, open: (uri) => host.openLink(uri), inKernl: canReachPeers() });
     const kernl = createKernl({ host, torrent: downloads.torrent });
     NostrConnectSigner.pool = kernl.pool;
-    return { kernl, mode: 'live', samples: [], downloads };
+    return { kernl, mode: 'live', downloads };
   } catch (error) {
     return preview(host, `The live shell could not start (${reasonOf(error)}).`);
   }

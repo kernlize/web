@@ -1,6 +1,6 @@
 # Persistence
 
-kernl keeps the user's choices in the browser they made them in, and nowhere else. There is no kernl server, no sync and no account to log in to. This page lists every key kernl writes, what each holds, and what is deliberately never written.
+kernl keeps the user's choices in the browser they made them in. There is no kernl server and no kernl account. The one exception is the user's own: with **Keep these choices with your account** on, the applets they chose for each kind of request are published to their account's relays ([The store and intents](./store-and-intents.md#the-users-preferred-handlers)). This page lists every key kernl writes, what each holds, and what is deliberately never written.
 
 ## Where values go
 
@@ -25,6 +25,9 @@ The prefix keeps kernl's keys apart from kehto's and from the host app's in the 
 | `kernl:grants:v1` | `createGrants` | One record per verified applet build, keyed `<dTag>:<hash>`: `{ dTag, hash, domains, blocked }`. See [Identity and grants](./identity-and-grants.md). |
 | `kernl:relays:v1` | `createRelayTiers` | The four relay tiers, each a list of URLs. See [Relay tiers](./relay-tiers.md). |
 | `kernl:messaging:v1` | `createDefaultMessaging` | `MessagingPreferences`: the `enabled` provider ids and the optional `defaultProvider`. See [Messaging](./messaging.md). |
+| `kernl:installed:v1` | `createInstalledApplets` | The installed applets: `{ catalogId, address, title, publisher, contracts, installedAt }` each, where `contracts` are the roles and requests from the verified manifest. See [The store and intents](./store-and-intents.md#installing). |
+| `kernl:intent-defaults:v1` | `createHandlerDefaults` | The user's default applet per role, `{ <role>: <catalogId> }`, on this device. |
+| `kernl:intent-sync:v1` | `createHandlerDefaults` | `true` when the user chose to publish their choices with their account; absent or `false` otherwise. |
 | `kernl:firewall:v1` | `createRuntimeFirewallHooks`, as kehto's `firewallPersistence` | kehto's serialised runtime firewall configuration: the per-applet rates kernl installs, the unfocused multiplier and the startup burst guard. Counters are never stored. kehto writes it whenever kernl changes the configuration and loads it when the bridge is created; kernl reapplies the profile on every boot, so a stored value never loosens the profile in force. The string is kehto's format and is written as is, not through `createNamespacedStore`. See [Guard](./guard.md#where-enforcement-happens). |
 
 On boot, `createKernlAccounts` restores the accounts and makes the stored id active if that account still exists. `createGrants` loads its records, and `createRelayTiers` and `createDefaultMessaging` start from the stored value when there is one.
@@ -35,7 +38,7 @@ On boot, `createKernlAccounts` restores the accounts and makes the stored id act
 | --- | --- | --- |
 | `kernl:recent:v1` | `recent.ts`, through the host storage | The recently opened applets: up to eight `{ address, title, publisher, openedAt }`, newest first. Opening an applet moves it to the front; the launcher can forget one. |
 | `kernl:layout:v1` | `windows.ts`, through the host storage | The id of the layout the person chose, as a plain string: `floating`, `dwindle`, `columns`, `master-stack`, or one a developer registered. An id nobody registered is ignored and the first layout is used; `tiled`, which earlier builds stored, reads as `dwindle`. See [Layouts](./layouts.md). |
-| `kernl:preview:grants:v1`, `kernl:preview:relays:v1`, `kernl:preview:messaging:v1` | the offline preview (`?preview=1`) | The preview's own grants, tiers and messaging preferences, kept apart so that trying the preview never changes the live shell's state. |
+| `kernl:preview:grants:v1`, `kernl:preview:relays:v1`, `kernl:preview:messaging:v1`, `kernl:preview:installed:v1`, `kernl:preview:intent-defaults:v1` | the offline preview (`?preview=1`) | The preview's own grants, tiers, messaging preferences, installed applets and default applets, kept apart so that trying the preview never changes the live shell's state. |
 
 The public website also remembers its colour scheme as `kernl-theme` (`light` or `dark`). That key belongs to the site pages, not to the shell.
 

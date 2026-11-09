@@ -32,7 +32,10 @@ export const UNKNOWN_DOMAIN_LABEL = 'another capability';
 export const domainLabel = (domain: string): string => (Object.hasOwn(LABELS, domain) ? (LABELS[domain] as string) : UNKNOWN_DOMAIN_LABEL);
 
 /** Domains that are switched on the first time an applet that requires them is opened. */
-const PRESET_WHEN_REQUIRED: ReadonlySet<string> = new Set(['identity']);
+const PRESET_WHEN_REQUIRED: ReadonlySet<string> = new Set(['identity', 'intent']);
+
+/** The domain an applet needs to receive requests other applets hand it. */
+const RECEIVING_DOMAIN = 'intent';
 
 export interface DomainChoice {
   readonly domain: string;
@@ -55,11 +58,15 @@ interface ChoiceInput {
   readonly available: readonly string[];
   /** True when the user has never decided anything for this applet. */
   readonly firstRun: boolean;
+  /** The applet takes requests from other applets, so it needs the intent domain to receive them. */
+  readonly receives?: boolean;
 }
 
 /**
  * One row per domain the applet mentions, required first, pre-set to baseline plus earlier grants.
- * Your account is a grant, not baseline; an applet that requires it gets the switch on at first run.
+ * Your account and opening other applets are grants, not baseline; an applet that requires one gets
+ * the switch on at first run. An applet that takes requests from other applets gets the intent row
+ * even when its manifest did not list it, switched on at first run, because without it nothing reaches it.
  * A domain the shell cannot offer still gets its row, so the person sees what the applet wanted,
  * but it is neither granted nor preset: granting it is refused by the shell, and a row that could
  * be ticked would turn a wish the applet can live without into a failure to open it.
@@ -67,16 +74,17 @@ interface ChoiceInput {
 export function domainChoices(input: ChoiceInput): DomainChoice[] {
   const seen = new Set<string>();
   const rows: DomainChoice[] = [];
-  const push = (domain: string, required: boolean): void => {
+  const push = (domain: string, required: boolean, presetAlways = false): void => {
     if (seen.has(domain)) return;
     seen.add(domain);
     const baseline = input.baseline.includes(domain);
     const available = baseline || input.available.includes(domain);
-    const preset = available && input.firstRun && required && PRESET_WHEN_REQUIRED.has(domain);
+    const preset = available && input.firstRun && (presetAlways || (required && PRESET_WHEN_REQUIRED.has(domain)));
     rows.push({ domain, label: domainLabel(domain), required, baseline, granted: baseline || (available && input.granted.includes(domain)), preset, available });
   };
-  for (const domain of input.requires) push(domain, true);
-  for (const domain of input.optional) push(domain, false);
+  for (const domain of input.requires) push(domain, true, input.receives === true && domain === RECEIVING_DOMAIN);
+  for (const domain of input.optional) push(domain, false, input.receives === true && domain === RECEIVING_DOMAIN);
+  if (input.receives) push(RECEIVING_DOMAIN, false, true);
   return rows;
 }
 

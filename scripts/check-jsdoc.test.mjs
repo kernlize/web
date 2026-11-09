@@ -60,7 +60,8 @@ test('type-only exports are skipped unless includeTypes is set', () => {
   });
   expect(check(root)).toEqual([]);
   expect(check(root, { includeTypes: true })).toEqual(['packages/a/src/types.ts:Shape']);
-});
+  // Two full TypeScript programs; under a busy parallel run this outlasts the default 5 s.
+}, 20_000);
 
 test('reports across packages, sorted, relative to the given root', () => {
   const root = fixture({

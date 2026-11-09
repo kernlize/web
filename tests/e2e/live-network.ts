@@ -64,7 +64,7 @@ function matches(filter: Filter, event: VerifiedEvent): boolean {
   return !identifiers || event.tags.some((tag) => tag[0] === 'd' && identifiers.includes(tag[1] ?? ''));
 }
 
-function answer(socket: WebSocketRoute, behaviour: RelayBehaviour, applet: SignedApplet): void {
+function answer(socket: WebSocketRoute, behaviour: RelayBehaviour, applet: SignedApplet, onLookup: () => void): void {
   if (behaviour === 'down') {
     void socket.close({ code: 1011, reason: 'down' });
     return;
@@ -72,6 +72,8 @@ function answer(socket: WebSocketRoute, behaviour: RelayBehaviour, applet: Signe
   socket.onMessage((raw) => {
     const [verb, subId, ...filters] = JSON.parse(String(raw)) as [string, string, ...Filter[]];
     if (verb !== 'REQ' || behaviour === 'silent') return;
+    // A lookup names one applet; the store's catalogue listing asks for every manifest kind instead.
+    if (filters.some((filter) => filter.ids !== undefined || filter['#d'] !== undefined)) onLookup();
     if (behaviour === 'holds' && filters.some((filter) => matches(filter, applet.event))) socket.send(JSON.stringify(['EVENT', subId, applet.event]));
     socket.send(JSON.stringify(['EOSE', subId]));
   });
@@ -82,6 +84,8 @@ export interface FakeNetwork {
   readonly dialled: string[];
   /** Blob URLs the shell asked for, in order. */
   readonly blobRequests: string[];
+  /** Hosts asked for one particular applet, in order; the store's catalogue listing is not counted. */
+  readonly lookups: string[];
 }
 
 /** The general relays the shell falls back to when an address's own relays do not produce the applet. */
@@ -97,12 +101,12 @@ export function generalRelays(behaviour: RelayBehaviour): Record<string, RelayBe
  * shell's built-in servers never reach the real network from a test.
  */
 export async function fakeNetwork(page: Page, applet: SignedApplet, relays: Readonly<Record<string, RelayBehaviour>>, blobs: Readonly<Record<string, 'has' | 'down'>>): Promise<FakeNetwork> {
-  const network: FakeNetwork = { dialled: [], blobRequests: [] };
+  const network: FakeNetwork = { dialled: [], blobRequests: [], lookups: [] };
   // Secure sockets only: every relay the shell knows is one, and a dev server's own plain socket is left alone.
   await page.routeWebSocket(/^wss:\/\//, (socket) => {
     const { host } = new URL(socket.url());
     network.dialled.push(host);
-    answer(socket, relays[host] ?? 'down', applet);
+    answer(socket, relays[host] ?? 'down', applet, () => network.lookups.push(host));
   });
   for (const [host, state] of Object.entries(blobs)) {
     await page.route(`https://${host}/**`, async (route) => {
