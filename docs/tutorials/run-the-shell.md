@@ -14,13 +14,14 @@ Open the hosted preview:
 https://kernl.run/app/?preview=1
 ```
 
-The preview runs the same shell UI over an offline stand-in for the `Kernl` contract, with two sample applets and no network ([D-011](../decisions.md#d-011)). It behaves like the live shell where it stands in for it: it asks before a write only for the kinds `@kernlize/core` rates destructive, using the core's own `isDestructiveKind` and `describeChange`; its guard observes and stops an applet only by quarantine; it starts in `strict` on every load; and its sample applets remove WebRTC the way kehto's prelude does. Messaging here goes nowhere; in the live shell private and legacy messages are sent for real once you sign in with an account that can encrypt ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)).
+The preview runs the same shell UI over an offline stand-in for the `Kernl` contract, with a store of three preview applets and no network ([D-011](../decisions.md#d-011), [D-022](../decisions.md#d-022)). It behaves like the live shell where it stands in for it: it asks before a write only for the kinds `@kernlize/core` rates destructive, using the core's own `isDestructiveKind` and `describeChange`; its guard observes and stops an applet only by quarantine; it starts in `strict` on every load; and its applets remove WebRTC the way kehto's prelude does. Messaging here goes nowhere; in the live shell private and legacy messages are sent for real once you sign in with an account that can encrypt ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)).
 
-**You should now see** a card headed "Who is at the keyboard?" with a **Try the preview** button. Click it, then **Open an applet**; under "Sample applets" the launcher lists *Notes* and *Pulse*, each with an **Open** button. Open *Notes*, turn on the *network* switch (it starts off, like every grant on a first run), and click **Run**. It appears in a window with buttons to try:
+**You should now see** a card headed "Who is at the keyboard?" with a **Try the preview** button. Click it, then **Open an applet**; the store lists *Notes*, *Pulse* and *Profiles* with topic bubbles above them. Type `profle` into the search to see the loose matching, clear it, then open *Notes*, turn on the *network* switch (it starts off, like most grants on a first run), and click **Run**. It appears in a window with buttons to try:
 
 - **Publish a note** goes out without a prompt: a note is routine.
 - **Update your profile** and **Delete a note** ask first: the consent dialog shows what changes, and nothing happens until you answer.
 - **Flood the shell** sends 40 network reads at once; the guard panel (*Guard · strict · N* in the bar) records the burst.
+- **Open a profile** asks another applet to do it. None of yours can yet, so the shell offers the store's *Profiles*; pick it, tick **Always use it to open a profile**, and click **Use this applet**. *Profiles* opens and logs the request; ask again and it goes straight there. See [The store and intents](../concepts/store-and-intents.md).
 
 Without `?preview=1`, `https://kernl.run/app/` is the live shell: everything below from step 3 on works there too, against real relays.
 
@@ -29,7 +30,7 @@ Without `?preview=1`, `https://kernl.run/app/` is the live shell: everything bel
 - Access to the kernl source repository. It is private during the alpha; the packages are not on npm either ([Packages](../packages/index.md#install)). Without access, use the hosted shell above.
 - Node 22 or newer and pnpm 10. The repository pins `pnpm@10.24.0` through `packageManager`; `corepack enable` picks it up.
 - A way to sign: a browser extension that speaks NIP-07, a remote signer that speaks NIP-46, or nothing, in which case the shell creates a local account protected by a password. kernl never asks for a private key directly and never stores one in plaintext.
-- The address of an applet to open, which you get from the applet's publisher (an `naddr1…` or `nevent1…` string, or a coordinate). The [napplet.run app store](https://napplet.run/apps/) lists published applets; step 4 gives one you can try.
+- Nothing else: the live shell's store lists published applets. An address from a publisher (an `naddr1…` or `nevent1…` string, or a coordinate) also works pasted into the store's search; step 4 gives one you can try.
 
 ## 1. Clone, install and build
 
@@ -88,9 +89,9 @@ session.readOnly; // true for a ReadonlyAccount; writes are then refused
 
 **Settings** lists the four server tiers (Discovery, Applet catalogue, Your connections, General) by display name, so `wss://relay.damus.io` reads `damus.io`; add one by typing it into "Server address" (a bare hostname gets `wss://`). Under "Bridges" it names each bridge by what it does, *Downloads (web)*, *Downloads (from peers)*, *Downloads (archives)*, *Sharing* and *Mail*, with an "Availability" of "Ready" or "Needs a backend" and what the other side learns. "About" shows the shell's version, `kernl 0.1.0`, and whether it is live or the offline preview.
 
-## 4. Open an applet by address
+## 4. Open an applet from the store, or by address
 
-Click **Open an applet** (or press Alt+/), paste the address the applet's publisher gave you into "Applet address", and click **Look up**.
+Click **Open an applet** (or press Alt+/). The store lists the applets published to your applet catalogue and general servers, newest first, with the most common topics as bubbles; type to search, click a bubble to filter, and click **Open** on one. By default it lists only applets whose required capabilities this shell offers, and says how many it hides. To open an applet by address instead, paste it into the same search field ("Find an applet") and click **Look up**.
 
 **An applet you can try.** *Freeze Frame Response*, a physics puzzle, is published by a third party in the [napplet.run](https://napplet.run/apps/) catalogue, not by kernl. It needs no grants:
 

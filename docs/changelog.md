@@ -11,6 +11,11 @@ Each entry says what ships, per package and app. [Alpha status](./alpha-status.m
 
 ### `@kernlize/core`
 
+- The applet store: `kernl.catalog.load()` over `loadCatalog`, with `toCatalogEntry`, `addressOf`, `newestEntries`, `searchCatalog`, `fuzzyScore` and `popularTopics` ([D-022](./decisions.md#d-022)).
+- Intents: `createKernl` offers the `intent` domain through kehto's `createIntentService` and kernl's `createIntentRouter` and `createIntentDelivery`. `kernl.intents` exposes the installed set and the user's handler defaults; `kernl.install(summary)` installs a verified applet without opening it, and `kernl.plan` installs the applet it plans. `KernlHost` gains the optional `chooseHandler`, `openApplet` and `focusApplet`; `KernlOptions.intentRetry` tunes delivery.
+- Handler preferences (kind 31129): `createHandlerDefaults`, `parseHandlerPreferences`, `preferenceTemplate`, `preferredHandlers`, `catalogIdForRef` and `refForCatalogId`. The signed-in account's preferences are read on sign-in; publishing is opt-in. `describeChange` names the archetype and the applets added and removed when an applet writes one.
+- **Breaking.** `AppletSummary.address` is required, and `summarize(resolved, address)` takes it.
+
 - `createDefaultBridges` takes an optional `torrent` backend that replaces the hand-off for magnet links only; `KernlOptions.torrent` passes one through `createKernl`.
 
 - `createPrivateMessagesBackend`: NIP-17 messages over the account signer. The seal is signed by the account with `nip44`; the wrap is signed by an ephemeral key that lives inside an applesauce `PrivateKeySigner` and is discarded after the wrap. Sends go to the recipient's kind 10050 inbox relays, falling back to the user's `outbox` and `super` tiers, with a copy wrapped to the user ([D-015](./decisions.md#d-015)).
@@ -32,6 +37,8 @@ Each entry says what ships, per package and app. [Alpha status](./alpha-status.m
 - **Breaking.** Removed `appletMarkupHasFrame`, `assertAppletHasNoFrame`, `TRUSTED_TYPES_DIRECTIVES` and the `trustedTypes` field of `AppletCsp`. `createAppletCsp` returns the 14 baseline directives only, and `@kernlize/guard` no longer throws outside the applet realm.
 
 ### Shell and site (`apps/web`)
+
+- The launcher is a store: fuzzy search, topic bubbles, a filter for applets this shell can run fully, and an address pasted into the search still opens. **Yours** lists installed applets and which one opens each kind of request, with an opt-in to keep those choices with the account. When an applet asks another to do something, the shell picks the user's default, or asks with a chooser that can also find a handler in the store. The sample applets are gone; the preview's store lists its own applets, and its Notes can ask its Profiles to open a profile.
 
 - The Messages panel lists "Group sessions" beside the other providers, unranked; a send to someone who has not set it up says so in plain words. The site's vocabulary check also refuses the group protocol's names.
 

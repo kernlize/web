@@ -62,12 +62,15 @@ The host is the only way the core reaches the user or the page. Applets never re
 
 | Member | Called when |
 | --- | --- |
-| `storage: StorageLike` | Every persisted value: accounts (`kernl:accounts:v1`, `kernl:active-account:v1`), relay tiers (`kernl:relays:v1`), grants (`kernl:grants:v1`), messaging preferences (`kernl:messaging:v1`). `localStorage` satisfies it; tests use a `Map`. |
+| `storage: StorageLike` | Every persisted value: accounts (`kernl:accounts:v1`, `kernl:active-account:v1`), relay tiers (`kernl:relays:v1`), grants (`kernl:grants:v1`), messaging preferences (`kernl:messaging:v1`), installed applets (`kernl:installed:v1`) and handler choices (`kernl:intent-defaults:v1`, `kernl:intent-sync:v1`). `localStorage` satisfies it; tests use a `Map`. |
 | `presentConsent(prompt)` | An applet window asked the shell to sign, through `relay.publish` or `outbox.publish`, an event whose kind is destructive. `prompt.summary` is a `ConsentSummary` whose `event` is the unsigned draft (empty `id` and `sig`); `prompt.resolve(true)` signs, `prompt.resolve(false)` (also on dismiss) makes the signer throw `denied:consent`. The core never times a prompt out. |
 | `notify(notice)` | An applet calls `notify.send`, or the guard has something to say. `notice.tone` is `info` or `warning`; `windowId` names the applet when there is one. |
 | `openLink(url)` | An applet's `link.open` passed the link policy (`LINK_PROTOCOLS`: `https:` and `mailto:` only). |
 | `getVisibility(windowId)` | Current visibility for a window, when the core needs it synchronously: the guard asks the first time it meets a window that `handle.setVisibility` has not reported on yet, and keeps that answer until the next `setVisibility`. |
 | `onRevoked(windowId, reason)` | The core removed a frame because the bridge revoked its binding, or the guard quarantined it (`reason` is `quarantine`). |
+| `chooseHandler?(prompt)` | Optional. An applet asked for a role and an action and the shell needs the user to pick who does it. `prompt` is a `HandlerPrompt`: `{ archetype, action, convention, source, options, recommended? }`, with `options` the installed applets that can, preferred first, and empty when none can. Resolve a `HandlerChoice` `{ id, remember }`, possibly for an applet installed while the chooser was open with `kernl.install`, or `undefined` on dismiss. Without it, a request with several handlers and no default is refused. |
+| `openApplet?(address)` | Optional. Open the applet at an address under its existing grants and resolve its window id, or `undefined` when it did not open. Called to start an intent's handler. |
+| `focusApplet?(windowId)` | Optional. Bring a running handler's window to the front. |
 | `fetchBlob?(sha256, servers)` | Optional. Replaces `defaultFetchBlob` for artifact bytes; the bytes are hashed by kehto either way. |
 | `now?()` | Optional clock for the guard. |
 
@@ -80,11 +83,14 @@ The host is the only way the core reaches the user or the page. Applets never re
 | `grants: Grants` | The user-facing grants surface, see [Grants](#grants). |
 | `relays: RelayTiers` | `get()`, `add(tier, url)`, `remove(tier, url)`, `changes$`. `add` throws `invalid:relay-url` for anything that is not `ws://` or `wss://`. |
 | `messaging`, `bridges` | The registries the services read. |
+| `catalog: AppletCatalog` | `load(options?)`: the store's entries from the `apps` and `super` tiers, see [The store and intents](../concepts/store-and-intents.md). |
+| `intents: Intents` | `installed$`, `installed()`, `uninstall(catalogId)` and `defaults` (a `HandlerDefaults`: `get`, `all`, `set(archetype, id \| undefined)`, `synced`, `load`, `sync`, `setSync`, `changes$`). |
+| `install(summary)` | Install a verified applet without opening it; throws `invalid:unresolved` for a summary this shell did not verify. |
 | `session$`, `session` | `Session \| null`: `{ accountId, pubkey, label, readOnly }`. The label is the account's `metadata.name`, then `account.name`, then the abbreviated pubkey. |
 | `login(account)` | Adds the account to the manager if it is not there, makes it active, returns its `Session`. `KernlAccountManager` refuses plaintext-key account types here. |
 | `logout()` | Clears the active account. |
 | `decodePointer(input)` | See [resolve → plan → mount](#resolve-→-plan-→-mount). |
-| `resolve`, `plan`, `mount`, `applets()`, `handleWindowMessage(event)` | The applet lifecycle. |
+| `resolve`, `plan`, `mount`, `applets()`, `handleWindowMessage(event)` | The applet lifecycle. `plan` also installs the applet. |
 | `destroy()` | Tears the shell down. |
 
 ### resolve → plan → mount
@@ -292,12 +298,37 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `defaultFetchBlob` | `(sha256: string, servers: readonly string[], fetchImpl?: typeof fetch) => Promise<Uint8Array>` | Tries each server with a `BLOB_TIMEOUT_MS` (20 000 ms) budget; throws `unavailable:blob`. |
 | `openDefaultArtifactCache` | `() => Promise<NappletArtifactCache \| undefined>` | kehto's verified-artifact cache over Cache Storage, or nothing. |
 | `resolveApplet` | `(options: ResolveAppletOptions) => Promise<ResolvedApplet>` | kehto's `resolveNapplet` with kernl's reasons: `unavailable:blob` or `invalid:<code>`. |
-| `summarize` | `(resolved: ResolvedNapplet) => AppletSummary` | The verified manifest reduced to what the shell shows. |
+| `summarize` | `(resolved: ResolvedNapplet, address: string) => AppletSummary` | The verified manifest reduced to what the shell shows, with its shareable address. |
 | `planMount` | `(options: PlanMountOptions) => MountPlan` | Environment, CSP-prepared `srcdoc` with kehto's nested-context lock and kernl's insertion lock, `missingRequired`. No DOM. Throws `denied:nested-frame` when kehto's `assertNappletHasNoFrame` finds a frame in the verified markup, and `unavailable:frame-lock` when kehto's CSP meta and prelude are not where it expects them ([D-014](../decisions.md#d-014)). |
 | `mountApplet` | `(plan: MountPlan, frame: FrameLike, deps: MountDeps) => MountedApplet` | The NIP-5D mount order; throws `invalid:frame-detached`. Calls `frame.setAttribute('sandbox', 'allow-scripts')`. |
 | `CONTROLLER_DENY_POLICY` | `string` | `gamepad 'none'; hid 'none'; usb 'none'`. |
 | `BLOB_TIMEOUT_MS` | `20_000` | |
 | `AppletPointer`, `AppletSummary`, `AppletIdentity`, `MountPlan`, `AppletHandle`, `AppletStatus`, `FrameLike`, `ResolveAppletOptions`, `ResolvedApplet`, `PlanMountOptions`, `MountDeps`, `MountGuardHooks`, `MountedApplet` | types | `MountedApplet` adds `revoked(reason)` to `AppletHandle` for the bridge's revocation hook. `FrameLike.sandbox` is optional and not read: the mount replaces the attribute whatever it held. |
+
+### Store and intents
+
+| Export | Signature | Description |
+| --- | --- | --- |
+| `loadCatalog` | `(pool: ApplesaucePool, tiers: RelayTiers, options?: LoadCatalogOptions) => Promise<readonly CatalogEntry[]>` | Root and named manifests from `catalogRelays(tiers)`, signature-checked, newest per catalogue id; waits at most `timeoutMs` (`CATALOG_TIMEOUT_MS`, 8000) and asks for `limit` (`CATALOG_LIMIT`, 500) per relay. |
+| `catalogRelays` | `(tiers: RelayTiers) => readonly string[]` | The `apps` tier, then `super`. |
+| `toCatalogEntry` | `(event: NostrEvent, relays?: readonly string[]) => CatalogEntry \| undefined` | A store entry from a manifest whose signature verifies; undefined otherwise. |
+| `addressOf` | `(event: NostrEvent, relays?: readonly string[]) => string` | `naddr1…` for a root or named manifest, `nevent1…` for a snapshot. |
+| `newestEntries` | `(entries: readonly CatalogEntry[]) => readonly CatalogEntry[]` | One entry per catalogue id, newest first. |
+| `searchCatalog` | `(entries, query?: CatalogQuery) => readonly CatalogEntry[]` | Text (every word must match), `topics`, `available` domains and `convention` filters, best first. |
+| `fuzzyScore` | `(word: string, field: string) => number` | 4 whole word, 3 prefix, 2 substring, 1 letters in order within one word, 0 none. |
+| `popularTopics` | `(entries, limit?: number) => readonly TopicCount[]` | Topics by count, then name; 12 by default. |
+| `createInstalledApplets` | `(storage: StorageLike, now?: () => number) => InstalledApplets` | The installed set at `kernl:installed:v1`; `catalog()` is what kehto's resolver loads. |
+| `createHandlerDefaults` | `(options: HandlerDefaultsOptions) => HandlerDefaults` | Local defaults, the account's published preferences (kind 31129) and opt-in publishing to `preferenceRelays(tiers)`. |
+| `preferenceRelays` | `(tiers: RelayTiers) => readonly string[]` | The `outbox` tier, then `super`. |
+| `HANDLER_PREFERENCES_KIND` | `31129` | |
+| `parseHandlerPreferences` | `(event: NostrEvent) => HandlerPreferences \| undefined` | The public `a`, `e` and `i` entries; malformed entries are ignored. |
+| `preferredHandlers` | `(preferences, convention: string) => readonly string[]` | Catalogue ids: intent-specific entries when any, else archetype-wide ones. |
+| `preferenceTemplate` | `(previous, archetype, catalogId, now) => EventTemplate \| undefined` | The next preference event with one handler first, every other tag and the content kept. |
+| `catalogIdForRef`, `refForCatalogId` | `(value: string) => string \| undefined` | Between preference references (`35129:<pubkey>:<d>`, `15129:<pubkey>:`, a snapshot id) and kehto's catalogue ids. |
+| `createIntentRouter` | `(options: IntentRouterOptions) => IntentRouter` | kernl's routing over kehto's `createCatalogIntentResolver`: defaults, preferences, chooser, store fallback with a one-time authorisation. |
+| `createIntentDelivery` | `(options: IntentDeliveryOptions) => (params) => Promise<void>` | Reuse or open the handler, retry until it can receive (`DELIVERY_RETRY`, 100 ms × 150), send `intent.deliver`. Throws `unavailable:handler`, `unavailable:window` or `unavailable:delivery`. |
+| `createKernlIntents` | `(deps: KernlIntentDeps) => KernlIntents` | The composition `createKernl` uses: the `intent` service handler, the `Intents` facade and the installed set. |
+| `CatalogEntry`, `CatalogQuery`, `TopicCount`, `LoadCatalogOptions`, `AppletCatalog`, `InstalledApplet`, `InstalledApplets`, `InstalledContract`, `HandlerDefaults`, `HandlerDefaultsOptions`, `HandlerPreferences`, `PreferenceSigner`, `Intents`, `IntentRouter`, `IntentRouterOptions`, `IntentDeliveryOptions`, `KernlIntentDeps`, `KernlIntents`, `HandlerPrompt`, `HandlerOption`, `HandlerChoice` | types | |
 
 ### Guard
 
