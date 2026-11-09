@@ -14,6 +14,7 @@ export default defineConfig({
       // The subpath comes first: a string alias also matches as a path prefix.
       '@kernlize/core/wm': pkg('core', 'wm/index.ts'),
       '@kernlize/core/crypto': pkg('core', 'crypto/index.ts'),
+      '@kernlize/core/cache': pkg('core', 'cache/index.ts'),
       '@kernlize/core': pkg('core'),
     },
   },

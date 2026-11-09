@@ -27,3 +27,5 @@ import './intent-routing.js';
 import './kernl-intents.js';
 import './crypto-fallback.js';
 import './live-lookup.js';
+import './event-cache.js';
+import './event-cache-sqlite.js';
