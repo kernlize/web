@@ -7,8 +7,8 @@ Ingress flood control, visibility gating, focus-aware firewall, CSP profile and 
 | Package | `@kernlize/guard` |
 | Version | `0.1.1` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts` |
-| Dependencies | `@kehto/firewall ^0.6.3` |
-| Peer dependencies | `@napplet/core >=0.37.0 <0.38.0` |
+| Dependencies | `@kehto/firewall ^0.7.0` |
+| Peer dependencies | `@napplet/core >=0.37.0 <0.39.0` |
 | Side effects | none |
 
 ## Install
