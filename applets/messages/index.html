@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Messages</title>
+  </head>
+  <body>
+    <!--
+      The shell frames this applet and shows its name, so there is no heading
+      here: the frame is working surface from the first pixel.
+
+      There are no form elements either. The frame is sandboxed without
+      form submission, so a submit event would never fire; buttons and the
+      Enter key are handled directly.
+    -->
+    <main id="app" class="app">
+      <div id="frame" class="frame" data-pane="list" data-phase="loading">
+        <p id="notice" class="inline-state notice" role="status">
+          <span id="noticeText">Loading…</span>
+          <button id="noticeRetry" class="text-button" type="button" hidden>Retry</button>
+        </p>
+
+        <nav id="listPane" class="list-pane" aria-label="Conversations" hidden>
+          <div class="list-head">
+            <input
+              id="filterInput"
+              class="field filter"
+              type="search"
+              placeholder="Search"
+              aria-label="Search conversations"
+              autocomplete="off"
+            />
+            <button id="newButton" class="icon-button" type="button" aria-label="New message" title="New message">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>
+            </button>
+          </div>
+          <div id="newForm" class="new-form" role="group" aria-label="New message" hidden>
+            <input
+              id="toInput"
+              class="field"
+              type="text"
+              placeholder="Account id"
+              aria-label="To"
+              aria-describedby="toError"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+            />
+            <button
+              id="newStart"
+              class="icon-button"
+              type="button"
+              aria-label="Start conversation"
+              title="Start conversation"
+            >
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" /></svg>
+            </button>
+            <button id="newCancel" class="icon-button" type="button" aria-label="Cancel" title="Cancel">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+            </button>
+            <p id="toError" class="field-error" role="alert"></p>
+          </div>
+          <p id="listNote" class="inline-state" role="status" hidden>
+            <span id="listNoteText"></span>
+            <button id="listNoteNew" class="text-button" type="button">Start one</button>
+          </p>
+          <ul id="threadList" class="thread-list"></ul>
+        </nav>
+
+        <section id="threadPane" class="thread-pane" aria-label="Conversation" hidden>
+          <div id="threadHead" class="thread-head" hidden>
+            <button
+              id="backButton"
+              class="icon-button back"
+              type="button"
+              aria-label="Back to conversations"
+              title="Back to conversations"
+            >
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H3M7 4L3 8l4 4" /></svg>
+            </button>
+            <span id="threadTile" class="tile" aria-hidden="true"></span>
+            <span id="threadTitle" class="thread-title truncate"></span>
+          </div>
+          <p id="threadNote" class="inline-state" role="status" hidden>
+            <span id="threadNoteText"></span>
+            <button id="threadNoteRetry" class="text-button" type="button" hidden>Retry</button>
+          </p>
+          <div id="log" class="log" role="log" aria-live="polite" aria-label="Messages" tabindex="0" hidden></div>
+          <div id="composer" class="composer" role="group" aria-label="Write a message" hidden>
+            <textarea id="messageInput" class="field" rows="1" placeholder="Message" aria-label="Message"></textarea>
+            <button id="sendButton" class="send-button" type="button" aria-label="Send" title="Send" disabled>
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 13V3M4 7l4-4 4 4" /></svg>
+              <span class="label">Send</span>
+            </button>
+          </div>
+          <p id="threadHint" class="inline-state">Select a conversation.</p>
+        </section>
+      </div>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

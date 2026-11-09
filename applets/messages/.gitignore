@@ -1,0 +1,11 @@
+node_modules
+dist
+shipped
+.env
+.env.*
+!.env.example
+.DS_Store
+*.local
+coverage
+.turbo
+

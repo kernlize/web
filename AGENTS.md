@@ -74,6 +74,7 @@ Code, features, step definitions and docs change in the same PR.
 | `pnpm build` | Build every package and shipped applet through turbo |
 | `pnpm type-check` | `tsc --noEmit` everywhere |
 | `pnpm test` | Features and unit tests with coverage thresholds |
+| `pnpm test:applets` | Each shipped applet's own guidance tests, unit tests, type-check and build |
 | `pnpm test:e2e` | Playwright against the built site |
 | `pnpm docs:dev` / `pnpm docs:check` | VitePress dev server / docs gate |
 | `pnpm site:dev` / `pnpm site:build` | Astro dev server / full Pages artifact in `.pages/` |

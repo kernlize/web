@@ -1,0 +1,202 @@
+/*
+  Size tiers. Widths are container queries on #app, which is the frame: tiny
+  below 240px shows avatar tiles only; compact up to 480px shows one pane at a
+  time; regular up to 900px shows list and thread; wide gives the list more
+  room. List rows gain a preview line whenever the list itself is 280px wide.
+  Frames shorter than 220px drop the search field and fold the thread header
+  into a side rail, so the composer and the latest messages keep the height.
+*/
+
+/* tiny: avatar tiles only, one pane, single-line composer */
+
+@container app (width < 240px) {
+  .list-pane {
+    flex-flow: row wrap;
+    align-content: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    overflow-y: auto;
+  }
+
+  .list-head,
+  .thread-list,
+  .thread-list > li {
+    display: contents;
+  }
+
+  .filter,
+  .thread-text,
+  .thread-time {
+    display: none;
+  }
+
+  .new-form,
+  .list-pane > .inline-state {
+    flex: 0 0 100%;
+    padding: 0;
+  }
+
+  .list-head .icon-button {
+    width: 40px;
+    height: 40px;
+    border-style: dashed;
+  }
+
+  .thread-item {
+    position: relative;
+    display: block;
+    width: auto;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .thread-item .tile {
+    width: 40px;
+    height: 40px;
+    font-size: 13px;
+  }
+
+  .thread-item[aria-current="true"] .tile {
+    outline: 2px solid var(--primary);
+    outline-offset: 1px;
+  }
+
+  .badge {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    min-width: 10px;
+    width: 10px;
+    height: 10px;
+    padding: 0;
+    border: 2px solid var(--bg);
+    box-sizing: content-box;
+    font-size: 0;
+  }
+
+  .msg {
+    max-width: 94%;
+  }
+
+  .composer {
+    padding: var(--space-1);
+  }
+
+  .composer textarea {
+    max-height: var(--control-h);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+}
+
+/* compact and tiny: one pane at a time */
+
+@container app (width < 480px) {
+  .frame[data-pane="list"] > .thread-pane,
+  .frame[data-pane="thread"] > .list-pane {
+    display: none;
+  }
+}
+
+/* regular: list + thread */
+
+@container app (width >= 480px) {
+  .frame {
+    grid-template-columns: clamp(200px, 34cqi, 260px) minmax(0, 1fr);
+  }
+
+  .list-pane {
+    border-right: 1px solid var(--border);
+  }
+
+  .back {
+    display: none;
+  }
+
+  .send-button {
+    padding: 0 var(--space-3) 0 var(--space-2);
+  }
+
+  .send-button .label {
+    display: inline;
+  }
+}
+
+/* wide: a roomier list; the thread keeps the rest */
+
+@container app (width > 900px) {
+  .frame {
+    grid-template-columns: clamp(300px, 24cqi, 440px) minmax(0, 1fr);
+  }
+
+  .log {
+    padding: var(--space-3) var(--space-3) var(--space-2);
+  }
+}
+
+/* short frames */
+
+@media (height < 220px) {
+  .filter {
+    display: none;
+  }
+
+  .list-head {
+    justify-content: flex-end;
+    padding: var(--space-1);
+  }
+
+  .thread-pane {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+
+  .thread-head {
+    grid-row: 1 / -1;
+    flex-direction: column;
+    justify-content: flex-start;
+    min-height: 0;
+    padding: var(--space-1);
+    border-right: 1px solid var(--border);
+    border-bottom: 0;
+  }
+
+  .thread-title {
+    display: none;
+  }
+
+  .thread-pane > .inline-state,
+  .log,
+  .composer {
+    grid-column: 2;
+  }
+
+  .thread-pane > .inline-state {
+    grid-row: 1;
+  }
+
+  .log {
+    grid-row: 2;
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .composer {
+    grid-row: 3;
+    padding: var(--space-1);
+  }
+
+  /* The list header scrolls away with the list instead of holding a row. */
+  .list-pane {
+    overflow-y: auto;
+  }
+
+  .thread-list {
+    flex: none;
+    overflow: visible;
+  }
+
+  .day {
+    padding: 2px 0;
+  }
+}

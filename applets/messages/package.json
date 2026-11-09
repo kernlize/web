@@ -1,0 +1,37 @@
+{
+  "name": "@kernlize/applet-messages",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build && node scripts/describe.mjs",
+    "preview": "vite preview --host 127.0.0.1",
+    "type-check": "tsc --noEmit",
+    "verify": "pnpm test:guidance && pnpm test:unit && pnpm type-check && pnpm build",
+    "test:guidance": "node --test tests/guidance.test.mjs",
+    "test:unit": "node --test tests/unit/*.test.mjs",
+    "test:conformance": "pnpm build && napplet-conformance ./dist",
+    "test:conformance:ui": "napplet-conformance --ui . --exec \"vite build --watch\"",
+    "test:frames": "node tests/harness/frames.mjs"
+  },
+  "dependencies": {
+    "@napplet/sdk": "^0.24.4"
+  },
+  "devDependencies": {
+    "@napplet/conformance-cli": "^0.2.15",
+    "@napplet/vite-plugin": "^0.11.2",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.2"
+  },
+  "license": "MIT",
+  "description": "Messages: kernl's direct-message applet, speaking NAP-DM to whichever shell runs it",
+  "exports": {
+    "./applet.json": "./shipped/applet.json",
+    "./index.html": "./dist/index.html"
+  },
+  "files": [
+    "dist",
+    "shipped"
+  ]
+}

@@ -24,6 +24,7 @@ jobs:
       - run: pnpm build
       - run: pnpm type-check
       - run: pnpm test
+      - run: pnpm test:applets
       - run: pnpm check:deps
       - run: pnpm check:packages
       - run: pnpm docs:check
