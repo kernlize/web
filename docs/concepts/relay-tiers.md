@@ -13,7 +13,7 @@ kehto's `RelayConfigHooks` knows three tiers: `discovery`, `super` and `outbox`.
 | `outbox` | Your connections | Where what the user publishes is delivered | none |
 | `super` | General | Everything that is not discovery or manifests | `wss://relay.damus.io`, `wss://nos.lol`, `wss://relay.primal.net` |
 
-`DEFAULT_RELAY_TIERS` is exported from `@kernl/core` as a frozen `TierMap`, each tier a frozen array. The outbox tier starts empty: kernl does not guess where the user publishes.
+`DEFAULT_RELAY_TIERS` is exported from `@kernlize/core` as a frozen `TierMap`, each tier a frozen array. The outbox tier starts empty: kernl does not guess where the user publishes.
 
 ## How a request picks a tier
 
@@ -66,4 +66,4 @@ kehto lets a window open one relay of its own choosing, the NIP-29 group pattern
 
 - [Architecture](./architecture.md)
 - [Persistence](./persistence.md)
-- [`@kernl/core`](../packages/core.md)
+- [`@kernlize/core`](../packages/core.md)

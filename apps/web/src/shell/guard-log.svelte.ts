@@ -1,5 +1,5 @@
 /* global $state, $derived, $effect */
-import type { GuardEvent, OpClass } from '@kernl/guard';
+import type { GuardEvent, OpClass } from '@kernlize/guard';
 
 const KEEP = 50;
 

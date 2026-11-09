@@ -6,9 +6,9 @@ import { AccountManager } from 'applesauce-accounts';
 import { PrivateKeyAccount } from 'applesauce-accounts/accounts';
 import type { ShellAdapter } from '@kehto/shell';
 import type { NappletMessage } from '@napplet/core';
-import type { BridgeContext, BridgeRegistry, TorrentBackend } from '@kernl/bridges';
-import type { MessagingBackend, MessagingRegistry } from '@kernl/messaging';
-import { createMemoryBackend } from '@kernl/messaging';
+import type { BridgeContext, BridgeRegistry, TorrentBackend } from '@kernlize/bridges';
+import type { MessagingBackend, MessagingRegistry } from '@kernlize/messaging';
+import { createMemoryBackend } from '@kernlize/messaging';
 import {
   createDefaultBridges,
   createDefaultMessaging,
@@ -20,7 +20,7 @@ import {
   wrapAccountSigner,
   type KernlServices,
   type RelayTiers,
-} from '@kernl/core';
+} from '@kernlize/core';
 import { allowAllSigning, scratch, signEvent, splitList, type CoreWorld } from './world.js';
 
 interface ServicesScratch {

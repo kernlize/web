@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { DmConversation, DmMessage } from '@napplet/core';
-  import { describeProvider, type MessagingBackend, type ProviderEntry } from '@kernl/messaging';
+  import { describeProvider, type MessagingBackend, type ProviderEntry } from '@kernlize/messaging';
   import type { BootMode, ShellKernl } from './contract';
   import { abbreviate } from './contract';
   import Overlay from './Overlay.svelte';

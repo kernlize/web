@@ -3,7 +3,7 @@ import { isValidLegacyMessage, unlockLegacyMessage } from 'applesauce-common/hel
 import { getConversationParticipants } from 'applesauce-common/helpers/messages';
 import { LegacyMessageFactory } from 'applesauce-common/factories/legacy-message';
 import type { ISigner } from 'applesauce-signers';
-import type { MessagingBackend } from '@kernl/messaging';
+import type { MessagingBackend } from '@kernlize/messaging';
 import { createSignerBackend, type MessageFormat, type OpenedMessage, type SignerMessagingOptions } from './signer-backend.js';
 
 async function openLegacy(event: NostrEvent, self: string, signer: ISigner): Promise<OpenedMessage | undefined> {

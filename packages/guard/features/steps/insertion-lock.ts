@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
-import { renderInsertionLockScript } from '@kernl/guard';
+import { renderInsertionLockScript } from '@kernlize/guard';
 import { appletInsertionLock, type InsertionLockWindow } from '../../src/insertion-lock.js';
 import type { GuardWorld } from './world.js';
 

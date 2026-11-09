@@ -7,7 +7,7 @@ A provider is a package change plus a docs page. This how-to adds a provider cal
 Start with the properties, because they are the contract with the user. Every field except `specification` is required, and the shell shows all of them except `specification` through `describeProvider`.
 
 ```ts
-import type { ProviderDefinition, SecurityProperties } from '@kernl/messaging';
+import type { ProviderDefinition, SecurityProperties } from '@kernlize/messaging';
 
 export const EXAMPLE_PROPERTIES: SecurityProperties = {
   forwardSecrecy: false,
@@ -36,7 +36,7 @@ A `MessagingBackend` has six methods and an optional `close`. Ids you return are
 <!-- sample:continues -->
 ```ts
 import type { DmMessage, DmSendRequest, DmSendResult } from '@napplet/core';
-import type { MessagingBackend } from '@kernl/messaging';
+import type { MessagingBackend } from '@kernlize/messaging';
 
 export interface ExampleDeps {
   readonly ownerPubkey: string;
@@ -82,7 +82,7 @@ export function createExampleBackend(deps: ExampleDeps): MessagingBackend {
 
 Rules the backend must keep:
 
-- Use the shell's shared `EventStore` and `RelayPool` (`kernl.eventStore`, `kernl.pool`); do not open a second relay connection. The shell does not inject anything into your backend: `@kernl/core` calls only the factory you register, so you build `ExampleDeps` yourself from those instances, as `exampleDeps(resolve)` below does.
+- Use the shell's shared `EventStore` and `RelayPool` (`kernl.eventStore`, `kernl.pool`); do not open a second relay connection. The shell does not inject anything into your backend: `@kernlize/core` calls only the factory you register, so you build `ExampleDeps` yourself from those instances, as `exampleDeps(resolve)` below does.
 - Sign only through the active account's signer (`kernl.accounts.active?.signer`), wrapped in a function you put in `ExampleDeps` such as `publish`. Never touch key bytes.
 - Reject with stable reasons: `denied:`, `invalid:`, `unavailable:`.
 - `subscribe` returns `{ subscriptionId }`; `unsubscribe` of an unknown id returns `{ ok: false }`; `close` drops every subscription. Every method except `send` may be synchronous.
@@ -96,7 +96,7 @@ The registry calls `createBackend()` once per enable and `available()` whenever 
 
 <!-- sample:continues -->
 ```ts
-import { defineProvider, type ProviderDeps } from '@kernl/messaging';
+import { defineProvider, type ProviderDeps } from '@kernlize/messaging';
 
 export function exampleDeps(resolve: () => ExampleDeps | undefined): ProviderDeps {
   return {
@@ -117,7 +117,7 @@ export const provider = defineProvider(EXAMPLE_DEFINITION, exampleDeps(() => ses
 
 The `reason` is a bare word. The registry prefixes it: `enable('example')` throws `unavailable:signed-out`, and `list()` reports `{ available: false, reason: 'signed-out' }` so the picker can grey the provider and say why.
 
-The three built-ins (`createPrivateMessagesProvider`, `createLegacyMessagesProvider`, `createRatchetMessagesProvider`) are exactly this shape: a fixed definition in the package, `ProviderDeps` from the shell. If your provider ships in `@kernl/messaging`, add `createExampleMessagesProvider(deps: ProviderDeps)` next to them in `packages/messaging/src/providers/` and export it from `providers/index.ts`.
+The three built-ins (`createPrivateMessagesProvider`, `createLegacyMessagesProvider`, `createRatchetMessagesProvider`) are exactly this shape: a fixed definition in the package, `ProviderDeps` from the shell. If your provider ships in `@kernlize/messaging`, add `createExampleMessagesProvider(deps: ProviderDeps)` next to them in `packages/messaging/src/providers/` and export it from `providers/index.ts`.
 
 ## 4. Register it
 
@@ -128,7 +128,7 @@ The three built-in providers are registered by `createDefaultMessaging` in `pack
 
 <!-- sample:continues -->
 ```ts
-import { createDefaultMessaging, createKernl, type KernlHost } from '@kernl/core';
+import { createDefaultMessaging, createKernl, type KernlHost } from '@kernlize/core';
 
 declare const host: KernlHost;
 
@@ -146,6 +146,6 @@ Registration does not enable, unless the user's saved preferences already list `
 - Add the provider to the `Scenario Outline` in `packages/messaging/features/providers.feature` ("the built-in providers carry fixed copy and properties") with its name, description, six properties and specification, and a scenario that `describeProvider` rows name no protocol. Step definitions live in `packages/messaging/features/steps/`.
 - If the backend lives in a package, give it a feature file modelled on `memory-backend.feature`: sends create conversations, delivered messages are unread, subscriptions filter by conversation, cursors resume.
 - Add a row to the providers table in [Messaging](../concepts/messaging.md#the-three-providers) and a line to the providers table on the [package page](../packages/messaging.md#providers).
-- Add a changeset for `@kernl/messaging` (and `@kernl/core` if you touched `createDefaultMessaging`).
+- Add a changeset for `@kernlize/messaging` (and `@kernlize/core` if you touched `createDefaultMessaging`).
 
 `pnpm test` must stay at 100% coverage over `packages/*/src`, and `pnpm docs:check` must pass. A provider without the feature rows or the docs rows is not shipped.

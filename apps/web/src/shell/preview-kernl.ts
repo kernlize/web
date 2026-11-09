@@ -10,7 +10,7 @@ import {
   createTorrentBridge,
   type BridgeRegistry,
   type TorrentBackend,
-} from '@kernl/bridges';
+} from '@kernlize/bridges';
 import type { NappletCspDirectives } from '@kehto/shell';
 import {
   createAppletCsp,
@@ -23,7 +23,7 @@ import {
   type IngressGuard,
   type VisibilityGate,
   type WindowVisibility,
-} from '@kernl/guard';
+} from '@kernlize/guard';
 import { BehaviorSubject, Subject } from 'rxjs';
 import type {
   AppletHandle,
@@ -141,7 +141,7 @@ function createActions(host: KernlHost, bridges: BridgeRegistry, pubkeyOf: () =>
    * publishes go straight out. Imported on first use so the core stays out of the shell's first chunk.
    */
   const publish = async (entry: Mounted, draft: Draft): Promise<void> => {
-    const { describeChange, isDestructiveKind } = await import('@kernl/core');
+    const { describeChange, isDestructiveKind } = await import('@kernlize/core');
     const now = Math.floor(Date.now() / 1000);
     const event = { id: '0'.repeat(64), pubkey: pubkeyOf(), created_at: now, sig: '', ...draft };
     const summary: ConsentSummary = describeChange(event, undefined, entry.plan.summary.identity);

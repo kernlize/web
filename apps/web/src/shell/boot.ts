@@ -1,4 +1,4 @@
-import type { Kernl, KernlOptions } from '@kernl/core';
+import type { Kernl, KernlOptions } from '@kernlize/core';
 import { NostrConnectSigner } from 'applesauce-signers';
 import type { Booted, KernlHost } from './contract';
 import { canReachPeers, createShellDownloads, type ShellDownloads } from './downloads';
@@ -32,7 +32,7 @@ function reasonOf(error: unknown): string {
 export async function boot(host: KernlHost, search: URLSearchParams): Promise<Booted> {
   if (search.get('preview') === '1') return preview(host);
   try {
-    const core = await import('@kernl/core');
+    const core = await import('@kernlize/core');
     if (!('createKernl' in core) || typeof core.createKernl !== 'function') return preview(host, 'The live shell is not part of this build yet.');
     const createKernl = core.createKernl as (options: KernlOptions) => Kernl;
     // The library loads on the first download, never with the page (D-017).

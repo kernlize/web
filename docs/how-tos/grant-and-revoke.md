@@ -19,7 +19,7 @@ A grant is something the user gave and can take back. This page covers what the 
 `kernl.grants` is the `Grants` interface; `createGrants` implements it over `bridge.runtime.aclState` with a record per identity at `kernl:grants:v1`.
 
 ```ts
-import type { AppletIdentity, Kernl } from '@kernl/core';
+import type { AppletIdentity, Kernl } from '@kernlize/core';
 
 declare const kernl: Kernl;
 declare const identity: AppletIdentity;

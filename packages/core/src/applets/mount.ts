@@ -1,6 +1,6 @@
 import { BehaviorSubject } from 'rxjs';
 import { denyNappletControllerAccess, type OriginRegistry, type ShellBridge } from '@kehto/shell';
-import type { WindowVisibility } from '@kernl/guard';
+import type { WindowVisibility } from '@kernlize/guard';
 import type { AppletHandle, AppletStatus, FrameLike, MountPlan } from '../types.js';
 
 /**

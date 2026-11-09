@@ -7,7 +7,7 @@ export interface WebTorrentFileLike {
   blob(): Promise<Blob>;
 }
 
-/** The part of a WebTorrent torrent the backend reads, so `@kernl/bridges` stays free of the library. */
+/** The part of a WebTorrent torrent the backend reads, so `@kernlize/bridges` stays free of the library. */
 export interface WebTorrentTorrentLike {
   readonly name?: string | undefined;
   readonly length?: number | undefined;

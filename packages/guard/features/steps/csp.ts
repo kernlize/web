@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { Then, When } from 'quickpickle';
-import { createAppletCsp, renderCsp, type GuardProfile } from '@kernl/guard';
+import { createAppletCsp, renderCsp, type GuardProfile } from '@kernlize/guard';
 import { scratch, type GuardWorld } from './world.js';
 
 function csp(world: GuardWorld) {

@@ -6,10 +6,10 @@
  *
  * @example
  * ```ts
- * PACKAGE_NAME; // '@kernl/messaging'
+ * PACKAGE_NAME; // '@kernlize/messaging'
  * ```
  */
-export const PACKAGE_NAME = '@kernl/messaging';
+export const PACKAGE_NAME = '@kernlize/messaging';
 
 export type {
   MessagingBackend,

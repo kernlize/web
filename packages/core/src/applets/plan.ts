@@ -9,7 +9,7 @@ import {
   type NappletExperimentalOptions,
   type ShellAdapter,
 } from '@kehto/shell';
-import { createAppletCsp, renderInsertionLockScript, type GuardProfile } from '@kernl/guard';
+import { createAppletCsp, renderInsertionLockScript, type GuardProfile } from '@kernlize/guard';
 import type { AppletSummary, MountPlan } from '../types.js';
 
 /** Inputs for {@link planMount}. */

@@ -16,14 +16,14 @@ async function bootWith(core: Record<string, unknown> | (() => never)): Promise<
   vi.resetModules();
   vi.doMock('./preview-kernl', () => ({ createPreviewKernl: vi.fn(() => previewKernl) }));
   vi.doMock('applesauce-signers', () => signers);
-  vi.doMock('@kernl/core', () => (typeof core === 'function' ? core() : core));
+  vi.doMock('@kernlize/core', () => (typeof core === 'function' ? core() : core));
   return import('./boot');
 }
 
 afterEach(() => {
   vi.doUnmock('./preview-kernl');
   vi.doUnmock('applesauce-signers');
-  vi.doUnmock('@kernl/core');
+  vi.doUnmock('@kernlize/core');
   signers.NostrConnectSigner.pool = undefined;
 });
 

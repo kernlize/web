@@ -11,7 +11,7 @@ import type {
   MitigationDescription,
   VisibilityGate,
   WindowVisibility,
-} from '@kernl/guard';
+} from '@kernlize/guard';
 import type { EvaluateResult, FirewallConfig } from '@kehto/firewall';
 
 /** Scenario state. quickpickle hands every step the same world object. */

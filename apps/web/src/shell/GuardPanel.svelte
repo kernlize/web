@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { GUARD_PROFILES, type GuardProfile } from '@kernl/guard';
+  import { GUARD_PROFILES, type GuardProfile } from '@kernlize/guard';
   import type { ShellKernl } from './contract';
   import { describeGuardEvent, type GuardLog } from './guard-log.svelte';
   import { observe } from './observe.svelte';

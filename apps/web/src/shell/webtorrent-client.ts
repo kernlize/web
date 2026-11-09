@@ -1,4 +1,4 @@
-import type { WebTorrentLike } from '@kernl/bridges';
+import type { WebTorrentLike } from '@kernlize/bridges';
 
 /**
  * Loads the download library on the first download, so the shell's first chunk stays small and

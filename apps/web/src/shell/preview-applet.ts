@@ -6,7 +6,7 @@ import {
   type NappletCspOptions,
   type NappletExperimentalOptions,
 } from '@kehto/shell';
-import { renderInsertionLockScript } from '@kernl/guard';
+import { renderInsertionLockScript } from '@kernlize/guard';
 import type { AppletSummary, SampleApplet } from './contract';
 
 const PUBLISHER = '7f3a9c1e5b2d4a6f8e0c1b3d5f7a9c2e4b6d8f0a1c3e5b7d9f1a3c5e7b9d0f2c';

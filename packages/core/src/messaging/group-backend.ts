@@ -2,7 +2,7 @@ import { unixNow } from 'applesauce-core/helpers';
 import type { ISigner } from 'applesauce-signers';
 import { createApplicationMessageIntent, createChatRumor } from '@internet-privacy/marmot-ts';
 import type { DmMessage, DmStatus } from '@napplet/core';
-import type { MessagingBackend } from '@kernl/messaging';
+import type { MessagingBackend } from '@kernlize/messaging';
 import type { StorageLike } from '../types.js';
 import { createReplaceableLoader } from '../applesauce/identity-providers.js';
 import { signerAvailability } from './availability.js';

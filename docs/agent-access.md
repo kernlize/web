@@ -11,7 +11,7 @@ Everything below is relative to the docs root, `/docs/` by default. On the kernl
 | An index of every docs page, grouped like the sidebar, with one-line descriptions | `/docs/llms.txt` ([llmstxt.org](https://llmstxt.org/) format) |
 | Every docs page in one file | `/docs/llms-full.txt` |
 | One page as Markdown | The page path with `.md`: `/docs/index.md`, `/docs/concepts/guard.md`, `/docs/packages/index.md` |
-| The generated API reference | `/docs/api/index.html` and `/docs/api/modules/_kernl_<package>.html`; HTML only |
+| The generated API reference | `/docs/api/index.html` and `/docs/api/modules/_kernlize_<package>.html`; HTML only |
 | The landing site's own index | `/llms.txt` and `/llms-full.txt` at the site root, built by the Astro site |
 
 ## Markdown twins

@@ -23,10 +23,10 @@ kernl aims to carry every private-messaging protocol that runs over the identity
 
 ## The provider contract
 
-A `MessagingProvider` in `@kernl/messaging` is a pluggable module with one contract:
+A `MessagingProvider` in `@kernlize/messaging` is a pluggable module with one contract:
 
 ```ts
-import type { MessagingBackend, ProviderAvailability, SecurityProperties } from '@kernl/messaging';
+import type { MessagingBackend, ProviderAvailability, SecurityProperties } from '@kernlize/messaging';
 
 interface MessagingProvider {
   readonly id: string;              // conversation-id prefix: 'private', 'legacy', 'ratchet'
@@ -43,7 +43,7 @@ interface MessagingProvider {
 The package holds no relay code, signer or store. A provider is built with `defineProvider(definition, deps)`, where `definition` is the fixed, user-facing part (`id`, `name`, `description`, `properties`) and `deps` is what the shell injects:
 
 ```ts
-import type { MessagingBackend, ProviderAvailability } from '@kernl/messaging';
+import type { MessagingBackend, ProviderAvailability } from '@kernlize/messaging';
 
 interface ProviderDeps {
   createBackend: () => MessagingBackend;     // called once per enable; the registry owns the instance
@@ -51,7 +51,7 @@ interface ProviderDeps {
 }
 ```
 
-The three built-in factories (`createPrivateMessagesProvider`, `createLegacyMessagesProvider`, `createRatchetMessagesProvider`) take the same `ProviderDeps` and supply the definition themselves. In the shell, `@kernl/core` builds each provider's `ProviderDeps`: `createKernl` supplies `createPrivateMessagesBackend` and `createLegacyMessagesBackend` unless `KernlOptions.messagingBackends` overrides them, and `available` follows the active account ([The shell's backends](#the-shell-s-backends)). In tests and the preview, `createBackend` returns `createMemoryBackend()`. See `providers.feature`, scenario "availability and the backend come from the shell".
+The three built-in factories (`createPrivateMessagesProvider`, `createLegacyMessagesProvider`, `createRatchetMessagesProvider`) take the same `ProviderDeps` and supply the definition themselves. In the shell, `@kernlize/core` builds each provider's `ProviderDeps`: `createKernl` supplies `createPrivateMessagesBackend` and `createLegacyMessagesBackend` unless `KernlOptions.messagingBackends` overrides them, and `available` follows the active account ([The shell's backends](#the-shell-s-backends)). In tests and the preview, `createBackend` returns `createMemoryBackend()`. See `providers.feature`, scenario "availability and the backend come from the shell".
 
 ## Security properties
 
@@ -90,7 +90,7 @@ Three things the table says that the picker says too:
 
 ## The shell's backends
 
-`@kernl/core` ships the three network backends the live shell uses ([D-015](../decisions.md#d-015)). Both take the shell's one `EventStore`, `RelayPool` and relay tiers, and read the signer and the user's public key through functions, so they follow the active account without being rebuilt:
+`@kernlize/core` ships the three network backends the live shell uses ([D-015](../decisions.md#d-015)). Both take the shell's one `EventStore`, `RelayPool` and relay tiers, and read the signer and the user's public key through functions, so they follow the active account without being rebuilt:
 
 - **`createPrivateMessagesBackend`** sends NIP-17 messages. The message is an unsigned kind 14 rumour; it is sealed in a kind 13 event that the account signer signs, encrypting with its `nip44`; the seal is wrapped in a kind 1059 event signed by a one-time key. That key is generated inside an applesauce `PrivateKeySigner`, used for one wrap and discarded; it is never stored. The wrap goes to the recipient's kind 10050 inbox relays, or to the sender's `outbox` and `super` tiers when the recipient publishes none, and a second wrap goes to the sender so their other devices see the message. The backend subscribes to kind 1059 events tagged with the user's public key on the user's own inbox relays, or the same tiers. A conversation id is applesauce's `createConversationIdentifier`: the participants' public keys, the user's included, sorted and joined by `:`, so both sides compute the same id. Decrypted messages are kept in memory per account, never in the `EventStore`, and are cleared when the account changes or signs out; the `EventStore` is read only for inbox relay lists.
 - **`createLegacyMessagesBackend`** sends NIP-04 kind 4 messages through `signer.nip04`, with the same conversation ids and message shape. It is the metadata-exposing provider: who writes to whom, and when, is public on the event.
@@ -150,4 +150,4 @@ An applet that uses `dm` therefore sees one inbox. Which provider carries a give
 ## Related
 
 - [Add a messaging provider](../how-tos/add-a-messaging-provider.md)
-- [`@kernl/messaging`](../packages/messaging.md)
+- [`@kernlize/messaging`](../packages/messaging.md)

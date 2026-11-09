@@ -9,7 +9,7 @@ import {
   type MessagingBackend,
   type MessagingProvider,
   type ProviderDeps,
-} from '@kernl/messaging';
+} from '@kernlize/messaging';
 import { attempt, list, state, type FakeProvider, type MessagingWorld } from './world.js';
 
 const FACTORIES: Record<string, (deps: ProviderDeps) => MessagingProvider> = {

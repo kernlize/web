@@ -1,4 +1,4 @@
-import type { DownloadJob, DownloadState } from '@kernl/bridges';
+import type { DownloadJob, DownloadState } from '@kernlize/bridges';
 
 const UNITS = ['B', 'KB', 'MB', 'GB', 'TB'] as const;
 

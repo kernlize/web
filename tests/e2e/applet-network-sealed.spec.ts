@@ -49,8 +49,8 @@ const MORE_FRAME_OUTCOMES: Record<string, RegExp> = {
 /** Every insertion route must be refused by the insertion lock, or be unsupported by the browser. */
 const INSERTION_OUTCOME = new RegExp(`^(${KERNL_DENIED}|threw TypeError: unsupported)$`);
 
-type Core = typeof import('@kernl/core');
-type AppletSummary = import('@kernl/core').AppletSummary;
+type Core = typeof import('@kernlize/core');
+type AppletSummary = import('@kernlize/core').AppletSummary;
 
 let core: Core;
 let hostHtml = '';

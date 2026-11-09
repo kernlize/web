@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { Given, Then, When, type DataTable } from 'quickpickle';
-import type { Bridge, BridgeAvailability } from '@kernl/bridges';
+import type { Bridge, BridgeAvailability } from '@kernlize/bridges';
 import { abbreviate, DEFAULT_WINDOW_SIZE, LAYOUT_KEY, RECENT_KEY, shortId, type ConsentSummary } from '../../src/shell/contract.ts';
 import { domainChoices, domainLabel, formatBytes, type DomainChoice } from '../../src/shell/domains.ts';
 import { serverAddress, serverLabel, serverName } from '../../src/shell/servers.ts';

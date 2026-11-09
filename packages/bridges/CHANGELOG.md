@@ -1,4 +1,4 @@
-# @kernl/bridges
+# @kernlize/bridges
 
 ## 0.2.0
 

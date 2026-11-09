@@ -11,7 +11,7 @@ import {
   type HandoffOpener,
   type HttpBridgeOptions,
   type TorrentBackend,
-} from '@kernl/bridges';
+} from '@kernlize/bridges';
 
 /** Options for {@link createDefaultBridges}. */
 export interface DefaultBridgesOptions extends BridgeRegistryOptions {

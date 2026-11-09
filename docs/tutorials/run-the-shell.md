@@ -14,7 +14,7 @@ Open the hosted preview:
 https://kernl.run/app/?preview=1
 ```
 
-The preview runs the same shell UI over an offline stand-in for the `Kernl` contract, with two sample applets and no network ([D-011](../decisions.md#d-011)). It behaves like the live shell where it stands in for it: it asks before a write only for the kinds `@kernl/core` rates destructive, using the core's own `isDestructiveKind` and `describeChange`; its guard observes and stops an applet only by quarantine; it starts in `strict` on every load; and its sample applets remove WebRTC the way kehto's prelude does. Messaging here goes nowhere; in the live shell private and legacy messages are sent for real once you sign in with an account that can encrypt ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)).
+The preview runs the same shell UI over an offline stand-in for the `Kernl` contract, with two sample applets and no network ([D-011](../decisions.md#d-011)). It behaves like the live shell where it stands in for it: it asks before a write only for the kinds `@kernlize/core` rates destructive, using the core's own `isDestructiveKind` and `describeChange`; its guard observes and stops an applet only by quarantine; it starts in `strict` on every load; and its sample applets remove WebRTC the way kehto's prelude does. Messaging here goes nowhere; in the live shell private and legacy messages are sent for real once you sign in with an account that can encrypt ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)).
 
 **You should now see** a card headed "Who is at the keyboard?" with a **Try the preview** button. Click it, then **Open an applet**; under "Sample applets" the launcher lists *Notes* and *Pulse*, each with an **Open** button. Open *Notes*, turn on the *network* switch (it starts off, like every grant on a first run), and click **Run**. It appears in a window with buttons to try:
 
@@ -40,7 +40,7 @@ pnpm install
 pnpm build
 ```
 
-`pnpm install` links the four workspace packages, the docs and the app. `pnpm build` compiles the packages into their `dist/` folders, which is what the app imports; skip it and the dev server cannot resolve `@kernl/…` ([Troubleshooting](../guides/troubleshooting.md#pnpm-site-dev-before-pnpm-build)). Nothing is downloaded at runtime later; the shell's CSP would not allow it.
+`pnpm install` links the four workspace packages, the docs and the app. `pnpm build` compiles the packages into their `dist/` folders, which is what the app imports; skip it and the dev server cannot resolve `@kernlize/…` ([Troubleshooting](../guides/troubleshooting.md#pnpm-site-dev-before-pnpm-build)). Nothing is downloaded at runtime later; the shell's CSP would not allow it.
 
 **You should now see** `pnpm build` finish with a `dist/` folder in each of `packages/guard`, `packages/messaging`, `packages/bridges` and `packages/core`.
 
@@ -72,7 +72,7 @@ Under "Sign in another way", pick one:
 Each path ends in `kernl.login(account)`, which adds the account to the `AccountManager` if it is new, makes it active and emits a `Session` on `kernl.session$`. Accounts and the active choice persist at `kernl:accounts:v1` and `kernl:active-account:v1`, so the next load lists the account under "Remembered accounts" with a **Sign in** button (a password account asks to be unlocked). Nothing is fetched at sign-in: profile, follows and relay list are loaded from the `discovery` tier the first time an applet or the shell asks for them.
 
 ```ts
-import { createKernl, type KernlHost } from '@kernl/core';
+import { createKernl, type KernlHost } from '@kernlize/core';
 import type { IAccount } from 'applesauce-accounts';
 
 declare const host: KernlHost;

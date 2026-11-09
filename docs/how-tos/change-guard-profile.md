@@ -24,7 +24,7 @@ import {
   createVisibilityGate,
   type GuardEvent,
   type GuardProfile,
-} from '@kernl/guard';
+} from '@kernlize/guard';
 
 function guardFor(profile: GuardProfile, onEvent: (event: GuardEvent) => void) {
   const config = createGuardConfig(profile);
@@ -44,7 +44,7 @@ function guardFor(profile: GuardProfile, onEvent: (event: GuardEvent) => void) {
 3. Call `release(windowId)` on the old ingress guard, or simply drop it: quarantine lives in the guard instance and does not survive the swap.
 4. If the shell also runs kehto's runtime firewall, hand it the new limits: `setUnfocusedMultiplier` and `setBurstGuard` from `config.firewall`, and the per-applet rates, which are not in a fresh config; `applyNappletRules(config, dTag)` adds them, and the focus firewall does this itself on first observation.
 
-`@kernl/core` does this inside `createGuardPipeline`: `GuardFacade.setProfile(profile)` rebuilds the three layers from `createGuardConfig(profile)`, clears what they held, re-applies the known visibility of every window and emits on `profile$`; `GuardFacade.release(windowId)` clears a quarantine record on its own, which does not bring back a frame that was already removed. `createKernl` follows `profile$`: `applyRuntimeFirewallProfile` sets the runtime's unfocused multiplier and startup burst, and `applyRuntimeFirewallRules` reinstalls the rates of every open window. Applets mounted later get the rates at mount. The [core page](../packages/core.md#the-kernl-surface) documents that surface.
+`@kernlize/core` does this inside `createGuardPipeline`: `GuardFacade.setProfile(profile)` rebuilds the three layers from `createGuardConfig(profile)`, clears what they held, re-applies the known visibility of every window and emits on `profile$`; `GuardFacade.release(windowId)` clears a quarantine record on its own, which does not bring back a frame that was already removed. `createKernl` follows `profile$`: `applyRuntimeFirewallProfile` sets the runtime's unfocused multiplier and startup burst, and `applyRuntimeFirewallRules` reinstalls the rates of every open window. Applets mounted later get the rates at mount. The [core page](../packages/core.md#the-kernl-surface) documents that surface.
 
 ## What a profile cannot change
 

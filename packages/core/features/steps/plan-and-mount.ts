@@ -1,9 +1,9 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import { renderNappletNamespacePrelude, type ShellAdapter, type ShellEnvironment } from '@kehto/shell';
-import type { GuardProfile, WindowVisibility } from '@kernl/guard';
+import type { GuardProfile, WindowVisibility } from '@kernlize/guard';
 import { AccountManager } from 'applesauce-accounts';
-import { createRelayTiers, createRuntimeFirewallHooks, createShellAdapter, mountApplet, planMount, resolveApplet, type AppletStatus, type AppletSummary, type MountDeps, type MountPlan, type MountedApplet } from '@kernl/core';
+import { createRelayTiers, createRuntimeFirewallHooks, createShellAdapter, mountApplet, planMount, resolveApplet, type AppletStatus, type AppletSummary, type MountDeps, type MountPlan, type MountedApplet } from '@kernlize/core';
 import { spliceOnce } from '../../src/applets/plan.js';
 import { allowAllSigning, attempt, createFakeFrame, scratch, signManifest, splitList, type CoreWorld, type FakeFrame } from './world.js';
 

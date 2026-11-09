@@ -1,6 +1,6 @@
 import { expect, vi } from 'vitest';
 import { After, Given, Then, When } from 'quickpickle';
-import { createTorrentBridge, type Bridge, type BridgeResult, type DownloadJob, type DownloadState, type WebTorrentLike, type WebTorrentTorrentLike } from '@kernl/bridges';
+import { createTorrentBridge, type Bridge, type BridgeResult, type DownloadJob, type DownloadState, type WebTorrentLike, type WebTorrentTorrentLike } from '@kernlize/bridges';
 import { describeDownload } from '../../src/shell/download-words.ts';
 import { MemoryStorage } from '../../../../packages/core/features/steps/world.ts';
 import { DOWNLOAD_MODE_KEY, canReachPeers, createShellDownloads, type DownloadMode, type ShellDownloads } from '../../src/shell/downloads.ts';
@@ -79,7 +79,7 @@ Then('the downloads bridge hands off to the device', (world: DownloadsWorld) => 
 });
 
 When('the downloads bridge resolves {string}', async (world: DownloadsWorld, uri: string) => {
-  const { parseLocator } = await import('@kernl/bridges');
+  const { parseLocator } = await import('@kernlize/bridges');
   shell(world).result = await shell(world).bridge.resolve(parseLocator(uri), { requester: 'shell' });
 });
 

@@ -14,7 +14,7 @@ import {
   type ConsentPrompt,
   type ConsentSummary,
   type LookupReplaceableOptions,
-} from '@kernl/core';
+} from '@kernlize/core';
 import { scratch, signEvent, splitList, type CoreWorld } from './world.js';
 
 const HASH = 'ab'.repeat(32);

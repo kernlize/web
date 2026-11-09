@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
-import { createBridgeRegistry, type BridgeRegistryOptions } from '@kernl/bridges';
+import { createBridgeRegistry, type BridgeRegistryOptions } from '@kernlize/bridges';
 import { VALID_MAGNET, capture, expectReason, splitList, type BridgeWorld, type FakeBridge } from './world';
 
 function fakeBridge(world: BridgeWorld, id: string, scheme: string): FakeBridge {

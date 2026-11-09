@@ -9,7 +9,7 @@ import {
   type AppletIdentity,
   type GrantRecord,
   type KernlGrants,
-} from '@kernl/core';
+} from '@kernlize/core';
 import { attempt, scratch, splitList, type CoreWorld } from './world.js';
 
 const HASH = 'ef'.repeat(32);

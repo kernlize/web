@@ -1,6 +1,6 @@
 import { expect, vi } from 'vitest';
 import { After, Given, Then, When } from 'quickpickle';
-import type { MessagingBackend, MessagingRegistry, WithProvider } from '@kernl/messaging';
+import type { MessagingBackend, MessagingRegistry, WithProvider } from '@kernlize/messaging';
 
 type DmMessage = Awaited<ReturnType<MessagingBackend['messages']>>['messages'][number];
 import { MemoryStorage } from '../../../../packages/core/features/steps/world.ts';

@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 import { Given, Then, When, type DataTable } from 'quickpickle';
 import type { LayoutStrategy, Rect, WindowPlacement, WindowState } from '@kehto/wm';
-import { createColumnsLayout, createDwindleLayout, createMasterStackLayout, floatingLayout } from '@kernl/core';
+import { createColumnsLayout, createDwindleLayout, createMasterStackLayout, floatingLayout } from '@kernlize/core';
 import { scratch, type CoreWorld } from './world.js';
 
 function windows(world: CoreWorld): WindowState[] {

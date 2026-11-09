@@ -9,7 +9,7 @@ import {
   type MessagingRegistry,
   type ProviderAvailability,
   type ProviderDeps,
-} from '@kernl/messaging';
+} from '@kernlize/messaging';
 import type { ISigner } from 'applesauce-signers';
 import type { MessagingBackendFactories, StorageLike } from '../types.js';
 import { createNamespacedStore } from '../persistence/store.js';

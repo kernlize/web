@@ -135,8 +135,8 @@ function deriveFirewall(limits: GuardLimits): FirewallConfig {
  *   rates registered by {@link applyNappletRules}, the `generic` default rate
  *   and the unfocused multiplier. Its init-burst guard only fires for callers
  *   that supply `initElapsedMs`; kernl's focus firewall does not, so inside
- *   `@kernl/guard` the per-second burst is enforced by the ingress guard.
- *   `@kernl/core` installs `burstGuard` and `unfocusedMultiplier` in kehto's
+ *   `@kernlize/guard` the per-second burst is enforced by the ingress guard.
+ *   `@kernlize/core` installs `burstGuard` and `unfocusedMultiplier` in kehto's
  *   runtime firewall, which supplies `initElapsedMs` and the window's focus.
  * - The ingress guard enforces `ingressBurst`, `ingressQueue`,
  *   `quarantineThreshold`, `hiddenResourceAllowance` and the envelope size caps.

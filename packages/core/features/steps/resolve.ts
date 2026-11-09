@@ -12,7 +12,7 @@ import {
   type AppletSummary,
   type RelayTiers,
   type ResolvedApplet,
-} from '@kernl/core';
+} from '@kernlize/core';
 import { attempt, createBlobFetch, createFakeArtifactCache, last, scratch, signManifest, splitList, type CoreWorld, type FakeArtifactCache, type ManifestVector } from './world.js';
 
 interface BlobServer {

@@ -13,7 +13,7 @@ const indexRow = (slug) => new RegExp(`(\\(\\./${escape(slug)}\\.md\\) \\| \`)[^
  * @param {{ slug: string, name: string, version: string }} pkg Package whose version is authoritative.
  * @returns {string} The markdown with that package's version cells updated.
  * @example
- * syncVersionCells('| Version | `0.1.0` |', { slug: 'guard', name: '@kernl/guard', version: '0.2.0' }); // '| Version | `0.2.0` |'
+ * syncVersionCells('| Version | `0.1.0` |', { slug: 'guard', name: '@kernlize/guard', version: '0.2.0' }); // '| Version | `0.2.0` |'
  */
 export function syncVersionCells(source, pkg) {
   return source

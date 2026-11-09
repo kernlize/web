@@ -30,7 +30,7 @@ let baselineLoad: Promise<readonly string[]> | undefined;
  * first chunk; the preview awaits it before it shows an applet or plans a mount.
  */
 export function loadBaselineDomains(): Promise<readonly string[]> {
-  baselineLoad ??= import('@kernl/core').then((core) => (baseline = core.BASELINE_DOMAINS));
+  baselineLoad ??= import('@kernlize/core').then((core) => (baseline = core.BASELINE_DOMAINS));
   return baselineLoad;
 }
 

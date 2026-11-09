@@ -5,5 +5,5 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@kernl/web", "@kernl/docs"]
+  "ignore": ["@kernlize/web", "@kernlize/docs"]
 }

@@ -5,7 +5,7 @@ This tutorial builds the smallest page that runs a real applet under kernl: one 
 [Embed kernl core](../how-tos/embed-kernl-core.md) is the reference version of the same work; this page goes one step at a time and tells you what you should see after each.
 
 ::: warning Alpha
-The `@kernl/*` packages are not on npm yet. You need a clone of the kernl source repository, which is private during the alpha ([Packages](../packages/index.md#install)).
+The `@kernlize/*` packages are not on npm yet. You need a clone of the kernl source repository, which is private during the alpha ([Packages](../packages/index.md#install)).
 :::
 
 ## 1. Make a workspace package
@@ -26,8 +26,8 @@ Give it a `package.json` that depends on the core and the account library throug
   "type": "module",
   "scripts": { "dev": "vite" },
   "dependencies": {
-    "@kernl/core": "workspace:^",
-    "@kernl/guard": "workspace:^",
+    "@kernlize/core": "workspace:^",
+    "@kernlize/guard": "workspace:^",
     "applesauce-accounts": "^7.0.2"
   },
   "devDependencies": { "vite": "^7.0.0" }
@@ -36,7 +36,7 @@ Give it a `package.json` that depends on the core and the account library throug
 
 Run `pnpm install` from the repository root.
 
-**Checkpoint.** `apps/my-host/node_modules/@kernl/core` is a link to `packages/core`, and `packages/core/dist/index.js` exists. If `dist/` is missing, run `pnpm build` at the root again.
+**Checkpoint.** `apps/my-host/node_modules/@kernlize/core` is a link to `packages/core`, and `packages/core/dist/index.js` exists. If `dist/` is missing, run `pnpm build` at the root again.
 
 ## 2. Write the page
 
@@ -75,8 +75,8 @@ Create `apps/my-host/index.html`. The `<meta>` in the head is kernl's frame poli
 Create `apps/my-host/src/main.ts`. The core never touches the page directly; everything it needs from the page goes through a `KernlHost`. This one stores in `localStorage`, asks with `window.confirm`, and reports visibility from the document.
 
 ```ts
-import { createKernl, type ConsentPrompt, type KernlHost } from '@kernl/core';
-import type { WindowVisibility } from '@kernl/guard';
+import { createKernl, type ConsentPrompt, type KernlHost } from '@kernlize/core';
+import type { WindowVisibility } from '@kernlize/guard';
 
 const status = document.querySelector<HTMLParagraphElement>('#status')!;
 const frames = new Map<string, HTMLIFrameElement>();

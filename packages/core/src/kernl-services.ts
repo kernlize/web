@@ -19,8 +19,8 @@ import {
 } from '@kehto/services';
 import type { Theme } from '@napplet/nap/theme/types';
 import type { EventTemplate, NostrEvent } from '@napplet/core';
-import { createBridgeResourceResolver, type BridgeContext, type BridgeRegistry, type ResourceResolveInit } from '@kernl/bridges';
-import type { MessagingRegistry } from '@kernl/messaging';
+import { createBridgeResourceResolver, type BridgeContext, type BridgeRegistry, type ResourceResolveInit } from '@kernlize/bridges';
+import type { MessagingRegistry } from '@kernlize/messaging';
 import type { KernlHost, RelayTiers } from './types.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { createAppletRelayBackend, createOutboxRelayPool } from './applesauce/relay-backend.js';

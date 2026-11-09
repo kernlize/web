@@ -22,7 +22,7 @@ The person at the keyboard is the only principal that matters.
 
 </div>
 
-> **Alpha.** kernl is a first draft: the guard, the contracts, the composition over kehto and the shell are real and tested; private, legacy and ratchet messages work for accounts that can encrypt (ratchet sessions are experimental), and downloads, sharing and mail only hand off to apps on your device. The source is private and the `@kernl/*` packages are not on npm yet; the [site and docs](https://kernl.run/) are public. Read [`docs/alpha-status.md`](./docs/alpha-status.md) before relying on anything, and note that the badges are measured by `pnpm check` and an agent-readiness scan, not live CI.
+> **Alpha.** kernl is a first draft: the guard, the contracts, the composition over kehto and the shell are real and tested; private, legacy and ratchet messages work for accounts that can encrypt (ratchet sessions are experimental), and downloads, sharing and mail only hand off to apps on your device. The source is private and the `@kernlize/*` packages are not on npm yet; the [site and docs](https://kernl.run/) are public. Read [`docs/alpha-status.md`](./docs/alpha-status.md) before relying on anything, and note that the badges are measured by `pnpm check` and an agent-readiness scan, not live CI.
 
 <p align="center">
   <img src=".github/assets/shell.png" alt="The kernl preview shell in its tiled layout: the Notes and Pulse sample applets side by side, Notes granted network access and Pulse not, each listing actions such as Publish a note (no prompt), Update your profile and Delete a note (ask first), with the guard indicator reading strict and no events." width="880" />
@@ -62,22 +62,22 @@ The full reasoning is in [`SOUL.md`](./SOUL.md). Each concrete choice is in [`DE
 
 | Package | Purpose | Docs |
 |---|---|---|
-| [`@kernl/guard`](./packages/guard) | Ingress flood control, visibility gating, focus-aware firewall, CSP profile, nested-frame lock, mitigation descriptions. Pure. | [guard](./docs/packages/guard.md) |
-| [`@kernl/messaging`](./packages/messaging) | Provider contract, registry, composite direct-message adapter, three providers. Pure. | [messaging](./docs/packages/messaging.md) |
-| [`@kernl/bridges`](./packages/bridges) | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy, backend interfaces, hand-off backends, in-page download backend. Pure. | [bridges](./docs/packages/bridges.md) |
-| [`@kernl/core`](./packages/core) | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts. | [core](./docs/packages/core.md) |
+| [`@kernlize/guard`](./packages/guard) | Ingress flood control, visibility gating, focus-aware firewall, CSP profile, nested-frame lock, mitigation descriptions. Pure. | [guard](./docs/packages/guard.md) |
+| [`@kernlize/messaging`](./packages/messaging) | Provider contract, registry, composite direct-message adapter, three providers. Pure. | [messaging](./docs/packages/messaging.md) |
+| [`@kernlize/bridges`](./packages/bridges) | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy, backend interfaces, hand-off backends, in-page download backend. Pure. | [bridges](./docs/packages/bridges.md) |
+| [`@kernlize/core`](./packages/core) | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts. | [core](./docs/packages/core.md) |
 
 Published packages have zero framework dependencies and never import `nostr-tools` directly. `pnpm check:deps` (`scripts/check-dependency-rules.mjs`) enforces both.
 
 ## Layout
 
 ```
-packages/guard        @kernl/guard        pure
-packages/messaging    @kernl/messaging    pure
-packages/bridges      @kernl/bridges      pure
-packages/core         @kernl/core         kehto + applesauce composition
-apps/web              @kernl/web          Astro site at /, shell at /app/
-docs                  @kernl/docs         VitePress at /docs/
+packages/guard        @kernlize/guard        pure
+packages/messaging    @kernlize/messaging    pure
+packages/bridges      @kernlize/bridges      pure
+packages/core         @kernlize/core         kehto + applesauce composition
+apps/web              @kernlize/web          Astro site at /, shell at /app/
+docs                  @kernlize/docs         VitePress at /docs/
 features              shared step support for the package features
 tests/e2e             Playwright browser suite
 scripts               build, audit and guard scripts
@@ -172,6 +172,8 @@ The docs are a product. Start at [`docs/index.md`](./docs/index.md), or on the s
 - [kehto](https://github.com/kehto/web) supplies the runtime, shell adapter, services, ACL, firewall and NIP-5D verification. kernl composes them and takes gaps upstream instead of forking; the first four (kehto/web #397–#400) are released and in use. See [`DECISIONS.md`](./DECISIONS.md) D-001 and D-020.
 - The applet format is [NIP-5D](https://github.com/nostr-protocol/nips/pull/2303) with per-domain [NAPs](https://github.com/napplet/naps). Applet-side packages and the format's own site live at [napplet.run](https://napplet.run).
 - [applesauce](https://applesauce.build) is the event layer.
+
+Packages use **`@kernlize/*` on npm** and **`@kernl/*` on JSR**, with matching versions. See [publishing](./docs/how-tos/publish-packages.md) for registry setup and release commands.
 
 ## Contributing
 

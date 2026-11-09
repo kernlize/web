@@ -4,7 +4,7 @@ kernl keeps the user's choices in the browser they made them in, and nowhere els
 
 ## Where values go
 
-`@kernl/core` never touches `localStorage` itself. It writes to `KernlHost.storage`, a `StorageLike` (`getItem`, `setItem`, `removeItem`) the host supplies. The shell app supplies `pickStorage()` from `apps/web/src/shell/host.ts`: `localStorage` when a probe write succeeds, otherwise a `Map` that lives as long as the page. In a private window that refuses storage, the shell still works and forgets everything on reload.
+`@kernlize/core` never touches `localStorage` itself. It writes to `KernlHost.storage`, a `StorageLike` (`getItem`, `setItem`, `removeItem`) the host supplies. The shell app supplies `pickStorage()` from `apps/web/src/shell/host.ts`: `localStorage` when a probe write succeeds, otherwise a `Map` that lives as long as the page. In a private window that refuses storage, the shell still works and forgets everything on reload.
 
 Inside the core, every key goes through `createNamespacedStore(storage, 'kernl')`, which prefixes each key with `kernl:` and stores JSON:
 

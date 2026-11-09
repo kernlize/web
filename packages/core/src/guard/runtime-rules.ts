@@ -1,6 +1,6 @@
 import type { FirewallEvent, FirewallPersistence, FirewallStateContainer } from '@kehto/runtime';
 import type { NappletRules, RateLimit } from '@kehto/firewall';
-import { applyNappletRules, type GuardConfig, type GuardEvent, type OpClass } from '@kernl/guard';
+import { applyNappletRules, type GuardConfig, type GuardEvent, type OpClass } from '@kernlize/guard';
 import type { StorageLike } from '../types.js';
 
 /*

@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import type { DmConversationPage } from '@napplet/core';
-import { createCompositeBackend, createMemoryBackend, type MemoryBackend, type MessagingBackend } from '@kernl/messaging';
+import { createCompositeBackend, createMemoryBackend, type MemoryBackend, type MessagingBackend } from '@kernlize/messaging';
 import { attempt, list, state, type MessagingWorld } from './world.js';
 
 function memory(world: MessagingWorld, id: string): MemoryBackend {

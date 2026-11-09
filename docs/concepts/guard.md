@@ -8,7 +8,7 @@ The rule from `SOUL.md`: if kehto ships a mitigation, kernl enables it by defaul
 
 ## The eleven mitigations
 
-`describeMitigations(config)` in `@kernl/guard` returns this list as `MitigationDescription[]`, in this order, with the `limit` text computed from the profile in `config`. The shell renders it verbatim; the titles below are the ones the user sees, and they carry no protocol vocabulary. The third column is for developers and does.
+`describeMitigations(config)` in `@kernlize/guard` returns this list as `MitigationDescription[]`, in this order, with the `limit` text computed from the profile in `config`. The shell renders it verbatim; the titles below are the ones the user sees, and they carry no protocol vocabulary. The third column is for developers and does.
 
 | # | `id` | Title shown to the user | What it protects against | `provider` | `limit` in `strict` |
 | --- | --- | --- | --- | --- | --- |
@@ -95,7 +95,7 @@ Three stateful objects, each built from the same `GuardConfig`, each keyed by `w
 
 **Focus firewall.** `observe` builds a kehto `Observation` from the envelope and the shell's `WindowVisibility` (`focused`, and `msSinceFocusGain` when known) and runs `evaluate()`. On the first observation of an applet it calls `applyNappletRules` so the applet's class rates exist in kehto's per-applet map; kehto keys those budgets by applet (`dTag`), so two windows of the same applet share a budget (`focus-firewall.feature`, scenario "budgets are per applet, not per window"). Decisions map to events: `reject` emits `reject`; `pass` with action `flag` emits `flag`; `prompt` emits `reject` with reason `prompt:<ruleId>`. kernl treats a prompt as a denial here because the layer has no UI; signing consent for destructive writes is a separate path, in the signer wrapper, not in the firewall. kehto's `rate:*` rule ids name the tier (`rate:opclass`, `rate:global`, `rate:default`); the event reason is rewritten to `rate:<class>` so the user sees what ran out. Other rule ids pass through unchanged, for example `matcher:size:resource:bytes` and `policy:deny`. In the composed shell a `matcher:size:*` event cannot occur: the ingress guard applies the same caps first, and the pipeline runs the focus firewall only for envelopes the ingress guard passed. `forget(windowId)` drops the buckets of every applet seen in that window, which also resets the budget of another window running the same applet; revocation is user-driven, so that is accepted.
 
-**What `burstGuard` is for.** `createGuardConfig` sets `firewall.burstGuard` to `{ windowMs: 1000, maxOps: ingressBurst, action: 'block' }`. kehto's init-burst guard only fires for callers that supply `initElapsedMs` in the observation, and the focus firewall never does, so this field never fires inside `@kernl/guard`. `createKernl` installs it, with `unfocusedMultiplier`, in the runtime firewall on boot and on every profile change (`applyRuntimeFirewallProfile`). kehto's runtime supplies `initElapsedMs` (time since the window's session registered), so an applet that sends more than `ingressBurst` envelopes in its first second (8 in `strict`), control envelopes included, has the excess refused with a `firewall:` error and a `flood:startup` guard event. kehto's own default, which applied before, was 20 in 3 s.
+**What `burstGuard` is for.** `createGuardConfig` sets `firewall.burstGuard` to `{ windowMs: 1000, maxOps: ingressBurst, action: 'block' }`. kehto's init-burst guard only fires for callers that supply `initElapsedMs` in the observation, and the focus firewall never does, so this field never fires inside `@kernlize/guard`. `createKernl` installs it, with `unfocusedMultiplier`, in the runtime firewall on boot and on every profile change (`applyRuntimeFirewallProfile`). kehto's runtime supplies `initElapsedMs` (time since the window's session registered), so an applet that sends more than `ingressBurst` envelopes in its first second (8 in `strict`), control envelopes included, has the excess refused with a `firewall:` error and a `flood:startup` guard event. kehto's own default, which applied before, was 20 in 3 s.
 
 ## Where enforcement happens
 
@@ -195,6 +195,6 @@ It is not an access control list. Whether an applet may use a domain is a grant,
 
 ## Related
 
-- [`@kernl/guard`](../packages/guard.md)
+- [`@kernlize/guard`](../packages/guard.md)
 - [Change the guard profile](../how-tos/change-guard-profile.md)
 - [Applets under kernl](./applets-under-kernl.md)

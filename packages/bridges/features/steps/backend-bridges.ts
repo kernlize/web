@@ -7,7 +7,7 @@ import {
   createTorrentBridge,
   parseLocator,
   type Bridge,
-} from '@kernl/bridges';
+} from '@kernlize/bridges';
 import { capture, expectReason, splitList, type BridgeWorld } from './world';
 
 const WITHOUT_BACKEND: Record<string, () => Bridge> = {

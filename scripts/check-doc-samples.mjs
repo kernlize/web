@@ -139,7 +139,7 @@ export function mapDiagnostics(output, byModule, headerLines) {
 
 /**
  * Give the scratch directory a node_modules that resolves like a package of the workspace:
- * the root's dependencies plus @kernl/core's (kehto, applesauce, rxjs), the latter winning.
+ * the root's dependencies plus @kernlize/core's (kehto, applesauce, rxjs), the latter winning.
  * @param {string} repo Repository root.
  * @param {string} dir Scratch directory.
  */
@@ -148,7 +148,7 @@ function linkNodeModules(repo, dir) {
   mkdirSync(target);
   for (const source of [join(repo, 'node_modules'), join(repo, 'packages', 'core', 'node_modules')]) {
     for (const entry of readdirSync(source)) {
-      if (entry.startsWith('.') || entry === '@kernl') continue;
+      if (entry.startsWith('.') || entry === '@kernlize') continue;
       if (entry.startsWith('@')) {
         mkdirSync(join(target, entry), { recursive: true });
         for (const child of readdirSync(join(source, entry))) {
@@ -190,7 +190,7 @@ async function main() {
     const paths = Object.fromEntries(
       readdirSync(join(repo, 'packages'))
         .filter((slug) => existsSync(join(repo, 'packages', slug, 'src', 'index.ts')))
-        .map((slug) => [`@kernl/${slug}`, [join(repo, 'packages', slug, 'src', 'index.ts')]]),
+        .map((slug) => [`@kernlize/${slug}`, [join(repo, 'packages', slug, 'src', 'index.ts')]]),
     );
     const tsconfig = {
       extends: join(repo, 'tsconfig.base.json'),

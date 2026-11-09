@@ -16,12 +16,12 @@ Finish interrupted work before starting new work. Never discard changes you did 
 
 | Path | Workspace | Purpose |
 |---|---|---|
-| `packages/guard` | `@kernl/guard` | Ingress flood control, visibility gate, focus-aware firewall, CSP profile, mitigation descriptions |
-| `packages/messaging` | `@kernl/messaging` | Messaging provider contract, registry, composite NAP-DM adapter |
-| `packages/bridges` | `@kernl/bridges` | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy |
-| `packages/core` | `@kernl/core` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts, persistence |
-| `apps/web` | `@kernl/web` | Astro site at `/`, shell at `/app/` |
-| `docs` | `@kernl/docs` | VitePress site at `/docs/` |
+| `packages/guard` | `@kernlize/guard` | Ingress flood control, visibility gate, focus-aware firewall, CSP profile, mitigation descriptions |
+| `packages/messaging` | `@kernlize/messaging` | Messaging provider contract, registry, composite NAP-DM adapter |
+| `packages/bridges` | `@kernlize/bridges` | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy |
+| `packages/core` | `@kernlize/core` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts, persistence |
+| `apps/web` | `@kernlize/web` | Astro site at `/`, shell at `/app/` |
+| `docs` | `@kernlize/docs` | VitePress site at `/docs/` |
 | `scripts` | | Build, audit and guard scripts |
 | `features` | | Cross-package behaviour specs |
 
@@ -54,7 +54,7 @@ Code, features, step definitions and docs change in the same PR.
 - TypeScript strict, ESM only, `verbatimModuleSyntax`, 2-space indent.
 - Kebab-case filenames, PascalCase types, camelCase functions, UPPER_SNAKE constants.
 - Published packages have zero framework dependencies and import nothing from `nostr-tools` directly.
-- Streams from `@kernl/core` are rxjs Observables (unsubscribe the `Subscription`); `MessagingBackend.subscribe` returns `{ subscriptionId }`, released with `unsubscribe(id)`. Errors carry a stable, prefixed reason (`denied:`, `invalid:`, `unavailable:`).
+- Streams from `@kernlize/core` are rxjs Observables (unsubscribe the `Subscription`); `MessagingBackend.subscribe` returns `{ subscriptionId }`, released with `unsubscribe(id)`. Errors carry a stable, prefixed reason (`denied:`, `invalid:`, `unavailable:`).
 - No decorative comments. A comment explains a decision a reader could not infer, and cites the spec clause or `DECISIONS.md` entry when one exists.
 - Functions under 120 lines, files under 600, nesting under 4, at most 5 parameters. These are the slop gate's limits.
 
@@ -83,7 +83,7 @@ Code, features, step definitions and docs change in the same PR.
 
 ## Releases
 
-Changesets. Add one per package whose shipped output changed; on 0.x a breaking change is a `minor` bump. `publish.yml` opens the Version Packages PR through `pnpm version-packages`, which also rewrites the `| Version |` rows in `docs/packages/` so the docs gate passes; `release.yml` is the only publisher.
+Changesets. Add one per package whose shipped output changed; on 0.x a breaking change is a `minor` bump. `publish.yml` opens the Version Packages PR through `pnpm version-packages`, which also rewrites the `| Version |` rows in `docs/packages/` so the docs gate passes; `release.yml` is the only publisher. npm uses `@kernlize/*`; JSR uses `@kernl/*`. Run `pnpm check:packages` and `pnpm check:jsr` before release. See `docs/how-tos/publish-packages.md`.
 
 ## Private references
 

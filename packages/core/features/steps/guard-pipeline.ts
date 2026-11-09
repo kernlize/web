@@ -1,9 +1,9 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
-import { createGuardConfig, type GuardEvent, type GuardProfile, type WindowVisibility } from '@kernl/guard';
+import { createGuardConfig, type GuardEvent, type GuardProfile, type WindowVisibility } from '@kernlize/guard';
 import type { NappletMessageDecision } from '@kehto/shell';
 import type { Decision } from '@kehto/firewall';
-import { createGuardPipeline, createRuntimeFirewallHooks, type GuardPipeline, type PipelineDisposition, type WindowResolution } from '@kernl/core';
+import { createGuardPipeline, createRuntimeFirewallHooks, type GuardPipeline, type PipelineDisposition, type WindowResolution } from '@kernlize/core';
 import { scratch, splitList, type CoreWorld } from './world.js';
 
 interface PipelineRecord {

@@ -36,20 +36,20 @@ const page = (name, version = '0.1.0') =>
   `# ${name}\n\n| Version | \`${version}\` |\n\n[api](/api/modules/${typedocModuleFile(name)}){target="_self"}\n`;
 
 test('typedocModuleFile mirrors TypeDoc package naming', () => {
-  expect(typedocModuleFile('@kernl/guard')).toBe('_kernl_guard.html');
-  expect(typedocModuleFile('@kernl/core')).toBe('_kernl_core.html');
+  expect(typedocModuleFile('@kernlize/guard')).toBe('_kernlize_guard.html');
+  expect(typedocModuleFile('@kernlize/core')).toBe('_kernlize_core.html');
 });
 
 test('publicPackages lists scoped packages sorted by slug and skips others', () => {
   const root = fixture({
-    'packages/guard/package.json': manifest('@kernl/guard'),
-    'packages/bridges/package.json': manifest('@kernl/bridges', '0.2.0'),
+    'packages/guard/package.json': manifest('@kernlize/guard'),
+    'packages/bridges/package.json': manifest('@kernlize/bridges', '0.2.0'),
     'packages/other/package.json': manifest('@other/thing'),
     'packages/empty/.keep': '',
   });
   expect(publicPackages(join(root, 'packages'))).toEqual([
-    { slug: 'bridges', name: '@kernl/bridges', version: '0.2.0' },
-    { slug: 'guard', name: '@kernl/guard', version: '0.1.0' },
+    { slug: 'bridges', name: '@kernlize/bridges', version: '0.2.0' },
+    { slug: 'guard', name: '@kernlize/guard', version: '0.1.0' },
   ]);
   expect(publicPackages(join(root, 'nowhere'))).toEqual([]);
 });
@@ -57,31 +57,31 @@ test('publicPackages lists scoped packages sorted by slug and skips others', () 
 test('checkPackagePages passes a complete page and index', () => {
   const root = fixture({
     'docs/packages/index.md': '# Packages\n\n[guard](./guard.md)\n',
-    'docs/packages/guard.md': page('@kernl/guard'),
+    'docs/packages/guard.md': page('@kernlize/guard'),
   });
-  const packages = [{ slug: 'guard', name: '@kernl/guard', version: '0.1.0' }];
+  const packages = [{ slug: 'guard', name: '@kernlize/guard', version: '0.1.0' }];
   expect(checkPackagePages({ docsDir: join(root, 'docs'), packages })).toEqual([]);
 });
 
 test('checkPackagePages reports a missing page, a wrong version row, a missing link and a missing index entry', () => {
   const root = fixture({
     'docs/packages/index.md': '# Packages\n',
-    'docs/packages/guard.md': '# @kernl/guard\n\n| Version | `0.0.9` |\n',
+    'docs/packages/guard.md': '# @kernlize/guard\n\n| Version | `0.0.9` |\n',
   });
   const packages = [
-    { slug: 'guard', name: '@kernl/guard', version: '0.1.0' },
-    { slug: 'core', name: '@kernl/core', version: '0.1.0' },
+    { slug: 'guard', name: '@kernlize/guard', version: '0.1.0' },
+    { slug: 'core', name: '@kernlize/core', version: '0.1.0' },
   ];
   const violations = checkPackagePages({ docsDir: join(root, 'docs'), packages });
-  expect(violations).toContain('@kernl/core: missing docs/packages/core.md');
-  expect(violations).toContain('@kernl/guard: docs/packages/guard.md lacks the row | Version | `0.1.0` |');
-  expect(violations).toContain('@kernl/guard: docs/packages/guard.md does not link /api/modules/_kernl_guard.html');
+  expect(violations).toContain('@kernlize/core: missing docs/packages/core.md');
+  expect(violations).toContain('@kernlize/guard: docs/packages/guard.md lacks the row | Version | `0.1.0` |');
+  expect(violations).toContain('@kernlize/guard: docs/packages/guard.md does not link /api/modules/_kernlize_guard.html');
   expect(violations).toContain('docs/packages/index.md does not link ./guard.md');
 });
 
 test('checkPackagePages reports a missing package index', () => {
-  const root = fixture({ 'docs/packages/guard.md': page('@kernl/guard') });
-  const packages = [{ slug: 'guard', name: '@kernl/guard', version: '0.1.0' }];
+  const root = fixture({ 'docs/packages/guard.md': page('@kernlize/guard') });
+  const packages = [{ slug: 'guard', name: '@kernlize/guard', version: '0.1.0' }];
   expect(checkPackagePages({ docsDir: join(root, 'docs'), packages })).toEqual(['missing docs/packages/index.md']);
 });
 
@@ -127,10 +127,10 @@ test('checkDistAgentOutput requires llms files and a twin per page, skipping 404
 });
 
 test('checkTypeDocModules reports each missing module page', () => {
-  const root = fixture({ 'api/modules/_kernl_guard.html': '' });
-  const packages = [{ name: '@kernl/guard' }, { name: '@kernl/core' }];
+  const root = fixture({ 'api/modules/_kernlize_guard.html': '' });
+  const packages = [{ name: '@kernlize/guard' }, { name: '@kernlize/core' }];
   expect(checkTypeDocModules({ apiDir: join(root, 'api'), packages })).toEqual([
-    `TypeDoc module page missing: ${join(root, 'api', 'modules', '_kernl_core.html')}`,
+    `TypeDoc module page missing: ${join(root, 'api', 'modules', '_kernlize_core.html')}`,
   ]);
 });
 
@@ -141,9 +141,9 @@ test('servedPath maps built pages to their clean URLs under the base', () => {
 });
 
 test('checkApiHrefs accepts relative API links that resolve under the base to existing files', () => {
-  const files = new Set(['modules/_kernl_core.html', 'index.html']);
+  const files = new Set(['modules/_kernlize_core.html', 'index.html']);
   const pages = [
-    { path: 'packages/core.html', html: '<a href="../api/modules/_kernl_core.html" target="_self">core</a>' },
+    { path: 'packages/core.html', html: '<a href="../api/modules/_kernlize_core.html" target="_self">core</a>' },
     { path: 'reference/api.html', html: '<a href="../api/index.html#top">index</a> <a href="/docs/api/">root</a>' },
     { path: 'index.html', html: '<a href="https://example.org/api/x.html">ext</a> <a href="#api/x">frag</a> <a href="./concepts/guard">guard</a>' },
   ];
@@ -152,11 +152,11 @@ test('checkApiHrefs accepts relative API links that resolve under the base to ex
 
 test('checkApiHrefs reports API links that escape the base or name a missing file', () => {
   const pages = [
-    { path: 'packages/core.html', html: '<a href="/api/modules/_kernl_core.html" target="_self">core</a>' },
-    { path: 'packages/guard.html', html: '<a href="../api/modules/_kernl_gaurd.html">guard</a>' },
+    { path: 'packages/core.html', html: '<a href="/api/modules/_kernlize_core.html" target="_self">core</a>' },
+    { path: 'packages/guard.html', html: '<a href="../api/modules/_kernlize_gaurd.html">guard</a>' },
   ];
   expect(checkApiHrefs({ pages, base: '/docs/', apiFileExists: () => false })).toEqual([
-    'packages/core.html: href "/api/modules/_kernl_core.html" resolves to /api/modules/_kernl_core.html, outside /docs/api/',
-    'packages/guard.html: href "../api/modules/_kernl_gaurd.html" resolves to /docs/api/modules/_kernl_gaurd.html, which docs/api does not contain',
+    'packages/core.html: href "/api/modules/_kernlize_core.html" resolves to /api/modules/_kernlize_core.html, outside /docs/api/',
+    'packages/guard.html: href "../api/modules/_kernlize_gaurd.html" resolves to /docs/api/modules/_kernlize_gaurd.html, which docs/api does not contain',
   ]);
 });

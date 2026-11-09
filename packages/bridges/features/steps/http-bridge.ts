@@ -8,7 +8,7 @@ import {
   parseLocator,
   type HttpBridgeOptions,
   type HttpPolicy,
-} from '@kernl/bridges';
+} from '@kernlize/bridges';
 import { capture, expectReason, splitList, type BridgeWorld, type FakeServer } from './world';
 
 function createServer(): FakeServer {

@@ -9,7 +9,7 @@ import {
   type WebTorrentBackendOptions,
   type WebTorrentLike,
   type WebTorrentTorrentLike,
-} from '@kernl/bridges';
+} from '@kernlize/bridges';
 import { capture, expectReason, splitList, type BridgeWorld } from './world';
 
 type Listener = (value?: unknown) => void;

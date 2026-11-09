@@ -18,7 +18,7 @@ import {
   type OpClass,
   type VisibilityGate,
   type WindowVisibility,
-} from '@kernl/guard';
+} from '@kernlize/guard';
 
 /** The window a message came from, as the shell resolved it. Never taken from the message. */
 export interface WindowResolution {

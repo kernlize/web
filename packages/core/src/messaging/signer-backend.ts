@@ -4,7 +4,7 @@ import { isHexKey, unixNow, type NostrEvent } from 'applesauce-core/helpers';
 import { getConversationParticipants } from 'applesauce-common/helpers/messages';
 import type { ISigner } from 'applesauce-signers';
 import type { DmMessage, DmSendRequest, DmStatus, NostrFilter } from '@napplet/core';
-import type { MessagingBackend } from '@kernl/messaging';
+import type { MessagingBackend } from '@kernlize/messaging';
 import type { RelayTiers } from '../types.js';
 import { subscribeWithEose, type ApplesaucePool, type EoseSubscription } from '../applesauce/relay-hooks.js';
 import { createReplaceableLoader } from '../applesauce/identity-providers.js';

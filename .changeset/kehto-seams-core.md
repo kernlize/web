@@ -1,5 +1,5 @@
 ---
-"@kernl/core": minor
+"@kernlize/core": minor
 ---
 
 Adopt the host seams released in `@kehto/shell` 0.32.0, `@kehto/runtime` 0.28.0 and `@kehto/firewall` 0.7.0 (D-020).

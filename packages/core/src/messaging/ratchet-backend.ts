@@ -2,7 +2,7 @@ import { verifyEvent, type NostrEvent } from 'applesauce-core/helpers';
 import type { ISigner } from 'applesauce-signers';
 import { NdrRuntime, type NdrRuntimeOptions, type Rumor } from 'nostr-double-ratchet';
 import type { DmMessage, DmSendRequest, DmStatus, NostrFilter } from '@napplet/core';
-import type { MessagingBackend } from '@kernl/messaging';
+import type { MessagingBackend } from '@kernlize/messaging';
 import type { StorageLike } from '../types.js';
 import { subscribeWithEose } from '../applesauce/relay-hooks.js';
 import { signerAvailability } from './availability.js';

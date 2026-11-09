@@ -1,4 +1,5 @@
 node_modules/
+.jsr/
 dist/
 *.tsbuildinfo
 .turbo/

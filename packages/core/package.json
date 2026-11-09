@@ -1,5 +1,5 @@
 {
-  "name": "@kernl/core",
+  "name": "@kernlize/core",
   "version": "0.2.0",
   "description": "Opinionated shell composition over kehto and applesauce",
   "type": "module",
@@ -17,7 +17,8 @@
   ],
   "sideEffects": false,
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
   },
   "scripts": {
     "build": "tsup",
@@ -32,9 +33,9 @@
     "@kehto/services": "^0.30.1",
     "@kehto/shell": "^0.32.0",
     "@kehto/wm": "^0.0.2",
-    "@kernl/bridges": "workspace:^",
-    "@kernl/guard": "workspace:^",
-    "@kernl/messaging": "workspace:^",
+    "@kernlize/bridges": "workspace:^",
+    "@kernlize/guard": "workspace:^",
+    "@kernlize/messaging": "workspace:^",
     "applesauce-accounts": "^7.0.2",
     "applesauce-common": "^7.0.0",
     "applesauce-core": "^7.0.3",

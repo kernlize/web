@@ -1,5 +1,5 @@
 import { expect } from 'vitest';
-import type { Bridge, BridgeContext, BridgeResult, Locator } from '@kernl/bridges';
+import type { Bridge, BridgeContext, BridgeResult, Locator } from '@kernlize/bridges';
 
 export const VALID_MAGNET = 'magnet:?xt=urn:btih:ABCDEF0123456789ABCDEF0123456789ABCDEF01';
 
@@ -26,9 +26,9 @@ export interface FakeServer {
 export interface BridgeWorld {
   locator?: Locator;
   error?: unknown;
-  registry?: import('@kernl/bridges').BridgeRegistry;
+  registry?: import('@kernlize/bridges').BridgeRegistry;
   fakes?: Map<string, FakeBridge>;
-  events?: import('@kernl/bridges').BridgeResolveEvent[];
+  events?: import('@kernlize/bridges').BridgeResolveEvent[];
   consentSeen?: { bridge: string; scheme: string };
   result?: BridgeResult;
   seenContext?: BridgeContext;
@@ -37,7 +37,7 @@ export interface BridgeWorld {
   bridge?: Bridge;
   backendCalls?: unknown[][];
   opened?: string[];
-  resolver?: import('@kernl/bridges').BridgeResourceResolver;
+  resolver?: import('@kernlize/bridges').BridgeResourceResolver;
   response?: Response;
 }
 

@@ -20,7 +20,7 @@ Strings without a scheme (`just words`, `/relative/path`, `1abc:not-scheme`, the
 ## The bridge contract
 
 ```ts
-import type { BridgeAvailability, BridgeContext, BridgeExposure, BridgeResult, Locator } from '@kernl/bridges';
+import type { BridgeAvailability, BridgeContext, BridgeExposure, BridgeResult, Locator } from '@kernlize/bridges';
 
 interface Bridge {
   readonly id: string;                 // 'http' | 'torrent' | 'nzb' | 'soulseek' | 'mail'
@@ -149,7 +149,7 @@ What the user is exposed to:
 
 ### Downloads inside kernl
 
-Magnet links download inside the shell page ([D-017](../decisions.md#d-017)). `createWebTorrentBackend({ client, trackers?, now?, progressIntervalMs? })` is a `TorrentBackend` over a WebTorrent client. `client` is a structural `WebTorrentLike` or a function that returns one (or a promise of one), so `@kernl/bridges` has no dependency on the library and the shell can load it on the first download. A loader that fails is tried again on the next download.
+Magnet links download inside the shell page ([D-017](../decisions.md#d-017)). `createWebTorrentBackend({ client, trackers?, now?, progressIntervalMs? })` is a `TorrentBackend` over a WebTorrent client. `client` is a structural `WebTorrentLike` or a function that returns one (or a promise of one), so `@kernlize/bridges` has no dependency on the library and the shell can load it on the first download. A loader that fails is tried again on the next download.
 
 | Step | What happens |
 | --- | --- |
@@ -206,5 +206,5 @@ An applet could, in principle, be given a WebRTC or WebSocket path and speak the
 
 ## Related
 
-- [`@kernl/bridges`](../packages/bridges.md)
+- [`@kernlize/bridges`](../packages/bridges.md)
 - [Security posture](../policies/security-posture.md)

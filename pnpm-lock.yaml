@@ -62,16 +62,16 @@ importers:
       '@kehto/shell':
         specifier: ^0.32.0
         version: 0.32.0(@napplet/core@0.38.0)(@napplet/nap@0.37.0(typescript@5.9.3))(nostr-tools@2.25.5(typescript@5.9.3))
-      '@kernl/bridges':
+      '@kernlize/bridges':
         specifier: workspace:^
         version: link:../../packages/bridges
-      '@kernl/core':
+      '@kernlize/core':
         specifier: workspace:^
         version: link:../../packages/core
-      '@kernl/guard':
+      '@kernlize/guard':
         specifier: workspace:^
         version: link:../../packages/guard
-      '@kernl/messaging':
+      '@kernlize/messaging':
         specifier: workspace:^
         version: link:../../packages/messaging
       applesauce-accounts:
@@ -165,13 +165,13 @@ importers:
       '@kehto/wm':
         specifier: ^0.0.2
         version: 0.0.2
-      '@kernl/bridges':
+      '@kernlize/bridges':
         specifier: workspace:^
         version: link:../bridges
-      '@kernl/guard':
+      '@kernlize/guard':
         specifier: workspace:^
         version: link:../guard
-      '@kernl/messaging':
+      '@kernlize/messaging':
         specifier: workspace:^
         version: link:../messaging
       '@napplet/core':

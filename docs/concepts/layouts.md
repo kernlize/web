@@ -1,6 +1,6 @@
 # Layouts
 
-`@kehto/wm` ships only a contract: a `LayoutStrategy` is a pure `arrange(windows, containerRect)` that returns one `WindowPlacement` (`{ id, rect }`) per window it places. Each `WindowState` it receives has an `id`, `focused`, `minimized` and a `rect` of `{ x, y, w, h }`. kehto leaves the strategies to the shell. `@kernl/core` supplies four in `packages/core/src/wm/layouts.ts`, and the shell app uses tiling of its own, described at the end of this page.
+`@kehto/wm` ships only a contract: a `LayoutStrategy` is a pure `arrange(windows, containerRect)` that returns one `WindowPlacement` (`{ id, rect }`) per window it places. Each `WindowState` it receives has an `id`, `focused`, `minimized` and a `rect` of `{ x, y, w, h }`. kehto leaves the strategies to the shell. `@kernlize/core` supplies four in `packages/core/src/wm/layouts.ts`, and the shell app uses tiling of its own, described at the end of this page.
 
 ## The four strategies
 
@@ -22,7 +22,7 @@ Rules shared by the tiling strategies:
 `packages/core/features/layouts.feature` specifies all four.
 
 ```ts
-import { createMasterStackLayout } from '@kernl/core';
+import { createMasterStackLayout } from '@kernlize/core';
 
 const layout = createMasterStackLayout({ ratio: 0.5, gap: 8 });
 const placements = layout.arrange(
@@ -38,7 +38,7 @@ const placements = layout.arrange(
 
 ## How the shell lays out windows
 
-The shell app (`apps/web`) does not call the `@kernl/core` strategies. Its window store (`apps/web/src/shell/window-store.svelte.ts`) has two modes, chosen from the bar's layout control and remembered in `kernl:layout:v1` ([Persistence](./persistence.md)):
+The shell app (`apps/web`) does not call the `@kernlize/core` strategies. Its window store (`apps/web/src/shell/window-store.svelte.ts`) has two modes, chosen from the bar's layout control and remembered in `kernl:layout:v1` ([Persistence](./persistence.md)):
 
 | Mode | Behaviour |
 | --- | --- |
@@ -54,5 +54,5 @@ An embedding host that renders its own windows can pass any `LayoutStrategy`, in
 ## Related
 
 - [Architecture](./architecture.md)
-- [`@kernl/core`](../packages/core.md)
+- [`@kernlize/core`](../packages/core.md)
 - [Embed kernl core](../how-tos/embed-kernl-core.md)

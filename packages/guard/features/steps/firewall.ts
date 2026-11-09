@@ -8,7 +8,7 @@ import {
   type GuardEnvelope,
   type GuardProfile,
   type WindowVisibility,
-} from '@kernl/guard';
+} from '@kernlize/guard';
 import { scratch, type GuardWorld } from './world.js';
 
 const FOCUS: Readonly<Record<string, WindowVisibility>> = {

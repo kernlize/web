@@ -3,14 +3,14 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const SCOPE = '@kernl/';
+const SCOPE = '@kernlize/';
 
 /**
  * TypeDoc 0.28 with `entryPointStrategy: packages` names each module page after the package name with every non-word character replaced by `_`.
- * @param {string} packageName Package name such as `@kernl/guard`.
- * @returns {string} File name such as `_kernl_guard.html`.
+ * @param {string} packageName Package name such as `@kernlize/guard`.
+ * @returns {string} File name such as `_kernlize_guard.html`.
  * @example
- * typedocModuleFile('@kernl/guard'); // '_kernl_guard.html'
+ * typedocModuleFile('@kernlize/guard'); // '_kernlize_guard.html'
  */
 export function typedocModuleFile(packageName) {
   return `${packageName.replace(/[^\w]/g, '_')}.html`;
@@ -21,7 +21,7 @@ export function typedocModuleFile(packageName) {
  * @param {string} packagesDir Absolute path of the `packages/` directory.
  * @returns {{ slug: string, name: string, version: string }[]} Packages in the kernl scope, sorted by slug.
  * @example
- * publicPackages('/repo/packages'); // [{ slug: 'guard', name: '@kernl/guard', version: '0.1.0' }, …]
+ * publicPackages('/repo/packages'); // [{ slug: 'guard', name: '@kernlize/guard', version: '0.1.0' }, …]
  */
 export function publicPackages(packagesDir) {
   if (!existsSync(packagesDir)) return [];
@@ -145,7 +145,7 @@ export function checkDistAgentOutput({ distDir }) {
  * @param {{ apiDir: string, packages: { name: string }[] }} input The TypeDoc `out` directory and the packages.
  * @returns {string[]} One violation per missing module page.
  * @example
- * checkTypeDocModules({ apiDir: '/repo/docs/api', packages: [{ name: '@kernl/guard' }] });
+ * checkTypeDocModules({ apiDir: '/repo/docs/api', packages: [{ name: '@kernlize/guard' }] });
  */
 export function checkTypeDocModules({ apiDir, packages }) {
   return packages
@@ -216,7 +216,7 @@ export function auditDocs(repoRoot) {
   const configPath = join(docsDir, '.vitepress', 'config.ts');
   const configSource = existsSync(configPath) ? readFileSync(configPath, 'utf8') : '';
   return [
-    ...(packages.length ? [] : ['no @kernl/* packages found under packages/']),
+    ...(packages.length ? [] : ['no @kernlize/* packages found under packages/']),
     ...(configSource ? [] : ['missing docs/.vitepress/config.ts']),
     ...checkPackagePages({ docsDir, packages }),
     ...checkSidebarCoverage({ docsDir, configSource }),
