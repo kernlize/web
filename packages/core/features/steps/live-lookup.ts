@@ -17,6 +17,8 @@ interface LocalRelay {
 
 interface LocalRelayOptions {
   readonly events: readonly NostrEvent[];
+  /** Called once per REQ the relay receives. */
+  readonly onRequest?: () => void;
   readonly delayMs?: number;
   readonly silent?: boolean;
   /** Accept the connection, then close it: a relay behind a failing proxy, or one that is shedding load. */
@@ -25,6 +27,7 @@ interface LocalRelayOptions {
 
 interface Live {
   relays: Map<string, string>;
+  requests: Map<string, number>;
   closers: Array<() => Promise<void> | void>;
   blobUrl?: string;
   blobs: Map<string, string>;
@@ -36,7 +39,7 @@ interface Live {
 }
 
 function live(world: CoreWorld): Live {
-  return (scratch(world).live ??= { relays: new Map(), closers: [], blobs: new Map(), blobRequests: [] }) as Live;
+  return (scratch(world).live ??= { relays: new Map(), requests: new Map(), closers: [], blobs: new Map(), blobRequests: [] }) as Live;
 }
 
 function manifest(world: CoreWorld): ManifestVector {
@@ -58,7 +61,9 @@ function serve(socket: WebSocket, options: LocalRelayOptions): void {
   if (options.hangUp) socket.close(1011, 'down');
   socket.on('message', (raw) => {
     const [verb, subId, ...filters] = JSON.parse(String(raw)) as [string, string, ...NostrFilter[]];
-    if (verb !== 'REQ' || options.silent) return;
+    if (verb !== 'REQ') return;
+    options.onRequest?.();
+    if (options.silent) return;
     const held = options.events.filter((event) => filters.some((filter) => matches(filter, event)));
     setTimeout(() => {
       for (const event of held) socket.send(JSON.stringify(['EVENT', subId, event]));
@@ -96,7 +101,8 @@ function unusedPort(): Promise<number> {
 }
 
 async function addRelay(world: CoreWorld, name: string, options: LocalRelayOptions): Promise<void> {
-  const relay = await startRelay(options);
+  const { requests } = live(world);
+  const relay = await startRelay({ ...options, onRequest: () => void requests.set(name, (requests.get(name) ?? 0) + 1) });
   live(world).relays.set(name, relay.url);
   live(world).closers.push(() => relay.close());
 }
@@ -178,7 +184,7 @@ Given('a relay address {string} where nothing listens', async (world: CoreWorld,
   live(world).relays.set(name, `ws://127.0.0.1:${await unusedPort()}`);
 });
 
-Given('a live kernl shell whose apps tier is {string}', (world: CoreWorld, apps: string) => {
+function bootLive(world: CoreWorld, apps: string, general: string): void {
   const resigned = scratch(world).resigned as { to: NostrEvent } | undefined;
   if (resigned) (scratch(world).held as NostrEvent[]).splice(0, 1, resigned.to);
   live(world).kernl = createKernl({
@@ -190,9 +196,18 @@ Given('a live kernl shell whose apps tier is {string}', (world: CoreWorld, apps:
       getVisibility: () => ({ visible: true, focused: true }),
       onRevoked: () => undefined,
     },
-    relays: { apps: urls(world, apps) },
+    // Every tier is named so no scenario reaches a relay it did not start.
+    relays: { apps: urls(world, apps), super: urls(world, general), discovery: [], outbox: [] },
     artifactCache: async () => undefined,
   });
+}
+
+Given('a live kernl shell whose apps tier is {string}', (world: CoreWorld, apps: string) => {
+  bootLive(world, apps, '');
+});
+
+Given('a live kernl shell whose apps tier is {string} and whose general relays are {string}', (world: CoreWorld, apps: string, general: string) => {
+  bootLive(world, apps, general);
 });
 
 function address(world: CoreWorld, hints: string): string {
@@ -225,11 +240,17 @@ Then('the local blob server was asked for the artifact', (world: CoreWorld) => {
   expect(live(world).blobRequests).toContain(manifest(world).hash);
 });
 
-async function lookUp(world: CoreWorld, hints: string, timing: Partial<ManifestTiming> = {}): Promise<void> {
+interface LookUp {
+  readonly hints: string;
+  readonly general?: string;
+  readonly timing?: Partial<ManifestTiming>;
+}
+
+async function lookUp(world: CoreWorld, { hints, general = '', timing = {} }: LookUp): Promise<void> {
   const pool = new RelayPool();
   live(world).closers.unshift(() => pool.close());
-  // Only the hints are asked: an empty apps tier keeps the shell's built-in catalogue out of the scenario.
-  const tiers = createRelayTiers(new MemoryStorage(), { apps: [] });
+  // Only what the scenario names is asked: the shell's built-in relays stay out of it.
+  const tiers = createRelayTiers(new MemoryStorage(), { apps: [], super: urls(world, general), discovery: [], outbox: [] });
   const { pubkey } = manifest(world);
   const started = Date.now();
   await attempt(world, async () => {
@@ -239,19 +260,31 @@ async function lookUp(world: CoreWorld, hints: string, timing: Partial<ManifestT
 }
 
 When('the manifest is looked up over real connections from {string}', async (world: CoreWorld, hints: string) => {
-  await lookUp(world, hints);
+  await lookUp(world, { hints });
 });
 
 When('the manifest is looked up over real connections from {string} settling after {int} ms', async (world: CoreWorld, hints: string, settleMs: number) => {
-  await lookUp(world, hints, { settleMs });
+  await lookUp(world, { hints, timing: { settleMs } });
 });
 
 When('the manifest is looked up over real connections from {string} with patience of {int} ms', async (world: CoreWorld, hints: string, patienceMs: number) => {
-  await lookUp(world, hints, { patienceMs });
+  await lookUp(world, { hints, timing: { patienceMs } });
 });
 
 When('the manifest is looked up over real connections from {string} timing out after {int} ms', async (world: CoreWorld, hints: string, timeoutMs: number) => {
-  await lookUp(world, hints, { timeoutMs });
+  await lookUp(world, { hints, timing: { timeoutMs } });
+});
+
+When('the manifest is looked up over real connections from {string} falling back to {string}', async (world: CoreWorld, hints: string, general: string) => {
+  await lookUp(world, { hints, general });
+});
+
+When('the manifest is looked up over real connections from {string} falling back to {string} timing out after {int} ms', async (world: CoreWorld, hints: string, general: string, timeoutMs: number) => {
+  await lookUp(world, { hints, general, timing: { timeoutMs } });
+});
+
+Then('the local relay {string} was asked {int} time', (world: CoreWorld, name: string, times: number) => {
+  expect(live(world).requests.get(name) ?? 0).toBe(times);
 });
 
 Then('the looked-up manifest is the signed one', (world: CoreWorld) => {

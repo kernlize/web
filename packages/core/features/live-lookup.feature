@@ -2,7 +2,9 @@ Feature: Looking an applet up over real connections
   The other resolve scenarios script the pool. These dial local relays and a
   local blob server through the real applesauce pool and the default blob
   fetcher, so what the launcher does with an address is exercised end to end:
-  decode, ask the relays, download, verify.
+  decode, ask the relays, download, verify. The relays an address names and
+  the apps tier are asked first; the general relays are asked when those do
+  not produce the applet.
 
   Background:
     Given a local blob server
@@ -89,6 +91,39 @@ Feature: Looking an applet up over real connections
     And a relay address "gone" where nothing listens
     When the manifest is looked up over real connections from "dead,gone"
     Then the shell refused with "unavailable:network"
+
+  Scenario: an applet the catalogue does not hold is found on the general relays
+    Given a local relay "catalogue" that holds nothing
+    And a local relay "general" that holds the manifest
+    When the manifest is looked up over real connections from "catalogue" falling back to "general"
+    Then the looked-up manifest is the signed one
+
+  Scenario: an applet is found on the general relays when the address's relays are all down
+    Given a relay address "dead" where nothing listens
+    And a local relay "flaky" that hangs up on every connection
+    And a local relay "general" that holds the manifest
+    When the manifest is looked up over real connections from "dead,flaky" falling back to "general" timing out after 400 ms
+    Then the looked-up manifest is the signed one
+    And the lookup took under 2000 ms
+
+  Scenario: a general relay already asked is not asked twice
+    Given a local relay "general" that holds nothing
+    When the manifest is looked up over real connections from "general" falling back to "general"
+    Then the shell refused with "unavailable:manifest"
+    And the local relay "general" was asked 1 time
+
+  Scenario: general relays with nothing, after relays that were down, mean no such applet
+    Given a relay address "dead" where nothing listens
+    And a local relay "general" that holds nothing
+    When the manifest is looked up over real connections from "dead" falling back to "general"
+    Then the shell refused with "unavailable:manifest"
+
+  Scenario: a live shell falls back to its general relays
+    Given a local relay "catalogue" that holds nothing
+    And a local relay "general" that holds the manifest
+    And a live kernl shell whose apps tier is "catalogue" and whose general relays are "general"
+    When the live shell resolves the address hinting ""
+    Then the live summary is "feed" with the artifact hash
 
   Scenario: an address with no usable relay at all has nowhere to look
     When the manifest is looked up over real connections from "not a relay"

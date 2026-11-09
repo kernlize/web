@@ -34,7 +34,8 @@ function filterFor(pointer: AppletPointer): NostrFilter {
  * `settleMs` runs from the first manifest, so a slower relay holding a newer
  * release can still answer. `patienceMs` runs from the first relay that
  * answers with nothing, so a slower relay that does hold the applet is not cut
- * off. `timeoutMs` bounds the whole lookup when no relay answers at all.
+ * off. `timeoutMs` bounds a round of asking when no relay answers at all; a
+ * lookup is at most two rounds.
  */
 export interface ManifestTiming {
   readonly settleMs: number;
@@ -47,22 +48,25 @@ export interface ManifestTiming {
  *
  * @example
  * ```ts
- * MANIFEST_TIMING.timeoutMs; // 15000: the longest a lookup can take
+ * MANIFEST_TIMING.timeoutMs; // 10000: the longest one round of asking can take
  * await fetchManifestEvent(pool, tiers, pointer, { patienceMs: 2_000 });
  * ```
  */
-export const MANIFEST_TIMING: ManifestTiming = Object.freeze({ settleMs: 3_000, patienceMs: 8_000, timeoutMs: 15_000 });
+export const MANIFEST_TIMING: ManifestTiming = Object.freeze({ settleMs: 3_000, patienceMs: 8_000, timeoutMs: 10_000 });
 
 /**
- * Relay URLs worth dialling. Hints inside a pointer are text a stranger wrote,
- * so one that is not a websocket URL is dropped instead of failing the lookup.
+ * Relay URLs worth dialling, each once and in one spelling. Hints inside a
+ * pointer are text a stranger wrote, so one that is not a websocket URL is
+ * dropped instead of failing the lookup.
  */
 function dialable(urls: readonly string[]): string[] {
-  const kept = new Set<string>();
+  const kept = new Map<string, string>();
   for (const url of urls) {
-    if (/^wss?:\/\//i.test(url) && URL.canParse(url)) kept.add(url);
+    if (!/^wss?:\/\//i.test(url) || !URL.canParse(url)) continue;
+    const key = new URL(url).href;
+    if (!kept.has(key)) kept.set(key, url);
   }
-  return [...kept];
+  return [...kept.values()];
 }
 
 /**
@@ -74,8 +78,10 @@ function dialable(urls: readonly string[]): string[] {
  * as missing. So the two cases get their own clocks: once a manifest is in,
  * the rest have `settleMs` to offer a newer one; once a relay has answered
  * with nothing, the rest have the longer `patienceMs` to do better. A relay
- * that accepts a connection and hangs up never answers either way, which is
- * why the request also carries `timeoutMs`.
+ * that accepts a connection and hangs up never answers either way, and
+ * applesauce-relay 7 leaves it pending whatever `reconnect` or
+ * `firstResponseTimeout` say, which is why the request also carries
+ * `timeoutMs`.
  */
 function settleManifestRequest(timing: ManifestTiming): OperatorFunction<{ type: string }, boolean> {
   const after = (messages: Observable<{ type: string }>, type: string, waitMs: number): Observable<number> =>
@@ -83,41 +89,62 @@ function settleManifestRequest(timing: ManifestTiming): OperatorFunction<{ type:
   return (messages) => merge(after(messages, 'EVENT', timing.settleMs), after(messages, 'EOSE', timing.patienceMs)).pipe(map(() => true));
 }
 
+/** What one round of asking produced: the newest manifest, and whether any relay answered at all. */
+interface Asked {
+  readonly newest?: NostrEvent;
+  readonly answered: boolean;
+}
+
+async function askRelays(pool: ApplesaucePool, relays: string[], filter: NostrFilter, waits: ManifestTiming): Promise<Asked> {
+  const request = pool.request(relays, asFilters([filter]), { complete: settleManifestRequest(waits), timeout: waits.timeoutMs });
+  try {
+    const events = await lastValueFrom(request.pipe(toArray()), { defaultValue: [] });
+    const newest = events.reduce<NostrEvent | undefined>((best, event) => (best && best.created_at >= event.created_at ? best : event), undefined);
+    return newest ? { newest, answered: true } : { answered: true };
+  } catch {
+    // Every relay failed, or none answered in time: the network could not say, which is not "no such applet".
+    return { answered: false };
+  }
+}
+
 /**
- * Fetch the manifest event a pointer names from its relay hints plus the apps tier.
+ * Fetch the manifest event a pointer names.
  *
- * For addresses, the newest event wins, since a named applet is an addressable
- * event that its author replaces on every release. A relay that is down,
- * silent or hangs up does not fail the lookup while another one answers, and
- * hints that are not relay URLs are ignored.
+ * The relays the address names and the `apps` tier are asked first. When they
+ * do not produce the manifest, whether because they do not hold it or because
+ * none of them answered, the `super` tier is asked before giving up: a
+ * manifest is an ordinary event, authors publish it to general relays too, and
+ * an address that opens elsewhere should not fail here because one catalogue
+ * relay had a bad minute. For addresses, the newest event wins, since a named
+ * applet is an addressable event that its author replaces on every release. A
+ * relay that is down, silent or hangs up does not fail the lookup while
+ * another one answers, and hints that are not relay URLs are ignored.
  *
  * @param pool - The shared applesauce pool.
- * @param tiers - Relay tiers; the apps tier is always consulted.
+ * @param tiers - Relay tiers; `apps` is asked first, `super` as the fallback.
  * @param pointer - The decoded pointer.
- * @param timing - Overrides for {@link MANIFEST_TIMING}.
+ * @param timing - Overrides for {@link MANIFEST_TIMING}, applied to each round.
  * @returns The manifest event, unverified.
- * @throws `unavailable:manifest` when a relay answered and none had it;
- * `unavailable:network` when no relay answered at all.
+ * @throws `unavailable:manifest` when a relay answered and none had it, or
+ * there was no relay to ask; `unavailable:network` when no relay answered.
  * @example
  * ```ts
  * const event = await fetchManifestEvent(pool, tiers, decodePointer('naddr1…'));
  * ```
  */
 export async function fetchManifestEvent(pool: ApplesaucePool, tiers: RelayTiers, pointer: AppletPointer, timing: Partial<ManifestTiming> = {}): Promise<NostrEvent> {
-  const relays = dialable([...pointer.relays, ...tiers.get().apps]);
-  if (relays.length === 0) throw new Error('unavailable:manifest');
+  const config = tiers.get();
+  const first = dialable([...pointer.relays, ...config.apps]);
+  const rounds = [first, dialable([...first, ...config.super]).slice(first.length)].filter((relays) => relays.length > 0);
   const waits = { ...MANIFEST_TIMING, ...timing };
-  const request = pool.request(relays, asFilters([filterFor(pointer)]), { complete: settleManifestRequest(waits), timeout: waits.timeoutMs });
-  const events = await lastValueFrom(request.pipe(toArray()), { defaultValue: [] }).catch(() => {
-    // Every relay failed, or none answered in time: the network could not say, which is not "no such applet".
-    throw new Error('unavailable:network');
-  });
-  const newest = events.reduce<NostrEvent | undefined>(
-    (best, event) => (best && best.created_at >= event.created_at ? best : event),
-    undefined,
-  );
-  if (!newest) throw new Error('unavailable:manifest');
-  return newest;
+  const filter = filterFor(pointer);
+  let answered = rounds.length === 0;
+  for (const relays of rounds) {
+    const asked = await askRelays(pool, relays, filter, waits);
+    if (asked.newest) return asked.newest;
+    answered ||= asked.answered;
+  }
+  throw new Error(answered ? 'unavailable:manifest' : 'unavailable:network');
 }
 
 /**
