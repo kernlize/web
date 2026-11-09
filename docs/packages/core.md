@@ -93,7 +93,8 @@ The host is the only way the core reaches the user or the page. Applets never re
 | `grants: Grants` | The user-facing grants surface, see [Grants](#grants). |
 | `relays: RelayTiers` | `get()`, `add(tier, url)`, `remove(tier, url)`, `changes$`. `add` throws `invalid:relay-url` for anything that is not `ws://` or `wss://`. |
 | `messaging`, `bridges` | The registries the services read. |
-| `catalog: AppletCatalog` | `load(options?)`: the store's entries from the `apps` and `super` tiers, see [The store and intents](../concepts/store-and-intents.md). |
+| `catalog: AppletCatalog` | `stream(options?)` emits the store's entries from the `apps` and `super` tiers as they arrive; `load(options?)` resolves with the final list, see [The store and intents](../concepts/store-and-intents.md). |
+| `profiles: Profiles` | `card$(pubkey)` and `card(pubkey)`: how the shell names a person. The session label follows the account's published name. |
 | `intents: Intents` | `installed$`, `installed()`, `uninstall(catalogId)` and `defaults` (a `HandlerDefaults`: `get`, `all`, `set(archetype, id \| undefined)`, `synced`, `load`, `sync`, `setSync`, `changes$`). |
 | `install(summary)` | Install a verified applet without opening it; throws `invalid:unresolved` for a summary this shell did not verify. |
 | `session$`, `session` | `Session \| null`: `{ accountId, pubkey, label, readOnly }`. The label is the account's `metadata.name`, then `account.name`, then the abbreviated pubkey. |
@@ -203,12 +204,12 @@ legacyMessages.subscribe({}, (message) => console.log(message.content));
 
 | Tier | Default | Serves |
 | --- | --- | --- |
-| `discovery` | `wss://purplepag.es`, `wss://relay.nos.social` | kinds 0, 3 and 10002 |
+| `discovery` | `wss://purplepag.es`, `wss://relay.nos.social` | kinds 0, 3 and 10002, together with `outbox` and `super` |
 | `apps` | `wss://relay.napplet.soy` | applet manifests (the NIP-5D kinds and 32267) |
 | `outbox` | none | the user's own relays, merged with `super` for everything else |
 | `super` | `wss://relay.damus.io`, `wss://nos.lol`, `wss://relay.primal.net` | everything else |
 
-`selectRelayTier(tiers, filters)` routes a filter set to `discovery` when every kind is a discovery kind, to `apps` when every kind is an applet kind, and to `super` plus `outbox` (deduplicated) otherwise, including filters without kinds. kehto's `RelayConfigHooks` sees `discovery`, `super` and `outbox`; `apps` is kernl's addition.
+`selectRelayTier(tiers, filters)` routes a filter set to `discovery`, `outbox` and `super` (deduplicated) when every kind is a discovery kind, because profiles, follows and relay lists live on indexers and on their authors' own servers (NIP-65), to `apps` when every kind is an applet kind, and to `super` plus `outbox` (deduplicated) otherwise, including filters without kinds. kehto's `RelayConfigHooks` sees `discovery`, `super` and `outbox`; `apps` is kernl's addition.
 
 ### Grants
 
@@ -389,7 +390,8 @@ Signatures are abbreviated; the generated reference has the full ones.
 
 | Export | Signature | Description |
 | --- | --- | --- |
-| `loadCatalog` | `(pool: ApplesaucePool, tiers: RelayTiers, options?: LoadCatalogOptions) => Promise<readonly CatalogEntry[]>` | Root and named manifests from `catalogRelays(tiers)`, signature-checked, newest per catalogue id; waits at most `timeoutMs` (`CATALOG_TIMEOUT_MS`, 8000) and asks for `limit` (`CATALOG_LIMIT`, 500) per relay. |
+| `streamCatalog` | `(pool: ApplesaucePool, tiers: RelayTiers, options?: LoadCatalogOptions) => Observable<readonly CatalogEntry[]>` | Root and named manifests from `catalogRelays(tiers)`, signature-checked, newest per catalogue id, emitted again as relays answer (at most every `emitMs`, `CATALOG_EMIT_MS`, 120). A manifest its publisher deleted (kind 5, NIP-09) is left out. Completes when every relay finished, or after `timeoutMs` (`CATALOG_TIMEOUT_MS`, 30000), the outer bound; a failing relay never discards what others sent. Asks for `limit` (`CATALOG_LIMIT`, 500) per relay. |
+| `loadCatalog` | `(pool: ApplesaucePool, tiers: RelayTiers, options?: LoadCatalogOptions) => Promise<readonly CatalogEntry[]>` | The last list `streamCatalog` emits. |
 | `catalogRelays` | `(tiers: RelayTiers) => readonly string[]` | The `apps` tier, then `super`. |
 | `toCatalogEntry` | `(event: NostrEvent, relays?: readonly string[]) => CatalogEntry \| undefined` | A store entry from a manifest whose signature verifies; undefined otherwise. |
 | `addressOf` | `(event: NostrEvent, relays?: readonly string[]) => string` | `naddr1…` for a root or named manifest, `nevent1…` for a snapshot. |
@@ -455,11 +457,15 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `createAuthHooks` | `(accounts: AccountManager, consent: SigningConsent) => AuthHooks` | kehto's auth over the account manager; a signer asked for with a window id passes `consent` before signing. |
 | `wrapAccountSigner` | `(account: IAccount) => Signer` | The NIP-07-shaped signer kehto expects. |
 | `isReadOnlyAccount` | `(account: IAccount) => boolean` | True for `ReadonlyAccount`. |
-| `createReplaceableLoader` | `(store: EventStore, pool: ApplesaucePool, tiers: RelayTiers) => AddressPointerLoader` | The applesauce address loader for replaceable and addressable events the store lacks: it asks the pointer's relays, then the `discovery` tier, and adds what it finds to the store. Used by `createIdentityProviders` and the consent lookup. |
-| `createIdentityProviders` | `(store: EventStore, pool: ApplesaucePool, tiers: RelayTiers, options?: IdentityProviderOptions) => IdentityProviders` | Profile, follows, mutes and relays from the store, loaded once from the `discovery` tier on a miss; lists, zaps, blocked and badges are empty. |
+| `createReplaceableLoader` | `(store: EventStore, pool: ApplesaucePool, tiers: RelayTiers) => AddressPointerLoader` | The applesauce address loader for replaceable and addressable events the store lacks: it asks the pointer's relays, then `lookupRelaysOf(tiers)` (the `discovery` tier, then `super`), and adds what it finds to the store. Used by `createIdentityProviders` and the consent lookup. |
+| `createIdentityProviders` | `(store: EventStore, pool: ApplesaucePool, tiers: RelayTiers, options?: IdentityProviderOptions) => IdentityProviders` | Profile, follows, mutes and relays from the store, loaded once from the lookup relays on a miss; lists, zaps, blocked and badges are empty. |
 | `createRelayPoolHooks` | `(pool: ApplesaucePool, tiers: RelayTiers) => RelayPoolHooks` | kehto's relay-pool hooks, including one scoped relay per window. |
 | `createRelayPoolLike` | `(pool: ApplesaucePool) => RelayPoolLike` | `subscription`, `request`, `publish` over the one pool. |
-| `createAppletRelayBackend` | `(pool: ApplesaucePool, tiers: RelayTiers) => RelayPoolServiceOptions` | For kehto's `createRelayPoolService`; publishes go to the tier for the event's kind. |
+| `createAppletRelayBackend` | `(pool: ApplesaucePool, tiers: RelayTiers) => RelayPoolServiceOptions` | For kehto's `createRelayPoolService`; publishes go to the tier for the event's kind and succeed when any relay accepts. |
+| `publishAccepted` | `(pool: ApplesaucePool, relays: string[], event: NostrEvent) => Promise<number>` | Publishes everywhere and resolves with how many accepted; throws `unavailable:not-accepted:0/<n>` only when none did (D-027). |
+| `lookupRelaysOf` | `(config) => string[]` | Where an unhinted replaceable is looked up: `discovery`, then `super`. |
+| `createProfiles` | `(options: ProfilesOptions) => Profiles` | `card$(pubkey)` streams a `ProfileCard` (name, `https:` picture, address, about, `found`) and starts a lookup on the lookup relays, then on the author's own write relays when their relay list names servers the lookup relays lacked. Nothing times out; a late profile replaces the short key. `card(pubkey)` reads the store only. |
+| `toProfileCard` | `(pubkey: string, event: NostrEvent \| undefined) => ProfileCard` | Display name, then name, then the abbreviated key. |
 | `createDmRelayPool` | `(pool: ApplesaucePool, tiers: RelayTiers) => DmRelayPool` | For messaging backends. |
 | `createOutboxRelayPool` | `(pool: ApplesaucePool) => OutboxRelayPoolLike` | For kehto's `createRelayPoolOutboxRouter`, with per-relay publish outcomes. |
 | `subscribeWithEose` | `(pool, relays: string[], filters: NostrFilter[], callback: (item: NostrEvent \| 'EOSE') => void) => EoseSubscription` | Each event once, one `EOSE` after every relay answered or failed. |

@@ -70,6 +70,7 @@
     {#if error}<p class="shell-error" role="alert">{error}</p>{/if}
 
     {#if tab === 'store'}
+      {#if mode === 'preview'}<p class="shell-muted" role="note">The preview is offline, so the store shows its three sample applets. Sign in to the live shell to browse every published applet.</p>{/if}
       <StoreBrowser {kernl} {busy} onpick={(entry: CatalogEntry) => resolve(entry.address)} onaddress={resolve} />
     {:else if tab === 'installed'}
       <InstalledApplets {kernl} {mode} {busy} onopen={resolve} />
