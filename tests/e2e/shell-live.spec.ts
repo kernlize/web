@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
-import { fakeNetwork, signApplet } from './live-network';
+import { fakeNetwork, generalRelays, signApplet } from './live-network';
 
 const base = process.env.PLAYWRIGHT_BASE_URL ?? '';
 
@@ -89,8 +89,8 @@ test('a relay that never answers does not stop an applet another relay has', asy
 
 test('relays that answer without the applet say there is none at that address', async ({ page }) => {
   const applet = signApplet({ servers: ['https://blobs.test'] });
-  // The shell's built-in catalogue answers too, so every relay asked has said it holds nothing.
-  await fakeNetwork(page, applet, { 'general.test': 'empty', 'relay.napplet.soy': 'empty' }, { 'blobs.test': 'has' });
+  // The shell's built-in catalogue and its general relays answer too, so every relay asked has said it holds nothing.
+  await fakeNetwork(page, applet, { 'general.test': 'empty', 'relay.napplet.soy': 'empty', ...generalRelays('empty') }, { 'blobs.test': 'has' });
   await signInFresh(page);
   const address = applet.address(['wss://general.test']);
   await lookUp(page, address);
@@ -99,7 +99,27 @@ test('relays that answer without the applet say there is none at that address', 
   await expect(page.getByLabel('Applet address')).toHaveValue(address);
 });
 
+test('an applet its own relays do not have is found on the general relays', async ({ page }) => {
+  const applet = signApplet({ servers: ['https://blobs.test'] });
+  const network = await fakeNetwork(page, applet, { 'catalogue.test': 'empty', 'relay.napplet.soy': 'empty', ...generalRelays('empty'), 'nos.lol': 'holds' }, { 'blobs.test': 'has' });
+  await signInFresh(page);
+  await lookUp(page, applet.address(['wss://catalogue.test']));
+  await expect(page.getByRole('dialog').getByRole('heading', { name: 'Feed applet' })).toBeVisible();
+  // The general relays are asked only after the address's own relays came up empty.
+  expect(network.dialled.indexOf('nos.lol')).toBeGreaterThan(network.dialled.indexOf('catalogue.test'));
+});
+
+test('an applet is found on the general relays when its own relays hang up', async ({ page }) => {
+  test.setTimeout(45_000);
+  const applet = signApplet({ servers: ['https://blobs.test'] });
+  await fakeNetwork(page, applet, { ...generalRelays('down'), 'relay.primal.net': 'holds' }, { 'blobs.test': 'has' });
+  await signInFresh(page);
+  await lookUp(page, applet.address(['wss://dead.test', 'wss://gone.test']));
+  await expect(page.getByRole('dialog').getByRole('heading', { name: 'Feed applet' })).toBeVisible({ timeout: 20_000 });
+});
+
 test('no relay reachable is said as a connection problem, never as a mystery', async ({ page }) => {
+  test.setTimeout(60_000);
   const warnings: string[] = [];
   page.on('console', (message) => {
     if (message.type() === 'warning') warnings.push(message.text());
@@ -108,7 +128,7 @@ test('no relay reachable is said as a connection problem, never as a mystery', a
   await fakeNetwork(page, applet, {}, { 'blobs.test': 'has' });
   await signInFresh(page);
   await lookUp(page, applet.address(['wss://dead.test', 'wss://gone.test']));
-  await expect(page.getByRole('alert')).toHaveText('None of the servers that list applets could be reached. Check your connection and try again.', { timeout: 20000 });
+  await expect(page.getByRole('alert')).toHaveText('None of the servers that list applets could be reached. Check your connection and try again.', { timeout: 30_000 });
   // The shell had words for this, so nothing was left in the console as unexpected.
   expect(warnings.filter((text) => text.includes('unexpected reason'))).toEqual([]);
 });

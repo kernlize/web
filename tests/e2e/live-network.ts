@@ -84,6 +84,14 @@ export interface FakeNetwork {
   readonly blobRequests: string[];
 }
 
+/** The general relays the shell falls back to when an address's own relays do not produce the applet. */
+export const GENERAL_RELAYS = ['relay.damus.io', 'nos.lol', 'relay.primal.net'] as const;
+
+/** The same behaviour for every general relay. */
+export function generalRelays(behaviour: RelayBehaviour): Record<string, RelayBehaviour> {
+  return Object.fromEntries(GENERAL_RELAYS.map((host) => [host, behaviour]));
+}
+
 /**
  * Route every secure websocket and the named blob hosts. A relay host not listed is down, so the
  * shell's built-in servers never reach the real network from a test.
