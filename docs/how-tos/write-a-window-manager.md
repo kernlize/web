@@ -56,7 +56,7 @@ kernl's own manager applies the rule as far as it can see: a window is visible w
 
 ## A manager from nothing
 
-This one shows a single window at a time, full size; the others wait in the bar's dock, which lists every window the manager calls minimised. It is the whole of a `WindowManager` in about eighty lines, and unlike kernl's own it knows exactly which window the person can see.
+This one shows a single window at a time, full size; the others wait in the bar's dock, which lists every window the manager calls minimised. It is the whole of a `WindowManager` in about a hundred lines, and unlike kernl's own it knows exactly which window the person can see.
 
 ```ts
 import { BehaviorSubject } from 'rxjs';
