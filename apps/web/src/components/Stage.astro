@@ -1,0 +1,10 @@
+---
+/* The hero's flow field and the curtain between pages share one canvas. It persists across page transitions, so one WebGL context serves the whole visit (D-021). */
+---
+
+<canvas class="stage" data-stage aria-hidden="true" transition:persist="stage"></canvas>
+
+<script>
+  import { startMotion } from '../motion/start';
+  startMotion();
+</script>
