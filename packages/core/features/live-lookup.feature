@@ -125,6 +125,24 @@ Feature: Looking an applet up over real connections
     When the live shell resolves the address hinting ""
     Then the live summary is "feed" with the artifact hash
 
+  Scenario: a relay that refuses one connection is asked again
+    Given a local relay "busy" that holds the manifest and refuses its first 1 connection
+    When the manifest is looked up over real connections from "busy" retrying after 50 ms
+    Then the looked-up manifest is the signed one
+    And the local relay "busy" was dialled 2 times
+
+  Scenario: every relay refusing once, in both rounds, still finds the applet
+    Given a local relay "busy" that holds nothing and refuses its first 1 connection
+    And a local relay "general" that holds the manifest and refuses its first 1 connection
+    When the manifest is looked up over real connections from "busy" falling back to "general" retrying after 50 ms
+    Then the looked-up manifest is the signed one
+
+  Scenario: a relay that keeps refusing is asked twice and then called a network problem
+    Given a local relay "busy" that holds the manifest and refuses its first 5 connections
+    When the manifest is looked up over real connections from "busy" retrying after 50 ms
+    Then the shell refused with "unavailable:network"
+    And the local relay "busy" was dialled 2 times
+
   Scenario: an address with no usable relay at all has nowhere to look
     When the manifest is looked up over real connections from "not a relay"
     Then the shell refused with "unavailable:manifest"
