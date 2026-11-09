@@ -32,6 +32,7 @@ export type WithProvider<T> = T & { readonly provider?: string };
 
 /** A one-to-one message about to leave through a provider the correspondent did not last use. */
 export interface ReplyChoice {
+  /** The correspondent, as the provider they last wrote through describes them. */
   readonly peer: DmPeer;
   /** The provider the correspondent last wrote through. */
   readonly theirs: string;
@@ -176,7 +177,7 @@ export function createCompositeBackend(
     const enabled = resolveEnabled();
     if (!peer || !options.chooseReply || enabled.length < 2) return planned;
     const theirs = await lastProviderOf(enabled, peer.pubkey);
-    return theirs === undefined || theirs === planned ? planned : options.chooseReply({ peer, theirs, mine: planned });
+    return theirs === undefined || theirs.id === planned ? planned : options.chooseReply({ peer: theirs.peer, theirs: theirs.id, mine: planned });
   };
 
   const toPerson = (request: DmSendRequest, pubkey: string): DmSendRequest => ({

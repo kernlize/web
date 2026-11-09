@@ -149,6 +149,12 @@ Feature: Which provider carries a message
       When I send "hello" to "bob" with the composite
       Then the reply choice was "bob" theirs "undated" mine "private"
 
+    Scenario: the choice names the person the way their provider does
+      Given a messaging backend "named" that knows "bob" as "Bob" and holds his message at 300
+      And a messaging composite over providers "private, named" that follows the correspondent
+      When I send "hello" to "bob" with the composite
+      Then the reply choice named the person "Bob"
+
     Scenario: a backend whose pages never end is not followed forever
       Given memory messaging backend "private" received "hi" from "bob" at 200
       And a messaging backend "endless" whose conversation pages never end

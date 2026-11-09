@@ -64,6 +64,15 @@ Given('a messaging backend {string} whose conversation with {string} holds a mes
   state(world).memory.set(id, scripted({ conversations: () => ({ conversations: [withBob(peer)] }), messages: () => ({ messages: [from(peer, createdAt)] }) }));
 });
 
+Given('a messaging backend {string} that knows {string} as {string} and holds his message at {int}', (world: MessagingWorld, id: string, peer: string, label: string, createdAt: number) => {
+  const conversation = { ...withBob(peer, createdAt), participants: [{ pubkey: peer, label }] };
+  state(world).memory.set(id, scripted({ conversations: () => ({ conversations: [conversation] }), messages: () => ({ messages: [from(peer, createdAt)] }) }));
+});
+
+Then('the reply choice named the person {string}', (world: MessagingWorld, label: string) => {
+  expect(state(world).replyChoices.map((choice) => choice.peer.label)).toEqual([label]);
+});
+
 Given('a messaging backend {string} whose conversation pages never end', (world: MessagingWorld, id: string) => {
   state(world).memory.set(id, scripted({ conversations: () => ({ conversations: [], cursor: 'more' }) }));
 });

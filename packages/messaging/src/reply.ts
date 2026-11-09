@@ -35,19 +35,26 @@ export async function directPeerOf(backend: MessagingBackend, conversationId: st
   return conversation && conversation.kind === 'direct' && conversation.participants.length === 1 ? conversation.participants[0] : undefined;
 }
 
+/** A correspondent's newest message through one backend, with the peer as that backend describes them. */
+export interface LastIncoming {
+  readonly at: number;
+  /** The participant record of their conversation, which carries a name when the backend knows one. */
+  readonly peer: DmPeer;
+}
+
 /**
  * When a person last wrote to the user through one backend.
  *
  * @param backend - The provider's backend.
  * @param pubkey - The correspondent.
  * @param after - A time already found elsewhere; a conversation with no activity since is not read.
- * @returns The `createdAt` of their newest message, or `undefined` when they never wrote through it.
+ * @returns Their newest message's `createdAt` and their peer record, or `undefined` when they never wrote through it.
  * @example
  * ```ts
- * await lastIncomingAt(backend, 'alice'); // 1700000000
+ * await lastIncomingAt(backend, 'alice'); // { at: 1700000000, peer: { pubkey: 'alice' } }
  * ```
  */
-export async function lastIncomingAt(backend: MessagingBackend, pubkey: string, after = 0): Promise<number | undefined> {
+export async function lastIncomingAt(backend: MessagingBackend, pubkey: string, after = 0): Promise<LastIncoming | undefined> {
   const conversation = await findConversation(backend, isWith(pubkey));
   if (!conversation || (conversation.updatedAt ?? Infinity) <= after) return undefined;
   let latest: number | undefined;
@@ -60,7 +67,13 @@ export async function lastIncomingAt(backend: MessagingBackend, pubkey: string, 
     if (page.cursor === undefined) break;
     cursor = page.cursor;
   }
-  return latest;
+  return latest === undefined ? undefined : { at: latest, peer: conversation.participants[0] as DmPeer };
+}
+
+/** The provider a correspondent last wrote through, and their peer record there. */
+export interface LastProvider {
+  readonly id: string;
+  readonly peer: DmPeer;
 }
 
 /**
@@ -68,17 +81,17 @@ export async function lastIncomingAt(backend: MessagingBackend, pubkey: string, 
  *
  * @param backends - Enabled providers, in the user's order; a tie goes to the earlier one.
  * @param pubkey - The correspondent.
- * @returns The provider id, or `undefined` when they never wrote to the user.
+ * @returns The provider id and the peer as it names them, or `undefined` when they never wrote to the user.
  * @example
  * ```ts
- * await lastProviderOf([{ id: 'private', backend }, { id: 'legacy', backend: other }], 'alice'); // 'legacy'
+ * (await lastProviderOf([{ id: 'private', backend }, { id: 'legacy', backend: other }], 'alice'))?.id; // 'legacy'
  * ```
  */
-export async function lastProviderOf(backends: readonly { readonly id: string; readonly backend: MessagingBackend }[], pubkey: string): Promise<string | undefined> {
-  let best: { id: string; at: number } | undefined;
+export async function lastProviderOf(backends: readonly { readonly id: string; readonly backend: MessagingBackend }[], pubkey: string): Promise<LastProvider | undefined> {
+  let best: (LastIncoming & { id: string }) | undefined;
   for (const entry of backends) {
-    const at = await lastIncomingAt(entry.backend, pubkey, best?.at);
-    if (at !== undefined && at > (best?.at ?? -Infinity)) best = { id: entry.id, at };
+    const found = await lastIncomingAt(entry.backend, pubkey, best?.at);
+    if (found && found.at > (best?.at ?? -Infinity)) best = { ...found, id: entry.id };
   }
-  return best?.id;
+  return best && { id: best.id, peer: best.peer };
 }
