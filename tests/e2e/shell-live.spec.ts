@@ -26,7 +26,8 @@ async function lookUp(page: Page, typed: string): Promise<void> {
 }
 
 test.describe('with one relay and one blob server down', () => {
-  test.use({ expectedConsoleErrors: [/ERR_CONNECTION_REFUSED/] });
+  // Each engine reports the refused blob server in its own words.
+  test.use({ expectedConsoleError: /ERR_CONNECTION_REFUSED|down\.blobs\.test.*CORS request did not succeed/ });
 
   test('the live shell looks an address up, shows what it asks for and runs it', async ({ page }) => {
     const applet = signApplet({ servers: ['https://down.blobs.test', 'https://blobs.test/'] });

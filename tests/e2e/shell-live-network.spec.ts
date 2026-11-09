@@ -19,7 +19,7 @@ const PUBLISHED = [
 test.describe('applets published on the public network', () => {
   test.skip(process.env.KERNL_PUBLIC_NETWORK !== '1', 'set KERNL_PUBLIC_NETWORK=1 to dial the public network');
   // A public relay may refuse a connection; the lookup must survive that, and the browser's own complaint is not a shell error.
-  test.use({ expectedConsoleErrors: [/WebSocket connection to/, /Failed to load resource/, /ERR_/] });
+  test.use({ expectedConsoleError: /WebSocket connection to|Failed to load resource|ERR_|establish a connection to the server at wss:|CORS request did not succeed/ });
 
   for (const applet of PUBLISHED) {
     test(`${applet.title} is found, verified and runs`, async ({ page }) => {
