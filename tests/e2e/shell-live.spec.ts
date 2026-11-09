@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
-import { fakeNetwork, generalRelays, signApplet } from './live-network';
+import { fakeNetwork, generalRelays, installSignerExtension, signApplet } from './live-network';
 
 const base = process.env.PLAYWRIGHT_BASE_URL ?? '';
 
@@ -78,6 +78,27 @@ test.describe('with one relay and one blob server down', () => {
     await lookUp(page, applet.address(['wss://catalogue.test']));
     await expect(page.getByRole('alert')).toHaveText('The applet was found, but its file could not be downloaded right now. Try again later.');
   });
+});
+
+test('an account held by a signing extension looks an applet up and runs it', async ({ page }) => {
+  const applet = signApplet({ servers: ['https://blobs.test'] });
+  await fakeNetwork(page, applet, { 'catalogue.test': 'holds', ...generalRelays('empty') }, { 'blobs.test': 'has' });
+  const extension = await installSignerExtension(page);
+  await page.goto(`${base}/app/`);
+  await page.getByRole('button', { name: 'Use', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Open an applet' })).toBeVisible();
+  expect(extension.calls.getPublicKey).toBeGreaterThan(0);
+
+  await lookUp(page, applet.address(['wss://catalogue.test']));
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('heading', { name: 'Feed applet' })).toBeVisible();
+  await dialog.getByRole('checkbox', { name: /posting to your network/ }).check();
+  await dialog.getByRole('button', { name: 'Run' }).click();
+
+  // The extension's window messages reach the shell's handler in the page and in the applet's frame; neither disturbs the applet.
+  await expect(page.frameLocator('iframe[data-window-id]').getByRole('heading', { name: 'Feed applet' })).toBeVisible();
+  await expect(page.locator('section.window')).toHaveAttribute('data-status', 'running');
+  await expect(page.getByRole('button', { name: /^Guard/ })).toContainText('· 0');
 });
 
 test('a relay that never answers does not stop an applet another relay has', async ({ page }) => {
