@@ -1,7 +1,8 @@
 import { expect } from 'vitest';
 import { After, Given, Then, When, type DataTable } from 'quickpickle';
 import type { StorageLike } from '../../src/shell/contract.ts';
-import { cascade, clampRect, dwindle, type Rect } from '../../src/shell/layout.ts';
+import type { WindowManager } from '@kernlize/core/wm';
+import { createShellLayouts, createShellWindowManager, frameRect, layoutAfter } from '../../src/shell/windows.ts';
 import { forgetRecent, readRecent, rememberRecent, type RecentApplet } from '../../src/shell/recent.ts';
 import { trapFocus } from '../../src/shell/focus-trap.ts';
 
@@ -80,9 +81,7 @@ class MapStorage implements StorageLike {
 }
 
 interface WindowsScratch {
-  desktop: Rect;
-  tiles: Rect[];
-  placed?: Rect;
+  manager?: WindowManager;
   storage: MapStorage;
   recent: RecentApplet[];
   page: FakePage;
@@ -101,8 +100,6 @@ function windows(world: WindowsWorld): WindowsScratch {
   if (!world.shellWindows) {
     const page: FakePage = { activeElement: null };
     world.shellWindows = {
-      desktop: { x: 0, y: 0, width: 0, height: 0 },
-      tiles: [],
       storage: new MapStorage(),
       recent: [],
       page,
@@ -117,42 +114,64 @@ After(async (world: WindowsWorld) => {
   world.shellWindows?.restore?.();
 });
 
-Given('a shell desktop of {int} by {int} at {int},{int}', (world: WindowsWorld, width: number, height: number, x: number, y: number) => {
-  windows(world).desktop = { x, y, width, height };
+function manager(world: WindowsWorld): WindowManager {
+  const made = windows(world).manager;
+  if (!made) throw new Error("create the shell's window manager first");
+  return made;
+}
+
+Given('the shell has stored the layout {string}', (world: WindowsWorld, id: string) => {
+  windows(world).storage.setItem('kernl:layout:v1', id);
 });
 
-When('the shell tiles {int} windows', (world: WindowsWorld, count: number) => {
-  windows(world).tiles = dwindle(windows(world).desktop, count);
+Given("the shell's window manager on a desktop of {int} by {int}", (world: WindowsWorld, w: number, h: number) => {
+  const made = createShellWindowManager(windows(world).storage);
+  made.setArea({ x: 0, y: 0, w, h });
+  windows(world).manager = made;
 });
 
-const rects = (table: DataTable): Rect[] => table.hashes().map((row) => ({ x: Number(row.x), y: Number(row.y), width: Number(row.width), height: Number(row.height) }));
-
-Then('the shell tiles are:', (world: WindowsWorld, table: DataTable) => {
-  expect(windows(world).tiles).toEqual(rects(table));
+When('the shell opens {int} windows', (world: WindowsWorld, count: number) => {
+  for (let index = 1; index <= count; index += 1) manager(world).open(`window-${index}`);
 });
 
-Then('the shell makes no tiles', (world: WindowsWorld) => {
-  expect(windows(world).tiles).toEqual([]);
+When('the person picks the shell layout {string}', (world: WindowsWorld, id: string) => {
+  manager(world).setLayout(id);
 });
 
-Given('a shell window at {int},{int} sized {int} by {int}', (world: WindowsWorld, x: number, y: number, width: number, height: number) => {
-  windows(world).placed = { x, y, width, height };
+Then('the shell windows sit at:', (world: WindowsWorld, table: DataTable) => {
+  const expected = table.hashes().map((row) => ({ x: Number(row.x), y: Number(row.y), w: Number(row.w), h: Number(row.h) }));
+  expect(manager(world).snapshot().windows.map((window) => window.rect)).toEqual(expected);
 });
 
-When('the shell keeps the window on the desktop', (world: WindowsWorld) => {
-  windows(world).placed = clampRect(windows(world).placed as Rect, windows(world).desktop);
+Then('the shell layout is {string}', (world: WindowsWorld, id: string) => {
+  expect(manager(world).snapshot().layout.id).toBe(id);
 });
 
-When('the shell keeps the window on the desktop, at least {int} by {int}', (world: WindowsWorld, minWidth: number, minHeight: number) => {
-  windows(world).placed = clampRect(windows(world).placed as Rect, windows(world).desktop, minWidth, minHeight);
+Then('the shell has remembered the layout {string} under {string}', (world: WindowsWorld, id: string, key: string) => {
+  expect(windows(world).storage.getItem(key)).toBe(id);
 });
 
-When('the shell cascades window number {int} sized {int} by {int}', (world: WindowsWorld, index: number, width: number, height: number) => {
-  windows(world).placed = cascade(index, windows(world).desktop, { width, height });
+Then('the shell layouts read {string}', (_world: WindowsWorld, labels: string) => {
+  expect(createShellLayouts().list().map((layout) => layout.label).join(', ')).toBe(labels);
 });
 
-Then('the shell window sits at {int},{int} sized {int} by {int}', (world: WindowsWorld, x: number, y: number, width: number, height: number) => {
-  expect(windows(world).placed).toEqual({ x, y, width, height });
+Then('after the shell layout {string} comes {string}', (_world: WindowsWorld, current: string, next: string) => {
+  expect(layoutAfter(createShellLayouts().list(), current)?.id).toBe(next);
+});
+
+Then('after a shell layout nobody registered comes {string}', (_world: WindowsWorld, next: string) => {
+  expect(layoutAfter(createShellLayouts().list(), 'nobody-registered-this')?.id).toBe(next);
+});
+
+Then('with no shell layouts on offer nothing comes next', () => {
+  expect(layoutAfter([], 'floating')).toBeUndefined();
+});
+
+Then('the shell frames applets under the title bar:', (_world: WindowsWorld, table: DataTable) => {
+  for (const row of table.hashes()) {
+    const frame = frameRect({ x: Number(row.x), y: Number(row.y), w: Number(row.w), h: Number(row.h) });
+    expect(frame).toEqual({ x: Number(row['frame x']), y: Number(row['frame y']), w: Number(row['frame w']), h: Number(row['frame h']) });
+  }
 });
 
 Given('the shell has stored the recent list {string}', (world: WindowsWorld, raw: string) => {

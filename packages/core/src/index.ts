@@ -109,12 +109,28 @@ export {
 
 export {
   createColumnsLayout,
+  createDefaultLayouts,
   createDwindleLayout,
+  createLayoutRegistry,
   createMasterStackLayout,
+  createWindowManager,
   floatingLayout,
+  type LayoutChoice,
+  type LayoutEntry,
   type LayoutOptions,
+  type LayoutRegistry,
+  type LayoutStrategy,
+  type ManagedWindow,
   type MasterStackOptions,
-} from './wm/layouts.js';
+  type Rect,
+  type VisibilityTarget,
+  type WindowManager,
+  type WindowManagerOptions,
+  type WindowManagerState,
+  type WindowPlacement,
+  type WindowSize,
+  type WindowState,
+} from './wm/index.js';
 
 export { createDefaultMessaging, type DefaultMessagingOptions } from './messaging/default-registry.js';
 export { MESSAGING_UNAVAILABLE_REASONS, messagingSigner, signerAvailability, type MessagingEncryption } from './messaging/availability.js';

@@ -47,6 +47,11 @@ function sourceForJsr(source, path) {
   return source;
 }
 
+/** Every entry the npm manifest exports is an entry on JSR too: `.` is `src/index.ts`, `./wm` is `src/wm/index.ts`. */
+function jsrExports(manifest) {
+  return Object.fromEntries(Object.keys(manifest.exports).map((key) => [key, `./${join('src', key, 'index.ts')}`]));
+}
+
 function rewriteSources(dir) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name);
@@ -77,7 +82,7 @@ for (const { slug, manifest } of packages) {
     name: `@kernl/${slug}`,
     version: manifest.version,
     license: manifest.license,
-    exports: { '.': './src/index.ts' },
+    exports: jsrExports(manifest),
     imports: Object.fromEntries(Object.entries(dependencies)
       .map(([name, range]) => [name, dependencyTarget(name, range, slug)])),
     publish: { include: ['src', 'README.md', 'LICENSE', 'deno.json'] },

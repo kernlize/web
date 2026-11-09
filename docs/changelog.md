@@ -11,6 +11,10 @@ Each entry says what ships, per package and app. [Alpha status](./alpha-status.m
 
 ### `@kernlize/core`
 
+- `createWindowManager(options?)` and the `WindowManager` interface: placement, focus, stacking, minimising and what the guard is told about each window, with no DOM, publishing `WindowManagerState` on `state$`. `createLayoutRegistry` and `createDefaultLayouts` hold the layouts it offers; a layout of your own is one `register` ([D-022](./decisions.md#d-022)).
+- `@kernlize/core/wm` (`@kernl/core/wm` on JSR): a second entry exporting the layouts, the registry and the window manager, importing only `rxjs`. The same names stay on the main entry, which now also re-exports `LayoutStrategy`, `Rect`, `WindowPlacement` and `WindowState` from `@kehto/wm`.
+- `LayoutOptions.margin`: the pixels between the windows and the container edge, defaulting to `gap`. The tiling layouts now round rectangle edges rather than sizes, so two windows that share an edge never overlap or leave a hole when the space does not divide evenly.
+
 - `createDefaultBridges` takes an optional `torrent` backend that replaces the hand-off for magnet links only; `KernlOptions.torrent` passes one through `createKernl`.
 
 - `createPrivateMessagesBackend`: NIP-17 messages over the account signer. The seal is signed by the account with `nip44`; the wrap is signed by an ephemeral key that lives inside an applesauce `PrivateKeySigner` and is discarded after the wrap. Sends go to the recipient's kind 10050 inbox relays, falling back to the user's `outbox` and `super` tiers, with a copy wrapped to the user ([D-015](./decisions.md#d-015)).
@@ -38,6 +42,8 @@ Each entry says what ships, per package and app. [Alpha status](./alpha-status.m
 - Magnet links download inside the shell. A Downloads panel lists each download with progress, peers and speed, and offers pause, resume, remove and Save. Settings has a Downloads choice, "Download in kernl" (the default where the browser can connect to peers) or "Open in an app on your device", remembered under `kernl:downloads:mode:v1`. The shell host page loads `webtorrent` 3.0.21 (browser build) on the first download only; applet frames are unchanged. The preview downloads from nobody and finishes each download with a short text file.
 
 - The Messages panel sends and receives private and legacy messages for an account whose signer can encrypt (browser extension, remote signer, password-protected local account). It opens the user's own messages without a consent prompt; applets still reach messages only through the `dm` grant.
+
+- The shell's windows are run by kernl's window manager, made in one file, `windows.ts`. The bar's layout control steps through four layouts (floating, tiled, columns, main and stack) instead of two, and the choice is stored by id; `tiled` from an earlier build still reads. How to change the layouts or replace the manager is in two new how-tos ([D-022](./decisions.md#d-022)).
 
 ## 0.1.0 — first draft, 2026-11-03
 

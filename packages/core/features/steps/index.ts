@@ -10,6 +10,7 @@ import './grants.js';
 import './consent.js';
 import './consent-vocabulary.js';
 import './layouts.js';
+import './window-manager.js';
 import './guard-pipeline.js';
 import './services.js';
 import './messaging-backends.js';

@@ -61,11 +61,10 @@
   $effect(() => {
     const element = desk;
     if (!element) return;
-    // setArea reads and rewrites every window's rect. Run untracked, or this effect would
-    // depend on the rects it writes and re-run without end once a window is open.
+    // Untracked: the manager publishes a new state from setArea, and this effect must not depend on it.
     const measure = (): void => {
       const box = element.getBoundingClientRect();
-      untrack(() => windows.setArea({ x: 0, y: 0, width: Math.floor(box.width), height: Math.floor(box.height) }));
+      untrack(() => windows.setArea({ x: 0, y: 0, w: Math.floor(box.width), h: Math.floor(box.height) }));
     };
     measure();
     const observer = new ResizeObserver(measure);

@@ -1,49 +1,57 @@
 Feature: Shell windows
-  Windows tile and float inside the desktop, dialogs keep keyboard focus, and
-  the launcher remembers what was opened recently.
+The shell hands its windows to kernl's window manager, with its own spacing
+  and the layout the person chose last (DECISIONS D-022). Dialogs keep keyboard
+  focus, and the launcher remembers what was opened recently.
 
-  Scenario: dwindle tiling halves the remaining space, alternating direction
-    Given a shell desktop of 1000 by 600 at 0,0
-    When the shell tiles 3 windows
-    Then the shell tiles are:
-      | x   | y   | width | height |
-      | 0   | 0   | 496   | 600    |
-      | 504 | 0   | 496   | 296    |
-      | 504 | 304 | 496   | 296    |
+  Scenario: the shell tiles with 8 px between windows and none at the desktop edge
+    Given the shell's window manager on a desktop of 1000 by 600
+    When the shell opens 3 windows
+    And the person picks the shell layout "dwindle"
+    Then the shell windows sit at:
+      | x   | y   | w   | h   |
+      | 0   | 0   | 496 | 600 |
+      | 504 | 0   | 496 | 296 |
+      | 504 | 304 | 496 | 296 |
 
-  Scenario: one window fills the desktop and none makes no tiles
-    Given a shell desktop of 800 by 500 at 10,20
-    When the shell tiles 1 windows
-    Then the shell tiles are:
-      | x  | y  | width | height |
-      | 10 | 20 | 800   | 500    |
-    When the shell tiles 0 windows
-    Then the shell makes no tiles
+  Scenario: the shell offers kernl's four layouts and steps through them in order
+    Then the shell layouts read "floating, tiled, columns, main and stack"
+    And after the shell layout "floating" comes "dwindle"
+    And after the shell layout "dwindle" comes "columns"
+    And after the shell layout "master-stack" comes "floating"
+    And after a shell layout nobody registered comes "floating"
+    And with no shell layouts on offer nothing comes next
 
-  Scenario Outline: a floating window stays on the desktop
-    Given a shell desktop of 1000 by 600 at 0,0
-    And a shell window at <x>,<y> sized <w> by <h>
-    When the shell keeps the window on the desktop
-    Then the shell window sits at <cx>,<cy> sized <cw> by <ch>
+  Scenario Outline: the shell starts in the layout the person chose last
+    Given the shell has stored the layout "<stored>"
+    And the shell's window manager on a desktop of 1000 by 600
+    Then the shell layout is "<layout>"
 
     Examples:
-      | x   | y   | w    | h   | cx  | cy  | cw   | ch  |
-      | -50 | -50 | 100  | 50  | 0   | 0   | 280  | 160 |
-      | 900 | 500 | 400  | 300 | 600 | 300 | 400  | 300 |
-      | 0   | 0   | 2000 | 900 | 0   | 0   | 1000 | 600 |
+      | stored   | layout   |
+      | columns  | columns  |
+      | floating | floating |
+      | tiled    | dwindle  |
+      | spiral   | floating |
 
-  Scenario: a smaller minimum lets a window stay small
-    Given a shell desktop of 1000 by 600 at 0,0
-    And a shell window at 10,10 sized 100 by 50
-    When the shell keeps the window on the desktop, at least 50 by 40
-    Then the shell window sits at 10,10 sized 100 by 50
+  Scenario: with nothing stored the shell starts floating, and the next choice is remembered
+    Given the shell's window manager on a desktop of 1000 by 600
+    Then the shell layout is "floating"
+    When the person picks the shell layout "master-stack"
+    Then the shell layout is "master-stack"
+    And the shell has remembered the layout "master-stack" under "kernl:layout:v1"
 
-  Scenario: new windows cascade and wrap after eight
-    Given a shell desktop of 1000 by 600 at 0,0
-    When the shell cascades window number 2 sized 300 by 200
-    Then the shell window sits at 104,88 sized 300 by 200
-    When the shell cascades window number 9 sized 720 by 660
-    Then the shell window sits at 72,0 sized 720 by 600
+  Scenario: a new shell window opens at the default size, kept on the desktop
+    Given the shell's window manager on a desktop of 1000 by 600
+    When the shell opens 1 windows
+    Then the shell windows sit at:
+      | x  | y | w   | h   |
+      | 40 | 0 | 720 | 600 |
+
+  Scenario: the applet's frame sits under the title bar, and is never taller than what is left
+    Then the shell frames applets under the title bar:
+      | x  | y  | w   | h   | frame x | frame y | frame w | frame h |
+      | 10 | 20 | 300 | 200 | 10      | 56      | 300     | 164     |
+      | 0  | 0  | 300 | 20  | 0       | 36      | 300     | 0       |
 
   Scenario: Tab and Shift+Tab wrap inside a dialog and focus returns on close
     Given a shell dialog with the controls "first, middle, last"

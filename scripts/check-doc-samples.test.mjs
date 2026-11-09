@@ -1,5 +1,8 @@
 import { expect, test } from 'vitest';
-import { extractSamples, mapDiagnostics, moduleName } from './check-doc-samples.mjs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { extractSamples, mapDiagnostics, moduleName, samplePaths } from './check-doc-samples.mjs';
 
 const page = (...lines) => lines.join('\n');
 
@@ -58,4 +61,25 @@ test('diagnostics map back to page lines; others are marked outside the samples'
     { sample: true, text: 'docs/x.md:5: error TS2304: Cannot find name a.\n  detail line' },
     { sample: false, text: '../packages/core/src/kernl.ts(1,1): error TS1: other' },
   ]);
+});
+
+test('a sample can import a package root and every subpath its manifest exports', () => {
+  const packages = mkdtempSync(join(tmpdir(), 'kernl-sample-paths-'));
+  try {
+    const write = (slug, manifest) => {
+      mkdirSync(join(packages, slug, 'src'), { recursive: true });
+      writeFileSync(join(packages, slug, 'src', 'index.ts'), '');
+      writeFileSync(join(packages, slug, 'package.json'), JSON.stringify(manifest));
+    };
+    write('core', { exports: { '.': {}, './wm': {} } });
+    write('guard', {});
+    mkdirSync(join(packages, 'not-a-package'));
+    expect(samplePaths(packages)).toEqual({
+      '@kernlize/core': [join(packages, 'core', 'src', 'index.ts')],
+      '@kernlize/core/wm': [join(packages, 'core', 'src', 'wm', 'index.ts')],
+      '@kernlize/guard': [join(packages, 'guard', 'src', 'index.ts')],
+    });
+  } finally {
+    rmSync(packages, { recursive: true, force: true });
+  }
 });
