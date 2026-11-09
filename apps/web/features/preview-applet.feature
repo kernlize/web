@@ -1,15 +1,23 @@
 Feature: Preview applet
-  The preview mounts a static sample applet instead of verified bytes. It knows
-  its two samples by address, and renders a sealed document whose buttons ask the
-  shell for each capability and say when a grant is missing.
+  The preview mounts a static applet instead of verified bytes. Its store lists
+  the preview's own applets, it knows each by address, and it renders a sealed
+  document whose buttons ask the shell for each capability and say when a grant
+  is missing.
 
-  Scenario: the preview offers its samples
-    Then the preview applet offers the samples "Notes,Pulse"
+  Scenario: the preview's store lists its own applets as store entries
+    Then the preview store lists "Notes,Pulse,Profiles"
+    And the preview store entry "Profiles" takes requests to "napplet:profile/open" and carries topics "social,people"
+    And the preview store entry "Notes" takes no requests and requires "relay,identity,intent"
+
+  Scenario: an applet that takes requests says so in its manifest
+    When the preview applet looks up the sample at "preview:profiles"
+    Then the preview applet finds the sample "Profiles" with key "profiles"
+    And the preview applet sample takes "napplet:profile/open" as role "profile" with address "preview:profiles"
 
   Scenario: a sample address is found regardless of case and spacing
     When the preview applet looks up the sample at "  PREVIEW:Notes "
     Then the preview applet finds the sample "Notes" with key "notes"
-    And the preview applet sample requires "relay,identity" and optionally uses "notify,storage"
+    And the preview applet sample requires "relay,identity,intent" and optionally uses "notify,storage"
 
   Scenario: the second sample has its own needs
     When the preview applet looks up the sample at "preview:pulse"
@@ -43,6 +51,7 @@ Feature: Preview applet
     Then the preview applet button "publish" is available
     And the preview applet button "link" is available
     And the preview applet button "notify" is marked not granted
+    And the preview applet button "intent" is marked not granted
     And the preview applet has no "vanish" button
     And the preview applet document does not contain "More changes that ask you first"
 

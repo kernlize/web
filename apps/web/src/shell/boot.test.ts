@@ -33,7 +33,6 @@ describe('boot', () => {
     const booted = await boot(host, new URLSearchParams('preview=1'));
     expect(booted.kernl).toBe(previewKernl);
     expect(booted.mode).toBe('preview');
-    expect(booted.samples.length).toBeGreaterThan(0);
     expect('fallbackReason' in booted).toBe(false);
   });
 
@@ -49,7 +48,7 @@ describe('boot', () => {
     const { boot } = await bootWith({ createKernl });
     const booted = await boot(host, new URLSearchParams('preview=0'));
     expect(createKernl).toHaveBeenCalledWith({ host, torrent: booted.downloads.torrent });
-    expect(booted).toEqual({ kernl: live, mode: 'live', samples: [], downloads: booted.downloads });
+    expect(booted).toEqual({ kernl: live, mode: 'live', downloads: booted.downloads });
     expect(signers.NostrConnectSigner.pool).toBe(live.pool);
   });
 

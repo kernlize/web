@@ -75,7 +75,7 @@ test('the live settings show every default server without naming the protocol', 
 
 test('the live launcher never shows the address it was asked to open', async ({ page }) => {
   await signInReadOnly(page, `/app/?open=${encodeURIComponent(ADDRESS)}`);
-  const field = page.getByRole('textbox', { name: 'Applet address' });
+  const field = page.getByRole('searchbox', { name: 'Find an applet' });
   await expect(field).toBeVisible();
   await expect(field).toHaveValue('');
   await expectClean(page, 'live launcher opened from a link');

@@ -63,7 +63,7 @@ Feature: The preview kernl
     When the preview kernl plans "notes"
     Then the preview kernl plan is for window "preview-1"
     And the preview kernl plan grants "" beyond the baseline
-    And the preview kernl plan is missing "relay,identity"
+    And the preview kernl plan is missing "relay,identity,intent"
 
   Scenario: granted domains join the plan and every plan gets its own window
     Given the preview kernl user granted "relay" to "notes"
@@ -71,7 +71,7 @@ Feature: The preview kernl
     And the preview kernl plans "notes"
     Then the preview kernl plan is for window "preview-2"
     And the preview kernl plan grants "relay" beyond the baseline
-    And the preview kernl plan is missing "identity"
+    And the preview kernl plan is missing "identity,intent"
 
   Scenario: a blocked applet is not planned
     Given the preview kernl user blocked "notes"
@@ -112,6 +112,7 @@ Feature: The preview kernl
       | {"kernlPreview":"vanish"}                 |
       | {"kernlPreview":"notify","text":"hello"}  |
       | {"kernlPreview":"subscribe"}              |
+      | {"kernlPreview":"intent","text":"abc"}    |
 
   Scenario Outline: a routine publish goes straight out
     Given the preview kernl user granted "relay" to "notes"
@@ -245,3 +246,54 @@ Feature: The preview kernl
       | {"kernlPreview":"download","url":"nope"}           |
       | {"kernlPreview":"download","url":"http://x/a.nzb"} |
       | {"kernlPreview":"download"}                        |
+
+  Scenario: the store lists the preview's applets, and running one installs it
+    Then the preview kernl store lists "Notes,Pulse,Profiles"
+    When the preview kernl plans "notes"
+    And the preview kernl installs "profiles" without running it
+    Then the preview kernl has installed "Notes,Profiles"
+
+  Scenario: an applet asks for a profile, none of the user's applets can show one, and the user picks one from the store
+    Given the preview kernl user granted "relay,identity,intent" to "notes"
+    And the preview kernl user granted "intent" to "profiles"
+    And the preview kernl user will pick "profiles" from the store
+    When the preview kernl mounts "notes" in frame "n"
+    And the preview kernl frame "n" posts '{"kernlPreview":"hello"}'
+    And the preview kernl frame "n" posts '{"kernlPreview":"intent","text":"abc"}'
+    Then the preview kernl frame "n" is answered "yes" with "Profiles is taking it."
+    And the preview kernl user was offered no installed applet for "profile/open" from "Notes"
+    And the preview kernl desktop opened "preview:profiles"
+    And the preview kernl frame "opened-profiles" was handed "Notes asked this applet to open a profile."
+
+  Scenario: a running applet that can take the request gets it without a question
+    Given the preview kernl user granted "relay,identity,intent" to "notes"
+    And the preview kernl user granted "intent" to "profiles"
+    When the preview kernl mounts "profiles" in frame "p"
+    And the preview kernl frame "p" posts '{"kernlPreview":"hello"}'
+    And the preview kernl mounts "notes" in frame "n"
+    And the preview kernl frame "n" posts '{"kernlPreview":"intent","text":"abc"}'
+    Then the preview kernl frame "n" is answered "yes" with "Profiles is taking it."
+    And the preview kernl frame "p" was handed "Notes asked this applet to open a profile."
+    And the preview kernl desktop opened nothing and brought the applet in frame "p" forward
+    And the preview kernl user was not asked to choose an applet
+
+  Scenario: the user cancels the choice
+    Given the preview kernl user granted "relay,identity,intent" to "notes"
+    When the preview kernl mounts "notes" in frame "n"
+    And the preview kernl frame "n" posts '{"kernlPreview":"intent","text":"abc"}'
+    Then the preview kernl frame "n" is answered "no" with "Nobody took it (no handler)."
+
+  Scenario Outline: a request that cannot be delivered is reported to the user
+    Given the preview kernl user granted "relay,identity,intent" to "notes"
+    And the preview kernl has "profiles" installed
+    And <setup>
+    When the preview kernl mounts "notes" in frame "n"
+    And the preview kernl frame "n" posts '{"kernlPreview":"intent","text":"abc"}'
+    Then the preview kernl frame "n" is answered "yes" with "Profiles is taking it."
+    And the preview kernl host was warned "Profiles could not take the request" because '<because>'
+
+    Examples:
+      | setup                                                   | because                                                    |
+      | the preview kernl desktop opens a window that is gone   | It needs "opening other applets" switched on in its grants. |
+      | the preview kernl mounts "profiles" in frame "p"        | It needs "opening other applets" switched on in its grants. |
+      | the preview kernl runs "profiles" in frame "p"          | It needs "opening other applets" switched on in its grants. |

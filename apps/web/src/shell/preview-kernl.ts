@@ -40,7 +40,8 @@ import type {
 } from './contract';
 import { abbreviate, shortId } from './contract';
 import { domainLabel } from './domains';
-import { renderPreviewApplet, sampleSummary } from './preview-applet';
+import { PREVIEW_CATALOG, renderPreviewApplet, sampleSummary } from './preview-applet';
+import { createPreviewIntents, type PreviewIntentDeps, type PreviewIntents } from './preview-intents';
 import { createPreviewMessaging } from './preview-messaging';
 import { baselineDomains, createPreviewGrants, createPreviewRelays, loadBaselineDomains } from './preview-state';
 
@@ -62,6 +63,9 @@ interface PreviewMessage {
 }
 
 const SAMPLE_NOTE_ID = 'c0ffee00'.repeat(8);
+
+/** A preview applet answers at once, so delivery gives up after five seconds rather than the live shell's fifteen. */
+const PREVIEW_INTENT_RETRY = { intervalMs: 100, attempts: 50 } as const;
 const SAMPLE_CONTACT = 'decade00'.repeat(8);
 
 interface Draft {
@@ -88,6 +92,7 @@ const ENVELOPES: Readonly<Record<string, { type: string; kind?: number }>> = {
   notify: { type: 'notify.show' },
   subscribe: { type: 'relay.subscribe' },
   link: { type: 'link.open' },
+  intent: { type: 'intent.invoke' },
 };
 
 function isPreviewMessage(data: unknown): data is PreviewMessage {
@@ -131,7 +136,7 @@ interface Actions {
 }
 
 /** What the preview applet may ask for, gated by the grants in its mount plan. */
-function createActions(host: KernlHost, bridges: BridgeRegistry, pubkeyOf: () => string): Actions {
+function createActions(host: KernlHost, bridges: BridgeRegistry, pubkeyOf: () => string, intents: PreviewIntents): Actions {
   const reply = (entry: Mounted, ok: boolean, text: string): void => {
     entry.frame.contentWindow?.postMessage({ kernlPreview: 'result', ok, text }, '*');
   };
@@ -203,6 +208,12 @@ function createActions(host: KernlHost, bridges: BridgeRegistry, pubkeyOf: () =>
       case 'subscribe':
         needs('relay');
         return;
+      case 'intent':
+        if (needs('intent')) {
+          const request = { sender: entry.plan.summary.manifest.catalogId, archetype: 'profile', action: 'open', payload: { pubkey: text } };
+          void intents.invoke(request).then((result) => reply(entry, result.ok, result.text));
+        }
+        return;
       case 'link':
         if (message.url?.startsWith('https://')) host.openLink(message.url);
         return;
@@ -259,12 +270,13 @@ function sessionOf(account: IAccount): Session {
 }
 
 /**
- * The shell with nothing behind it: real guard, grants, messaging and bridge
- * packages over in-memory state, two sample applets, and a static applet
- * document instead of verified bytes. Default when the live core is absent,
+ * The shell with nothing behind it: real guard, grants, messaging, bridge
+ * and intent-routing packages over in-memory state, a store that lists the
+ * preview's own applets, and a static applet document instead of verified
+ * bytes. Default when the live core is absent,
  * and the thing Playwright drives.
  */
-export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend): ShellKernl {
+export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, intentRetry: PreviewIntentDeps['retry'] = PREVIEW_INTENT_RETRY): ShellKernl {
   const accounts = new AccountManager();
   registerCommonAccountTypes(accounts);
   const guard = createPreviewGuard();
@@ -291,7 +303,20 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend): S
     return [...new Set([...baselineDomains(), ...granted])];
   };
 
-  const { perform } = createActions(host, bridges, () => session$.value?.pubkey ?? PREVIEW_OWNER);
+  const intents = createPreviewIntents({
+    storage: host.storage,
+    host,
+    findWindow: (catalogId) => [...mounted.values()].find((entry) => entry.plan.summary.manifest.catalogId === catalogId)?.plan.windowId,
+    deliver(windowId, text) {
+      const entry = mounted.get(windowId);
+      // Like the live runtime: only a running applet that holds the grant receives a request.
+      if (!entry || entry.status$.value !== 'running' || !entry.plan.environment.capabilities.domains.includes('intent')) return false;
+      entry.frame.contentWindow?.postMessage({ kernlPreview: 'delivery', text }, '*');
+      return true;
+    },
+    retry: intentRetry,
+  });
+  const { perform } = createActions(host, bridges, () => session$.value?.pubkey ?? PREVIEW_OWNER, intents);
   const mount = createMounter(host, guard, mounted);
 
   return {
@@ -301,6 +326,8 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend): S
     relays,
     messaging,
     bridges,
+    catalog: { load: async () => PREVIEW_CATALOG },
+    intents: intents.intents,
     session$,
     get session() {
       return session$.value;
@@ -330,8 +357,10 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend): S
       await loadBaselineDomains();
       return summary;
     },
+    install: (summary) => intents.installed.install(summary),
     async plan(summary) {
       if (grants.get(summary.identity)?.blocked) throw new Error('denied:blocked');
+      intents.installed.install(summary);
       const baseline = await loadBaselineDomains();
       const domains = environmentFor(summary);
       const csp = createAppletCsp(guard.config.profile);

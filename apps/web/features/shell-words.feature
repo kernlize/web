@@ -49,6 +49,39 @@ Feature: Shell words
       | domain   | label        | required | baseline | granted | preset |
       | identity | your account | yes      | no       | no      | no     |
 
+  Scenario: an applet that takes requests gets the receiving switch, on at first run
+    Given an applet that requires "identity" and may use "notify"
+    And the applet takes requests from other applets
+    When the shell lists the domain choices
+    Then the domain choices are:
+      | domain   | label                  | required | baseline | granted | preset |
+      | identity | your account           | yes      | no       | no      | yes    |
+      | notify   | notifications          | no       | no       | no      | no     |
+      | intent   | opening other applets  | no       | no       | no      | yes    |
+
+  Scenario: a receiving applet that lists the switch itself keeps it where it listed it
+    Given an applet that requires "storage" and may use "intent"
+    And the applet takes requests from other applets
+    When the shell lists the domain choices
+    Then the domain choices are:
+      | domain  | label                 | required | baseline | granted | preset |
+      | storage | its own storage       | yes      | no       | no      | no     |
+      | intent  | opening other applets | no       | no       | no      | yes    |
+    Given an applet that requires "intent" and may use ""
+    And the applet takes requests from other applets
+    And the person has decided for this applet before
+    When the shell lists the domain choices
+    Then the domain choices are:
+      | domain | label                 | required | baseline | granted | preset |
+      | intent | opening other applets | yes      | no       | no      | no     |
+
+  Scenario: an applet that asks others to do things gets that switch on at first run
+    Given an applet that requires "intent" and may use ""
+    When the shell lists the domain choices
+    Then the domain choices are:
+      | domain | label                 | required | baseline | granted | preset |
+      | intent | opening other applets | yes      | no       | no      | yes    |
+
   Scenario Outline: byte counts read in binary units
     Then the shell shows <bytes> bytes as "<text>"
 

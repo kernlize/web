@@ -8,7 +8,9 @@
   import type { Booted, Session } from './contract';
   import Desktop from './Desktop.svelte';
   import { GuardLog } from './guard-log.svelte';
-  import { createHost, pickStorage } from './host';
+  import HandlerChooser from './HandlerChooser.svelte';
+  import { HandlerQueue } from './handler-queue.svelte';
+  import { createHost, pickStorage, type AppletOpener } from './host';
   import Notices from './Notices.svelte';
   import { NoticeStore } from './notice-store.svelte';
   import SignIn from './SignIn.svelte';
@@ -19,7 +21,9 @@
   const consent = new ConsentQueue();
   const windows = new WindowStore();
   const guardLog = new GuardLog();
-  const host = createHost({ storage, consent, notices, windows });
+  const handlers = new HandlerQueue();
+  const opener: AppletOpener = {};
+  const host = createHost({ storage, consent, notices, windows, handlers, opener });
 
   let booted = $state.raw<Booted | null>(null);
   let session = $state.raw<Session | null>(null);
@@ -64,6 +68,7 @@
   function onKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
       if (consent.current) consent.answer(false);
+      else if (handlers.current) handlers.answer(undefined);
       else if (desktop?.closeTopOverlay()) root?.focus();
       else return;
       event.preventDefault();
@@ -75,6 +80,7 @@
 
   async function signOut(): Promise<void> {
     for (const win of [...windows.windows]) windows.close(win.id);
+    while (handlers.current) handlers.answer(undefined);
     await booted?.kernl.logout();
   }
 </script>
@@ -85,7 +91,13 @@
   {:else if booted && phase === 'signin'}
     <SignIn kernl={booted.kernl} mode={booted.mode} />
   {:else if booted && session}
-    <Desktop bind:this={desktop} {booted} {session} {storage} {windows} {guardLog} onsignout={signOut} />
+    <Desktop bind:this={desktop} {booted} {session} {storage} {windows} {guardLog} {opener} onsignout={signOut} />
+  {/if}
+
+  {#if booted && session && handlers.current}
+    {#key handlers.current}
+      <HandlerChooser kernl={booted.kernl} prompt={handlers.current} onanswer={(choice) => handlers.answer(choice)} />
+    {/key}
   {/if}
 
   {#if consent.current}

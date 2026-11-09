@@ -46,7 +46,7 @@ interface StoredGrant {
 const keyOf = (identity: AppletIdentity): string => `${identity.dTag}:${identity.hash}`;
 
 /** A stored JSON value, or undefined when nothing usable is stored; the caller supplies its own defaults. */
-function readStored<T>(storage: StorageLike, key: string): T | undefined {
+export function readStored<T>(storage: StorageLike, key: string): T | undefined {
   const raw = storage.getItem(key);
   if (raw === null) return undefined;
   try {
