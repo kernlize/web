@@ -160,6 +160,32 @@ export {
   type WindowState,
 } from './wm/index.js';
 export { createFallbackSubtle, installCryptoFallback, randomUuidFallback, renderRandomUuidFallbackScript, type CryptoFallbackReport, type CryptoScope } from './crypto/index.js';
+export {
+  attachEventCache,
+  createEventCache,
+  createIndexedDbCacheAdapter,
+  createMemoryCacheAdapter,
+  createSqliteOpfsCacheAdapter,
+  defaultWebCacheAdapters,
+  fromEventDatabase,
+  isCorruptionError,
+  openEventCache,
+  type AttachedEventCache,
+  type AttachEventCacheOptions,
+  type CacheRecoveryEvent,
+  type EventCache,
+  type EventCacheAdapter,
+  type EventRecords,
+  type FilenameStorage,
+  type IndexedDbCacheOptions,
+  type LockManagerLike,
+  type OpenEventCacheOptions,
+  type SqliteDriver,
+  type SqliteFiles,
+  type SqliteOpfsOptions,
+  type SqlStatement,
+  type SqlValue,
+} from './cache/index.js';
 
 export { createDefaultMessaging, type DefaultMessagingOptions } from './messaging/default-registry.js';
 export { MESSAGING_UNAVAILABLE_REASONS, messagingSigner, signerAvailability, type MessagingEncryption } from './messaging/availability.js';

@@ -70,6 +70,7 @@ export const sidebar = [
       { text: 'Change the guard profile', link: '/how-tos/change-guard-profile' },
       { text: 'Add a messaging provider', link: '/how-tos/add-a-messaging-provider' },
       { text: 'Add a bridge backend', link: '/how-tos/add-a-bridge-backend' },
+      { text: 'Add a cache backend', link: '/how-tos/add-a-cache-backend' },
       { text: 'Grant and revoke', link: '/how-tos/grant-and-revoke' },
       { text: 'Embed kernl core', link: '/how-tos/embed-kernl-core' },
       { text: "Change the shell's layout", link: '/how-tos/change-the-shells-layout' },

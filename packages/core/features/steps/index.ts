@@ -32,3 +32,5 @@ import './profiles.js';
 import './publish-outcome.js';
 import './relay-directory.js';
 import './mailboxes.js';
+import './event-cache.js';
+import './event-cache-sqlite.js';
