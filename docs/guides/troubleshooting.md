@@ -39,8 +39,8 @@ pnpm site:dev
 **Cause and fix.** Each sentence is one reason:
 
 - "That does not look like an applet address." (`invalid:pointer`): the text holds no address. A link with the address in it is fine; a link to a page about the applet is not.
-- "No applet was found at that address." (`unavailable:manifest`): the servers answered and none has it. Add the server that does under **Settings**, in the applet catalogue tier, or use an address that names it.
-- "None of the servers that list applets could be reached." (`unavailable:network`): nothing answered within fifteen seconds. Check the connection, a VPN or a content blocker that stops secure socket connections, then look it up again.
+- "No applet was found at that address." (`unavailable:manifest`): the servers answered and none has it, including the general servers the shell falls back to. Add the server that does under **Settings**, in the applet catalogue tier, or use an address that names it.
+- "None of the servers that list applets could be reached." (`unavailable:network`): none of the servers the address names, the applet catalogue or the general servers answered; the shell gives each group ten seconds. Check the connection, a VPN or a content blocker that stops secure socket connections, then look it up again.
 - "The applet was found, but its file could not be downloaded right now." (`unavailable:blob`): the servers named by the applet did not return its file.
 - "Could not open the applet. Try again, or try another address.": the shell had no reason for the failure, which is a defect. The browser console has a line starting `kernl: an applet could not be opened for an unexpected reason` with the underlying error; include it in the report.
 
