@@ -36,16 +36,25 @@
   const hidden = $derived(all.length - results.length);
   const bubbles = $derived(search && entries ? topicBubbles(search.popularTopics(search.searchCatalog(entries, base), 14), topics) : []);
 
+  let finished = $state(false);
+
   onMount(() => {
     // The search helpers come from the core on first use, so it stays out of the shell's first chunk.
     void import('@kernlize/core').then((core) => (search = core));
-    kernl.catalog.load().then(
-      (loaded) => (entries = loaded),
-      () => {
-        failed = true;
-        entries = [];
+    // Applets are listed as each server sends them; the list never waits for the slowest one.
+    const listing = kernl.catalog.stream().subscribe({
+      next: (found) => (entries = found),
+      error: () => {
+        failed = entries === null || entries.length === 0;
+        finished = true;
+        entries ??= [];
       },
-    );
+      complete: () => {
+        finished = true;
+        entries ??= [];
+      },
+    });
+    return () => listing.unsubscribe();
   });
 
   function submit(event: SubmitEvent): void {
@@ -99,6 +108,8 @@
     <p class="shell-muted" role="status">Looking for applets…</p>
   {:else if failed}
     <p class="shell-error" role="alert">The store could not be reached. You can still paste an applet address above.</p>
+  {:else if results.length === 0 && !finished}
+    <p class="shell-muted" role="status">Looking for applets…</p>
   {:else if results.length === 0}
     <p class="shell-muted" role="status">{convention ? 'No listed applet can do this yet.' : 'No applets match.'}</p>
   {:else}
@@ -126,6 +137,7 @@
         </li>
       {/each}
     </ul>
+    {#if !finished}<p class="shell-muted small" role="status">Still hearing from the network; more applets may appear.</p>{/if}
     {#if results.length > shown}
       <button type="button" class="shell-button quiet more" onclick={() => (shown += PAGE)}>Show more ({results.length - shown} left)</button>
     {/if}

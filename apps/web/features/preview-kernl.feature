@@ -247,8 +247,13 @@ Feature: The preview kernl
       | {"kernlPreview":"download","url":"http://x/a.nzb"} |
       | {"kernlPreview":"download"}                        |
 
+  Scenario: the preview's people are named, and anyone else reads as a short key
+    Then the preview kernl names the correspondent "Ada", the publisher "kernl samples" and its own account "Preview account"
+    And the preview kernl names key "ABCDEF0123456789abcdef0123456789abcdef0123456789abcdef0123456789" by its short form
+
   Scenario: the store lists the preview's applets, and running one installs it
     Then the preview kernl store lists "Notes,Pulse,Profiles"
+    And the preview kernl store streams "Notes,Pulse,Profiles"
     When the preview kernl plans "notes"
     And the preview kernl installs "profiles" without running it
     Then the preview kernl has installed "Notes,Profiles"

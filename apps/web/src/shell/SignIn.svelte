@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PersonName from './PersonName.svelte';
   import type { IAccount } from 'applesauce-accounts';
   import { ExtensionAccount, NostrConnectAccount, PasswordAccount, PrivateKeyAccount, ReadonlyAccount } from 'applesauce-accounts/accounts';
   import { NostrConnectSigner, PasswordSigner } from 'applesauce-signers';
@@ -165,7 +166,7 @@
           {#each remembered as account (account.id)}
             <li class="shell-card row">
               <div>
-                <h4>{labelOf(account)}</h4>
+                <h4><PersonName {kernl} pubkey={account.pubkey} known={(account.metadata as { name?: string } | undefined)?.name} /></h4>
                 <p>{kinds[account.type] ?? account.type}</p>
               </div>
               <div class="shell-actions">

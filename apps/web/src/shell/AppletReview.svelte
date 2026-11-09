@@ -1,6 +1,6 @@
 <script lang="ts">
+  import Publisher from './Publisher.svelte';
   import type { AppletSummary, ShellKernl } from './contract';
-  import { publisherWords } from './contract';
   import { choiceNote, domainChoices, domainLabel, type DomainChoice } from './domains';
   import { explainOpenFailure } from './launcher-reasons';
   import { acceptsWords } from './store';
@@ -66,7 +66,7 @@
 <article class="summary" aria-live="polite">
   <header>
     <h3>{summary.title}</h3>
-    <p class="shell-muted mono">{publisherWords(summary)}</p>
+    <p class="shell-muted"><Publisher {kernl} applet={summary} /></p>
   </header>
   {#if summary.description}<p>{summary.description}</p>{/if}
   {#if accepts}<p class="shell-muted">Other applets can ask it to {accepts}.</p>{/if}

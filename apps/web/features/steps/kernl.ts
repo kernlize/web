@@ -1,15 +1,16 @@
 import { expect, vi } from 'vitest';
-import type { Observable } from 'rxjs';
+import { firstValueFrom, type Observable } from 'rxjs';
 import { Given, Then, When } from 'quickpickle';
 import type { IAccount } from 'applesauce-accounts';
 import { PrivateKeyAccount, ReadonlyAccount } from 'applesauce-accounts/accounts';
 import { BASELINE_DOMAINS } from '@kernlize/core';
 import { MemoryStorage } from '../../../../packages/core/features/steps/world.ts';
 import { abbreviate, type AppletHandle, type AppletPointer, type AppletSummary, type ConsentPrompt, type FrameLike, type HandlerPrompt, type KernlHost, type MountPlan, type ShellKernl } from '../../src/shell/contract.ts';
-import { sampleSummary } from '../../src/shell/preview-applet.ts';
+import { PREVIEW_PUBLISHER, sampleSummary } from '../../src/shell/preview-applet.ts';
+import { PREVIEW_CORRESPONDENT } from '../../src/shell/preview-messaging.ts';
 import { createShellDownloads } from '../../src/shell/downloads.ts';
 import { createPreviewTorrentClient } from '../../src/shell/preview-downloads.ts';
-import { createPreviewKernl } from '../../src/shell/preview-kernl.ts';
+import { createPreviewKernl, PREVIEW_OWNER } from '../../src/shell/preview-kernl.ts';
 import './shell-host.ts';
 import './preview-messaging.ts';
 
@@ -509,4 +510,20 @@ Then('the preview kernl frame {string} was handed {string}', async (world: Previ
 
 Then('the preview kernl host was warned {string} because {string}', async (world: PreviewWorld, title: string, body: string) => {
   await vi.waitFor(() => expect(preview(world).notices).toContainEqual({ title, body, tone: 'warning' }));
+});
+
+Then('the preview kernl store streams {string}', async (world: PreviewWorld, titles: string) => {
+  const streamed = await firstValueFrom(preview(world).kernl.catalog.stream());
+  expect(streamed.map((entry) => entry.title)).toEqual(list(titles));
+});
+
+Then('the preview kernl names the correspondent {string}, the publisher {string} and its own account {string}', async (world: PreviewWorld, correspondent: string, publisher: string, owner: string) => {
+  const { profiles } = preview(world).kernl;
+  expect(profiles.card(PREVIEW_CORRESPONDENT).name).toBe(correspondent);
+  expect((await firstValueFrom(profiles.card$(PREVIEW_PUBLISHER))).name).toBe(publisher);
+  expect(profiles.card(PREVIEW_OWNER)).toMatchObject({ name: owner, found: true });
+});
+
+Then('the preview kernl names key {string} by its short form', (world: PreviewWorld, key: string) => {
+  expect(preview(world).kernl.profiles.card(key)).toEqual({ pubkey: key, name: 'ABCDEF01…6789', found: false });
 });

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Publisher from './Publisher.svelte';
   import type { AppletSummary, BootMode, CatalogEntry, MountPlan, ShellKernl, StorageLike } from './contract';
   import AppletReview from './AppletReview.svelte';
   import InstalledApplets from './InstalledApplets.svelte';
@@ -6,7 +7,6 @@
   import Overlay from './Overlay.svelte';
   import { forgetRecent, readRecent, rememberRecent, type RecentApplet } from './recent';
   import StoreBrowser from './StoreBrowser.svelte';
-  import { abbreviate } from './contract';
 
   interface Props {
     kernl: ShellKernl;
@@ -79,7 +79,7 @@
           <li class="shell-card row">
             <div>
               <h4>{entry.title}</h4>
-              <p class="mono">{abbreviate(entry.publisher)}</p>
+              <p class="shell-muted"><Publisher {kernl} applet={entry} /></p>
             </div>
             <div class="shell-actions">
               <button type="button" class="shell-button" onclick={() => resolve(entry.address)} disabled={busy}>Open</button>

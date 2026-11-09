@@ -62,5 +62,8 @@ export const abbreviate = (value: string): string => (value.length <= 16 ? value
  * Who an applet is from, for the lines that say so. One that came with the shell has no publisher
  * to name: its address is under the shell's own scheme, and the key it carries is a placeholder.
  */
+export const isBuiltInApplet = (address: string): boolean => address.startsWith('kernl:');
+
+/** {@link Publisher}'s words before a profile is known, for text that cannot hold a component. */
 export const publisherWords = (applet: { readonly address: string; readonly publisher: string }): string =>
-  applet.address.startsWith('kernl:') ? 'comes with kernl' : `by ${abbreviate(applet.publisher)}`;
+  isBuiltInApplet(applet.address) ? 'comes with kernl' : `by ${abbreviate(applet.publisher)}`;

@@ -9,7 +9,7 @@ import {
 import { renderInsertionLockScript } from '@kernlize/guard';
 import type { AppletSummary, CatalogEntry } from './contract';
 
-const PUBLISHER = '7f3a9c1e5b2d4a6f8e0c1b3d5f7a9c2e4b6d8f0a1c3e5b7d9f1a3c5e7b9d0f2c';
+export const PREVIEW_PUBLISHER = '7f3a9c1e5b2d4a6f8e0c1b3d5f7a9c2e4b6d8f0a1c3e5b7d9f1a3c5e7b9d0f2c';
 const SERVERS = ['https://cdn.example.net'];
 
 interface SampleSpec {
@@ -77,14 +77,14 @@ const SPECS: readonly SampleSpec[] = [
 const archetypesOf = (spec: SampleSpec) =>
   spec.accepts.map((convention) => ({ slug: convention.slice('napplet:'.length).split('/')[0] as string, convention, params: ['pubkey'] }));
 
-const catalogIdOf = (spec: SampleSpec): string => `nip5d:35129:${PUBLISHER}:${spec.dTag}`;
+const catalogIdOf = (spec: SampleSpec): string => `nip5d:35129:${PREVIEW_PUBLISHER}:${spec.dTag}`;
 
 function summaryOf(spec: SampleSpec): AppletSummary {
   return {
     identity: { dTag: spec.dTag, hash: spec.hash },
     title: spec.title,
     description: spec.description,
-    publisher: PUBLISHER,
+    publisher: PREVIEW_PUBLISHER,
     address: spec.address,
     requires: spec.requires,
     optional: spec.optional,
@@ -95,7 +95,7 @@ function summaryOf(spec: SampleSpec): AppletSummary {
       artifactHash: spec.hash,
       optional: [...spec.optional],
       kind: 35129,
-      pubkey: PUBLISHER,
+      pubkey: PREVIEW_PUBLISHER,
       dTag: spec.dTag,
       catalogId: catalogIdOf(spec),
       paths: [{ path: '/index.html', sha256: spec.hash }],
@@ -114,7 +114,7 @@ export const PREVIEW_CATALOG: readonly CatalogEntry[] = SPECS.map((spec) => ({
   catalogId: catalogIdOf(spec),
   address: spec.address,
   kind: 35129,
-  publisher: PUBLISHER,
+  publisher: PREVIEW_PUBLISHER,
   title: spec.title,
   description: `${spec.description} ${spec.blurb}`,
   topics: spec.topics,
