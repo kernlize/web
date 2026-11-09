@@ -214,6 +214,19 @@ Feature: The composed shell
     When the applet asks "identity.getPublicKey" over its port
     Then the applet received a "identity.getPublicKey.result"
 
+  Scenario: a read-only account is still an account a granted applet can be shown
+    Given a kernl shell over that host and pool
+    When the shell logs in with a read-only account
+    And a mounted applet granted "identity" that has said hello
+    And the applet asks "identity.getPublicKey" over its port
+    Then the applet received a "identity.getPublicKey.result" whose "pubkey" is "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d"
+
+  Scenario: a granted applet is told nobody is signed in when nobody is
+    Given a kernl shell over that host and pool
+    And a mounted applet granted "identity" that has said hello
+    When the applet asks "identity.getPublicKey" over its port
+    Then the applet received a "identity.getPublicKey.result" whose "pubkey" is ""
+
   Scenario: an oversized download request is dropped before any service sees it
     Given a kernl shell over that host and pool with fake bridges
     And a mounted applet granted "resource" that has said hello

@@ -1,7 +1,7 @@
 import type { EventStore } from 'applesauce-core';
 import { verifyEvent } from 'applesauce-core/helpers';
 import type { AuthHooks } from '@kehto/shell';
-import type { ServiceHandler, ServiceRegistry } from '@kehto/runtime';
+import type { ServiceHandler, ServiceRegistry, Signer } from '@kehto/runtime';
 import {
   createDmService,
   createIdentityService,
@@ -60,7 +60,8 @@ export interface KernlServiceDeps {
   readonly pool: ApplesaucePool;
   readonly tiers: RelayTiers;
   readonly eventStore: EventStore;
-  readonly auth: Pick<AuthHooks, 'getSigner'>;
+  /** `getUserPubkey` lets the identity service name a read-only account, which has no signer. */
+  readonly auth: Pick<AuthHooks, 'getSigner'> & Partial<Pick<AuthHooks, 'getUserPubkey'>>;
   /** Gates the outbox service's publishes, which kehto signs without naming the window. */
   readonly consent: SigningConsent;
   readonly host: Pick<KernlHost, 'notify' | 'openLink'>;
@@ -108,6 +109,20 @@ function requesterFor(deps: Pick<KernlServiceDeps, 'resolveIdentity'>, windowId:
 export function resourceInitFor(deps: Pick<KernlServiceDeps, 'resolveIdentity'>, init: ResourceFetchInit): ResourceResolveInit {
   const requester = requesterFor(deps, init.windowId);
   return init.headers ? { signal: init.signal, requester, headers: init.headers } : { signal: init.signal, requester };
+}
+
+/**
+ * The signer the identity service reads the account from. A read-only account
+ * has no signer, yet which account is signed in is exactly what it exists to
+ * show, so the service gets a view that answers `getPublicKey` and nothing
+ * else: an applet the user granted "your account" learns who is signed in, and
+ * every write still finds no `signEvent` and is refused.
+ */
+function identitySigner(auth: KernlServiceDeps['auth']): Signer | null {
+  const signer = auth.getSigner();
+  if (signer) return signer;
+  const pubkey = auth.getUserPubkey?.() ?? null;
+  return pubkey === null ? null : { getPublicKey: () => pubkey };
 }
 
 function createOutbox(deps: KernlServiceDeps, identity: IdentityProviders) {
@@ -190,7 +205,7 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
 
   const registry: ServiceRegistry = {
     relay: createRelayPoolService(createAppletRelayBackend(deps.pool, deps.tiers)),
-    identity: createIdentityService({ getSigner: () => deps.auth.getSigner(), ...identity }),
+    identity: createIdentityService({ getSigner: () => identitySigner(deps.auth), ...identity }),
     theme: theme.handler,
     notify: createNotifyService({
       present: ({ windowId, message }) => deps.host.notify({ title: message.title, windowId, tone: 'info', ...(message.body ? { body: message.body } : {}) }),

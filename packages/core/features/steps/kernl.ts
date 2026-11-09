@@ -466,6 +466,10 @@ Then('the applet received a {string} with domains {string}', (world: CoreWorld, 
   expect([...(capabilities?.domains ?? [])].sort()).toEqual(splitList(domains).sort());
 });
 
+Then('the applet received a {string} whose {string} is {string}', (world: CoreWorld, type: string, field: string, value: string) => {
+  expect(k(world).received.find((entry) => entry.type === type)?.[field]).toBe(value);
+});
+
 Then('the applet received a {string}', (world: CoreWorld, type: string) => {
   expect(k(world).received.map((entry) => entry.type)).toContain(type);
 });
