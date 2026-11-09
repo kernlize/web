@@ -1,6 +1,6 @@
 {
   "name": "@kernlize/messaging",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Messaging provider contract, registry and composite direct-message adapter for the kernl shell",
   "type": "module",
   "main": "./dist/index.js",
