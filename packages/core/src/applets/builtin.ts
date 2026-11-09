@@ -11,7 +11,7 @@ import type { ResolvedApplet } from './resolve.js';
  * summary.builtin && summary.publisher === BUILTIN_PUBLISHER; // true
  * ```
  */
-export const BUILTIN_PUBLISHER = '0'.repeat(64);
+export const BUILTIN_PUBLISHER: string = '0'.repeat(64);
 
 const ADDRESS = /^kernl:([a-z][a-z0-9-]*)$/;
 const MANIFEST_KIND = 35129;
