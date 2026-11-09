@@ -35,23 +35,27 @@ export interface CacheState {
 }
 
 const states = new WeakMap<CoreWorld, CacheState>();
-let scenarios = 0;
 
 /**
- * Node's own Web Locks, scoped to one scenario so a cache a scenario leaves open never locks out the next.
- * @param scope - Prefix for every lock name.
- * @returns A lock manager over `navigator.locks`.
+ * Web Locks as the cache uses them (`ifAvailable`), held in memory and fresh for each scenario, so a
+ * cache a scenario leaves open never locks out the next. Node gained `navigator.locks` only in
+ * later releases; the tests run the same on every Node the repository supports.
+ * @returns A lock manager with the browser's `ifAvailable` behaviour.
  */
-const nodeLocks = navigator.locks;
-
-function scopedLocks(scope: string): LockManagerLike {
-  return { request: (name, options, callback) => nodeLocks.request(`${scope}:${name}`, options, callback) };
+function scenarioLocks(): LockManagerLike {
+  const held = new Set<string>();
+  return {
+    request(name, _options, callback) {
+      if (held.has(name)) return Promise.resolve(callback(null));
+      held.add(name);
+      return Promise.resolve(callback({ name })).finally(() => held.delete(name));
+    },
+  };
 }
 
 export function cacheState(world: CoreWorld): CacheState {
   let state = states.get(world);
   if (!state) {
-    scenarios += 1;
     state = {
       signers: new Map(),
       events: new Map(),
@@ -60,7 +64,7 @@ export function cacheState(world: CoreWorld): CacheState {
       recoveries: [],
       storage: new MemoryStorage(),
       indexedDB: new IDBFactory(),
-      locks: scopedLocks(`scenario-${scenarios}`),
+      locks: scenarioLocks(),
       workers: [],
       workerStarts: [],
       open: [],
