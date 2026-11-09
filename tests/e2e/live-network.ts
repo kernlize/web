@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { Page, WebSocketRoute } from '@playwright/test';
 import { nip19 } from 'nostr-tools';
-import { finalizeEvent, generateSecretKey, getPublicKey, type VerifiedEvent } from 'nostr-tools/pure';
+import { finalizeEvent, generateSecretKey, getPublicKey, type EventTemplate, type VerifiedEvent } from 'nostr-tools/pure';
 
 /**
  * A network for the live shell that exists only inside the browser under test: relays answered
@@ -115,4 +115,53 @@ export async function fakeNetwork(page: Page, applet: SignedApplet, relays: Read
     });
   }
   return network;
+}
+
+export interface SignerExtension {
+  readonly pubkey: string;
+  /** How often the page asked the extension for each method. */
+  readonly calls: Record<string, number>;
+}
+
+/**
+ * Stand in for a signing extension. Like the real ones it defines `window.nostr` in every frame
+ * and carries each request across the page as window messages, which the shell's own message
+ * handler therefore sees. The key is made for the test and never leaves this process.
+ */
+export async function installSignerExtension(page: Page): Promise<SignerExtension> {
+  const secret = generateSecretKey();
+  const extension: SignerExtension = { pubkey: getPublicKey(secret), calls: {} };
+  await page.context().exposeBinding('__testSigner', (_source, method: string, params: unknown[]) => {
+    extension.calls[method] = (extension.calls[method] ?? 0) + 1;
+    if (method === 'getPublicKey') return extension.pubkey;
+    if (method === 'signEvent') return finalizeEvent(params[0] as EventTemplate, secret);
+    throw new Error(`the test signer does not do ${method}`);
+  });
+  await page.addInitScript(() => {
+    const signer = (window as unknown as { __testSigner?: (method: string, params: unknown[]) => Promise<unknown> }).__testSigner;
+    const pending = new Map<string, { resolve(value: unknown): void; reject(error: Error): void }>();
+    window.addEventListener('message', (event) => {
+      const data = event.data as { type?: string; id?: string; method?: string; params?: unknown[]; result?: unknown; error?: string } | null;
+      if (event.source !== window || !data?.id) return;
+      if (data.type === 'nostr-request' && signer) {
+        signer(data.method ?? '', data.params ?? []).then(
+          (result) => window.postMessage({ type: 'nostr-response', id: data.id, result }, '*'),
+          (error: Error) => window.postMessage({ type: 'nostr-response', id: data.id, error: error.message }, '*'),
+        );
+      }
+      if (data.type === 'nostr-response') {
+        const waiting = pending.get(data.id);
+        pending.delete(data.id);
+        if (data.error) waiting?.reject(new Error(data.error));
+        else waiting?.resolve(data.result);
+      }
+    });
+    const ask = (method: string, params: unknown[] = []): Promise<unknown> => new Promise((resolve, reject) => {
+      const id = `nostr-${Math.random().toString(36).slice(2)}`;
+      pending.set(id, { resolve, reject });
+      window.postMessage({ type: 'nostr-request', id, method, params }, '*');
+    });
+    Object.defineProperty(window, 'nostr', { value: { getPublicKey: () => ask('getPublicKey'), signEvent: (event: unknown) => ask('signEvent', [event]) } });
+  });
+  return extension;
 }

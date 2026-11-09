@@ -23,11 +23,16 @@ interface LocalRelayOptions {
   readonly silent?: boolean;
   /** Accept the connection, then close it: a relay behind a failing proxy, or one that is shedding load. */
   readonly hangUp?: boolean;
+  /** Answer this many websocket upgrades with 503 before accepting one, as a busy public relay does. */
+  readonly refuseFirst?: number;
+  /** Called once per connection attempt, refused or not. */
+  readonly onDial?: () => void;
 }
 
 interface Live {
   relays: Map<string, string>;
   requests: Map<string, number>;
+  dials: Map<string, number>;
   closers: Array<() => Promise<void> | void>;
   blobUrl?: string;
   blobs: Map<string, string>;
@@ -39,7 +44,7 @@ interface Live {
 }
 
 function live(world: CoreWorld): Live {
-  return (scratch(world).live ??= { relays: new Map(), requests: new Map(), closers: [], blobs: new Map(), blobRequests: [] }) as Live;
+  return (scratch(world).live ??= { relays: new Map(), requests: new Map(), dials: new Map(), closers: [], blobs: new Map(), blobRequests: [] }) as Live;
 }
 
 function manifest(world: CoreWorld): ManifestVector {
@@ -74,15 +79,26 @@ function serve(socket: WebSocket, options: LocalRelayOptions): void {
 
 function startRelay(options: LocalRelayOptions): Promise<LocalRelay> {
   return new Promise((resolve) => {
-    const server = new WebSocketServer({ host: '127.0.0.1', port: 0 });
-    server.on('connection', (socket) => serve(socket, options));
-    server.on('listening', () => {
-      const { port } = server.address() as AddressInfo;
+    const http = createServer();
+    const sockets = new WebSocketServer({ noServer: true });
+    let refusals = options.refuseFirst ?? 0;
+    http.on('upgrade', (request, socket, head) => {
+      options.onDial?.();
+      if (refusals > 0) {
+        refusals -= 1;
+        socket.end('HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n');
+        return;
+      }
+      sockets.handleUpgrade(request, socket, head, (accepted) => serve(accepted, options));
+    });
+    http.listen(0, '127.0.0.1', () => {
+      const { port } = http.address() as AddressInfo;
       resolve({
         url: `ws://127.0.0.1:${port}`,
         close: () => new Promise<void>((done) => {
-          for (const client of server.clients) client.terminate();
-          server.close(() => done());
+          for (const client of sockets.clients) client.terminate();
+          http.closeAllConnections();
+          http.close(() => done());
         }),
       });
     });
@@ -101,8 +117,9 @@ function unusedPort(): Promise<number> {
 }
 
 async function addRelay(world: CoreWorld, name: string, options: LocalRelayOptions): Promise<void> {
-  const { requests } = live(world);
-  const relay = await startRelay({ ...options, onRequest: () => void requests.set(name, (requests.get(name) ?? 0) + 1) });
+  const { requests, dials } = live(world);
+  const count = (tally: Map<string, number>) => () => void tally.set(name, (tally.get(name) ?? 0) + 1);
+  const relay = await startRelay({ ...options, onRequest: count(requests), onDial: count(dials) });
   live(world).relays.set(name, relay.url);
   live(world).closers.push(() => relay.close());
 }
@@ -174,6 +191,10 @@ Given('a local relay {string} that holds nothing', async (world: CoreWorld, name
 
 Given('a local relay {string} that never answers', async (world: CoreWorld, name: string) => {
   await addRelay(world, name, { events: [], silent: true });
+});
+
+Given(/^a local relay "([^"]+)" that holds (the manifest|nothing) and refuses its first (\d+) connections?$/, async (world: CoreWorld, name: string, holds: string, refuseFirst: string) => {
+  await addRelay(world, name, { events: holds === 'nothing' ? [] : [manifest(world).event], refuseFirst: Number(refuseFirst) });
 });
 
 Given('a local relay {string} that hangs up on every connection', async (world: CoreWorld, name: string) => {
@@ -281,6 +302,18 @@ When('the manifest is looked up over real connections from {string} falling back
 
 When('the manifest is looked up over real connections from {string} falling back to {string} timing out after {int} ms', async (world: CoreWorld, hints: string, general: string, timeoutMs: number) => {
   await lookUp(world, { hints, general, timing: { timeoutMs } });
+});
+
+When('the manifest is looked up over real connections from {string} retrying after {int} ms', async (world: CoreWorld, hints: string, retryDelayMs: number) => {
+  await lookUp(world, { hints, timing: { retryDelayMs } });
+});
+
+When('the manifest is looked up over real connections from {string} falling back to {string} retrying after {int} ms', async (world: CoreWorld, hints: string, general: string, retryDelayMs: number) => {
+  await lookUp(world, { hints, general, timing: { retryDelayMs } });
+});
+
+Then('the local relay {string} was dialled {int} times', (world: CoreWorld, name: string, times: number) => {
+  expect(live(world).dials.get(name) ?? 0).toBe(times);
 });
 
 Then('the local relay {string} was asked {int} time', (world: CoreWorld, name: string, times: number) => {

@@ -35,12 +35,14 @@ function filterFor(pointer: AppletPointer): NostrFilter {
  * release can still answer. `patienceMs` runs from the first relay that
  * answers with nothing, so a slower relay that does hold the applet is not cut
  * off. `timeoutMs` bounds a round of asking when no relay answers at all; a
- * lookup is at most two rounds.
+ * lookup is at most two rounds. `retryDelayMs` is the pause before a round
+ * whose relays all refused at once is asked a second time.
  */
 export interface ManifestTiming {
   readonly settleMs: number;
   readonly patienceMs: number;
   readonly timeoutMs: number;
+  readonly retryDelayMs: number;
 }
 
 /**
@@ -52,7 +54,8 @@ export interface ManifestTiming {
  * await fetchManifestEvent(pool, tiers, pointer, { patienceMs: 2_000 });
  * ```
  */
-export const MANIFEST_TIMING: ManifestTiming = Object.freeze({ settleMs: 3_000, patienceMs: 8_000, timeoutMs: 10_000 });
+export const MANIFEST_TIMING: ManifestTiming = Object.freeze({ settleMs: 3_000, patienceMs: 8_000, timeoutMs: 10_000, retryDelayMs: 1_000 });
+
 
 /**
  * Relay URLs worth dialling, each once and in one spelling. Hints inside a
@@ -93,18 +96,34 @@ function settleManifestRequest(timing: ManifestTiming): OperatorFunction<{ type:
 interface Asked {
   readonly newest?: NostrEvent;
   readonly answered: boolean;
+  /** True when every relay refused outright, as opposed to the round running out its clock in silence. */
+  readonly refused?: boolean;
 }
 
-async function askRelays(pool: ApplesaucePool, relays: string[], filter: NostrFilter, waits: ManifestTiming): Promise<Asked> {
+async function askOnce(pool: ApplesaucePool, relays: string[], filter: NostrFilter, waits: ManifestTiming): Promise<Asked> {
   const request = pool.request(relays, asFilters([filter]), { complete: settleManifestRequest(waits), timeout: waits.timeoutMs });
   try {
     const events = await lastValueFrom(request.pipe(toArray()), { defaultValue: [] });
     const newest = events.reduce<NostrEvent | undefined>((best, event) => (best && best.created_at >= event.created_at ? best : event), undefined);
     return newest ? { newest, answered: true } : { answered: true };
-  } catch {
+  } catch (error) {
     // Every relay failed, or none answered in time: the network could not say, which is not "no such applet".
-    return { answered: false };
+    return { answered: false, refused: (error as Error).name !== 'TimeoutError' };
   }
+}
+
+/**
+ * One round: ask the relays, and ask once more when every one of them refused
+ * the connection. Busy public relays answer a websocket upgrade with 502 or
+ * 503 for a moment and accept the next one, and applesauce-relay 7 fails a
+ * relay on its first refused connection whatever `reconnect` says. A round
+ * that ran out its clock is not asked again: it already waited.
+ */
+async function askRelays(pool: ApplesaucePool, relays: string[], filter: NostrFilter, waits: ManifestTiming): Promise<Asked> {
+  const first = await askOnce(pool, relays, filter, waits);
+  if (!first.refused) return first;
+  await new Promise((resolve) => setTimeout(resolve, waits.retryDelayMs));
+  return askOnce(pool, relays, filter, waits);
 }
 
 /**
@@ -118,7 +137,8 @@ async function askRelays(pool: ApplesaucePool, relays: string[], filter: NostrFi
  * relay had a bad minute. For addresses, the newest event wins, since a named
  * applet is an addressable event that its author replaces on every release. A
  * relay that is down, silent or hangs up does not fail the lookup while
- * another one answers, and hints that are not relay URLs are ignored.
+ * another one answers, a round whose relays all refused at once is asked a
+ * second time, and hints that are not relay URLs are ignored.
  *
  * @param pool - The shared applesauce pool.
  * @param tiers - Relay tiers; `apps` is asked first, `super` as the fallback.
