@@ -41,3 +41,7 @@ Feature: The shell host
     Given the shell host with window "w1" titled "Notes"
     When the shell host hears window "w1" was revoked for "quarantine"
     Then the shell host marks window "w1" stopped because "The guard stopped it because it kept flooding the shell."
+
+  Scenario: the reply question reaches its dialog and the answer comes back
+    Given the shell host with window "w1" titled "Notes"
+    Then the shell host puts the reply question to the reply dialog

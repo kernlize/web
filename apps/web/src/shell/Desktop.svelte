@@ -8,10 +8,12 @@
   import IframeLayer from './IframeLayer.svelte';
   import DownloadsPanel from './DownloadsPanel.svelte';
   import Launcher from './Launcher.svelte';
-  import MessagesPanel from './MessagesPanel.svelte';
+  import { explainOpenFailure } from './launcher-reasons';
+  import { openMessages } from './messages-applet';
   import { observe } from './observe.svelte';
   import SettingsPanel from './SettingsPanel.svelte';
   import StatusBar from './StatusBar.svelte';
+  import { UnreadMessages } from './unread-messages.svelte';
   import WindowLayer from './WindowLayer.svelte';
   import type { WindowStore } from './window-store.svelte';
 
@@ -22,16 +24,20 @@
     windows: WindowStore;
     guardLog: GuardLog;
     opener: AppletOpener;
+    /** Tell the user something went wrong, in the shell's notices. */
+    onproblem: (title: string, body: string) => void;
     onsignout: () => void;
   }
 
-  const { booted, session, storage, windows, guardLog, opener, onsignout }: Props = $props();
+  const { booted, session, storage, windows, guardLog, opener, onproblem, onsignout }: Props = $props();
   const kernl = $derived(booted.kernl);
 
-  type Overlay = { kind: 'launcher'; address?: string } | { kind: 'grants'; windowId: string } | { kind: 'guard' } | { kind: 'messages' } | { kind: 'settings' } | { kind: 'downloads' };
+  type Overlay = { kind: 'launcher'; address?: string } | { kind: 'grants'; windowId: string } | { kind: 'guard' } | { kind: 'settings' } | { kind: 'downloads' };
 
   let overlay = $state.raw<Overlay | null>(null);
-  let unread = $state(0);
+  const unread = new UnreadMessages();
+  // Messages are read only once the user has asked for them: watching from sign-in would have a signer asked to open mail nobody looked for.
+  let asked = $state(false);
   let desk = $state<HTMLElement | null>(null);
   const profile = observe(kernl.guard.profile$, kernl.guard.config.profile);
   $effect(() => profile.stop);
@@ -59,6 +65,32 @@
     overlay = null;
     windows.open(plan);
   }
+
+  /** A window that is showing messages: the applet takes the role, whoever made it. */
+  const showsMessages = (win: (typeof windows.windows)[number]): boolean => win.status !== 'revoked' && win.plan.summary.archetypes.includes('dm');
+  const reading = $derived(windows.windows.some((win) => win.focused && showsMessages(win)));
+
+  function panel(kind: 'guard' | 'messages' | 'settings' | 'downloads'): void {
+    if (kind !== 'messages') return open(kind);
+    overlay = null;
+    asked = true;
+    void openMessages({
+      kernl,
+      running: (address) => windows.windows.find((win) => win.plan.summary.address === address && showsMessages(win))?.id,
+      focus: (windowId) => windows.focus(windowId),
+      open: (plan) => windows.open(plan),
+    }).catch((reason: unknown) => onproblem('Messages could not be opened', explainOpenFailure(reason)));
+  }
+
+  // Counted again whenever a panel closes: Settings may have switched a provider on or off.
+  $effect(() => {
+    if (overlay !== null || !asked) return;
+    return unread.watch(kernl.messaging.composite(), () => reading);
+  });
+
+  $effect(() => {
+    if (reading) unread.clear();
+  });
 
   // An applet asked another to do something and the user picked who: open it under the grants it already has.
   $effect(() => {
@@ -103,7 +135,7 @@
 </script>
 
 <div class="desktop">
-  <StatusBar {windows} {session} mode={booted.mode} profile={profile.value} guardEvents={guardLog.total} {unread} onlauncher={() => openLauncher()} onpanel={open} {onsignout} />
+  <StatusBar {windows} {session} mode={booted.mode} profile={profile.value} guardEvents={guardLog.total} unread={unread.count} onlauncher={() => openLauncher()} onpanel={panel} {onsignout} />
 
   <div class="desk" bind:this={desk} role="presentation">
     <div class="wallpaper" onpointerdown={() => windows.blur()}></div>
@@ -122,8 +154,6 @@
       <GrantsPanel {kernl} win={grantsWindow} {guardLog} onclose={() => (overlay = null)} />
     {:else if overlay?.kind === 'guard'}
       <GuardPanel {kernl} {guardLog} {windows} onclose={() => (overlay = null)} />
-    {:else if overlay?.kind === 'messages'}
-      <MessagesPanel {kernl} mode={booted.mode} onclose={() => (overlay = null)} onunread={(count) => (unread = count)} />
     {:else if overlay?.kind === 'settings'}
       <SettingsPanel {kernl} mode={booted.mode} downloads={booted.downloads} onclose={() => (overlay = null)} />
     {:else if overlay?.kind === 'downloads'}

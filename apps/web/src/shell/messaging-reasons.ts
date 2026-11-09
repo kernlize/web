@@ -22,6 +22,7 @@ const ERROR_WORDS: Readonly<Record<string, string>> = {
   'invalid:recipient': 'That does not look like an account id.',
   'invalid:groups-unsupported': 'This provider writes to one person at a time.',
   'unavailable:recipient-not-ready': 'Someone you named has not set this provider up yet, so they cannot be added.',
+  'denied:cancelled': 'The message was not sent.',
 };
 
 /** Why a provider cannot be used, in plain words; an unknown code gets a generic sentence. */

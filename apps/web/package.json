@@ -10,7 +10,9 @@
     "check": "astro check"
   },
   "dependencies": {
+    "@kehto/services": "^0.30.1",
     "@kehto/shell": "^0.32.0",
+    "@kernlize/applet-messages": "workspace:^",
     "@kernlize/bridges": "workspace:^",
     "@kernlize/core": "workspace:^",
     "@kernlize/guard": "workspace:^",

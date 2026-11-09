@@ -14,6 +14,7 @@ export type {
   AppletStatus,
   AppletCatalog,
   AppletSummary,
+  BuiltinApplet,
   CatalogEntry,
   ConsentPrompt,
   ConsentSummary,
@@ -56,3 +57,10 @@ export const shortId = (value: string): string => value.slice(0, 8);
 
 /** `abcd1234…wxyz` for publisher keys and account ids. */
 export const abbreviate = (value: string): string => (value.length <= 16 ? value : `${value.slice(0, 8)}…${value.slice(-4)}`);
+
+/**
+ * Who an applet is from, for the lines that say so. One that came with the shell has no publisher
+ * to name: its address is under the shell's own scheme, and the key it carries is a placeholder.
+ */
+export const publisherWords = (applet: { readonly address: string; readonly publisher: string }): string =>
+  applet.address.startsWith('kernl:') ? 'comes with kernl' : `by ${abbreviate(applet.publisher)}`;

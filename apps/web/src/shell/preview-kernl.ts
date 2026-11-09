@@ -30,6 +30,7 @@ import type {
   AppletPointer,
   AppletStatus,
   AppletSummary,
+  BuiltinApplet,
   ConsentSummary,
   FrameLike,
   GuardFacade,
@@ -40,9 +41,12 @@ import type {
 } from './contract';
 import { abbreviate, shortId } from './contract';
 import { domainLabel } from './domains';
-import { PREVIEW_CATALOG, renderPreviewApplet, sampleSummary } from './preview-applet';
+import { PREVIEW_CATALOG, renderPreviewApplet, sampleSummary, sealPreviewDocument } from './preview-applet';
+import { createPreviewBuiltins } from './preview-builtin';
+import { PORT_DOMAINS, createPreviewPorts, type PortLike, type PreviewPorts } from './preview-port';
 import { createPreviewIntents, type PreviewIntentDeps, type PreviewIntents } from './preview-intents';
 import { createPreviewMessaging } from './preview-messaging';
+import type { ShellTheme } from './shell-theme';
 import { baselineDomains, createPreviewGrants, createPreviewRelays, loadBaselineDomains } from './preview-state';
 
 const PREVIEW_OWNER = 'e8f1a4b7c9d2e5f8a1b4c7d0e3f6a9b2c5d8e1f4a7b0c3d6e9f2a5b8c1d4e7f0';
@@ -54,6 +58,8 @@ interface Mounted {
   readonly status$: BehaviorSubject<AppletStatus>;
   /** Stop the applet for a reason the user is told about, as the live mount does. */
   readonly revoke: (reason: string) => void;
+  /** Set once an applet that speaks over a real port has handed it over. */
+  unbind?: () => void;
 }
 
 interface PreviewMessage {
@@ -94,6 +100,47 @@ const ENVELOPES: Readonly<Record<string, { type: string; kind?: number }>> = {
   link: { type: 'link.open' },
   intent: { type: 'intent.invoke' },
 };
+
+/** What a host can change about the preview. */
+export interface PreviewOptions {
+  /** How long delivery of a request to another applet keeps trying. */
+  readonly intentRetry?: PreviewIntentDeps['retry'];
+  /** Applets the shell ships, opened from their real bytes. */
+  readonly builtins?: readonly BuiltinApplet[];
+  /** The shell's colours, for applets that ask for the theme. */
+  readonly theme?: ShellTheme;
+}
+
+const isHello = (data: unknown): boolean => typeof data === 'object' && data !== null && (data as { type?: unknown }).type === 'napplet.hello';
+
+/** What a built-in applet's hello needs: the port it handed over, and the guard that looks at every envelope on it. */
+interface PortDeps {
+  readonly ports: PreviewPorts;
+  readonly guard: PreviewGuard;
+  readonly host: Pick<KernlHost, 'getVisibility'>;
+}
+
+/**
+ * Take a built-in applet's port. A second hello, or one without a port, is ignored: the first
+ * binding stands, as it does in the live shell. Like the samples, the guard records what it sees
+ * and only a quarantine stops the applet (D-011).
+ */
+function bindPort(entry: Mounted, event: MessageEvent, deps: PortDeps): void {
+  const port = event.ports?.[0] as PortLike | undefined;
+  if (!isHello(event.data) || !port || entry.unbind) return;
+  const { windowId, summary, environment } = entry.plan;
+  entry.unbind = deps.ports.bind({
+    windowId,
+    port,
+    domains: environment.capabilities.domains,
+    admit(envelope) {
+      if (deps.guard.ingress().admit(windowId, summary.identity.dTag, envelope, deps.host.getVisibility(windowId)) !== 'quarantine') return true;
+      entry.revoke('quarantine');
+      return false;
+    },
+  });
+  entry.status$.next('running');
+}
 
 function isPreviewMessage(data: unknown): data is PreviewMessage {
   return typeof data === 'object' && data !== null && typeof (data as PreviewMessage).kernlPreview === 'string';
@@ -234,6 +281,7 @@ function createMounter(host: KernlHost, guard: PreviewGuard, mounted: Map<string
     const status$ = new BehaviorSubject<AppletStatus>('mounting');
     const teardown = (status: AppletStatus): void => {
       status$.next(status);
+      mounted.get(plan.windowId)?.unbind?.();
       mounted.delete(plan.windowId);
       guard.ingress().forget(plan.windowId);
       guard.gate().forget(plan.windowId);
@@ -269,22 +317,9 @@ function sessionOf(account: IAccount): Session {
   return { accountId: account.id, pubkey: account.pubkey, label: name ?? abbreviate(account.pubkey), readOnly: account.type === 'readonly' };
 }
 
-/**
- * The shell with nothing behind it: real guard, grants, messaging, bridge
- * and intent-routing packages over in-memory state, a store that lists the
- * preview's own applets, and a static applet document instead of verified
- * bytes. Default when the live core is absent,
- * and the thing Playwright drives.
- */
-export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, intentRetry: PreviewIntentDeps['retry'] = PREVIEW_INTENT_RETRY): ShellKernl {
-  const accounts = new AccountManager();
-  registerCommonAccountTypes(accounts);
-  const guard = createPreviewGuard();
-  const grants = createPreviewGrants(host.storage);
-  const relays = createPreviewRelays(host.storage);
-  const messaging = createPreviewMessaging(host.storage, PREVIEW_OWNER);
+/** The live shell's bridges, with the same confirm-before-leaving opener as its createKernl wiring. */
+function createPreviewBridges(host: KernlHost, torrent: TorrentBackend | undefined): BridgeRegistry {
   const bridges = createBridgeRegistry();
-  // The same confirm-before-leaving opener as the live shell's createKernl wiring.
   const handoff = createHandoffBackends((uri) => host.openLink(uri));
   for (const bridge of [
     createHttpBridge(),
@@ -294,6 +329,50 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, in
     createMailBridge(handoff.mail),
   ])
     bridges.register(bridge);
+  return bridges;
+}
+
+interface PreviewDocument {
+  readonly summary: AppletSummary;
+  /** The checked bytes of an applet the shell ships; undefined for a sample. */
+  readonly shipped: string | undefined;
+  readonly profile: GuardProfile;
+  readonly domains: readonly string[];
+  readonly baseline: readonly string[];
+}
+
+/** The sealed document for a plan: an applet's real bytes when the shell ships it, the sample page otherwise. */
+function previewDocument({ summary, shipped, profile, domains, baseline }: PreviewDocument): string {
+  const guardCsp = createAppletCsp(profile);
+  const csp = { connectOrigins: guardCsp.connectOrigins, directives: guardCsp.directives as NappletCspDirectives };
+  if (shipped !== undefined) return sealPreviewDocument(shipped, { csp, domains });
+  return renderPreviewApplet({
+    title: summary.title,
+    csp,
+    domains,
+    domainLabels: domains.filter((domain) => !baseline.includes(domain)).map(domainLabel),
+    identity: shortId(summary.identity.hash),
+    sample: summary.identity.dTag,
+  });
+}
+
+/**
+ * The shell with nothing behind it: real guard, grants, messaging, bridge
+ * and intent-routing packages over in-memory state, a store that lists the
+ * preview's own applets, and a static applet document instead of verified
+ * bytes. Default when the live core is absent,
+ * and the thing Playwright drives.
+ */
+export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, options: PreviewOptions = {}): ShellKernl {
+  const { intentRetry = PREVIEW_INTENT_RETRY, builtins = [], theme } = options;
+  const accounts = new AccountManager();
+  registerCommonAccountTypes(accounts);
+  const guard = createPreviewGuard();
+  const grants = createPreviewGrants(host.storage);
+  const relays = createPreviewRelays(host.storage);
+  const messaging = createPreviewMessaging(host.storage, PREVIEW_OWNER, host.chooseReply?.bind(host));
+  const shipped = createPreviewBuiltins(builtins, grants);
+  const bridges = createPreviewBridges(host, torrent);
   const session$ = new BehaviorSubject<Session | null>(null);
   const mounted = new Map<string, Mounted>();
   let windowCount = 0;
@@ -316,8 +395,10 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, in
     },
     retry: intentRetry,
   });
-  const { perform } = createActions(host, bridges, () => session$.value?.pubkey ?? PREVIEW_OWNER, intents);
+  const pubkey = (): string => session$.value?.pubkey ?? PREVIEW_OWNER;
+  const { perform } = createActions(host, bridges, pubkey, intents);
   const mount = createMounter(host, guard, mounted);
+  const ports = createPreviewPorts({ messaging, pubkey: () => PREVIEW_OWNER, notify: (notice) => host.notify(notice), ...(theme ? { theme: { initialTheme: theme } } : {}) });
 
   return {
     accounts,
@@ -347,11 +428,17 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, in
     decodePointer(input) {
       const trimmed = input.trim();
       if (!trimmed) throw new Error('invalid:pointer');
+      const builtin = shipped.decode(trimmed);
+      if (builtin) return builtin;
       const sample = sampleSummary(trimmed);
       if (sample) return { kind: 'address', pubkey: sample.publisher, identifier: sample.identity.dTag, eventKind: sample.manifest.kind, relays: [] };
       return { kind: 'event', id: trimmed, relays: [] };
     },
     async resolve(pointer: AppletPointer) {
+      if (pointer.kind === 'builtin') {
+        await loadBaselineDomains();
+        return shipped.resolve(pointer.id);
+      }
       const summary = pointer.kind === 'address' ? sampleSummary(`preview:${pointer.identifier}`) : undefined;
       if (!summary) throw new Error('unavailable:preview-offline');
       await loadBaselineDomains();
@@ -362,20 +449,14 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, in
       if (grants.get(summary.identity)?.blocked) throw new Error('denied:blocked');
       intents.installed.install(summary);
       const baseline = await loadBaselineDomains();
-      const domains = environmentFor(summary);
-      const csp = createAppletCsp(guard.config.profile);
+      const document = shipped.documentOf(summary);
+      // A real applet is offered only what the preview can answer over its port, so nothing it calls hangs.
+      const domains = document === undefined ? environmentFor(summary) : environmentFor(summary).filter((domain) => PORT_DOMAINS.includes(domain));
       windowCount += 1;
       return {
         windowId: `preview-${windowCount}`,
         summary,
-        srcdoc: renderPreviewApplet({
-          title: summary.title,
-          csp: { connectOrigins: csp.connectOrigins, directives: csp.directives as NappletCspDirectives },
-          domains,
-          domainLabels: domains.filter((domain) => !baseline.includes(domain)).map(domainLabel),
-          identity: shortId(summary.identity.hash),
-          sample: summary.identity.dTag,
-        }),
+        srcdoc: previewDocument({ summary, shipped: document, profile: guard.config.profile, domains, baseline }),
         sandbox: 'allow-scripts',
         environment: { capabilities: { domains }, services: [] },
         missingRequired: summary.requires.filter((domain) => !domains.includes(domain)),
@@ -385,6 +466,7 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, in
     applets: () => [...mounted.values()].map((entry) => entry.handle),
     handleWindowMessage(event) {
       const entry = [...mounted.values()].find((candidate) => candidate.frame.contentWindow === event.source);
+      if (entry?.plan.summary.builtin) return bindPort(entry, event, { ports, guard, host });
       if (!entry || !isPreviewMessage(event.data)) return;
       const envelope = ENVELOPES[event.data.kernlPreview] ?? { type: 'generic' };
       const visibility = host.getVisibility(entry.plan.windowId);
@@ -396,6 +478,7 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, in
     },
     destroy() {
       for (const entry of mounted.values()) entry.handle.close();
+      ports.close();
       messaging.close();
     },
   };

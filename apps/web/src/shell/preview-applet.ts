@@ -247,20 +247,26 @@ summary { cursor: pointer; font-size: 14px; margin-bottom: 8px; }
 const NESTED_CONTEXT_LOCK: NappletExperimentalOptions = Object.freeze({ nestedContextLock: true });
 
 /**
- * The static document the preview mounts instead of verified applet bytes. It is sealed the way
- * the live mount plan seals an applet (D-014): markup that declares a frame is refused by kehto's
- * scan (the template escapes everything it shows, so it never does), then
- * kehto puts its CSP (with the Trusted Types directives) and its locked namespace prelude, which
- * removes every WebRTC constructor and closes the frame factories, first in `<head>`, and the
- * guard's insertion lock follows the prelude, before any applet script. The prelude's handshake
- * message carries no `kernlPreview` field, so the preview shell ignores it.
+ * Seal a document the way the live mount plan seals an applet (D-014): markup that declares a frame
+ * is refused by kehto's scan, then kehto puts its CSP (with the Trusted Types directives) and its
+ * locked namespace prelude, which removes every WebRTC constructor and closes the frame factories,
+ * first in `<head>`, and the guard's insertion lock follows the prelude, before any applet script.
  */
-export function renderPreviewApplet(input: PreviewAppletInput): string {
-  const markup = appletMarkup(input);
+export function sealPreviewDocument(markup: string, input: Pick<PreviewAppletInput, 'csp' | 'domains'>): string {
   assertNappletHasNoFrame(markup);
   const prepared = prepareNappletSrcdoc(markup, { domains: input.domains, csp: input.csp, experimental: NESTED_CONTEXT_LOCK });
   const head = renderNappletCspMeta(input.csp, true) + renderNappletNamespacePrelude({ domains: input.domains, experimental: NESTED_CONTEXT_LOCK });
   return prepared.replace(head, () => head + renderInsertionLockScript());
+}
+
+/**
+ * The static document the preview mounts for its sample applets instead of verified applet bytes,
+ * sealed by {@link sealPreviewDocument}. The template escapes everything it shows, so it never
+ * declares a frame. The prelude's handshake message carries no `kernlPreview` field, so the preview
+ * shell ignores it for a sample.
+ */
+export function renderPreviewApplet(input: PreviewAppletInput): string {
+  return sealPreviewDocument(appletMarkup(input), input);
 }
 
 function appletMarkup(input: PreviewAppletInput): string {
