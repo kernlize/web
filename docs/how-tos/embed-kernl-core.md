@@ -110,7 +110,7 @@ export async function openApplet(address: string, container: HTMLElement): Promi
 5. **The frame.** Create the iframe and attach it to the document first: `mount` needs its `contentWindow` and throws `invalid:frame-detached` otherwise. Do not set `src`, `sandbox` or `srcdoc` yourself. Record it under `plan.windowId` so `getVisibility` can answer for it.
 6. **`mount(plan, frame)`** installs the profile's runtime rates, sets the `sandbox` attribute to exactly `allow-scripts` (replacing anything you set) and the controller-denying `allow` policy, registers the window, and only then assigns `srcdoc`. It returns an `AppletHandle`.
 
-After mount, keep the guard informed: call `handle.setVisibility(...)` whenever a window is shown, hidden, focused or blurred (the sample does it on `visibilitychange` and on pointer focus). `handle.close()` revokes the binding and removes the frame; grants stay, keyed by identity. `kernl.destroy()` closes everything when the page goes away.
+After mount, keep the guard informed: call `handle.setVisibility(...)` whenever a window is shown, hidden, focused or blurred (the sample does it on `visibilitychange` and on pointer focus). A page with more than one applet can leave that to kernl's window manager, which also places the windows: [Write your own window manager](./write-a-window-manager.md#outside-the-shell) shows it outside the shell. `handle.close()` revokes the binding and removes the frame; grants stay, keyed by identity. `kernl.destroy()` closes everything when the page goes away.
 
 ## 4. Check it
 

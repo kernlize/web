@@ -6,7 +6,7 @@ Opinionated shell composition over kehto and applesauce. Browser-agnostic: the D
 | --- | --- |
 | Package | `@kernlize/core` |
 | Version | `0.3.0` |
-| Entry | `./dist/index.js`, types `./dist/index.d.ts` |
+| Entry | `./dist/index.js`, types `./dist/index.d.ts`; `@kernlize/core/wm` is `./dist/wm/index.js`, the layouts and the window manager without the network stack |
 | Dependencies | `@internet-privacy/marmot-ts ^0.9.0`; `@kehto/acl ^0.20.3`; `@kehto/firewall ^0.7.0`; `@kehto/nip ^0.8.0`; `@kehto/runtime ^0.28.0`; `@kehto/services ^0.30.1`; `@kehto/shell ^0.32.0`; `@kehto/wm ^0.0.2`; `@kernlize/bridges workspace:^`; `@kernlize/guard workspace:^`; `@kernlize/messaging workspace:^`; `applesauce-accounts ^7.0.2`; `applesauce-common ^7.0.0`; `applesauce-core ^7.0.3`; `applesauce-loaders ^7.0.2`; `applesauce-relay ^7.0.0`; `applesauce-signers ^7.0.1`; `nostr-double-ratchet ^0.0.183`; `rxjs ^7.8.2` |
 | Peer dependencies | `@napplet/core >=0.38.0 <0.39.0`; `@napplet/nap >=0.37.0 <0.38.0`; `@napplet/shim >=0.30.0`; `nostr-tools >=2.23.3 <=2.x` |
 | Side effects | none |
@@ -242,25 +242,75 @@ Unknown domains need no capability (`capabilitiesForDomain('made-up')` is `[]`).
 
 `createConsentHandler(host, lookupBefore, resolveApplet)` answers kehto's own `ConsentRequest`. The kehto runtime kernl pins raises only `firewall-policy` requests, which carry no event, and the handler refuses those without asking. A request that does carry an event, from a window the shell can name, would be described and put to the user, so a later kehto release that adds such prompts is answered honestly; one from an unknown window is refused.
 
-### Layouts
+### Layouts and the window manager
 
-Pure `LayoutStrategy` values over `@kehto/wm` types. Minimised windows are never arranged.
+Everything in this section is also exported from `@kernlize/core/wm`, an entry that imports only `rxjs`. A shell that loads the core on demand, as `apps/web` does, can import its window management up front from there.
+
+Pure `LayoutStrategy` values over `@kehto/wm` types. Minimised windows are never arranged, and rectangles are whole pixels rounded at their edges, so neighbours never overlap or leave a hole.
 
 | Export | Behaviour |
 | --- | --- |
 | `floatingLayout` | Every window keeps its rectangle. |
-| `createDwindleLayout({ gap? })` | Each window after the first takes half the remaining area, splitting vertically then horizontally in turn. |
-| `createColumnsLayout({ gap? })` | Equal-width columns in window order. |
-| `createMasterStackLayout({ ratio?, gap? })` | The focused window (or the first) takes `ratio` of the width (default 0.6) on the left; the rest stack on the right. |
+| `createDwindleLayout({ gap?, margin? })` | Each window after the first takes half the remaining area, splitting vertically then horizontally in turn. |
+| `createColumnsLayout({ gap?, margin? })` | Equal-width columns in window order. |
+| `createMasterStackLayout({ ratio?, gap?, margin? })` | The focused window (or the first) takes `ratio` of the width (default 0.6) on the left; the rest stack on the right. |
+
+`gap` is the pixels between windows; `margin` is the pixels between the windows and the container edge and defaults to `gap`.
 
 ```ts
-import { createMasterStackLayout } from '@kernlize/core';
-import type { WindowState } from '@kehto/wm';
+import { createMasterStackLayout, type WindowState } from '@kernlize/core';
 
 declare const windows: WindowState[];
 
 createMasterStackLayout({ ratio: 0.5, gap: 8 }).arrange(windows, { x: 0, y: 0, w: 1200, h: 800 });
 ```
+
+A `LayoutRegistry` holds the layouts a window manager offers, as `LayoutEntry` values: `{ id, label, strategy, freeform? }`.
+
+| Export | Behaviour |
+| --- | --- |
+| `createLayoutRegistry(entries?)` | A registry holding `entries`, in order. `register(entry)` throws `invalid:duplicate-layout` for an id that is taken; `get(id)` and `list()` read it. |
+| `createDefaultLayouts(options?)` | A registry with `floating` (freeform), `dwindle` (labelled "tiled"), `columns` and `master-stack` (labelled "main and stack"). `options` is the `LayoutOptions` for the three that arrange. |
+
+`createWindowManager(options?)` returns a `WindowManager`: placement, focus, stacking, minimising and what the guard is told about each window, with no DOM of its own. [Layouts](../concepts/layouts.md#the-window-manager) describes its behaviour, and `packages/core/features/window-manager.feature` specifies it.
+
+| `WindowManagerOptions` | Default | Meaning |
+| --- | --- | --- |
+| `layouts` | `createDefaultLayouts()` | The registry on offer. An empty one throws `invalid:no-layouts`. |
+| `layout` | the first registered | The id to start in. One that is not registered is ignored. |
+| `area` | `{ x: 0, y: 0, w: 1280, h: 800 }` | Where windows are laid out until `setArea` is called. |
+| `compactWidth` | `720` | At or below this area width every window fills the area. `0` turns it off. |
+| `windowSize` | `{ w: 720, h: 660 }` | The size a new window opens at. |
+| `minSize` | `{ w: 280, h: 160 }` | The smallest a window may be made. |
+| `onLayout` | none | Called with the id after every `setLayout`. |
+| `now` | `Date.now` | Clock for `msSinceFocusGain`. |
+
+| `WindowManager` member | Behaviour |
+| --- | --- |
+| `state$`, `snapshot()` | The `WindowManagerState`, as an Observable that starts with the current value, and on demand: `windows` (each a `ManagedWindow` of `id`, `rect`, `z`, `focused`, `minimised`, `stopped`, in opening order), `focusedId`, `layout`, `area`, `compact`, `freeform`. |
+| `layouts()` | The `{ id, label }` of every layout on offer, read from the registry on each call. |
+| `open(id)`, `close(id)` | Add a window in front, focused; remove one and stop reporting to it. Opening an open id brings it to the front. |
+| `focus(id)`, `blur()`, `minimise(id)` | Give a window the person's attention, showing it if minimised; take attention from every window; hide one. |
+| `move(id, rect)` | Move or resize a window, kept inside the area and no smaller than `minSize`. Ignored unless the state is `freeform`. |
+| `stop(id)` | The window's applet was stopped: it loses focus, is reported to no more and waits to be closed. |
+| `attach(id, target)` | Report the window's visibility to `target.setVisibility`, now and after every change. An `AppletHandle` is a `VisibilityTarget`. A second call for the same window is ignored. |
+| `visibilityOf(id)` | The `WindowVisibility` to answer `KernlHost.getVisibility` with. An unknown window is neither visible nor focused. |
+| `setArea(rect)`, `setLayout(id)`, `setPageVisible(visible)` | Change where windows are laid out, which layout arranges them (`invalid:unknown-layout` for an id nobody registered), and whether the page itself can be seen. |
+| `destroy()` | Stop reporting and complete `state$`. |
+
+```ts
+import { createDefaultLayouts, createWindowManager, type AppletHandle } from '@kernlize/core';
+
+declare const handle: AppletHandle;
+
+const windows = createWindowManager({ layouts: createDefaultLayouts({ gap: 8, margin: 0 }), layout: 'columns' });
+windows.setArea({ x: 0, y: 0, w: 1440, h: 900 });
+windows.open(handle.windowId);
+windows.attach(handle.windowId, handle);
+windows.snapshot().windows[0]?.rect; // { x: 0, y: 0, w: 1440, h: 900 }
+```
+
+Writing a manager of your own against the `WindowManager` interface, and the one rule it must keep, is in [Write your own window manager](../how-tos/write-a-window-manager.md).
 
 ## Exports
 
@@ -371,8 +421,12 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `MESSAGING_UNAVAILABLE_REASONS` | `Readonly<Record<'signInRequired' \| 'signerCannotEncrypt' \| 'noRuntime', string>>` | `sign-in-required`, `signer-cannot-encrypt`, `no-runtime`. |
 | `createDefaultBridges` | `(options?: DefaultBridgesOptions) => BridgeRegistry` | The HTTP bridge plus torrent, nzb, soulseek and mail. Without `options.handoff` the last four report `no-backend` ([D-010](../decisions.md#d-010)); with it they hand off to an app on the device. `options.torrent` replaces the hand-off for the torrent bridge only ([D-017](../decisions.md#d-017)). `options.http` goes to the HTTP bridge; the rest to the registry. |
 | `floatingLayout`, `createDwindleLayout`, `createColumnsLayout`, `createMasterStackLayout` | `LayoutStrategy` and `(options?) => LayoutStrategy` | The layouts above. |
+| `createLayoutRegistry`, `createDefaultLayouts` | `(entries?: readonly LayoutEntry[]) => LayoutRegistry`, `(options?: LayoutOptions) => LayoutRegistry` | The layouts a window manager offers. |
+| `createWindowManager` | `(options?: WindowManagerOptions) => WindowManager` | kernl's window manager. |
 | `createNamespacedStore` | `(storage: StorageLike, prefix: string) => NamespacedStore` | `getJson`, `setJson`, `remove` under `<prefix>:`; corrupt JSON reads as the fallback. |
 | `DefaultMessagingOptions`, `DefaultBridgesOptions`, `LayoutOptions`, `MasterStackOptions`, `NamespacedStore` | types | |
+| `LayoutChoice`, `LayoutEntry`, `LayoutRegistry`, `ManagedWindow`, `VisibilityTarget`, `WindowManager`, `WindowManagerOptions`, `WindowManagerState`, `WindowSize` | types | The window-management surface. |
+| `LayoutStrategy`, `Rect`, `WindowPlacement`, `WindowState` | types | Re-exported from `@kehto/wm`, so a layout can be written against one import. |
 
 ## Scope
 
