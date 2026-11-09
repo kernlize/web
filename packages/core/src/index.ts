@@ -32,6 +32,29 @@ export type * from './types.js';
 export { createNamespacedStore, type NamespacedStore } from './persistence/store.js';
 export { DEFAULT_RELAY_TIERS, createRelayTiers } from './relays/tiers.js';
 export type { TierMap } from './relays/tiers.js';
+export { describeOutcome, relayUrls, summarizePublish, toRelayUrl, type PublishAnswer, type PublishOutcome } from './relays/publish-outcome.js';
+export {
+  DEFAULT_MONITOR_RELAYS,
+  DEFAULT_SUGGESTIONS,
+  createRelayDirectory,
+  type DirectoryPool,
+  type RelayDirectory,
+  type RelayDirectoryOptions,
+  type RelayListing,
+  type SuggestOptions,
+  type SuggestPurpose,
+} from './relays/directory.js';
+export {
+  createAccountMailboxes,
+  mailboxTags,
+  mailboxesFromEvent,
+  type AccountMailboxes,
+  type AccountMailboxesOptions,
+  type MailboxPool,
+  type MailboxSigner,
+  type MailboxState,
+  type Mailboxes,
+} from './relays/mailboxes.js';
 
 export {
   createRelayPoolHooks,

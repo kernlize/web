@@ -28,3 +28,6 @@ import './kernl-intents.js';
 import './crypto-fallback.js';
 import './live-lookup.js';
 import './builtin.js';
+import './publish-outcome.js';
+import './relay-directory.js';
+import './mailboxes.js';
