@@ -5,6 +5,7 @@
   import type { BootMode, RelayTier, ShellKernl } from './contract';
   import type { DownloadMode, ShellDownloads } from './downloads';
   import { toggleTheme } from '../lib/theme';
+  import MessagingSettings from './MessagingSettings.svelte';
   import { observe } from './observe.svelte';
   import Overlay from './Overlay.svelte';
   import { serverAddress, serverLabel } from './servers';
@@ -78,6 +79,7 @@
     </div>
     {#if error}<p class="shell-error" role="alert">{error}</p>{/if}
   </section>
+  <MessagingSettings {kernl} />
   <section class="shell-section">
     <h3>Downloads</h3>
     <fieldset class="choices">

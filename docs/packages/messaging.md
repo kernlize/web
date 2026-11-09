@@ -46,8 +46,12 @@ One contract for every private-messaging protocol, truthful self-description ins
 | `MessagingBackend` | interface | `status()`, `conversations(query?)`, `messages(query)`, `send(request)`, `subscribe(request, onMessage)`, `unsubscribe(subscriptionId)`, `close?()`. Every method except `send` may return synchronously or a promise. Structurally kehto's `DmAdapter`. |
 | `SecurityProperties` | interface | `forwardSecrecy`, `postCompromiseSecurity`, `metadataProtection: 'none' \| 'partial' \| 'strong'`, `requiresSameClient`, `groups`, `specification?`, `experimental`. |
 | `ProviderAvailability` | union | `{ available: true }` or `{ available: false; reason: string }`. The reason is a bare word such as `sign-in-required`; the registry prefixes it as `unavailable:<reason>`. |
-| `ProviderEntry` | interface | `{ provider; enabled: boolean; availability: ProviderAvailability }`, what `MessagingRegistry.list()` and `get()` return. |
-| `MessagingPreferences` | interface | `{ enabled: readonly string[]; defaultProvider?: string }`, the persisted registry state. |
+| `ProviderEntry` | interface | `{ provider; enabled: boolean; availability: ProviderAvailability }`, what `MessagingRegistry.list()` and `get()` return. `enabled` means its backend is running. |
+| `MessagingPreferences` | interface | `{ enabled; order; defaultProvider?; reply; replyChoices }`, the persisted registry state. `enabled` is what the user wants on (running or waiting until it can run), `order` every registered provider with the first choice first, `defaultProvider` the first one running, `reply` a `ReplyRule`, `replyChoices` the per-person answers by public key. |
+| `SavedMessagingPreferences` | type | `Pick<MessagingPreferences, 'enabled'> & Partial<MessagingPreferences>`: what an earlier session saved, including snapshots from before there was an order. |
+| `ReplyRule` | union | `'ask' \| 'theirs' \| 'mine'`: what happens when a reply would leave through a provider other than the one its recipient last wrote through. |
+| `ReplyPrompt` | interface | `{ peer: DmPeer; theirs: MessagingProvider; mine: MessagingProvider }`, the question put to the user. |
+| `ReplyAnswer` | interface | `{ use: 'theirs' \| 'mine'; remember: 'once' \| 'conversation' \| 'always' }`. |
 | `PACKAGE_NAME` | `'@kernlize/messaging'` | The package name as a constant. |
 
 ### Registry
@@ -55,14 +59,16 @@ One contract for every private-messaging protocol, truthful self-description ins
 | Export | Signature | Description |
 | --- | --- | --- |
 | `createMessagingRegistry` | `(options?: MessagingRegistryOptions) => MessagingRegistry` | One per shell. Owns one backend per enabled provider, restores saved preferences lazily as providers register, and hands out one stable composite backend. |
-| `MessagingRegistryOptions` | interface | `{ preferences?: MessagingPreferences; onChange?: (preferences: MessagingPreferences) => void }`. `onChange` receives a frozen snapshot after every change. |
-| `MessagingRegistry` | interface | `register(provider)`, `list()`, `get(id)`, `enable(id)`, `disable(id)`, `setDefault(id)`, `preferences()`, `composite()`, `close()`. Error reasons: `invalid:duplicate-provider`, `invalid:unknown-provider`, `unavailable:<reason>`, `invalid:provider-not-enabled`. |
+| `MessagingRegistryOptions` | interface | `{ preferences?: SavedMessagingPreferences; onChange?: (preferences: MessagingPreferences) => void; askReply?: (prompt: ReplyPrompt) => Promise<ReplyAnswer \| undefined> }`. `onChange` receives a frozen snapshot after every change; `askReply` resolving `undefined` stops the send with `denied:cancelled`. |
+| `MessagingRegistry` | interface | `register(provider)`, `list()`, `get(id)`, `enable(id)`, `disable(id)`, `setDefault(id)`, `setOrder(ids)`, `setReplyRule(rule)`, `forgetReplyChoice(pubkey?)`, `preferences()`, `composite()`, `close()`. Error reasons: `invalid:duplicate-provider`, `invalid:unknown-provider`, `unavailable:<reason>`, `invalid:provider-not-enabled`. |
 
 ### Composite backend
 
 | Export | Signature | Description |
 | --- | --- | --- |
-| `createCompositeBackend` | `(resolveEnabled: () => readonly EnabledBackend[], getDefault: () => string \| undefined) => MessagingBackend` | One backend over every enabled provider. Ids leaving it are `<providerId>:<innerId>`; ids arriving are routed by prefix. Rules for cursors, sends and subscriptions are in [Messaging](../concepts/messaging.md#the-composite-backend). |
+| `createCompositeBackend` | `(resolveEnabled: () => readonly EnabledBackend[], getDefault: () => string \| undefined, options?: CompositeOptions) => MessagingBackend` | One backend over every enabled provider, given in the user's order. Ids leaving it are `<providerId>:<innerId>`; ids arriving are routed by prefix. Rules for cursors, sends and subscriptions are in [Messaging](../concepts/messaging.md#the-composite-backend). |
+| `CompositeOptions` | interface | `{ chooseReply?: (choice: ReplyChoice) => Promise<string> \| string }`: settles a one-to-one send whose planned provider is not the one the correspondent last used. It resolves the provider id to use; a rejection stops the send. |
+| `ReplyChoice` | interface | `{ peer: DmPeer; theirs: string; mine: string }`, provider ids. `peer` is the correspondent as the provider they last wrote through describes them, name included when it knows one. |
 | `EnabledBackend` | interface | `{ id: string; backend: MessagingBackend }`. |
 | `WithProvider<T>` | type | `T & { provider?: string }`: a `DmSendRequest` that names the provider for a new conversation. |
 | `namespaceId` | `(providerId: string, innerId: string) => string` | `'private:direct:ab,cd'`. |
@@ -106,7 +112,7 @@ backend.deliver({ senderPubkey: 'alice', content: 'hello' });
 const registry = createMessagingRegistry({ onChange: (prefs) => console.log(prefs) });
 registry.register(createPrivateMessagesProvider({ createBackend: () => backend, available: () => ({ available: true }) }));
 registry.enable('private');
-registry.setDefault('private');
+registry.preferences().defaultProvider; // 'private': the first enabled provider in the order
 
 const page = await registry.composite().conversations({ limit: 20 });
 page.conversations[0]?.id; // 'private:direct:alice'
@@ -124,7 +130,7 @@ createCompositeBackend(() => [{ id: 'private', backend }], () => 'private');
 
 ## Specification
 
-`packages/messaging/features/`: `registry.feature`, `composite.feature`, `memory-backend.feature`, `providers.feature`.
+`packages/messaging/features/`: `registry.feature`, `composite.feature`, `reply.feature`, `memory-backend.feature`, `providers.feature`.
 
 ## API reference
 

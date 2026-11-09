@@ -154,7 +154,7 @@ function previewKernl(world: PreviewWorld, inKernl: boolean): void {
   };
   const torrent = inKernl ? createShellDownloads({ storage: host.storage, client: createPreviewTorrentClient(() => () => undefined), open: host.openLink, inKernl }).torrent : undefined;
   const scratch: PreviewScratch = {
-    kernl: createPreviewKernl(host, torrent, { intervalMs: 2, attempts: 20 }),
+    kernl: createPreviewKernl(host, torrent, { intentRetry: { intervalMs: 2, attempts: 20 } }),
     prompts,
     notices,
     links,

@@ -1,0 +1,24 @@
+version: 1
+sourceDir: .
+relays: []
+blossomServers: []
+defaultTarget: named
+named:
+  - messages
+discover:
+  enabled: true
+  roots:
+    - .
+signing:
+  mode: interactive
+conformance:
+  command: napplet-conformance
+paja:
+  command: kehto
+metadata:
+  name: messages
+  title: Messages
+  description: Read and write private messages. The shell you run it in does the encrypting, the sending and the choosing of how; this applet only shows the conversation.
+  archetypes:
+    - slug: dm
+      convention: napplet:dm/open

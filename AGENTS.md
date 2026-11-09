@@ -21,6 +21,7 @@ Finish interrupted work before starting new work. Never discard changes you did 
 | `packages/bridges` | `@kernlize/bridges` | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy |
 | `packages/core` | `@kernlize/core` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, persistence; layouts and the window manager, also at `@kernlize/core/wm` |
 | `apps/web` | `@kernlize/web` | Astro site: landing at `/`, long-form pages under `/about/`, shell at `/app/` |
+| `applets/messages` | `@kernlize/applet-messages` | The Messages applet the shell ships: a single-file napplet over the `dm` domain, built with the napplet toolchain (its own `AGENTS.md` applies inside it) |
 | `docs` | `@kernlize/docs` | VitePress site at `/docs/` |
 | `scripts` | | Build, audit and guard scripts |
 | `features` | | Cross-package behaviour specs |
@@ -70,9 +71,10 @@ Code, features, step definitions and docs change in the same PR.
 
 | Command | What it does |
 |---|---|
-| `pnpm build` | Build every package through turbo |
+| `pnpm build` | Build every package and shipped applet through turbo |
 | `pnpm type-check` | `tsc --noEmit` everywhere |
 | `pnpm test` | Features and unit tests with coverage thresholds |
+| `pnpm test:applets` | Each shipped applet's own guidance tests, unit tests, type-check and build |
 | `pnpm test:e2e` | Playwright against the built site |
 | `pnpm docs:dev` / `pnpm docs:check` | VitePress dev server / docs gate |
 | `pnpm site:dev` / `pnpm site:build` | Astro dev server / full Pages artifact in `.pages/` |

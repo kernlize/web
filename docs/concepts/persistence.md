@@ -24,7 +24,7 @@ The prefix keeps kernl's keys apart from kehto's and from the host app's in the 
 | `kernl:active-account:v1` | `createKernlAccounts` | The active account's id. Removed when no account is active. |
 | `kernl:grants:v1` | `createGrants` | One record per verified applet build, keyed `<dTag>:<hash>`: `{ dTag, hash, domains, blocked }`. See [Identity and grants](./identity-and-grants.md). |
 | `kernl:relays:v1` | `createRelayTiers` | The four relay tiers, each a list of URLs. See [Relay tiers](./relay-tiers.md). |
-| `kernl:messaging:v1` | `createDefaultMessaging` | `MessagingPreferences`: the `enabled` provider ids and the optional `defaultProvider`. See [Messaging](./messaging.md). |
+| `kernl:messaging:v1` | `createDefaultMessaging` | `MessagingPreferences`: the provider ids the user wants on, their `order`, the `reply` rule and the per-person `replyChoices` (public keys of people the user settled the reply question for). See [Messaging](./messaging.md). |
 | `kernl:installed:v1` | `createInstalledApplets` | The installed applets: `{ catalogId, address, title, publisher, contracts, installedAt }` each, where `contracts` are the roles and requests from the verified manifest. See [The store and intents](./store-and-intents.md#installing). |
 | `kernl:intent-defaults:v1` | `createHandlerDefaults` | The user's default applet per role, `{ <role>: <catalogId> }`, on this device. |
 | `kernl:intent-sync:v1` | `createHandlerDefaults` | `true` when the user chose to publish their choices with their account; absent or `false` otherwise. |

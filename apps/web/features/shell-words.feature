@@ -7,6 +7,10 @@ Feature: Shell words
     And the shell abbreviates "abcdef0123456789" as "abcdef0123456789"
     And the shell abbreviates "abcdef0123456789wxyz" as "abcdef01…wxyz"
 
+  Scenario: an applet is said to be from its publisher, or from the shell when it came with it
+    Then an applet at "naddr1chat" published by "abcdef0123456789wxyz" is said to be "by abcdef01…wxyz"
+    And an applet at "kernl:messages" published by "0000000000000000000000" is said to be "comes with kernl"
+
   Scenario: the shell has fixed defaults for windows and storage
     Then a new shell window opens at 720 by 660
     And the shell keeps recent applets under "kernl:recent:v1" and the layout under "kernl:layout:v1"
@@ -85,6 +89,7 @@ Feature: Shell words
     And the shell explains the open failure "unavailable:blob" as "The applet was found, but its file could not be downloaded right now. Try again later."
     And the shell explains the open failure "invalid:domain" as "This shell cannot provide something that was switched on for this applet. Look it up again."
     And the shell explains the open failure "invalid:blob-hash-mismatch" as "This applet did not pass the shell's checks, so it was not opened."
+    And the shell explains the open failure "invalid:artifact-hash" as "The copy of this applet that came with the shell is damaged. Reload the page and try again."
     And the shell explains the open failure "unavailable:somewhere else" as "The applet cannot be reached right now. Try again later."
     And the shell explains the open failure "denied:because" as "The shell refused to open this applet."
     And the shell explains the open failure "timeout" as "Looking up the applet took too long. Try again."
@@ -187,6 +192,7 @@ Feature: Shell words
     And the shell explains the messaging refusal "invalid:recipient" as "That does not look like an account id."
     And the shell explains the messaging refusal "invalid:groups-unsupported" as "This provider writes to one person at a time."
     And the shell explains the messaging refusal "denied:nope" as "That did not work. Try again."
+    And the shell explains the messaging refusal "denied:cancelled" as "The message was not sent."
     And the shell explains the thrown messaging error "invalid:unknown-provider zz" as "That provider is not part of this shell."
 
   Scenario: a record to sign is spelled out field by field
@@ -265,3 +271,51 @@ Feature: Shell words
       | id   | reason     | availability    |
       | mail | no-backend | Needs a backend |
       | post | broken     | Not available   |
+
+  Scenario: the reply question says who wrote, how, and what the order would do
+    Given a reply question about "Ada" who wrote through "Legacy messages" while the order picks "Private messages"
+    Then the reply question reads "Ada last wrote to you through Legacy messages. Your order would send this through Private messages, and Ada may not see it there."
+    And the reply question can be kept "For this message only | Every time I write to Ada | Every time, for everyone"
+
+  Scenario: someone the shell has no name for is called by a short account id
+    Given a reply question about the account "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d" who wrote through "Legacy messages" while the order picks "Private messages"
+    Then the reply question can be kept "For this message only | Every time I write to 3bf0c63f…459d | Every time, for everyone"
+
+  Scenario Outline: keeping an answer for everyone says what rule it becomes
+    Then keeping "<use>" for everyone means "<words>"
+
+    Examples:
+      | use    | words                                                                                         |
+      | theirs | The shell will reply through whichever provider the other person last used, without asking. |
+      | mine   | The shell will always use your order, without asking.                                         |
+
+  Scenario: Settings lists the three reply rules, asking first
+    Then the reply rules are "Ask me | Reply the way they wrote to me | Always use my order"
+
+  Scenario Outline: Settings says for how many people the question is settled
+    Then <count> settled answers read "<words>"
+
+    Examples:
+      | count | words                             |
+      | 0     |                                   |
+      | 1     | You settled this for one person.  |
+      | 4     | You settled this for 4 people.    |
+
+  Scenario Outline: a provider moves one step in the order, and stops at either end
+    Then moving "<id>" <step> in "private,legacy,ratchet" gives "<order>"
+
+    Examples:
+      | id      | step | order                  |
+      | legacy  | -1   | legacy,private,ratchet |
+      | legacy  | 1    | private,ratchet,legacy |
+      | private | -1   | private,legacy,ratchet |
+      | ratchet | 1    | private,legacy,ratchet |
+      | ghost   | 1    | private,legacy,ratchet |
+
+  Scenario: applets are told the colours of the page the shell is on
+    Given the page's style tokens "--bg-raised: #fcfaf4 ; --ink:#15171b; --accent: #9a5b00"
+    Then the shell's theme is background "#fcfaf4", text "#15171b" and primary "#9a5b00"
+
+  Scenario: a page without the shell's tokens has no theme to tell
+    Given the page's style tokens "--ink:#15171b"
+    Then the shell has no theme

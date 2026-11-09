@@ -7,10 +7,11 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "turbo run build --filter=\"./packages/*\"",
+    "build": "turbo run build --filter=\"./packages/*\" --filter=\"./applets/*\"",
     "type-check": "turbo run type-check --filter=\"./packages/*\"",
     "test": "vitest run --coverage",
     "test:watch": "vitest",
+    "test:applets": "pnpm --filter \"./applets/*\" verify",
     "test:e2e": "pnpm site:build && playwright test",
     "docs:dev": "pnpm --filter @kernlize/docs dev",
     "docs:api": "typedoc",
@@ -23,7 +24,7 @@
     "check:agent-ready": "node scripts/audit-agent-readiness.mjs",
     "check:deps": "node scripts/check-dependency-rules.mjs",
     "slop": "aislop scan --json . | node scripts/assert-slop-score.mjs",
-    "check": "pnpm build && pnpm type-check && pnpm test && pnpm check:deps && pnpm docs:check && pnpm --filter @kernlize/web check && pnpm --filter @kernlize/web build && node scripts/build-pages.mjs && pnpm check:vocabulary && pnpm check:agent-ready && pnpm slop",
+    "check": "pnpm build && pnpm type-check && pnpm test && pnpm test:applets && pnpm check:deps && pnpm docs:check && pnpm --filter @kernlize/web check && pnpm --filter @kernlize/web build && node scripts/build-pages.mjs && pnpm check:vocabulary && pnpm check:agent-ready && pnpm slop",
     "changeset": "changeset",
     "version-packages": "changeset version && node scripts/sync-doc-versions.mjs && pnpm install --lockfile-only",
     "site:publish": "bash scripts/publish-site.sh",

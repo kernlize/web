@@ -54,6 +54,7 @@ export {
 export { KernlAccountManager, PLAINTEXT_KEY_ACCOUNT_TYPES, createKernlAccounts } from './applesauce/accounts.js';
 
 export { decodePointer } from './applets/pointer.js';
+export { BUILTIN_PUBLISHER, builtinAddress, resolveBuiltin } from './applets/builtin.js';
 export {
   BLOB_TIMEOUT_MS,
   MANIFEST_TIMING,
@@ -63,6 +64,7 @@ export {
   resolveApplet,
   summarize,
   type ManifestTiming,
+  type PublishedPointer,
   type ResolveAppletOptions,
   type ResolvedApplet,
 } from './applets/resolve.js';

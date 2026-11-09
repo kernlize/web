@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { Page, WebSocketRoute } from '@playwright/test';
-import { nip19 } from 'nostr-tools';
+import { nip04, nip19, nip44 } from 'nostr-tools';
 import { finalizeEvent, generateSecretKey, getPublicKey, type EventTemplate, type VerifiedEvent } from 'nostr-tools/pure';
 
 /**
@@ -132,16 +132,26 @@ export interface SignerExtension {
  * and carries each request across the page as window messages, which the shell's own message
  * handler therefore sees. The key is made for the test and never leaves this process.
  */
-export async function installSignerExtension(page: Page): Promise<SignerExtension> {
+export async function installSignerExtension(page: Page, options: { readonly encrypts?: boolean } = {}): Promise<SignerExtension> {
   const secret = generateSecretKey();
   const extension: SignerExtension = { pubkey: getPublicKey(secret), calls: {} };
+  const sealed = (peer: string): Uint8Array => nip44.v2.utils.getConversationKey(secret, peer);
+  // Encryption is offered only when the test asks: an extension without it is how a provider learns it cannot run.
+  const ciphers: Readonly<Record<string, (peer: string, text: string) => string | Promise<string>>> = {
+    'nip04.encrypt': (peer, text) => nip04.encrypt(secret, peer, text),
+    'nip04.decrypt': (peer, text) => nip04.decrypt(secret, peer, text),
+    'nip44.encrypt': (peer, text) => nip44.v2.encrypt(text, sealed(peer)),
+    'nip44.decrypt': (peer, text) => nip44.v2.decrypt(text, sealed(peer)),
+  };
   await page.context().exposeBinding('__testSigner', (_source, method: string, params: unknown[]) => {
     extension.calls[method] = (extension.calls[method] ?? 0) + 1;
     if (method === 'getPublicKey') return extension.pubkey;
     if (method === 'signEvent') return finalizeEvent(params[0] as EventTemplate, secret);
+    const cipher = options.encrypts ? ciphers[method] : undefined;
+    if (cipher) return cipher(params[0] as string, params[1] as string);
     throw new Error(`the test signer does not do ${method}`);
   });
-  await page.addInitScript(() => {
+  await page.addInitScript((encrypts) => {
     const signer = (window as unknown as { __testSigner?: (method: string, params: unknown[]) => Promise<unknown> }).__testSigner;
     const pending = new Map<string, { resolve(value: unknown): void; reject(error: Error): void }>();
     window.addEventListener('message', (event) => {
@@ -165,7 +175,12 @@ export async function installSignerExtension(page: Page): Promise<SignerExtensio
       pending.set(id, { resolve, reject });
       window.postMessage({ type: 'nostr-request', id, method, params }, '*');
     });
-    Object.defineProperty(window, 'nostr', { value: { getPublicKey: () => ask('getPublicKey'), signEvent: (event: unknown) => ask('signEvent', [event]) } });
-  });
+    const cipher = (name: string) => ({
+      encrypt: (peer: string, text: string) => ask(`${name}.encrypt`, [peer, text]),
+      decrypt: (peer: string, text: string) => ask(`${name}.decrypt`, [peer, text]),
+    });
+    const signing = { getPublicKey: () => ask('getPublicKey'), signEvent: (event: unknown) => ask('signEvent', [event]) };
+    Object.defineProperty(window, 'nostr', { value: encrypts ? { ...signing, nip04: cipher('nip04'), nip44: cipher('nip44') } : signing });
+  }, options.encrypts === true);
   return extension;
 }

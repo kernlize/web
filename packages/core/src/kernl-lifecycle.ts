@@ -1,9 +1,10 @@
 import type { Subscription } from 'rxjs';
 import { originRegistry, type ShellAdapter, type ShellBridge } from '@kehto/shell';
 import type { NappletArtifactCache } from '@kehto/nip/5d';
-import type { AppletHandle, AppletIdentity, AppletPointer, AppletSummary, FrameLike, Kernl, KernlHost, MountPlan, RelayTiers } from './types.js';
+import type { AppletHandle, AppletIdentity, AppletPointer, AppletSummary, BuiltinApplet, FrameLike, Kernl, KernlHost, MountPlan, RelayTiers } from './types.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
-import { fetchManifestEvent, resolveApplet } from './applets/resolve.js';
+import { resolveBuiltin } from './applets/builtin.js';
+import { fetchManifestEvent, resolveApplet, type PublishedPointer, type ResolvedApplet } from './applets/resolve.js';
 import { planMount } from './applets/plan.js';
 import { mountApplet, type MountedApplet } from './applets/mount.js';
 import type { GuardPipeline, WindowResolution } from './guard/pipeline.js';
@@ -27,6 +28,8 @@ export interface LifecycleContext {
   readonly subscriptions: Subscription;
   readonly openCache: () => Promise<NappletArtifactCache | undefined>;
   readonly fetchBlob: (sha256: string, servers: readonly string[]) => Promise<Uint8Array>;
+  /** Applets the host ships with itself. */
+  readonly builtins: readonly BuiltinApplet[];
 }
 
 /** The applet half of {@link Kernl}. */
@@ -55,7 +58,23 @@ export function resolveWindow(handles: ReadonlyMap<string, MountedApplet>, event
 }
 
 /**
- * The applet lifecycle: `resolve` fetches and verifies, `plan` narrows the
+ * Load a built-in applet and, the first time the user meets it, switch on the domains its host
+ * vouches for. A domain this shell cannot provide is skipped, and an applet the user already has
+ * a record for is left exactly as they set it.
+ */
+async function resolveShipped(context: LifecycleContext, id: string): Promise<ResolvedApplet> {
+  const resolved = await resolveBuiltin(context.builtins, id);
+  const { identity } = resolved.summary;
+  if (context.grants.get(identity)) return resolved;
+  context.grants.ensure(identity);
+  const offered = context.grants.availableDomains();
+  const wanted = context.builtins.find((applet) => applet.id === id)?.grants ?? [];
+  for (const domain of wanted) if (offered.includes(domain)) context.grants.allowDomain(identity, domain);
+  return resolved;
+}
+
+/**
+ * The applet lifecycle: `resolve` fetches and verifies (or loads an applet the host ships), `plan` narrows the
  * environment under the user's grants and installs the applet, `mount` performs the NIP-5D mount order
  * and `handleWindowMessage` runs the guard in front of the bridge.
  *
@@ -71,14 +90,17 @@ export function createAppletLifecycle(context: LifecycleContext): AppletLifecycl
   const { handles, pipeline, bridge } = context;
   const verified = new Map<string, string>();
   let windowCounter = 0;
+  const lookUp = async (pointer: PublishedPointer): Promise<ResolvedApplet> => {
+    const event = await fetchManifestEvent(context.pool, context.tiers, pointer);
+    const cache = await context.openCache();
+    const { fetchBlob } = context;
+    const relays = pointer.relays;
+    return resolveApplet(cache ? { event, fetchBlob, cache, relays } : { event, fetchBlob, relays });
+  };
 
   return {
     async resolve(pointer: AppletPointer): Promise<AppletSummary> {
-      const event = await fetchManifestEvent(context.pool, context.tiers, pointer);
-      const cache = await context.openCache();
-      const { fetchBlob } = context;
-      const relays = pointer.relays;
-      const resolved = await resolveApplet(cache ? { event, fetchBlob, cache, relays } : { event, fetchBlob, relays });
+      const resolved = pointer.kind === 'builtin' ? await resolveShipped(context, pointer.id) : await lookUp(pointer);
       verified.set(keyOf(resolved.summary.identity), resolved.indexHtml);
       return resolved.summary;
     },

@@ -1,10 +1,10 @@
 import { expect, vi } from 'vitest';
 import { After, Given, Then, When } from 'quickpickle';
-import type { MessagingBackend, MessagingRegistry, WithProvider } from '@kernlize/messaging';
+import type { MessagingBackend, MessagingRegistry, ReplyPrompt, WithProvider } from '@kernlize/messaging';
 
 type DmMessage = Awaited<ReturnType<MessagingBackend['messages']>>['messages'][number];
 import { MemoryStorage } from '../../../../packages/core/features/steps/world.ts';
-import { PREVIEW_CORRESPONDENT, createPreviewMessaging } from '../../src/shell/preview-messaging.ts';
+import { PREVIEW_CORRESPONDENT, PREVIEW_LEGACY_CORRESPONDENT, createPreviewMessaging } from '../../src/shell/preview-messaging.ts';
 
 const PREFERENCES_KEY = 'kernl:preview:messaging:v1';
 const OWNER = 'e8f1a4b7c9d2e5f8a1b4c7d0e3f6a9b2c5d8e1f4a7b0c3d6e9f2a5b8c1d4e7f0';
@@ -14,6 +14,9 @@ interface MessagingScratch {
   readonly storage: MemoryStorage;
   registry?: MessagingRegistry;
   conversationId?: string;
+  /** What the user answers the reply question with; unset means the host cannot ask. */
+  replyUse?: 'theirs' | 'mine';
+  readonly replyPrompts: ReplyPrompt[];
 }
 
 interface MessagingWorld {
@@ -21,7 +24,7 @@ interface MessagingWorld {
 }
 
 function scratchOf(world: MessagingWorld): MessagingScratch {
-  world.previewMessaging ??= { storage: new MemoryStorage() };
+  world.previewMessaging ??= { storage: new MemoryStorage(), replyPrompts: [] };
   return world.previewMessaging;
 }
 
@@ -49,7 +52,44 @@ Given('the preview messaging preferences are stored as {string}', (world: Messag
 When('the preview messaging opens', (world: MessagingWorld) => {
   const scratch = scratchOf(world);
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-  scratch.registry = createPreviewMessaging(scratch.storage, OWNER);
+  const { replyUse } = scratch;
+  const ask = replyUse && (async (prompt: ReplyPrompt) => (scratch.replyPrompts.push(prompt), { use: replyUse, remember: 'once' as const }));
+  scratch.registry = createPreviewMessaging(scratch.storage, OWNER, ask);
+});
+
+Given('the preview user answers the reply question with {string}', (world: MessagingWorld, use: string) => {
+  scratchOf(world).replyUse = use as 'theirs' | 'mine';
+});
+
+When('the preview messaging sends {string} to {string} without naming a provider', async (world: MessagingWorld, content: string, to: string) => {
+  const recipients = { 'the legacy correspondent': [PREVIEW_LEGACY_CORRESPONDENT] }[to] as string[];
+  const result = await registryOf(world).composite().send({ recipients, content });
+  scratchOf(world).conversationId = result.message.conversationId;
+});
+
+Then('the preview user was asked about {string}, theirs {string} and mine {string}', (world: MessagingWorld, name: string, theirs: string, mine: string) => {
+  expect(scratchOf(world).replyPrompts.map((prompt) => [prompt.peer.label, prompt.theirs.name, prompt.mine.name])).toEqual([[name, theirs, mine]]);
+});
+
+Then('the preview message left through {string}', (world: MessagingWorld, provider: string) => {
+  expect(scratchOf(world).conversationId?.startsWith(`${provider}:`)).toBe(true);
+});
+
+Then('the preview knows its correspondents as {string}', async (world: MessagingWorld, names: string) => {
+  const page = await registryOf(world).composite().conversations();
+  expect(page.conversations.flatMap((conversation) => conversation.participants.map((peer) => peer.label))).toEqual(names.split(','));
+});
+
+Then('{string} last wrote through {string}', async (world: MessagingWorld, name: string, provider: string) => {
+  const page = await registryOf(world).composite().conversations();
+  const conversation = page.conversations.find((candidate) => candidate.participants.some((peer) => peer.label === name));
+  expect(conversation?.id.startsWith(`${provider}:`)).toBe(true);
+});
+
+Then('the preview names nobody in the conversation that message started', async (world: MessagingWorld) => {
+  const page = await registryOf(world).composite().conversations();
+  const conversation = page.conversations.find((candidate) => candidate.id === scratchOf(world).conversationId);
+  expect(conversation?.participants).toEqual([{ pubkey: OTHER }]);
 });
 
 Then('the preview messaging offers {string}', (world: MessagingWorld, ids: string) => {

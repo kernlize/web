@@ -102,6 +102,7 @@ Given('the shell host with window {string} titled {string}', (world: HostWorld, 
   const opener: AppletOpener = {};
   const deps = fake<HostDeps>({
     handlers: { ask: async (prompt: unknown) => (asked.push(prompt), { id: 'picked', remember: true }) },
+    replies: { ask: async (prompt: unknown) => (asked.push(prompt), { use: 'theirs', remember: 'conversation' }) },
     opener,
     storage: { getItem: () => null, setItem: () => undefined, removeItem: () => undefined },
     consent: { enqueue: (prompt: ConsentPrompt) => void queued.push(prompt) },
@@ -181,4 +182,12 @@ Then('the shell host marks window {string} stopped because {string}', (world: Ho
 
 Then('the shell host warns {string} because {string} for window {string}', (world: HostWorld, title: string, words: string, windowId: string) => {
   expect(hostOf(world).notices.at(-1)).toEqual({ title, body: words, tone: 'warning', windowId });
+});
+
+Then('the shell host puts the reply question to the reply dialog', async (world: HostWorld) => {
+  const scratch = hostOf(world);
+  const provider = { id: 'private', name: 'Private messages' };
+  const prompt = fake<Parameters<NonNullable<KernlHost['chooseReply']>>[0]>({ peer: { pubkey: 'ab'.repeat(32) }, theirs: provider, mine: provider });
+  expect(await scratch.host.chooseReply?.(prompt)).toEqual({ use: 'theirs', remember: 'conversation' });
+  expect(scratch.asked).toEqual([prompt]);
 });

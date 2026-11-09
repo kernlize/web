@@ -36,7 +36,8 @@ function buildProvider(world: MessagingWorld, id: string): MessagingProvider {
     available: () => entry.availability,
     createBackend: (): MessagingBackend => {
       entry.created += 1;
-      const { close, ...rest } = createMemoryBackend();
+      entry.backend = createMemoryBackend();
+      const { close, ...rest } = entry.backend;
       return entry.closable
         ? {
             ...rest,
@@ -78,8 +79,30 @@ Given('a messaging registry restoring enabled {string} with no default', (world:
   });
 });
 
+Given('a messaging registry restoring the order {string}', (world: MessagingWorld, order: string) => {
+  const s = state(world);
+  s.registry = createMessagingRegistry({ preferences: { enabled: [], order: list(order) }, onChange: (prefs) => s.notifications.push(prefs) });
+});
+
+When('I order the messaging providers {string}', (world: MessagingWorld, ids: string) =>
+  attempt(world, () => state(world).registry?.setOrder(list(ids))),
+);
+
+Then('the messaging provider order is {string}', (world: MessagingWorld, ids: string) => {
+  expect(state(world).registry?.preferences().order).toEqual(list(ids));
+});
+
 Given('messaging provider {string} is unavailable because {string}', (world: MessagingWorld, id: string, reason: string) => {
   fake(world, id).availability = { available: false, reason };
+});
+
+When('messaging provider {string} becomes available', (world: MessagingWorld, id: string) => {
+  fake(world, id).availability = { available: true };
+  state(world).registry?.list();
+});
+
+When('messaging provider {string} becomes available without the registry being read', (world: MessagingWorld, id: string) => {
+  fake(world, id).availability = { available: true };
 });
 
 Given('messaging provider {string} has a backend that cannot be closed', (world: MessagingWorld, id: string) => {
@@ -148,13 +171,17 @@ Then('the backend for messaging provider {string} is closed', (world: MessagingW
 });
 
 Then('the messaging preferences are enabled {string} with no default', (world: MessagingWorld, enabled: string) => {
-  expect(state(world).registry?.preferences()).toEqual({ enabled: list(enabled) });
+  const preferences = state(world).registry?.preferences();
+  expect(preferences?.enabled).toEqual(list(enabled));
+  expect(preferences && 'defaultProvider' in preferences).toBe(false);
 });
 
 Then(
   'the messaging preferences are enabled {string} with default {string}',
   (world: MessagingWorld, enabled: string, defaultProvider: string) => {
-    expect(state(world).registry?.preferences()).toEqual({ enabled: list(enabled), defaultProvider });
+    const preferences = state(world).registry?.preferences();
+    expect(preferences?.enabled).toEqual(list(enabled));
+    expect(preferences?.defaultProvider).toBe(defaultProvider);
   },
 );
 
@@ -162,6 +189,8 @@ Then('the messaging preferences snapshot is frozen', (world: MessagingWorld) => 
   const prefs = state(world).registry?.preferences();
   expect(Object.isFrozen(prefs)).toBe(true);
   expect(Object.isFrozen(prefs?.enabled)).toBe(true);
+  expect(Object.isFrozen(prefs?.order)).toBe(true);
+  expect(Object.isFrozen(prefs?.replyChoices)).toBe(true);
 });
 
 Then('the messaging change listener fired {int} time(s)', (world: MessagingWorld, count: number) => {

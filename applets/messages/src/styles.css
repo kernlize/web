@@ -1,0 +1,480 @@
+/*
+  An applet in a frame, not a page: no heading, compact density, and a root
+  that fills whatever size the shell gives it. This file is the base layout
+  (one pane, the compact tier); tiers.css adjusts it for other frame sizes.
+
+  --bg, --fg and --primary come from the shell's theme when it has one; every
+  other colour derives from them. Without one the palette below follows the
+  system's light or dark preference.
+*/
+
+:root {
+  --bg: #f5f6f8;
+  --fg: #18212b;
+  --primary: #2f5fd0;
+  --surface: color-mix(in srgb, var(--bg) 94%, var(--fg));
+  --surface-2: color-mix(in srgb, var(--bg) 87%, var(--fg));
+  --own: color-mix(in srgb, var(--primary) 24%, var(--bg));
+  --border: color-mix(in srgb, var(--fg) 14%, transparent);
+  --muted: color-mix(in srgb, var(--fg) 64%, var(--bg));
+  --danger: color-mix(in srgb, #e5484d 72%, var(--fg));
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --control-h: 28px;
+  --radius: 6px;
+  --napplet-text-selection: none;
+  color-scheme: light dark;
+  font: 13px/1.4 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15171c;
+    --fg: #e7e9ee;
+    --primary: #7ea2ff;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+:where(html, body, body *) {
+  -webkit-user-select: var(--napplet-text-selection, none);
+  user-select: var(--napplet-text-selection, none);
+}
+
+:where(input, textarea, [data-napplet-select="text"]) {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+body {
+  overflow: hidden;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+p,
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+
+:where(button, input, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -1px;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Frame */
+
+.app {
+  container: app / inline-size;
+}
+
+.frame {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  height: 100%;
+}
+
+.list-pane,
+.thread-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.list-pane {
+  container: list / inline-size;
+}
+
+/* Controls */
+
+.field {
+  min-width: 0;
+  height: var(--control-h);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.field::placeholder {
+  color: var(--muted);
+}
+
+.icon-button,
+.send-button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-width: var(--control-h);
+  height: var(--control-h);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.icon-button:hover,
+.send-button:hover:not(:disabled) {
+  border-color: var(--primary);
+}
+
+.send-button {
+  border-color: transparent;
+  background: var(--primary);
+  color: var(--bg);
+}
+
+.send-button:disabled {
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: default;
+}
+
+.send-button .label {
+  display: none;
+}
+
+.text-button {
+  padding: 0 var(--space-1);
+  border: 0;
+  border-radius: var(--space-1);
+  background: none;
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.text-button:hover {
+  text-decoration: underline;
+}
+
+.inline-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-2);
+  color: var(--muted);
+}
+
+.notice {
+  grid-column: 1 / -1;
+  align-self: start;
+}
+
+/* Avatar stand-in: initials on a colour derived from the account id. */
+
+.tile {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius);
+  background: hsl(var(--hue, 220) 42% 44%);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Thread list */
+
+.list-head {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-2);
+}
+
+.filter {
+  flex: 1;
+}
+
+.new-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: 0 var(--space-2) var(--space-2);
+}
+
+.new-form .field {
+  flex: 1;
+}
+
+.field-error {
+  flex: 0 0 100%;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.field-error:empty {
+  display: none;
+}
+
+.thread-list {
+  flex: 1;
+  min-height: 0;
+  padding: 0 var(--space-1) var(--space-1);
+  overflow-y: auto;
+}
+
+.thread-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 36px;
+  padding: var(--space-1);
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.thread-item:hover {
+  background: var(--surface);
+}
+
+.thread-item[aria-current="true"] {
+  background: var(--surface-2);
+}
+
+.thread-text {
+  display: grid;
+  min-width: 0;
+}
+
+.thread-name {
+  font-weight: 600;
+}
+
+.thread-preview,
+.thread-time {
+  display: none;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.thread-meta {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.badge {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--primary);
+  color: var(--bg);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+@container list (width >= 280px) {
+  .thread-item {
+    min-height: 44px;
+  }
+
+  .thread-preview,
+  .thread-time {
+    display: block;
+  }
+
+  .thread-item .tile {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+}
+
+/* Thread */
+
+.thread-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.thread-head .tile {
+  width: 22px;
+  height: 22px;
+  font-size: 9px;
+}
+
+.thread-title {
+  min-width: 0;
+  font-weight: 600;
+}
+
+.log {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  padding: var(--space-2);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* Few messages sit next to the composer rather than under the header. */
+.log > :first-child {
+  margin-top: auto;
+}
+
+.day {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-2) 0 var(--space-1);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.msg {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: min(84%, 68ch);
+  margin-top: var(--space-1);
+}
+
+.msg.joined {
+  margin-top: 0;
+}
+
+.msg.own {
+  align-items: flex-end;
+  align-self: flex-end;
+}
+
+.sender {
+  max-width: 100%;
+  padding: 0 var(--space-2);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.bubble {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 0 var(--space-2);
+  max-width: 100%;
+  padding: var(--space-1) var(--space-2);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.msg.own .bubble {
+  background: var(--own);
+}
+
+.msg.sending .bubble {
+  opacity: 0.7;
+}
+
+.msg.failed .bubble {
+  outline: 1px solid var(--danger);
+  outline-offset: -1px;
+}
+
+.text {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.stamp {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.8;
+  white-space: nowrap;
+}
+
+.problem {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0 var(--space-1);
+  padding: 2px var(--space-1) 0;
+  color: var(--danger);
+  font-size: 11px;
+}
+
+.problem .text-button {
+  font-size: 11px;
+}
+
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+.composer textarea {
+  flex: 1;
+  min-height: var(--control-h);
+  max-height: calc(6 * 1.4em + 10px);
+  padding: var(--space-1) var(--space-2);
+  line-height: 1.4;
+  resize: none;
+  overflow-y: auto;
+}

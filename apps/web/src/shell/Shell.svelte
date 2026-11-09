@@ -14,6 +14,9 @@
   import { createHost, pickStorage, type AppletOpener } from './host';
   import Notices from './Notices.svelte';
   import { NoticeStore } from './notice-store.svelte';
+  import ReplyChooser from './ReplyChooser.svelte';
+  import { shellTheme } from './shell-theme';
+  import { ReplyQueue } from './reply-queue.svelte';
   import SignIn from './SignIn.svelte';
   import { WindowStore } from './window-store.svelte';
   import { createShellWindowManager } from './windows';
@@ -24,8 +27,9 @@
   const windows = new WindowStore(createShellWindowManager(storage));
   const guardLog = new GuardLog();
   const handlers = new HandlerQueue();
+  const replies = new ReplyQueue();
   const opener: AppletOpener = {};
-  const host = createHost({ storage, consent, notices, windows, handlers, opener });
+  const host = createHost({ storage, consent, notices, windows, handlers, replies, opener });
 
   let booted = $state.raw<Booted | null>(null);
   let session = $state.raw<Session | null>(null);
@@ -44,7 +48,8 @@
 
   onMount(() => {
     const cleanups: (() => void)[] = [];
-    void boot(host, new URLSearchParams(location.search)).then((result) => {
+    const tokens = getComputedStyle(document.documentElement);
+    void boot(host, new URLSearchParams(location.search), shellTheme((token) => tokens.getPropertyValue(token))).then((result) => {
       booted = result;
       const { kernl } = result;
       cleanups.push(
@@ -73,6 +78,7 @@
   function onKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
       if (consent.current) consent.answer(false);
+      else if (replies.current) replies.answer(undefined);
       else if (handlers.current) handlers.answer(undefined);
       else if (desktop?.closeTopOverlay()) root?.focus();
       else return;
@@ -86,6 +92,7 @@
   async function signOut(): Promise<void> {
     for (const win of [...windows.windows]) windows.close(win.id);
     while (handlers.current) handlers.answer(undefined);
+    while (replies.current) replies.answer(undefined);
     await booted?.kernl.logout();
   }
 </script>
@@ -96,12 +103,18 @@
   {:else if booted && phase === 'signin'}
     <SignIn kernl={booted.kernl} mode={booted.mode} />
   {:else if booted && session}
-    <Desktop bind:this={desktop} {booted} {session} {storage} {windows} {guardLog} {opener} onsignout={signOut} />
+    <Desktop bind:this={desktop} {booted} {session} {storage} {windows} {guardLog} {opener} onproblem={(title, body) => notices.push({ title, body, tone: 'warning' })} onsignout={signOut} />
   {/if}
 
   {#if booted && session && handlers.current}
     {#key handlers.current}
       <HandlerChooser kernl={booted.kernl} prompt={handlers.current} onanswer={(choice) => handlers.answer(choice)} />
+    {/key}
+  {/if}
+
+  {#if booted && session && replies.current}
+    {#key replies.current}
+      <ReplyChooser prompt={replies.current} onanswer={(answer) => replies.answer(answer)} />
     {/key}
   {/if}
 

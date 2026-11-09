@@ -114,6 +114,8 @@ Published packages have zero framework dependencies, matching kehto's rule. The 
 
 **Consequences.** Adding a provider is a package change plus a docs page. Removing the ranking is not possible because there is none.
 
+**Extended by D-027.** The providers are now kept in an order, and it is the user's: the shell ships a starting order and recommends none.
+
 **Reversal cost.** Low.
 
 ## D-010 · Bridges are named by what they do
@@ -206,6 +208,8 @@ With both locks, the probe sees every creation route throw, the four bypass rout
 **Consequences.** Messaging works with every account type that can encrypt, including ones whose key kernl never sees. A remote signer or extension may ask its own question per decryption; kernl does not suppress it. A read-only account sees both providers unavailable with `signer-cannot-encrypt`. The inbox fallback means a recipient without inbox relays may never see a message sent to relays they do not read; the sender sees it delivered to those relays, not read. kehto's sealed-message adapter is not used; when it can take a signer instead of a key, the backend can be swapped behind `MessagingBackend` without a contract change (D-001).
 
 **Reversal cost.** Low; both backends sit behind `MessagingBackend` and `KernlOptions.messagingBackends`.
+
+**Superseded in part by D-027.** The shell no longer has a Messages panel. Messages are shown by an applet over the `dm` domain; the one kernl ships starts with that grant.
 
 ## D-016 · Ratchet sessions run the library's runtime on the account signer, with its secrets sealed to the account
 
@@ -376,3 +380,22 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Consequences.** A store lists other people's titles and descriptions as they wrote them. Its icons load from the manifest's first server, a display accelerator and never identity. Delivery depends on `originRegistry.postToNapplet` until kehto maps `intent.deliver` to `intent:read`; the gap is to be raised upstream. The preferences' private entries are not decrypted, and kehto's `getDefaultHandler` takes only the archetype, so a convention-specific choice can only rank the chooser.
 
 **Reversal cost.** Low. The store and router are additive; the delivery send is one function in `kernl-intents.ts`.
+
+## D-027 · Messages are an applet; the user orders the providers, and the shell asks before a reply leaves another way
+
+**Context.** The shell drew conversations itself, in a panel that read the messaging composite directly, while SOUL opinion 5 says every provider is exposed through the same Direct Messenger interface that applets use. The panel also asked the user to pick a provider for every new conversation and kept a single "default" beside an unordered list. NAP-DM (`napplet/naps` PR #74) puts the choice of transport in the runtime and says a runtime with several implementations MUST NOT weaken privacy silently, without policy or consent. Two things followed from keeping conversations per provider: someone who writes through one provider while the user's first choice is another gets an answer they may never see, and nothing told the user. An applet that speaks NAP-DM cannot be opened in the live shell without a published, signed manifest, and the shell's own messages must not depend on a catalogue relay answering.
+
+**Decision.**
+
+- **The shell draws no conversation.** `MessagesPanel` is gone. The Messages button opens an applet: the user's default for the `dm` role when one is installed, otherwise the one kernl ships.
+- **kernl ships a Messages applet as a built-in.** `applets/messages` is scaffolded and built with the napplet toolchain into one file. A host lists such applets in `KernlOptions.builtins`; `kernl:<id>` decodes to a built-in pointer, and `resolve` loads the bytes through the host and refuses them unless they hash to the SHA-256 the host pinned (`invalid:artifact-hash`). No manifest is fetched and no signature is checked, because the host that pins the hash is the page the user already trusts with everything else: a published manifest could add nothing a compromised shell could not forge. The hash is written by the applet's own build beside the artifact. Everything after `resolve` is the ordinary path: the same sealed `srcdoc` frame, CSP, locks, guard, grants and intents.
+- **A built-in starts with the grants its host names, once.** The first time the user meets the Messages applet, `dm`, `identity` and `notify` are switched on, where the old panel needed no grant at all. The record is then the user's: a withdrawn grant is never switched back on.
+- **Providers are kept in the user's order, and the first one that is on is the default.** `MessagingRegistry.setOrder` replaces the per-conversation picker; `setDefault` survives as "move to the top". A message to someone new goes to the first enabled provider and falls to the next when that provider answers `unavailable:recipient-not-ready`. The order is the user's stated policy, which is what NAP-DM asks for before a weaker transport is used; the shell still ranks nothing (D-009).
+- **A reply is checked against the correspondent's last provider.** Before a one-to-one message leaves, the composite finds the enabled provider that person last wrote through. When it differs from the planned one, the reply rule decides: `ask` (the default) puts the question to the host through `KernlHost.chooseReply`, `theirs` follows them, `mine` keeps the order. The answer can be kept for that person or made the rule, and Settings can forget kept answers. Dismissing the question sends nothing (`denied:cancelled`). The shell owns this because only the shell knows which provider a conversation belongs to; an applet sees opaque ids.
+- **The applet shows one thread per person and lets the shell route.** It merges `direct` conversations with the same participants and answers the person, not a conversation id. The composite's ids stay provider-namespaced, so an applet that prefers one thread per provider still works, and the check applies to its sends too.
+- **A wanted provider waits for an account.** A saved provider that is unavailable when it registers used to be dropped from the saved list; it now waits and starts when it can run. Someone who never chose gets `private` and `legacy` switched on. `ratchet` and `group` publish something about the account when they start (D-016, D-018), so they stay off until the user switches them on.
+- **The preview runs the same bytes.** It has no runtime, so it binds the applet's port itself and routes each envelope to kehto's own `dm`, `identity`, `theme` and `notify` services over its in-memory state, offering the applet only those domains. Its guard looks at every envelope first (D-011).
+
+**Consequences.** Messages work without the network and are as replaceable as any applet. The applet cannot say which provider carried a message; the question and Settings are where that is visible, and a shell-side indication on the conversation is roadmap work. The user is asked a question the old panel never asked, at most once per person if they keep the answer. Messages are read only after the user opens them: the count on the Messages button starts with the first open, so a signer is not asked to open mail nobody looked for. The strict guard drops what an applet sends past eight requests a second, so the applet paces every call itself. A request another applet hands over as `napplet:dm/open` opens Messages but not the conversation yet, because the applet's SDK version has no delivery hook. Applets are told the shell's colours when they open and are not told when the theme is switched. The built-in path is a second way bytes become an applet; it is confined to `resolveBuiltin` and to ids the host listed.
+
+**Reversal cost.** Medium for the panel (it would be rewritten); low for each rule. The order and the reply rule sit behind `createMessagingRegistry` and `CompositeOptions.chooseReply`; a host that passes no `chooseReply` gets the order alone. Built-ins are one option and one pointer kind.

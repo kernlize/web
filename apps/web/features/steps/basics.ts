@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 import { Given, Then, When, type DataTable } from 'quickpickle';
 import type { Bridge, BridgeAvailability } from '@kernlize/bridges';
-import { abbreviate, DEFAULT_WINDOW_SIZE, LAYOUT_KEY, RECENT_KEY, shortId, type ConsentSummary } from '../../src/shell/contract.ts';
+import { abbreviate, DEFAULT_WINDOW_SIZE, LAYOUT_KEY, publisherWords, RECENT_KEY, shortId, type ConsentSummary } from '../../src/shell/contract.ts';
 import { choiceNote, domainChoices, domainLabel, formatBytes, type DomainChoice } from '../../src/shell/domains.ts';
 import { openFailure } from '../../src/shell/launcher-reasons.ts';
 import { serverAddress, serverLabel, serverName } from '../../src/shell/servers.ts';
@@ -9,6 +9,9 @@ import { namesProtocol } from '../../src/shell/vocabulary.ts';
 import { messagingError, unavailableWhy } from '../../src/shell/messaging-reasons.ts';
 import { eventDetails, type EventDetail } from '../../src/shell/event-details.ts';
 import { bridgeName, bridgeRows } from '../../src/shell/bridge-names.ts';
+import { REPLY_RULES, alwaysMeans, moved, rememberChoices, replyQuestion, settledWords } from '../../src/shell/reply-words.ts';
+import type { ReplyPrompt } from '@kernlize/messaging';
+import { shellTheme } from '../../src/shell/shell-theme.ts';
 import './shell-windows.ts';
 
 type ShellRecord = ConsentSummary['event'];
@@ -203,4 +206,68 @@ Then('the shell names the bridge {string}', (world: WordsWorld, name: string) =>
 
 Then('the shell describes the bridge as:', (world: WordsWorld, table: DataTable) => {
   expect(bridgeRows(words(world).bridge as Bridge)).toEqual(table.hashes());
+});
+
+interface ReplyWordsWorld {
+  replyPrompt?: ReplyPrompt;
+}
+
+const providerNamed = (name: string): ReplyPrompt['theirs'] => ({ name }) as ReplyPrompt['theirs'];
+
+Given('a reply question about {string} who wrote through {string} while the order picks {string}', (world: ReplyWordsWorld, label: string, theirs: string, mine: string) => {
+  world.replyPrompt = { peer: { pubkey: 'ab'.repeat(32), label }, theirs: providerNamed(theirs), mine: providerNamed(mine) };
+});
+
+Given('a reply question about the account {string} who wrote through {string} while the order picks {string}', (world: ReplyWordsWorld, pubkey: string, theirs: string, mine: string) => {
+  world.replyPrompt = { peer: { pubkey }, theirs: providerNamed(theirs), mine: providerNamed(mine) };
+});
+
+Then('the reply question reads {string}', (world: ReplyWordsWorld, text: string) => {
+  expect(replyQuestion(world.replyPrompt as ReplyPrompt)).toBe(text);
+});
+
+Then('the reply question can be kept {string}', (world: ReplyWordsWorld, labels: string) => {
+  const choices = rememberChoices(world.replyPrompt as ReplyPrompt);
+  expect(choices.map((choice) => choice.label)).toEqual(labels.split(' | '));
+  expect(choices.map((choice) => choice.id)).toEqual(['once', 'conversation', 'always']);
+});
+
+Then('keeping {string} for everyone means {string}', (_world: ReplyWordsWorld, use: string, words: string) => {
+  expect(alwaysMeans(use as 'theirs' | 'mine')).toBe(words);
+});
+
+Then('the reply rules are {string}', (_world: ReplyWordsWorld, labels: string) => {
+  expect(REPLY_RULES.map((rule) => rule.label)).toEqual(labels.split(' | '));
+  expect(REPLY_RULES.map((rule) => rule.id)).toEqual(['ask', 'theirs', 'mine']);
+  for (const rule of REPLY_RULES) expect(rule.help).not.toBe('');
+});
+
+Then('{int} settled answers read {string}', (_world: ReplyWordsWorld, count: number, words: string) => {
+  expect(settledWords(count)).toBe(words);
+});
+
+Then('moving {string} {int} in {string} gives {string}', (_world: ReplyWordsWorld, id: string, step: number, order: string, expected: string) => {
+  expect(moved(order.split(','), id, step as -1 | 1)).toEqual(expected.split(','));
+});
+
+interface ThemeWorld {
+  tokens?: Map<string, string>;
+}
+
+const readToken = (world: ThemeWorld) => (token: string): string => world.tokens?.get(token) ?? '';
+
+Given("the page's style tokens {string}", (world: ThemeWorld, tokens: string) => {
+  world.tokens = new Map(tokens.split(';').map((pair) => pair.split(':').map((part) => part.trim()) as [string, string]));
+});
+
+Then("the shell's theme is background {string}, text {string} and primary {string}", (world: ThemeWorld, background: string, text: string, primary: string) => {
+  expect(shellTheme(readToken(world))).toEqual({ colors: { background, text, primary } });
+});
+
+Then('the shell has no theme', (world: ThemeWorld) => {
+  expect(shellTheme(readToken(world))).toBeUndefined();
+});
+
+Then('an applet at {string} published by {string} is said to be {string}', (_world: unknown, address: string, publisher: string, words: string) => {
+  expect(publisherWords({ address, publisher })).toBe(words);
 });

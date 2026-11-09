@@ -1,5 +1,6 @@
 import { decodeAddressPointer, decodeEventPointer } from 'applesauce-core/helpers';
 import type { AppletPointer } from '../types.js';
+import { decodeBuiltin } from './builtin.js';
 
 const HEX_64 = /^[0-9a-f]{64}$/;
 const COORDINATE = /^([0-9a-f]{64}):(\d+):(.*)$/s;
@@ -57,6 +58,8 @@ function fromBech32(input: string): AppletPointer | undefined {
  */
 export function decodePointer(input: string): AppletPointer {
   const text = input.trim().replace(/^nostr:/i, '');
+  const builtin = decodeBuiltin(text);
+  if (builtin) return builtin;
   if (HEX_64.test(text)) return { kind: 'event', id: text, relays: Object.freeze([]) };
 
   const coordinate = COORDINATE.exec(text);

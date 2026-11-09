@@ -5,5 +5,9 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@kernlize/web", "@kernlize/docs"]
+  "ignore": [
+    "@kernlize/web",
+    "@kernlize/docs",
+    "@kernlize/applet-messages"
+  ]
 }

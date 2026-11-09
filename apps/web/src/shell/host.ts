@@ -2,6 +2,7 @@ import type { KernlHost, StorageLike } from './contract';
 import type { ConsentQueue } from './consent-queue.svelte';
 import type { HandlerQueue } from './handler-queue.svelte';
 import type { NoticeStore } from './notice-store.svelte';
+import type { ReplyQueue } from './reply-queue.svelte';
 import type { WindowStore } from './window-store.svelte';
 
 interface HostDeps {
@@ -10,6 +11,7 @@ interface HostDeps {
   readonly notices: NoticeStore;
   readonly windows: WindowStore;
   readonly handlers: Pick<HandlerQueue, 'ask'>;
+  readonly replies: Pick<ReplyQueue, 'ask'>;
   readonly opener: AppletOpener;
 }
 
@@ -46,7 +48,7 @@ const REVOKE_REASONS: Readonly<Record<string, string>> = {
 /** Plain words for a revocation reason; reasons the shell does not know pass through. */
 const revokeReason = (reason: string): string => REVOKE_REASONS[reason] ?? reason;
 
-/** The UI's side of the contract: dialogs, the handler chooser, toasts, link confirmation, opening and focusing windows. */
+/** The UI's side of the contract: dialogs, the handler chooser, the reply question, toasts, link confirmation, opening and focusing windows. */
 export function createHost(deps: HostDeps): KernlHost {
   return {
     storage: deps.storage,
@@ -58,6 +60,7 @@ export function createHost(deps: HostDeps): KernlHost {
     },
     getVisibility: (windowId) => deps.windows.visibilityOf(windowId),
     chooseHandler: (prompt) => deps.handlers.ask(prompt),
+    chooseReply: (prompt) => deps.replies.ask(prompt),
     openApplet: async (address) => deps.opener.open?.(address),
     focusApplet: (windowId) => deps.windows.focus(windowId),
     onRevoked(windowId, reason) {

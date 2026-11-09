@@ -13,6 +13,7 @@ const ERRORS: Readonly<Record<string, string>> = {
   'unavailable:network': 'None of the servers that list applets could be reached. Check your connection and try again.',
   'unavailable:blob': 'The applet was found, but its file could not be downloaded right now. Try again later.',
   'unavailable:frame-lock': 'This applet could not be sealed safely, so the shell did not open it.',
+  'invalid:artifact-hash': 'The copy of this applet that came with the shell is damaged. Reload the page and try again.',
   'denied:blocked': 'You blocked this applet. Unblock it from its grants first.',
   'denied:signed-out': 'Sign in to open applets.',
 };

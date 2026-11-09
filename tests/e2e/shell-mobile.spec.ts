@@ -39,7 +39,7 @@ test('at 390px the shell fits the screen and every panel is reachable', async ({
   await noHorizontalOverflow(page, 'applet window');
 
   const menu = page.getByRole('button', { name: /^Menu/ });
-  for (const [entry, heading] of [[/^Guard/, 'Guard'], [/^Messages/, 'Messages'], [/^Settings$/, 'Settings']] as const) {
+  for (const [entry, heading] of [[/^Guard/, 'Guard'], [/^Settings$/, 'Settings']] as const) {
     await menu.click();
     const item = page.getByRole('navigation', { name: 'Shell menu' }).getByRole('button', { name: entry });
     await expect(item).toBeInViewport({ ratio: 1 });
@@ -54,4 +54,11 @@ test('at 390px the shell fits the screen and every panel is reachable', async ({
 
   await menu.click();
   await expect(page.getByRole('navigation', { name: 'Shell menu' }).getByRole('button', { name: 'Sign out' })).toBeInViewport({ ratio: 1 });
+
+  // Messages is an applet: from the menu it takes the whole width like any other window, list first.
+  await page.getByRole('navigation', { name: 'Shell menu' }).getByRole('button', { name: /^Messages/ }).click();
+  const messages = page.frameLocator('iframe[data-window-id]').nth(1);
+  await expect(messages.getByRole('button', { name: 'Ada', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Close Messages' })).toBeInViewport({ ratio: 1 });
+  await noHorizontalOverflow(page, 'messages window');
 });
