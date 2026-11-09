@@ -66,4 +66,5 @@ kehto lets a window open one relay of its own choosing, the NIP-29 group pattern
 
 - [Architecture](./architecture.md)
 - [Persistence](./persistence.md)
+- [Inbox, outbox and finding servers](./inbox-outbox-and-servers.md)
 - [`@kernlize/core`](../packages/core.md)

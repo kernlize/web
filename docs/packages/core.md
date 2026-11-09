@@ -462,11 +462,29 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `createAppletRelayBackend` | `(pool: ApplesaucePool, tiers: RelayTiers) => RelayPoolServiceOptions` | For kehto's `createRelayPoolService`; publishes go to the tier for the event's kind. |
 | `createDmRelayPool` | `(pool: ApplesaucePool, tiers: RelayTiers) => DmRelayPool` | For messaging backends. |
 | `createOutboxRelayPool` | `(pool: ApplesaucePool) => OutboxRelayPoolLike` | For kehto's `createRelayPoolOutboxRouter`, with per-relay publish outcomes. |
-| `subscribeWithEose` | `(pool, relays: string[], filters: NostrFilter[], callback: (item: NostrEvent \| 'EOSE') => void) => EoseSubscription` | Each event once, one `EOSE` after every relay answered or failed. |
+| `subscribeWithEose` | `(pool: Pick<ApplesaucePool, 'req'>, relays: string[], filters: NostrFilter[], callback: (item: NostrEvent \| 'EOSE') => void) => EoseSubscription` | Each event once, one `EOSE` after every relay answered or failed. |
 | `selectRelayTier` | `(tiers: RelayTiers, filters: readonly NostrFilter[]) => string[]` | The routing rule under Relay tiers. |
 | `createRelayTiers` | `(storage: StorageLike, defaults?: Partial<Record<RelayTier, readonly string[]>>) => RelayTiers` | Persisted at `kernl:relays:v1`; `changes$` replays the current value. |
 | `DEFAULT_RELAY_TIERS` | `Readonly<Record<RelayTier, readonly string[]>>` | The table above. |
 | `ApplesaucePool`, `EoseSubscription`, `OutboxRelayPoolLike`, `IdentityProfile`, `IdentityProviderOptions`, `IdentityProviders`, `RelayPermissions`, `RelayTier`, `RelayTiers` | types | `ApplesaucePool` is `Pick<RelayPool, 'req' \| 'request' \| 'publish'>` so tests can supply a fake. |
+
+### Servers and mailboxes
+
+Not yet composed by `createKernl`; [Inbox, outbox and finding servers](../concepts/inbox-outbox-and-servers.md) explains them.
+
+| Export | Signature | Description |
+| --- | --- | --- |
+| `summarizePublish` | `(responses: readonly PublishAnswer[]) => PublishOutcome` | `{ accepted, refused: { url, reason }[], ok }` from `RelayPool.publish`'s answers; `ok` when any relay accepted, a relay counts once, an acceptance wins ([D-028](../decisions.md#d-028)). |
+| `describeOutcome` | `(outcome: PublishOutcome) => string` | `Saved to 2 of 3 servers`, `Saved to all 3 servers`, `Saved to 1 server`, `No server accepted it`, `There was no server to save it to`. Never the relay's reason. |
+| `toRelayUrl` | `(url: string) => string \| undefined` | The normalised `ws:`/`wss:` URL, or undefined for anything else. |
+| `relayUrls` | `(urls: Iterable<string>) => string[]` | Normalised, deduplicated, non-URLs dropped. |
+| `createRelayDirectory` | `(options: RelayDirectoryOptions) => RelayDirectory` | NIP-66 reports (kind 30166) streamed from `options.relays` (`DEFAULT_MONITOR_RELAYS`), folded per relay; `listings$`, `listings()`, `search(text, limit?)`, `suggest({ purpose, exclude?, limit? })`, `start()`, `stop()` ([D-029](../decisions.md#d-029)). Options: `pool` (`DirectoryPool`, `Pick<RelayPool, 'subscription'>`), `relays` (array or Observable), `maxAgeSeconds` (two days), `now`, `fallback`, `throttleMs` (250). |
+| `DEFAULT_MONITOR_RELAYS` | `readonly string[]` | `wss://relay.nostr.watch`, `wss://relaypag.es`, `wss://monitorlizard.nostr1.com`, `wss://history.nostr.watch`. |
+| `DEFAULT_SUGGESTIONS` | `Readonly<Record<SuggestPurpose, readonly string[]>>` | The fallback per purpose: `relay.damus.io`, `nos.lol`, `relay.primal.net` for `inbox` and `outbox`; `purplepag.es`, `user.kindpag.es`, `indexer.coracle.social` for `lookup`. |
+| `createAccountMailboxes` | `(options: AccountMailboxesOptions) => AccountMailboxes` | The active account's kind 10002 list: `state$`, `state()` (`loading`, `missing` with `suggested`, `found` with `mailboxes` and `event`) and `save(next) => Promise<PublishOutcome>`. Options: `store`, `pool` (`MailboxPool`, `Pick<RelayPool, 'req' \| 'publish'>`), `pubkey$`, `lookupRelays`, `signer` (`MailboxSigner`), `directory?`, `patienceMs?` (15 000). `save` rejects with `denied:read-only` or `invalid:relay-url`. |
+| `mailboxesFromEvent` | `(event: NostrEvent \| undefined) => Mailboxes` | `{ inboxes, outboxes }`; an unmarked `r` tag is both. |
+| `mailboxTags` | `(mailboxes: Mailboxes, previous?: NostrEvent) => string[][]` | `r` tags, unmarked for a relay in both lists, then the previous list's other tags. |
+| `PublishOutcome`, `PublishAnswer`, `RelayDirectory`, `RelayDirectoryOptions`, `RelayListing`, `SuggestOptions`, `SuggestPurpose`, `DirectoryPool`, `AccountMailboxes`, `AccountMailboxesOptions`, `MailboxState`, `Mailboxes`, `MailboxPool`, `MailboxSigner` | types | `RelayListing` is `{ url, monitors, lastSeen, rttOpen?, rttRead?, rttWrite?, network?, nips, types, requiresAuth, requiresPayment, restrictedWrites }`. |
 
 ### Registries, layouts and persistence
 
