@@ -10,4 +10,6 @@ export VITEPRESS_BASE="${SITE_BASE}docs/"
 pnpm site:build
 pnpm check:vocabulary
 pnpm check:agent-ready
+pnpm check:links
 bunny sites deploy .pages --site "${BUNNY_SITE:-kernl}" --no-link
+pnpm check:links --live "${SITE_URL%/}${SITE_BASE}"
