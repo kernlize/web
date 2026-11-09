@@ -10,7 +10,7 @@ This package ships no backend that sends anything over a network; the only backe
 | --- | --- |
 | npm | `@kernlize/messaging` |
 | JSR | `@kernl/messaging` |
-| Version | `0.3.0` |
+| Version | `0.4.0` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts` |
 | Dependencies | none |
 | Peer dependencies | `@napplet/core >=0.37.0 <0.39.0` |
