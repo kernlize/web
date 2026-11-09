@@ -8,7 +8,8 @@ This package ships no backend that sends anything over a network; the only backe
 
 | Field | Value |
 | --- | --- |
-| Package | `@kernlize/messaging` |
+| npm | `@kernlize/messaging` |
+| JSR | `@kernl/messaging` |
 | Version | `0.3.0` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts` |
 | Dependencies | none |
@@ -17,7 +18,15 @@ This package ships no backend that sends anything over a network; the only backe
 
 ## Install
 
-`@kernlize/messaging` is not yet published to npm, so `pnpm add @kernlize/messaging` fails. During the alpha it is built from the kernl source repository, which is private, and consumed as a workspace dependency. The [package index](./index.md#install) has the steps.
+This package is `@kernlize/messaging` on npm and `@kernl/messaging` on JSR, the same code at the same version. Once released:
+
+```sh
+npm install @kernlize/messaging
+# or
+deno add jsr:@kernl/messaging
+```
+
+Neither registry has a release yet, so both commands fail. During the alpha the package is built from the kernl source repository, which is private, and consumed as a workspace dependency under its npm name. The [package index](./index.md#install) has the steps.
 
 ```json
 { "dependencies": { "@kernlize/messaging": "workspace:^" } }
