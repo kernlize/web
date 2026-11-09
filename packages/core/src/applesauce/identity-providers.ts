@@ -2,6 +2,7 @@ import { lastValueFrom, map } from 'rxjs';
 import type { EventStore } from 'applesauce-core';
 import { getContacts, getInboxes, getOutboxes, getProfileContent } from 'applesauce-core/helpers';
 import { createAddressLoader, type AddressPointerLoader } from 'applesauce-loaders/loaders';
+import type { CacheRequest } from 'applesauce-loaders';
 import type { IdentityServiceOptions } from '@kehto/services';
 import type { NostrEvent } from '@napplet/core';
 import type { RelayTiers } from '../types.js';
@@ -89,6 +90,7 @@ export function lookupRelaysOf(config: ReturnType<RelayTiers['get']>): string[] 
  * @param store - The shell's single event store.
  * @param pool - The shared applesauce pool.
  * @param tiers - Relay tiers; discovery and general are the lookup fallback.
+ * @param cacheRequest - Asked before any relay, so a cached event shows at once; the relays are still asked for newer.
  * @returns A loader for {@link createIdentityProviders} and `lookupReplaceable`.
  * @example
  * ```ts
@@ -96,10 +98,11 @@ export function lookupRelaysOf(config: ReturnType<RelayTiers['get']>): string[] 
  * const lookupBefore = lookupReplaceable(eventStore, { loader, relays: () => tiers.get().outbox });
  * ```
  */
-export function createReplaceableLoader(store: EventStore, pool: ApplesaucePool, tiers: RelayTiers): AddressPointerLoader {
+export function createReplaceableLoader(store: EventStore, pool: ApplesaucePool, tiers: RelayTiers, cacheRequest?: CacheRequest): AddressPointerLoader {
   return createAddressLoader((relays, filters) => pool.request(relays, filters), {
     eventStore: store,
     lookupRelays: tiers.changes$.pipe(map(lookupRelaysOf)),
+    ...(cacheRequest ? { cacheRequest } : {}),
   });
 }
 

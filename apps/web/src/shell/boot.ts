@@ -1,6 +1,7 @@
 import type { Kernl, KernlOptions } from '@kernlize/core';
 import { NostrConnectSigner } from 'applesauce-signers';
 import type { Booted, KernlHost } from './contract';
+import { openShellEventCache } from './event-cache';
 import { canReachPeers, createShellDownloads, type ShellDownloads } from './downloads';
 import { createPreviewTorrentClient } from './preview-downloads';
 import { MESSAGES_APPLET } from './messages-applet';
@@ -40,7 +41,7 @@ export async function boot(host: KernlHost, search: URLSearchParams, theme?: She
     const createKernl = core.createKernl as (options: KernlOptions) => Kernl;
     // The library loads on the first download, never with the page (D-017).
     const downloads = createShellDownloads({ storage: host.storage, client: loadWebTorrent, open: (uri) => host.openLink(uri), inKernl: canReachPeers() });
-    const kernl = createKernl({ host, torrent: downloads.torrent, builtins: [MESSAGES_APPLET], ...(theme ? { theme } : {}) });
+    const kernl = createKernl({ host, torrent: downloads.torrent, builtins: [MESSAGES_APPLET], eventCache: openShellEventCache, ...(theme ? { theme } : {}) });
     NostrConnectSigner.pool = kernl.pool;
     return { kernl, mode: 'live', downloads };
   } catch (error) {

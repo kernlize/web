@@ -12,6 +12,7 @@ import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
 import { createReplaceableLoader, lookupRelaysOf } from './applesauce/identity-providers.js';
 import { createProfiles, type ProfileCard, type Profiles } from './profiles/profiles.js';
 import { createRelayDirectory } from './relays/directory.js';
+import { connectEventCache } from './cache/connect.js';
 import { createAccountMailboxes, type AccountMailboxes } from './relays/mailboxes.js';
 import { createRelayTiers } from './relays/tiers.js';
 import { decodePointer } from './applets/pointer.js';
@@ -203,7 +204,8 @@ export function createKernl(options: KernlOptions): Kernl {
   });
 
   const identityOf = (windowId: string): AppletIdentity | undefined => handles.get(windowId)?.summary.identity;
-  const replaceableLoader = createReplaceableLoader(eventStore, pool, tiers);
+  const eventCache = connectEventCache(eventStore, options.eventCache);
+  const replaceableLoader = createReplaceableLoader(eventStore, pool, tiers, eventCache.cacheRequest);
   const profiles = createProfiles({ store: eventStore, load: replaceableLoader, lookupRelays: () => lookupRelaysOf(tiers.get()) });
   const directory = createRelayDirectory({ pool });
   const mailboxes = createAccountMailboxes({
@@ -285,7 +287,10 @@ export function createKernl(options: KernlOptions): Kernl {
     relays: tiers,
     messaging,
     bridges,
-    catalog: { load: (loadOptions) => loadCatalog(pool, tiers, loadOptions), stream: (streamOptions) => streamCatalog(pool, tiers, streamOptions) },
+    catalog: {
+      load: (loadOptions) => loadCatalog(pool, tiers, { cache: eventCache.cacheRequest, ...loadOptions }),
+      stream: (streamOptions) => streamCatalog(pool, tiers, { cache: eventCache.cacheRequest, ...streamOptions }),
+    },
     profiles,
     mailboxes,
     directory,
@@ -303,6 +308,7 @@ export function createKernl(options: KernlOptions): Kernl {
       subscriptions.unsubscribe();
       destroyed$.next();
       directory.stop();
+      void eventCache.close();
       intents.close();
       services.dm.dispose();
       bridge.destroy();

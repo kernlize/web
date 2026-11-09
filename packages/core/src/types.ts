@@ -11,6 +11,7 @@ import type { MessagingBackend, MessagingRegistry, ReplyAnswer, ReplyPrompt } fr
 import type { BridgeRegistry, TorrentBackend } from '@kernlize/bridges';
 import type { CatalogEntry } from './catalog/entry.js';
 import type { Profiles } from './profiles/profiles.js';
+import type { EventCacheOpener } from './cache/connect.js';
 import type { AccountMailboxes } from './relays/mailboxes.js';
 import type { RelayDirectory } from './relays/directory.js';
 import type { LoadCatalogOptions } from './catalog/fetch.js';
@@ -291,6 +292,8 @@ export interface KernlOptions {
   readonly messagingBackends?: MessagingBackendFactories;
   /** Opens the verified-artifact cache. Defaults to Cache Storage when the page has it, otherwise none. */
   readonly artifactCache?: () => Promise<NappletArtifactCache | undefined>;
+  /** Opens the event cache, such as `() => openEventCache(defaultWebCacheAdapters())` from `@kernlize/core/cache`. Without one the shell keeps events in memory only (D-030). */
+  readonly eventCache?: EventCacheOpener;
   /** Applets that come with the host, opened by `kernl:<id>` without a lookup. */
   readonly builtins?: readonly BuiltinApplet[];
   /** How intent delivery waits for a target to come up; `DELIVERY_RETRY` by default. */

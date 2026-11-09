@@ -185,6 +185,9 @@ export {
   type SqliteOpfsOptions,
   type SqlStatement,
   type SqlValue,
+  connectEventCache,
+  type ConnectedEventCache,
+  type EventCacheOpener,
 } from './cache/index.js';
 
 export { createDefaultMessaging, type DefaultMessagingOptions } from './messaging/default-registry.js';

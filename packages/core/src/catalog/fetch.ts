@@ -1,5 +1,5 @@
-import { auditTime, catchError, EMPTY, lastValueFrom, map, type Observable, scan, takeUntil, timer } from 'rxjs';
-import { getSeenRelays } from 'applesauce-core/helpers';
+import { auditTime, catchError, EMPTY, from, lastValueFrom, map, merge, mergeAll, type Observable, scan, takeUntil, timer } from 'rxjs';
+import { getSeenRelays, type Filter } from 'applesauce-core/helpers';
 import { NAPPLET_KIND_NAMED, NAPPLET_KIND_ROOT } from '@kehto/nip/5d';
 import type { NostrEvent, NostrFilter } from '@napplet/core';
 import type { RelayTiers } from '../types.js';
@@ -48,6 +48,8 @@ export interface LoadCatalogOptions {
   readonly timeoutMs?: number;
   /** How often the stream emits at most; {@link CATALOG_EMIT_MS} by default. */
   readonly emitMs?: number;
+  /** Manifests seen before, listed at once while the relays are asked for newer ones. */
+  readonly cache?: (filters: Filter[]) => Promise<NostrEvent[]>;
 }
 
 /**
@@ -107,10 +109,13 @@ function hintsFor(event: NostrEvent, relays: readonly string[]): readonly string
  */
 export function streamCatalog(pool: ApplesaucePool, tiers: RelayTiers, options: LoadCatalogOptions = {}): Observable<readonly CatalogEntry[]> {
   const relays = catalogRelays(tiers);
-  const events = pool.request([...relays], asFilters(catalogFilters(options))).pipe(
+  const filters = asFilters(catalogFilters(options));
+  const cached = options.cache ? from(options.cache(filters).catch(() => [])).pipe(mergeAll()) : EMPTY;
+  const live = pool.request([...relays], filters).pipe(
     takeUntil(timer(options.timeoutMs ?? CATALOG_TIMEOUT_MS)),
     catchError(() => EMPTY),
   );
+  const events = merge(cached, live);
   const found = events.pipe(
     scan((state: Found, event): Found => {
       if (event.kind === DELETION_KIND) return { ...state, withdrawn: withdraw(state.withdrawn, event) };

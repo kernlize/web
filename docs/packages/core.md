@@ -66,6 +66,7 @@ if (plan.missingRequired.length === 0) kernl.mount(plan, iframe);
 9. **Consent.** Before steps 5 and 6, `lookupReplaceable(eventStore, { loader: createReplaceableLoader(eventStore, pool, tiers), relays: () => [...outbox, ...discovery] })` builds the before lookup and `createSigningConsent({ host, lookupBefore, resolveApplet: identityOf, pubkey })` builds the gate, and both of the routes an applet's write can take pass through it: `relay.publish` is signed through `ShellAdapter.auth.getSigner(windowId)`, whose `signEvent` calls the gate first, and `outbox.publish` is gated in the outbox service wrapper before kehto signs it. For a kind `isDestructiveKind` accepts (every replaceable and addressable kind, 5 and 62), the gate describes the draft against the current version, from the event store or else from the outbox and discovery relays within `CURRENT_VERSION_TIMEOUT_MS`, calls `host.presentConsent` and waits; anything but yes rejects with `denied:consent` and nothing is signed. Routine kinds are not prompted; the shell's own signing (no window) is not gated; answers are not remembered. kehto's runtime has no destructive-signing consent of its own. Separately, `bridge.registerConsentHandler(createConsentHandler(host, lookupBefore, identityOf))` answers kehto's own `ConsentRequest`, which the runtime raises only for a firewall `prompt` policy and without an event, so the handler refuses it without asking.
 10. **Session.** `accounts.active$` drives `session$` (`toSession(account)` or null) and calls `bridge.publishIdentityChanged(pubkey)` with the active pubkey or `''` on sign-out, so bound applets hear every identity change through kehto's live port.
 11. **Lifecycle.** `createAppletLifecycle` with `options.artifactCache ?? openDefaultArtifactCache` and `host.fetchBlob ?? defaultFetchBlob`.
+12. **Events.** `connectEventCache(eventStore, options.eventCache)` opens the event cache in the background; the replaceable loader, the profiles and the catalogue ask it first (D-030). `kernl.mailboxes` follows the active account's kind 10002 and sets the `outbox` tier from it; `kernl.directory` waits for `start()` (D-029).
 
 `destroy()` closes every open applet, unsubscribes the session subscription, disposes the dm service, destroys the bridge and closes the pool if the shell owns it.
 
@@ -351,7 +352,7 @@ The fallback `SubtleCrypto` covers SHA-1/256/384/512 digests; HMAC and Ed25519 s
 
 ### Event cache
 
-Everything in this section is exported from `@kernlize/core/cache` and from `@kernlize/core`. The cache keeps events between visits, through one contract with a backend per context ([D-030](../decisions.md#d-030)). It is not yet wired into `createKernl`; a host opens and attaches it.
+Everything in this section is exported from `@kernlize/core/cache` and from `@kernlize/core`. The cache keeps events between visits, through one contract with a backend per context ([D-030](../decisions.md#d-030)). `createKernl` takes `eventCache`, an opener, and attaches what it opens to the shell's store through `connectEventCache`: the replaceable loader and the store's catalogue ask the cache before any relay, new events are written back in batches, and `destroy()` closes it. The shell starts at once; the cache opens in the background, and one that fails leaves the shell in memory. kernl's web shell passes `() => openEventCache(defaultWebCacheAdapters())`.
 
 ```ts
 import { EventStore } from 'applesauce-core';
@@ -584,6 +585,7 @@ Not yet composed by `createKernl`; [Inbox, outbox and finding servers](../concep
 | `fromEventDatabase` | `(name: string, database: IAsyncEventDatabase \| IEventDatabase, close?: () => Promise<void> \| void) => EventCache` | Any applesauce event database as a cache. |
 | `createEventCache` | `(name: string, records: EventRecords) => EventCache` | The shared rules over a backend's rows. |
 | `attachEventCache` | `(store: Pick<IEventStoreStreams, 'insert$'>, cache: EventCache, options?: AttachEventCacheOptions) => AttachedEventCache` | Writes and `cacheRequest` for loaders. |
+| `connectEventCache` | `(store, open?: EventCacheOpener) => ConnectedEventCache` | Opens in the background and attaches; `cacheRequest` waits for the open and answers `[]` without a cache; `close()` stops writes and closes. `createKernl` uses it for `options.eventCache`. |
 | `isCorruptionError` | `(error: unknown) => boolean` | Whether a sqlite error means a damaged file. |
 | `EventCache`, `EventCacheAdapter`, `EventRecords`, `OpenEventCacheOptions`, `IndexedDbCacheOptions`, `SqliteOpfsOptions`, `AttachEventCacheOptions`, `AttachedEventCache`, `CacheRecoveryEvent`, `SqliteDriver`, `SqliteFiles`, `SqlStatement`, `SqlValue`, `LockManagerLike`, `FilenameStorage` | types | |
 
