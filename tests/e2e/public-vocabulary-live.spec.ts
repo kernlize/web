@@ -58,17 +58,21 @@ test('the live settings show every default server without naming the protocol', 
   // The applet catalogue's default server has a name that would say what the protocol is, so it is called by its tier.
   await expect(page.getByText('Applet catalogue server 1', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Remove Applet catalogue server 1 from Applet catalogue' })).toBeVisible();
+  // A read-only account can neither sign nor decrypt, so private, legacy, ratchet and group messages all ask for a different account (D-016).
+  const settings = page.getByRole('dialog', { name: 'Settings' });
+  await expect(settings.getByText(UNAVAILABLE_WORDS['signer-cannot-encrypt'] as string).first()).toBeVisible();
+  expect(await settings.getByText(UNAVAILABLE_WORDS['signer-cannot-encrypt'] as string).count()).toBeGreaterThanOrEqual(3);
+  // Every provider is listed in the user's order, the group one included, and none is recommended.
+  for (const name of ['Private messages', 'Legacy messages', 'Ratchet sessions', 'Group sessions']) await expect(settings.getByRole('heading', { name, exact: true })).toBeVisible();
+  await settings.locator('details').evaluateAll((all) => all.forEach((d) => d.setAttribute('open', '')));
   await expectClean(page, 'live settings with the default servers');
   await page.keyboard.press('Escape');
 
+  // Messages is the applet the shell ships; with no provider that can run, it says so in its own frame.
   await page.getByRole('button', { name: /^Messages/ }).first().click();
-  // A read-only account can neither sign nor decrypt, so private, legacy and ratchet messages all ask for a different account (D-016).
-  await expect(page.getByText(UNAVAILABLE_WORDS['signer-cannot-encrypt'] as string).first()).toBeVisible();
-  expect(await page.getByText(UNAVAILABLE_WORDS['signer-cannot-encrypt'] as string).count()).toBeGreaterThanOrEqual(3);
-  // Every provider is listed side by side, the group one included, and none is ranked.
-  for (const name of ['Private messages', 'Legacy messages', 'Ratchet sessions', 'Group sessions']) await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+  await expect(page.locator('section.window')).toHaveAttribute('data-status', 'running');
+  await expect(page.frameLocator('iframe[data-window-id]').getByRole('button', { name: 'Retry' }).first()).toBeVisible();
   await expectClean(page, 'live messages');
-  await page.keyboard.press('Escape');
   await page.getByRole('button', { name: /^Guard/ }).first().click();
   await expectClean(page, 'live guard');
 });

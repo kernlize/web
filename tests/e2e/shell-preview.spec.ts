@@ -3,7 +3,7 @@ import { expect, test } from './fixtures';
 
 const base = process.env.PLAYWRIGHT_BASE_URL ?? '';
 
-test('the preview shell signs in, runs a sample applet, shows the guard and sends a message', async ({ page }) => {
+test('the preview shell signs in, runs a sample applet, shows the guard and opens messages', async ({ page }) => {
   await page.goto(`${base}/app/?preview=1`);
   await page.getByRole('button', { name: 'Try the preview' }).click();
   await expect(page.getByRole('button', { name: 'Open an applet' })).toBeVisible();
@@ -34,12 +34,10 @@ test('the preview shell signs in, runs a sample applet, shows the guard and send
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
+  // Messages is an applet too: it opens in a second sealed frame beside the first (shell-messages.spec.ts walks it).
   await page.getByRole('button', { name: /^Messages/ }).click();
-  await page.getByRole('option').first().click();
-  await page.getByRole('textbox', { name: 'Message' }).fill('Hello from the shell test');
-  await page.getByRole('button', { name: 'Send' }).click();
-  await expect(page.locator('.messages li.mine')).toContainText('Hello from the shell test');
-  await expect(page.locator('.messages li:not(.mine)')).toHaveCount(3, { timeout: 5000 });
+  await expect(page.locator('iframe[data-window-id]')).toHaveCount(2);
+  await expect(page.frameLocator('iframe[data-window-id]').nth(1).getByRole('button', { name: 'Ada', exact: true })).toBeVisible();
 });
 
 async function runPulse(page: Page): Promise<FrameLocator> {

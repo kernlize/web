@@ -63,13 +63,28 @@ test('every shell surface names no protocol', async ({ page }) => {
   await page.getByRole('button', { name: /^Guard/ }).first().click();
   await expectClean(page, 'guard panel');
   await page.keyboard.press('Escape');
+  // Messages is an applet in its own frame, and every frame is read.
   await page.getByRole('button', { name: /^Messages/ }).first().click();
-  await expectClean(page, 'messages, new conversation');
-  await page.getByRole('option').first().click();
-  await expect(page.locator('.messages li').first()).toBeVisible();
+  const messages = page.frameLocator('iframe[data-window-id]').nth(1);
+  await messages.getByRole('button', { name: 'Grace', exact: true }).click();
   await expectClean(page, 'messages, conversation');
+  await messages.getByRole('button', { name: 'New message' }).first().click();
+  await expectClean(page, 'messages, new conversation');
+  await messages.getByRole('button', { name: 'Grace', exact: true }).click();
+  await messages.getByRole('textbox', { name: 'Message' }).fill('Which way?');
+  await messages.getByRole('textbox', { name: 'Message' }).press('Enter');
+  await expect(page.getByRole('dialog', { name: 'How should this reply travel?' })).toBeVisible();
+  await page.getByRole('dialog').getByRole('radio', { name: 'Every time, for everyone' }).check();
+  await expectClean(page, 'reply question');
+  await page.getByRole('dialog').getByRole('button', { name: 'Do not send' }).click();
+  await expectClean(page, 'messages, not sent');
+  await page.locator('details.account summary').click();
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('dialog').locator('details').evaluateAll((all) => all.forEach((d) => d.setAttribute('open', '')));
+  await expectClean(page, 'settings, messages');
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Grants' }).first().click();
+  // The messages window is in front; its grants are the ones the shell switched on for it.
+  await page.getByRole('button', { name: 'Grants for Messages' }).click();
   await expectClean(page, 'grants panel');
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Downloads', exact: true }).first().click();
