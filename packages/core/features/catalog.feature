@@ -80,6 +80,11 @@ Feature: The applet store's catalogue
     When the catalogue loads from the shell's relays
     Then the catalogue lists "later@9,forged@4,kept@2"
 
+  Scenario: a root applet whose address its publisher deleted is not listed
+    Given the fake pool serves a root catalogue manifest and a deletion of its address
+    When the catalogue loads from the shell's relays
+    Then the catalogue lists ""
+
   Scenario: a dead relay leaves an empty store, not an error
     Given the fake pool fails requests
     When the catalogue loads from the shell's relays

@@ -4,7 +4,7 @@ Feature: Relay adapters over the one applesauce pool
   lists go to the people tier (discovery, the user's outbox and the general
   servers), manifests to the applet catalogue, everything else to the general
   path. Subscriptions report the end of stored events once, after every relay
-  answered. A publish succeeds when any relay accepts it (D-027).
+  answered. A publish succeeds when any relay accepts it (D-028).
 
   Background:
     Given kernl relay tiers over empty storage

@@ -41,19 +41,14 @@ import type {
 } from './contract';
 import { abbreviate, shortId } from './contract';
 import { domainLabel } from './domains';
-<<<<<<< HEAD
-import { PREVIEW_CATALOG, renderPreviewApplet, sampleSummary, sealPreviewDocument } from './preview-applet';
+import { PREVIEW_CATALOG, PREVIEW_PUBLISHER, renderPreviewApplet, sampleSummary, sealPreviewDocument } from './preview-applet';
 import { createPreviewBuiltins } from './preview-builtin';
 import { PORT_DOMAINS, createPreviewPorts, type PortLike, type PreviewPorts } from './preview-port';
 import { createPreviewIntents, type PreviewIntentDeps, type PreviewIntents } from './preview-intents';
-import { createPreviewMessaging } from './preview-messaging';
-import type { ShellTheme } from './shell-theme';
-=======
-import { PREVIEW_CATALOG, PREVIEW_PUBLISHER, renderPreviewApplet, sampleSummary } from './preview-applet';
-import { createPreviewIntents, type PreviewIntentDeps, type PreviewIntents } from './preview-intents';
 import { createPreviewMessaging, PREVIEW_CORRESPONDENT } from './preview-messaging';
+import { createPreviewDirectory, createPreviewMailboxes } from './preview-mailboxes';
 import { createPreviewProfiles } from './preview-profiles';
->>>>>>> 165ff6b (feat(web): show people by name and list store applets as they arrive)
+import type { ShellTheme } from './shell-theme';
 import { baselineDomains, createPreviewGrants, createPreviewRelays, loadBaselineDomains } from './preview-state';
 
 export const PREVIEW_OWNER = 'e8f1a4b7c9d2e5f8a1b4c7d0e3f6a9b2c5d8e1f4a7b0c3d6e9f2a5b8c1d4e7f0';
@@ -417,6 +412,8 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
     bridges,
     catalog: { load: async () => PREVIEW_CATALOG, stream: () => of(PREVIEW_CATALOG) },
     profiles,
+    mailboxes: createPreviewMailboxes(),
+    directory: createPreviewDirectory(),
     intents: intents.intents,
     session$,
     get session() {

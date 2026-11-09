@@ -14,7 +14,7 @@ export interface OutboxRelayPoolLike {
 /**
  * Publish to every relay and succeed when any one accepts. A relay that refuses
  * or is unreachable is normal on an open network; only when none accepted is
- * the publish a failure, and then the reason names how many were tried (D-027).
+ * the publish a failure, and then the reason names how many were tried (D-028).
  *
  * @param pool - The shared applesauce pool.
  * @param relays - Where to publish.

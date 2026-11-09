@@ -429,4 +429,4 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 
 **Consequences.** A new account gets a working inbox and outbox in one save, and an existing one sees and edits the list every other client uses. The directory costs one long-lived subscription and up to a few tens of thousands of small events while it runs; it is started by the host, not by default. A single hostile monitor can mark a relay as paid and drop it from suggestions, which the person can still type. A web-of-trust filter over monitors is not attempted. Read relays of the account's old inboxes are not sent the new list.
 
-**Reversal cost.** Low. Both modules are additive and not yet wired into `createKernl`; the ranking and the fallback lists are constants and one comparator.
+**Reversal cost.** Low. `createKernl` composes both (`kernl.mailboxes`, `kernl.directory`) and lets a found list's outboxes become the `outbox` tier; the ranking and the fallback lists are constants and one comparator.

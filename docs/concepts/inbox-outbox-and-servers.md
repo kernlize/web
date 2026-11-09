@@ -106,7 +106,7 @@ describeOutcome(outcome); // 'Saved to 2 of 3 servers'
 
 ## Wiring
 
-These modules are not composed by `createKernl` yet. A host builds them over the shell's pool and store:
+`createKernl` composes both over the shell's pool and store: `kernl.mailboxes` follows the active account, and its outboxes become the `outbox` tier while a list is found; `kernl.directory` is idle until the host calls `start()` (the shell's Settings does while it is open). A host that composes its own shell, or wants a second directory with other monitors, builds them the same way:
 
 ```ts
 import { createAccountMailboxes, createRelayDirectory, describeOutcome, type MailboxSigner, type RelayTiers } from '@kernlize/core';

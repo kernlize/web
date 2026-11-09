@@ -1,4 +1,4 @@
-import { BehaviorSubject, map, of, Subject, Subscription, switchMap } from 'rxjs';
+import { BehaviorSubject, map, of, Subject, Subscription, switchMap, takeUntil } from 'rxjs';
 import { EventStore } from 'applesauce-core';
 import { RelayPool } from 'applesauce-relay';
 import type { AccountManager, IAccount } from 'applesauce-accounts';
@@ -11,6 +11,8 @@ import { createKernlAccounts } from './applesauce/accounts.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
 import { createReplaceableLoader, lookupRelaysOf } from './applesauce/identity-providers.js';
 import { createProfiles, type ProfileCard, type Profiles } from './profiles/profiles.js';
+import { createRelayDirectory } from './relays/directory.js';
+import { createAccountMailboxes, type AccountMailboxes } from './relays/mailboxes.js';
 import { createRelayTiers } from './relays/tiers.js';
 import { decodePointer } from './applets/pointer.js';
 import { defaultFetchBlob, openDefaultArtifactCache } from './applets/resolve.js';
@@ -57,10 +59,12 @@ interface ShellState {
   readonly accounts: AccountManager;
   readonly session$: BehaviorSubject<Session | null>;
   readonly profiles: Profiles;
+  readonly mailboxes: AccountMailboxes;
+  readonly tiers: RelayTiers;
 }
 
 /** Keep the runtime firewall on the guard's profile and the session on the active account. */
-function followShellState({ pipeline, bridge, handles, accounts, session$, profiles }: ShellState): Subscription {
+function followShellState({ pipeline, bridge, handles, accounts, session$, profiles, mailboxes, tiers }: ShellState): Subscription {
   const subscriptions = new Subscription();
   subscriptions.add(pipeline.profile$.subscribe(() => {
     applyRuntimeFirewallProfile(bridge.runtime.firewallState, pipeline.config);
@@ -70,6 +74,10 @@ function followShellState({ pipeline, bridge, handles, accounts, session$, profi
   // The session's label follows the account's published name once it arrives.
   const sessions = accounts.active$.pipe(switchMap((account) => (account ? profiles.card$(account.pubkey).pipe(map((card) => toSession(account, card))) : of(null))));
   subscriptions.add(sessions.subscribe(session$));
+  // Where the account says it publishes is where the shell publishes for it (NIP-65, D-029).
+  subscriptions.add(mailboxes.state$.subscribe((state) => {
+    if (state.status === 'found') tiers.set('outbox', state.mailboxes.outboxes);
+  }));
   return subscriptions;
 }
 
@@ -178,6 +186,7 @@ export function createKernl(options: KernlOptions): Kernl {
   const handles = new Map<string, MountedApplet>();
   const guardEvents$ = new Subject<GuardEvent>();
   const session$ = new BehaviorSubject<Session | null>(null);
+  const destroyed$ = new Subject<void>();
   const subscriptions = new Subscription();
   let grants: KernlGrants;
 
@@ -196,6 +205,15 @@ export function createKernl(options: KernlOptions): Kernl {
   const identityOf = (windowId: string): AppletIdentity | undefined => handles.get(windowId)?.summary.identity;
   const replaceableLoader = createReplaceableLoader(eventStore, pool, tiers);
   const profiles = createProfiles({ store: eventStore, load: replaceableLoader, lookupRelays: () => lookupRelaysOf(tiers.get()) });
+  const directory = createRelayDirectory({ pool });
+  const mailboxes = createAccountMailboxes({
+    store: eventStore,
+    pool,
+    pubkey$: accounts.active$.pipe(map((account) => account?.pubkey), takeUntil(destroyed$)),
+    lookupRelays: () => lookupRelaysOf(tiers.get()),
+    signer: () => (accounts.active && !isReadOnlyAccount(accounts.active) ? accounts.active.signer : undefined),
+    directory,
+  });
   const lookupBefore = lookupReplaceable(eventStore, {
     loader: replaceableLoader,
     relays: () => [...tiers.get().outbox, ...tiers.get().discovery],
@@ -239,7 +257,7 @@ export function createKernl(options: KernlOptions): Kernl {
   grants = createGrants({ acl: bridge.runtime.aclState, storage: host.storage, availableDomains: () => buildShellCapabilities(adapter).domains });
   bridge.registerConsentHandler(createConsentHandler(host, lookupBefore, identityOf));
 
-  subscriptions.add(followShellState({ pipeline, bridge, handles, accounts, session$, profiles }));
+  subscriptions.add(followShellState({ pipeline, bridge, handles, accounts, session$, profiles, mailboxes, tiers }));
 
   const lifecycle = createAppletLifecycle({
     pool,
@@ -269,6 +287,8 @@ export function createKernl(options: KernlOptions): Kernl {
     bridges,
     catalog: { load: (loadOptions) => loadCatalog(pool, tiers, loadOptions), stream: (streamOptions) => streamCatalog(pool, tiers, streamOptions) },
     profiles,
+    mailboxes,
+    directory,
     intents: intents.intents,
     session$,
     get session() {
@@ -281,6 +301,8 @@ export function createKernl(options: KernlOptions): Kernl {
       const open = [...handles.values()];
       for (const handle of open) handle.close();
       subscriptions.unsubscribe();
+      destroyed$.next();
+      directory.stop();
       intents.close();
       services.dm.dispose();
       bridge.destroy();

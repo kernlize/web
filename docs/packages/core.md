@@ -91,7 +91,9 @@ The host is the only way the core reaches the user or the page. Applets never re
 | `accounts`, `eventStore`, `pool`, `bridge` | The applesauce `AccountManager`, `EventStore` and `RelayPool`, and kehto's `ShellBridge`. The web shell hides all but `accounts` from its UI. |
 | `guard: GuardFacade` | `config`, `profile$`, `setProfile(profile)`, `events$`, `mitigations()`, `release(windowId)`. `setProfile` rebuilds kernl's guard layers shell-wide; held window-level messages are dropped and counters restart. Open windows keep the runtime firewall rates they were mounted with. It is not persisted. |
 | `grants: Grants` | The user-facing grants surface, see [Grants](#grants). |
-| `relays: RelayTiers` | `get()`, `add(tier, url)`, `remove(tier, url)`, `changes$`. `add` throws `invalid:relay-url` for anything that is not `ws://` or `wss://`. |
+| `relays: RelayTiers` | `get()`, `add(tier, url)`, `remove(tier, url)`, `set(tier, urls)`, `changes$`. `add` and `set` throw `invalid:relay-url` for anything that is not `ws://` or `wss://`; `set` with an unchanged list emits nothing. |
+| `mailboxes: AccountMailboxes` | The signed-in account's published inbox and outbox (kind 10002, D-029). While a list is `found`, the `outbox` tier follows its outboxes, so every publish goes where the account says it writes. `save` signs with the active account and refuses `denied:read-only` for a read-only or signed-out session. |
+| `directory: RelayDirectory` | Monitored servers (kind 30166) from `DEFAULT_MONITOR_RELAYS`, idle until `start()`; `search` completes an address and `suggest` proposes servers. Settings starts it while open. |
 | `messaging`, `bridges` | The registries the services read. |
 | `catalog: AppletCatalog` | `stream(options?)` emits the store's entries from the `apps` and `super` tiers as they arrive; `load(options?)` resolves with the final list, see [The store and intents](../concepts/store-and-intents.md). |
 | `profiles: Profiles` | `card$(pubkey)` and `card(pubkey)`: how the shell names a person. The session label follows the account's published name. |
@@ -462,7 +464,7 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `createRelayPoolHooks` | `(pool: ApplesaucePool, tiers: RelayTiers) => RelayPoolHooks` | kehto's relay-pool hooks, including one scoped relay per window. |
 | `createRelayPoolLike` | `(pool: ApplesaucePool) => RelayPoolLike` | `subscription`, `request`, `publish` over the one pool. |
 | `createAppletRelayBackend` | `(pool: ApplesaucePool, tiers: RelayTiers) => RelayPoolServiceOptions` | For kehto's `createRelayPoolService`; publishes go to the tier for the event's kind and succeed when any relay accepts. |
-| `publishAccepted` | `(pool: ApplesaucePool, relays: string[], event: NostrEvent) => Promise<number>` | Publishes everywhere and resolves with how many accepted; throws `unavailable:not-accepted:0/<n>` only when none did (D-027). |
+| `publishAccepted` | `(pool: ApplesaucePool, relays: string[], event: NostrEvent) => Promise<number>` | Publishes everywhere and resolves with how many accepted; throws `unavailable:not-accepted:0/<n>` only when none did (D-028). |
 | `lookupRelaysOf` | `(config) => string[]` | Where an unhinted replaceable is looked up: `discovery`, then `super`. |
 | `createProfiles` | `(options: ProfilesOptions) => Profiles` | `card$(pubkey)` streams a `ProfileCard` (name, `https:` picture, address, about, `found`) and starts a lookup on the lookup relays, then on the author's own write relays when their relay list names servers the lookup relays lacked. Nothing times out; a late profile replaces the short key. `card(pubkey)` reads the store only. |
 | `toProfileCard` | `(pubkey: string, event: NostrEvent \| undefined) => ProfileCard` | Display name, then name, then the abbreviated key. |

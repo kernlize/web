@@ -11,6 +11,8 @@ import type { MessagingBackend, MessagingRegistry, ReplyAnswer, ReplyPrompt } fr
 import type { BridgeRegistry, TorrentBackend } from '@kernlize/bridges';
 import type { CatalogEntry } from './catalog/entry.js';
 import type { Profiles } from './profiles/profiles.js';
+import type { AccountMailboxes } from './relays/mailboxes.js';
+import type { RelayDirectory } from './relays/directory.js';
 import type { LoadCatalogOptions } from './catalog/fetch.js';
 import type { HandlerDefaults } from './intents/defaults.js';
 import type { InstalledApplet } from './intents/installed.js';
@@ -170,6 +172,8 @@ export interface RelayTiers {
   get(): Readonly<Record<RelayTier, readonly string[]>>;
   add(tier: RelayTier, url: string): void;
   remove(tier: RelayTier, url: string): void;
+  /** Replace a tier's relays at once; unchanged lists are not re-emitted. Throws `invalid:relay-url` for an entry that is not a websocket URL. */
+  set(tier: RelayTier, urls: readonly string[]): void;
   readonly changes$: Observable<Readonly<Record<RelayTier, readonly string[]>>>;
 }
 
@@ -336,6 +340,10 @@ export interface Kernl {
   readonly catalog: AppletCatalog;
   /** People's names and pictures, loaded from their profiles on demand. */
   readonly profiles: Profiles;
+  /** The signed-in account's published inbox and outbox (NIP-65); the `outbox` tier follows its outboxes. */
+  readonly mailboxes: AccountMailboxes;
+  /** Monitored servers (NIP-66) for completing and suggesting; idle until `start()`. */
+  readonly directory: RelayDirectory;
   readonly intents: Intents;
   readonly session$: Observable<Session | null>;
   readonly session: Session | null;

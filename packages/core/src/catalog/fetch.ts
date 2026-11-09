@@ -19,7 +19,7 @@ export const CATALOG_LIMIT = 500;
 
 /**
  * The longest the store keeps asking a relay that has not finished. Entries are
- * listed as they arrive, so this is the outer bound, not a wait (D-027).
+ * listed as they arrive, so this is the outer bound, not a wait (D-028).
  *
  * @example
  * ```ts

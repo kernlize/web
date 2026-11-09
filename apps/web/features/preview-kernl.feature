@@ -251,6 +251,20 @@ Feature: The preview kernl
     Then the preview kernl names the correspondent "Ada", the publisher "kernl samples" and its own account "Preview account"
     And the preview kernl names key "ABCDEF0123456789abcdef0123456789abcdef0123456789abcdef0123456789" by its short form
 
+  Scenario: the preview account has no inbox or outbox until it saves one, and every server accepts it
+    Then the preview kernl mailboxes are missing, suggesting 3 inboxes and 3 outboxes
+    And the preview kernl directory suggests 3 lookup servers and completes nothing for "nos"
+    When the preview kernl saves inbox "wss://in.test" and outbox "wss://out.test,wss://in.test"
+    Then the preview kernl save was accepted by 2 servers
+    And the preview kernl mailboxes are found with inbox "wss://in.test" and outbox "wss://out.test,wss://in.test"
+    When the preview kernl saves inbox "" and outbox ""
+    Then the preview kernl save was accepted by 0 servers
+
+  Scenario: the preview's tiers can be replaced at once
+    When the preview kernl sets the "outbox" tier to "wss://a.test,wss://a.test"
+    Then the preview kernl "outbox" tier is "wss://a.test"
+    And the preview kernl refuses to set the "outbox" tier to "https://a.test"
+
   Scenario: the store lists the preview's applets, and running one installs it
     Then the preview kernl store lists "Notes,Pulse,Profiles"
     And the preview kernl store streams "Notes,Pulse,Profiles"

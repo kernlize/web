@@ -51,3 +51,16 @@ Feature: Relay tiers
     Given kernl relay tiers over empty storage
     When the shell adds "https://relay.mine" to the "outbox" tier
     Then the shell refused with "invalid:relay-url"
+
+  Scenario: a tier can be replaced at once, and an unchanged list is not observed again
+    Given kernl relay tiers over empty storage
+    When the shell sets the "outbox" tier to "wss://a.test,wss://b.test,wss://a.test"
+    Then the "outbox" tier is "wss://a.test,wss://b.test"
+    When the shell sets the "outbox" tier to "wss://a.test,wss://b.test"
+    Then the tier configuration was observed 2 times
+    When the shell sets the "outbox" tier to "wss://b.test"
+    Then the "outbox" tier is "wss://b.test"
+    When the shell sets the "outbox" tier to "wss://b.test,wss://c.test"
+    Then the tier configuration was observed 4 times
+    When the shell sets the "outbox" tier to "https://b.test"
+    Then the shell refused with "invalid:relay-url"

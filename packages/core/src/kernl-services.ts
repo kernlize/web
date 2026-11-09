@@ -99,7 +99,7 @@ function withShellWrites(entry: RelayListEntry, tiers: KernlServiceDeps['tiers']
  * kehto's outbox router fails a publish unless every one of the author's
  * write relays accepted it. On an open network one server refusing or being
  * down is ordinary, so kernl reports success when any relay accepted, and
- * keeps the per-relay results so the caller sees how many did (D-027).
+ * keeps the per-relay results so the caller sees how many did (D-028).
  * Upstream gap: the router has no acceptance policy option.
  *
  * @param router - kehto's outbox router.

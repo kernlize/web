@@ -316,3 +316,10 @@ Given('the fake pool serves catalogue manifests {string} and deletions {string}'
   }
   scratch(world).pool.events = [...manifests, ...deletes];
 });
+
+Given('the fake pool serves a root catalogue manifest and a deletion of its address', async (world: CoreWorld) => {
+  const html = '<!doctype html><title>root</title>';
+  const root = await author.signEvent({ kind: 15129, tags: [['x', sha256Hex(html)], ['R', 'relay']], content: 'A root applet.', created_at: 1_700_000_000 });
+  const deletion = await author.signEvent({ kind: 5, tags: [['a', `15129:${root.pubkey}:`], ['e'], ['k', '15129']], content: '', created_at: 1_700_000_001 });
+  scratch(world).pool.events = [root, deletion];
+});

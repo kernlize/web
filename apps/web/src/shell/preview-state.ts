@@ -146,6 +146,10 @@ export function createPreviewRelays(storage: StorageLike): RelayTiers {
     remove(tier, url) {
       set({ ...tiers, [tier]: tiers[tier].filter((item) => item !== url) });
     },
+    set(tier, urls) {
+      if (urls.some((url) => !/^wss?:\/\/\S+$/.test(url))) throw new Error('invalid:url');
+      set({ ...tiers, [tier]: [...new Set(urls)] });
+    },
     changes$,
   };
 }

@@ -527,3 +527,44 @@ Then('the preview kernl names the correspondent {string}, the publisher {string}
 Then('the preview kernl names key {string} by its short form', (world: PreviewWorld, key: string) => {
   expect(preview(world).kernl.profiles.card(key)).toEqual({ pubkey: key, name: 'ABCDEF01…6789', found: false });
 });
+
+Then('the preview kernl mailboxes are missing, suggesting {int} inboxes and {int} outboxes', (world: PreviewWorld, inboxes: number, outboxes: number) => {
+  const state = preview(world).kernl.mailboxes.state();
+  expect(state.status).toBe('missing');
+  if (state.status !== 'missing') return;
+  expect(state.suggested.inboxes).toHaveLength(inboxes);
+  expect(state.suggested.outboxes).toHaveLength(outboxes);
+});
+
+Then('the preview kernl directory suggests {int} lookup servers and completes nothing for {string}', (world: PreviewWorld, count: number, text: string) => {
+  const { directory } = preview(world).kernl;
+  directory.start();
+  expect(directory.suggest({ purpose: 'lookup' })).toHaveLength(count);
+  expect(directory.search(text)).toEqual([]);
+  directory.stop();
+});
+
+When('the preview kernl saves inbox {string} and outbox {string}', async (world: PreviewWorld, inboxes: string, outboxes: string) => {
+  (world as PreviewWorld & { saved?: unknown }).saved = await preview(world).kernl.mailboxes.save({ inboxes: list(inboxes), outboxes: list(outboxes) });
+});
+
+Then('the preview kernl save was accepted by {int} servers', (world: PreviewWorld, count: number) => {
+  expect((world as PreviewWorld & { saved?: { accepted: string[]; ok: boolean } }).saved).toMatchObject({ ok: count > 0, refused: [] });
+  expect((world as PreviewWorld & { saved?: { accepted: string[] } }).saved?.accepted).toHaveLength(count);
+});
+
+Then('the preview kernl mailboxes are found with inbox {string} and outbox {string}', (world: PreviewWorld, inboxes: string, outboxes: string) => {
+  expect(preview(world).kernl.mailboxes.state()).toMatchObject({ status: 'found', mailboxes: { inboxes: list(inboxes), outboxes: list(outboxes) } });
+});
+
+When('the preview kernl sets the {string} tier to {string}', (world: PreviewWorld, tier: 'outbox', urls: string) => {
+  preview(world).kernl.relays.set(tier, list(urls));
+});
+
+Then('the preview kernl {string} tier is {string}', (world: PreviewWorld, tier: 'outbox', urls: string) => {
+  expect(preview(world).kernl.relays.get()[tier]).toEqual(list(urls));
+});
+
+Then('the preview kernl refuses to set the {string} tier to {string}', (world: PreviewWorld, tier: 'outbox', urls: string) => {
+  expect(() => preview(world).kernl.relays.set(tier, list(urls))).toThrow('invalid:url');
+});

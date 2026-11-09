@@ -83,6 +83,12 @@ export function createRelayTiers(storage: StorageLike, defaults: Partial<Record<
       const current = changes$.value[tier];
       if (!current.includes(url)) update(tier, [...current, url]);
     },
+    set(tier, urls) {
+      urls.forEach(assertRelayUrl);
+      const next = [...new Set(urls)];
+      const current = changes$.value[tier];
+      if (next.length !== current.length || next.some((url, index) => url !== current[index])) update(tier, next);
+    },
     remove(tier, url) {
       const current = changes$.value[tier];
       if (current.includes(url)) update(tier, current.filter((entry) => entry !== url));
