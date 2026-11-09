@@ -2,7 +2,7 @@
 
 `apps/web` is one host for `@kernlize/core`; your own page can be another. This how-to implements `KernlHost`, calls `createKernl`, and mounts an applet in an iframe you own. The sample is type-checked with `strict` on by `node scripts/check-doc-samples.mjs`, part of `pnpm docs:check`. For a slower, step-by-step version with a complete page, follow the tutorial [Embed kernl in a page](../tutorials/embed-a-host-page.md).
 
-The packages are not yet published to npm, so your page lives in a clone of the kernl source as a workspace package that depends on `@kernlize/core` and `@kernlize/guard` with `workspace:^`, and you run `pnpm build` first ([Packages](../packages/index.md#install)).
+The packages are not released yet, neither on npm (`@kernlize/*`) nor on JSR (`@kernl/*`), so your page lives in a clone of the kernl source as a workspace package that depends on `@kernlize/core` and `@kernlize/guard` with `workspace:^`, and you run `pnpm build` first ([Packages](../packages/index.md#install)).
 
 ## 1. Put the frame policy in the page head
 

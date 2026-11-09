@@ -4,7 +4,8 @@ Locator parsing, the bridge contract, the registry that routes and authorises, a
 
 | Field | Value |
 | --- | --- |
-| Package | `@kernlize/bridges` |
+| npm | `@kernlize/bridges` |
+| JSR | `@kernl/bridges` |
 | Version | `0.2.1` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts` |
 | Dependencies | none |
@@ -13,7 +14,15 @@ Locator parsing, the bridge contract, the registry that routes and authorises, a
 
 ## Install
 
-`@kernlize/bridges` is not yet published to npm, so `pnpm add @kernlize/bridges` fails. During the alpha it is built from the kernl source repository, which is private, and consumed as a workspace dependency. The [package index](./index.md#install) has the steps.
+This package is `@kernlize/bridges` on npm and `@kernl/bridges` on JSR, the same code at the same version. Once released:
+
+```sh
+npm install @kernlize/bridges
+# or
+deno add jsr:@kernl/bridges
+```
+
+Neither registry has a release yet, so both commands fail. During the alpha the package is built from the kernl source repository, which is private, and consumed as a workspace dependency under its npm name. The [package index](./index.md#install) has the steps.
 
 ```json
 { "dependencies": { "@kernlize/bridges": "workspace:^" } }

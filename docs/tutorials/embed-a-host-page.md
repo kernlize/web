@@ -5,7 +5,7 @@ This tutorial builds the smallest page that runs a real applet under kernl: one 
 [Embed kernl core](../how-tos/embed-kernl-core.md) is the reference version of the same work; this page goes one step at a time and tells you what you should see after each.
 
 ::: warning Alpha
-The `@kernlize/*` packages are not on npm yet. You need a clone of the kernl source repository, which is private during the alpha ([Packages](../packages/index.md#install)).
+The packages are not released yet, neither as `@kernlize/*` on npm nor as `@kernl/*` on JSR. You need a clone of the kernl source repository, which is private during the alpha ([Packages](../packages/index.md#install)).
 :::
 
 ## 1. Make a workspace package
