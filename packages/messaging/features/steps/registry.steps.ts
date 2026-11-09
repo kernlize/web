@@ -96,6 +96,15 @@ Given('messaging provider {string} is unavailable because {string}', (world: Mes
   fake(world, id).availability = { available: false, reason };
 });
 
+When('messaging provider {string} becomes available', (world: MessagingWorld, id: string) => {
+  fake(world, id).availability = { available: true };
+  state(world).registry?.list();
+});
+
+When('messaging provider {string} becomes available without the registry being read', (world: MessagingWorld, id: string) => {
+  fake(world, id).availability = { available: true };
+});
+
 Given('messaging provider {string} has a backend that cannot be closed', (world: MessagingWorld, id: string) => {
   fake(world, id).closable = false;
 });

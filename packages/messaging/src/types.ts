@@ -69,6 +69,7 @@ export interface MessagingProvider {
 /** A provider plus its registry state. */
 export interface ProviderEntry {
   readonly provider: MessagingProvider;
+  /** Its backend is running. */
   readonly enabled: boolean;
   readonly availability: ProviderAvailability;
 }
@@ -81,7 +82,7 @@ export type ReplyRule = 'ask' | 'theirs' | 'mine';
 
 /** Persisted registry preferences. */
 export interface MessagingPreferences {
-  /** Enabled providers, in the user's order. */
+  /** The providers the user wants on, in their order: those running and those waiting until they can run. */
   readonly enabled: readonly string[];
   /** Every registered provider, the user's first choice first. */
   readonly order: readonly string[];

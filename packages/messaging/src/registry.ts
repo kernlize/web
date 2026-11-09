@@ -67,8 +67,10 @@ async function decideReply(
  * The registry owns one backend per enabled provider and hands out a single
  * composite backend for the NAP `dm` service. Preferences restored at
  * construction are applied lazily: a provider that appears in the saved
- * `enabled` list is enabled the moment it is registered, if it is available;
- * an unavailable one stays disabled and reports why through `list()`.
+ * `enabled` list is started the moment it is registered, if it is available.
+ * One that cannot run yet (nobody is signed in, say) reports why through
+ * `list()`, stays in the saved `enabled` list, and is started the next time
+ * the registry is read after it became available. Switching it off forgets it.
  *
  * Providers are kept in the user's order. A provider joins the end of it when
  * it is registered, unless the saved order already places it. The first
@@ -102,7 +104,8 @@ async function decideReply(
 export function createMessagingRegistry(options: MessagingRegistryOptions = {}): MessagingRegistry {
   const providers = new Map<string, MessagingProvider>();
   const backends = new Map<string, MessagingBackend>();
-  const restoring = new Set(options.preferences?.enabled ?? []);
+  /** Providers the user wants on that cannot run yet; each starts as soon as it can. */
+  const waiting = new Set(options.preferences?.enabled ?? []);
   const reply: ReplyState = {
     rule: options.preferences?.reply ?? 'ask',
     choices: new Map(Object.entries(options.preferences?.replyChoices ?? {})),
@@ -114,11 +117,11 @@ export function createMessagingRegistry(options: MessagingRegistryOptions = {}):
   const enabledIds = (): string[] => ordered().filter((id) => backends.has(id));
 
   const snapshot = (): MessagingPreferences => {
-    const enabled = enabledIds();
+    const first = enabledIds()[0];
     return Object.freeze({
-      enabled: Object.freeze(enabled),
+      enabled: Object.freeze(ordered().filter((id) => backends.has(id) || waiting.has(id))),
       order: Object.freeze(ordered()),
-      ...(enabled[0] === undefined ? {} : { defaultProvider: enabled[0] }),
+      ...(first === undefined ? {} : { defaultProvider: first }),
       reply: reply.rule,
       replyChoices: Object.freeze(Object.fromEntries(reply.choices)),
     });
@@ -144,6 +147,16 @@ export function createMessagingRegistry(options: MessagingRegistryOptions = {}):
     backends.set(provider.id, provider.createBackend());
   };
 
+  /** Start every waiting provider that can run now. Called wherever the registry is read, so a sign-in needs no announcement. */
+  const settle = (): void => {
+    const ready = ordered().filter((id) => waiting.has(id) && lookup(id).availability().available);
+    for (const id of ready) {
+      waiting.delete(id);
+      activate(lookup(id));
+    }
+    if (ready.length > 0) notify();
+  };
+
   const ask = options.askReply;
   const askUser = ask && ((choice: ReplyChoice) => ask({ peer: choice.peer, theirs: lookup(choice.theirs), mine: lookup(choice.mine) }));
 
@@ -152,12 +165,14 @@ export function createMessagingRegistry(options: MessagingRegistryOptions = {}):
       if (providers.has(provider.id)) throw new Error('invalid:duplicate-provider');
       providers.set(provider.id, provider);
       if (!order.includes(provider.id)) order.push(provider.id);
-      if (!restoring.delete(provider.id) || !provider.availability().available) return;
-      activate(provider);
-      notify();
+      settle();
     },
-    list: () => ordered().map((id) => entryFor(lookup(id))),
+    list() {
+      settle();
+      return ordered().map((id) => entryFor(lookup(id)));
+    },
     get(id) {
+      settle();
       const provider = providers.get(id);
       return provider && entryFor(provider);
     },
@@ -165,13 +180,14 @@ export function createMessagingRegistry(options: MessagingRegistryOptions = {}):
       const provider = lookup(id);
       if (backends.has(id)) return;
       activate(provider);
+      waiting.delete(id);
       notify();
     },
     disable(id) {
       lookup(id);
       const backend = backends.get(id);
-      if (!backend) return;
-      backend.close?.();
+      if (!backend && !waiting.delete(id)) return;
+      backend?.close?.();
       backends.delete(id);
       notify();
     },
@@ -194,10 +210,13 @@ export function createMessagingRegistry(options: MessagingRegistryOptions = {}):
       else reply.choices.delete(pubkey);
       notify();
     },
-    preferences: snapshot,
+    preferences() {
+      settle();
+      return snapshot();
+    },
     composite() {
       composite ??= createCompositeBackend(
-        () => enabledIds().map((id) => ({ id, backend: backends.get(id) as MessagingBackend })),
+        () => (settle(), enabledIds().map((id) => ({ id, backend: backends.get(id) as MessagingBackend }))),
         () => enabledIds()[0],
         { chooseReply: (choice) => decideReply(choice, reply, askUser, notify) },
       );

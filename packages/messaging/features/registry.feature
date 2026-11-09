@@ -122,14 +122,50 @@ Feature: Messaging registry
     Then the messaging preferences are enabled "legacy, private" with default "legacy"
     And the messaging change listener fired 2 times
 
-  Scenario: a saved provider that is unavailable stays disabled
+  Scenario: a saved provider that cannot run yet waits, and is not forgotten
     Given a messaging registry restoring enabled "ratchet" with default "ratchet"
     And messaging provider "ratchet" is unavailable because "no-ratchet-runtime"
     When I register the messaging provider "ratchet"
     Then messaging provider "ratchet" is listed as disabled
     And messaging provider "ratchet" is listed as unavailable because "no-ratchet-runtime"
-    And the messaging preferences are enabled "" with no default
+    And the messaging preferences are enabled "ratchet" with no default
     And the messaging change listener fired 0 times
+
+  Scenario: a waiting provider starts as soon as it can run
+    Given a messaging registry restoring enabled "private, legacy" with default "private"
+    And messaging provider "private" is unavailable because "sign-in-required"
+    And messaging provider "legacy" is unavailable because "sign-in-required"
+    When I register the messaging provider "private"
+    And I register the messaging provider "legacy"
+    And messaging provider "legacy" becomes available
+    Then messaging provider "legacy" is listed as enabled
+    And messaging provider "private" is listed as disabled
+    And the messaging preferences are enabled "private, legacy" with default "legacy"
+    And the backend for messaging provider "legacy" was created 1 time
+    And the messaging change listener fired 1 time
+    When messaging provider "private" becomes available
+    And I send "hi" to "bob" with the registry composite
+    Then the composite send result has id "private:msg-1" in conversation "private:direct:bob"
+
+  Scenario: switching off a provider that is still waiting forgets it
+    Given a messaging registry restoring enabled "private" with no default
+    And messaging provider "private" is unavailable because "sign-in-required"
+    When I register the messaging provider "private"
+    And I disable messaging provider "private"
+    And messaging provider "private" becomes available
+    Then messaging provider "private" is listed as disabled
+    And the messaging preferences are enabled "" with no default
+    And the messaging change listener fired 1 time
+
+  Scenario: switching on a waiting provider by hand, once it can run, stops the wait
+    Given a messaging registry restoring enabled "private" with no default
+    And messaging provider "private" is unavailable because "sign-in-required"
+    When I register the messaging provider "private"
+    And messaging provider "private" becomes available without the registry being read
+    And I enable messaging provider "private"
+    Then the backend for messaging provider "private" was created 1 time
+    And messaging provider "private" is listed as enabled
+    And the messaging preferences are enabled "private" with default "private"
 
   Scenario: providers outside the saved list stay disabled
     Given a messaging registry restoring enabled "private" with no default
