@@ -17,7 +17,9 @@ export function toggleTheme(): void {
   }
 }
 
-/** Wire the header toggle. */
-export function startThemeToggle(button: HTMLButtonElement): void {
-  button.addEventListener('click', toggleTheme);
+/** Wire the header toggle. The listener sits on the document because the header is replaced on every page transition. */
+export function startThemeToggle(): void {
+  document.addEventListener('click', (event) => {
+    if (event.target instanceof Element && event.target.closest('[data-theme-toggle]')) toggleTheme();
+  });
 }

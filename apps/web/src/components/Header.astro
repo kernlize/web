@@ -1,11 +1,12 @@
 ---
-import { href, NAV, relativePath } from '../lib/site';
+import { href, navFor, relativePath } from '../lib/site';
 
 interface Props {
   pathname: string;
 }
 
 const here = relativePath(Astro.props.pathname);
+const links = navFor(Astro.props.pathname);
 ---
 
 <header class="site-header">
@@ -19,7 +20,7 @@ const here = relativePath(Astro.props.pathname);
     </a>
     <nav class="site-nav" aria-label="Site">
       <ul>
-        {NAV.map((link) => (
+        {links.map((link) => (
           <li>
             <a href={href(link.path)} aria-current={here === link.path ? 'page' : undefined}>{link.label}</a>
           </li>
@@ -30,7 +31,7 @@ const here = relativePath(Astro.props.pathname);
       <summary>Menu</summary>
       <nav aria-label="Site menu">
         <ul>
-          {NAV.map((link) => (
+          {links.map((link) => (
             <li>
               <a href={href(link.path)} aria-current={here === link.path ? 'page' : undefined}>{link.label}</a>
             </li>
@@ -54,6 +55,5 @@ const here = relativePath(Astro.props.pathname);
 
 <script>
   import { startThemeToggle } from '../lib/theme';
-  const toggle = document.querySelector<HTMLButtonElement>('[data-theme-toggle]');
-  if (toggle) startThemeToggle(toggle);
+  startThemeToggle();
 </script>

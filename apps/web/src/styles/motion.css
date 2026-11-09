@@ -1,0 +1,37 @@
+/* Behind the page while it draws the hero's flow field; in front of it while the curtain crosses between pages. */
+.stage {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 500ms var(--ease);
+}
+
+.stage[data-live] {
+  opacity: 1;
+}
+
+.stage.is-front {
+  z-index: 20;
+}
+
+/* The script reveals these; without it, or with reduced motion, they are simply there. */
+.js .reveal {
+  opacity: 0;
+  transform: translateY(18px);
+}
+
+.js .reveal.in {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .js .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}

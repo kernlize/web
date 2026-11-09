@@ -17,7 +17,9 @@
     "@kernlize/messaging": "workspace:^",
     "applesauce-accounts": "^7.0.2",
     "applesauce-signers": "^7.0.1",
+    "gsap": "^3.15.1",
     "rxjs": "^7.8.2",
+    "three": "^0.187.0",
     "uqr": "0.1.3",
     "webtorrent": "3.0.21"
   },
@@ -25,6 +27,7 @@
     "@astrojs/check": "^0.9.12",
     "@astrojs/sitemap": "^3.7.4",
     "@astrojs/svelte": "^9.1.2",
+    "@types/three": "^0.187.0",
     "astro": "^7.4.5",
     "linkedom": "^0.18.15",
     "quickpickle": "^1.11.2",

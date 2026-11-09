@@ -20,7 +20,7 @@ Finish interrupted work before starting new work. Never discard changes you did 
 | `packages/messaging` | `@kernlize/messaging` | Messaging provider contract, registry, composite NAP-DM adapter |
 | `packages/bridges` | `@kernlize/bridges` | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy |
 | `packages/core` | `@kernlize/core` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, persistence; layouts and the window manager, also at `@kernlize/core/wm` |
-| `apps/web` | `@kernlize/web` | Astro site at `/`, shell at `/app/` |
+| `apps/web` | `@kernlize/web` | Astro site: landing at `/`, long-form pages under `/about/`, shell at `/app/` |
 | `docs` | `@kernlize/docs` | VitePress site at `/docs/` |
 | `scripts` | | Build, audit and guard scripts |
 | `features` | | Cross-package behaviour specs |

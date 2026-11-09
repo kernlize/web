@@ -1,6 +1,6 @@
 ---
-import Site from '../../layouts/Site.astro';
-import { href, TOOLKIT_URL } from '../../lib/site';
+import Site from '../../../layouts/Site.astro';
+import { ABOUT, href, TOOLKIT_URL } from '../../../lib/site';
 
 const description =
   'The five opinions behind kernl, in plain words: one place for your things, a shell that contains applets, protections on by default, many networks, no ranking.';
@@ -57,7 +57,7 @@ const description =
       <div>
         <p>When the toolkit offers a privacy or safety mitigation, kernl turns it on, in its strict setting, and documents how to ease it. You matter more than the applet developer does. Within reason: an applet interface so tight that nothing can be written protects nobody.</p>
         <ul>
-          <li>The <a href={href('guard/')}>guard</a> ships strict, with focus-aware tightening.</li>
+          <li>The <a href={href(`${ABOUT}guard/`)}>guard</a> ships strict, with focus-aware tightening.</li>
           <li>Hidden and minimised applets wait until you can see them, and one that keeps downloading while hidden is stopped.</li>
           <li>A protection is loosened by you, never by a developer or a flag. Today that choice covers the whole shell until you reload; loosening one applet at a time is planned.</li>
         </ul>
@@ -70,7 +70,7 @@ const description =
         <h2 id="op-4">One account, many networks, no brand names.</h2>
       </div>
       <div>
-        <p>Your account is how you are known, how applets are found and verified, and how you reach other people. It is not the only network kernl speaks. Downloads, sharing and mail are meant to plug in as <a href={href('bridges/')}>bridges</a>. Today web fetch works inside the shell, and downloads, sharing and mail work by handing off to an app on your device after the shell asks you; in-shell backends are planned. There is no per-applet allowance for bridges yet.</p>
+        <p>Your account is how you are known, how applets are found and verified, and how you reach other people. It is not the only network kernl speaks. Downloads, sharing and mail are meant to plug in as <a href={href(`${ABOUT}bridges/`)}>bridges</a>. Today web fetch works inside the shell, and downloads, sharing and mail work by handing off to an app on your device after the shell asks you; in-shell backends are planned. There is no per-applet allowance for bridges yet.</p>
         <ul>
           <li>Bridges are named by what they do for you, not by the wire format they speak.</li>
           <li>This site does not name protocols. The protocol is the plumbing. The person is the point.</li>
@@ -86,7 +86,7 @@ const description =
       <div>
         <p>kernl is built to support any reasonable private-messaging provider through one interface. You pick the one your correspondent can read, and the shell makes that choice visible and reversible. In this alpha private, legacy and ratchet messages work when your account can encrypt; ratchet sessions are experimental.</p>
         <ul>
-          <li>The shell does not rank providers. It <a href={href('messaging/')}>describes them</a>: forward secrecy or not, what the network can see, whether the other person needs the same app.</li>
+          <li>The shell does not rank providers. It <a href={href(`${ABOUT}messaging/`)}>describes them</a>: forward secrecy or not, what the network can see, whether the other person needs the same app.</li>
           <li>Applets are given one messaging surface that spans every provider you enable.</li>
         </ul>
       </div>

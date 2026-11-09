@@ -8,6 +8,8 @@ export default defineConfig({
   base: process.env.SITE_BASE ?? '/',
   output: 'static',
   trailingSlash: 'always',
+  // D-023: the long-form pages moved under /about/; the addresses they had keep working.
+  redirects: Object.fromEntries(['why', 'guard', 'messaging', 'bridges', 'developers'].map((page) => [`/${page}/`, `/about/${page}/`])),
   integrations: [svelte(), sitemap()],
   vite: { build: { target: 'es2022' } },
 });

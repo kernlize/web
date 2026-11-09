@@ -16,7 +16,7 @@ The person at the keyboard is the only principal that matters.
 ![agent readiness: 90](https://img.shields.io/badge/agent%20readiness-90-0b0b0b)
 [![license: MIT](https://img.shields.io/badge/license-MIT-0b0b0b)](./LICENSE)
 
-[**Try the shell**](https://kernl.run/app/?preview=1) · [Website](https://kernl.run/) · [Docs](https://kernl.run/docs/) · [Why](https://kernl.run/why/)
+[**Try the shell**](https://kernl.run/app/?preview=1) · [Website](https://kernl.run/) · [Docs](https://kernl.run/docs/) · [About](https://kernl.run/about/) · [Why](https://kernl.run/about/why/)
 
 <br />
 

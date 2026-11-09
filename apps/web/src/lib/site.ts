@@ -9,13 +9,26 @@ export interface PageLink {
   readonly label: string;
 }
 
+/** The long-form pages live under this prefix; the root is the short landing (D-023). */
+export const ABOUT = 'about/';
+
 export const NAV: readonly PageLink[] = [
-  { path: 'why/', label: 'Why' },
-  { path: 'guard/', label: 'Guard' },
-  { path: 'messaging/', label: 'Messaging' },
-  { path: 'bridges/', label: 'Bridges' },
-  { path: 'developers/', label: 'Developers' },
+  { path: ABOUT, label: 'Overview' },
+  { path: `${ABOUT}why/`, label: 'Why' },
+  { path: `${ABOUT}guard/`, label: 'Guard' },
+  { path: `${ABOUT}messaging/`, label: 'Messaging' },
+  { path: `${ABOUT}bridges/`, label: 'Bridges' },
+  { path: `${ABOUT}developers/`, label: 'Developers' },
 ];
+
+/** What the header offers outside the long-form pages: one way into them, one into the docs. */
+export const HOME_NAV: readonly PageLink[] = [
+  { path: ABOUT, label: 'About' },
+  { path: 'docs/', label: 'Docs' },
+];
+
+/** The header links for a page, by where it sits. */
+export const navFor = (pathname: string): readonly PageLink[] => (relativePath(pathname).startsWith(ABOUT) ? NAV : HOME_NAV);
 
 const base = (): string => {
   const raw = import.meta.env.BASE_URL;

@@ -1,0 +1,113 @@
+---
+import { absoluteUrl, href, NAV } from '../lib/site';
+
+const appHref = href('app/');
+const pages = [{ path: '', label: 'Home' }, ...NAV].map((page) => ({
+  title: page.label,
+  url: absoluteUrl(href(page.path)),
+  markdown: absoluteUrl(href(`${page.path}index.md`)),
+}));
+---
+
+<form
+  class="open-form"
+  action={appHref}
+  method="get"
+  toolname="open-applet"
+  tooldescription="Open an applet in the kernl shell by its address"
+  data-open-applet
+  data-astro-reload
+>
+  <label for="address">Applet address</label>
+  <div class="open-row">
+    <input id="address" name="address" type="text" required autocomplete="off" spellcheck="false" placeholder="paste an applet address" toolparamdescription="The applet address to open" />
+    <button class="button primary" type="submit">Open</button>
+  </div>
+  <p class="hint">Opens in the shell at <a href={appHref} data-astro-reload>/app/</a>. Nothing runs until you say so.</p>
+</form>
+
+<script is:inline define:vars={{ appHref, pages }}>
+  const openUrl = (address) => `${appHref}?open=${encodeURIComponent(address.trim())}`;
+  // On the document, because page transitions replace the form and this script runs once per visit.
+  document.addEventListener('submit', (event) => {
+    const form = event.target instanceof HTMLFormElement && event.target.matches('[data-open-applet]') ? event.target : null;
+    if (!form) return;
+    event.preventDefault();
+    location.assign(openUrl(new FormData(form).get('address') ?? ''));
+  });
+
+  // WebMCP imperative API: document.modelContext.registerTool per the explainer
+  // (https://github.com/webmachinelearning/webmcp/blob/main/README.md, "Imperative Tool Registration").
+  // Early Chrome builds expose the same object on navigator; the declarative form attributes above
+  // (toolname, tooldescription, toolparamdescription) follow declarative-api-explainer.md in that repo.
+  const context = document.modelContext ?? navigator.modelContext;
+  if (typeof context?.registerTool === 'function') {
+    context.registerTool({
+      name: 'open_applet',
+      description: 'Open an applet in the kernl shell by its address. Navigates this tab to the shell.',
+      inputSchema: {
+        type: 'object',
+        properties: { address: { type: 'string', description: 'The applet address to open' } },
+        required: ['address'],
+        additionalProperties: false,
+      },
+      execute({ address }) {
+        const url = openUrl(String(address));
+        location.assign(url);
+        return { opened: url };
+      },
+    });
+    context.registerTool({
+      name: 'list_pages',
+      description: 'List the pages of this site with their URLs and Markdown copies.',
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+      annotations: { readOnlyHint: true },
+      execute() {
+        return { pages };
+      },
+    });
+  }
+</script>
+
+<style>
+  .open-form {
+    display: grid;
+    gap: 0.5rem;
+    max-width: 34rem;
+  }
+
+  .open-form label {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+  }
+
+  .open-row {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .open-row input {
+    flex: 1 1 14rem;
+    min-width: 0;
+    font: inherit;
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    padding: 0.75rem 1rem;
+    border-radius: 999px;
+    border: 1px solid var(--line-strong);
+    background: var(--bg-raised);
+    color: var(--ink);
+  }
+
+  .open-row input::placeholder {
+    color: var(--ink-muted);
+  }
+
+  .hint {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--ink-muted);
+  }
+</style>
