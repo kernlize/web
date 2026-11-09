@@ -62,15 +62,15 @@ Feature: Account mailboxes
     When 40 ms pass
     Then the mailbox state is "missing"
 
-  Scenario: a missing list carries the directory's suggestions
+  Scenario: a missing list carries suggestions, well-known servers first
     Given a relay directory that knows "wss://open.example,wss://quick.example"
     When the signed-in account's mailboxes are watched
     Then the mailbox state is "missing"
-    And the suggested inboxes are "wss://open.example/,wss://quick.example/,wss://relay.damus.io/"
-    And the suggested outboxes are "wss://open.example/,wss://quick.example/,wss://relay.damus.io/"
+    And the suggested inboxes are "wss://relay.damus.io/,wss://nos.lol/,wss://relay.primal.net/"
+    And the suggested outboxes are "wss://relay.damus.io/,wss://nos.lol/,wss://relay.primal.net/"
     When the directory hears of "wss://late.example" from 2 monitors
     And 20 ms pass
-    Then the suggested inboxes are "wss://late.example/,wss://open.example/,wss://quick.example/"
+    Then the suggested inboxes are "wss://relay.damus.io/,wss://nos.lol/,wss://relay.primal.net/"
 
   Scenario: with nobody signed in there is nothing to look up
     When the mailboxes are watched with nobody signed in

@@ -15,7 +15,8 @@ import { relayUrls, toRelayUrl } from './publish-outcome.js';
 
 /**
  * Servers that carry NIP-66 monitors' reports: the ones nostr.watch's own
- * client reads, plus the history server its monitors list in their relay lists.
+ * client reads. Its history server is left out: its certificate does not
+ * match its name, so a browser refuses it.
  *
  * @example
  * ```ts
@@ -26,7 +27,6 @@ export const DEFAULT_MONITOR_RELAYS: readonly string[] = Object.freeze([
   'wss://relay.nostr.watch',
   'wss://relaypag.es',
   'wss://monitorlizard.nostr1.com',
-  'wss://history.nostr.watch',
 ]);
 
 /** What a suggestion is for: where the account is reached, where it writes, or where accounts' lists are looked up. */
@@ -93,7 +93,7 @@ export interface RelayDirectory {
   listings(): readonly RelayListing[];
   /** Listings whose address matches what the person typed, best first. */
   search(text: string, limit?: number): readonly RelayListing[];
-  /** Servers to suggest for a purpose, topped up from the fallback when the directory knows too few. */
+  /** Servers to suggest for a purpose: the well-known fallback first, unless monitors say it refuses, then durable hosts from the directory. */
   suggest(options: SuggestOptions): readonly RelayListing[];
   /** Open the streaming subscription. Does nothing when already open. */
   start(): void;
@@ -183,6 +183,19 @@ function blocks(listing: RelayListing | undefined, purpose: SuggestPurpose): boo
   return purpose !== 'lookup' && listing.restrictedWrites;
 }
 
+/** Hosts that come and go: tunnels, private networks and test domains. A server there makes a poor home for an inbox. */
+const PASSING_HOSTS = /(?:^|\.)(?:trycloudflare\.com|ngrok(?:-free)?\.(?:app|io|dev)|loca\.lt|ts\.net|local|localhost|onion)$/i;
+
+/**
+ * Whether a server is one to suggest: a named host on the default port at the
+ * root, not a tunnel, a bare address or one path of a multi-purpose server.
+ * Typed addresses are never held to this; it only shapes suggestions.
+ */
+function isDurable(url: string): boolean {
+  const { hostname, port, pathname } = new URL(url);
+  return port === '' && pathname === '/' && !PASSING_HOSTS.test(hostname) && !/^[\d.]+$|:/.test(hostname);
+}
+
 function placeholder(url: string): RelayListing {
   return { url, monitors: 0, lastSeen: 0, nips: [], types: [], requiresAuth: false, requiresPayment: false, restrictedWrites: false };
 }
@@ -205,9 +218,10 @@ function parseQuery(raw: string): Query {
   return { text, anchored: text !== lower.replace(/\/+$/, '') };
 }
 
-/** 2 when the text starts the address or one of its words, 1 when it appears inside, 0 otherwise. */
+/** 3 when the text starts the name a person knows the server by, 2 when it starts the address or one of its words, 1 when it appears inside, 0 otherwise. */
 function matchScore(url: string, query: Query): number {
   const address = url.replace(/^wss?:\/\//, '').replace(/\/$/, '');
+  if (!query.anchored && address.replace(/^(?:relay|nostr)\./, '').startsWith(query.text)) return 3;
   if (address.startsWith(query.text)) return 2;
   if (query.anchored) return 0;
   if (address.split(/[.\-/]/).some((word) => word.startsWith(query.text))) return 2;
@@ -290,14 +304,15 @@ export function createRelayDirectory(options: RelayDirectoryOptions): RelayDirec
     const { listings, indexers } = current();
     const skip = new Set(relayUrls(exclude));
     const known = new Map(listings.map((listing) => [listing.url, listing]));
-    const chosen = listings.filter((listing) => !skip.has(listing.url) && !blocks(listing, purpose) && (purpose !== 'lookup' || indexers.has(listing.url)));
-    const picked = chosen.slice(0, limit);
-    for (const url of fallbackFor(options.fallback, purpose)) {
-      if (picked.length >= limit) break;
-      if (skip.has(url) || blocks(known.get(url), purpose) || picked.some((listing) => listing.url === url)) continue;
-      picked.push(known.get(url) ?? placeholder(url));
-    }
-    return picked;
+    // Well-known servers come first unless a monitor says they now refuse; the directory fills the rest with durable hosts.
+    const trusted = fallbackFor(options.fallback, purpose)
+      .filter((url) => !skip.has(url) && !blocks(known.get(url), purpose))
+      .map((url) => known.get(url) ?? placeholder(url));
+    const taken = new Set(trusted.map((listing) => listing.url));
+    const found = listings.filter(
+      (listing) => !skip.has(listing.url) && !taken.has(listing.url) && !blocks(listing, purpose) && isDurable(listing.url) && (purpose !== 'lookup' || indexers.has(listing.url)),
+    );
+    return [...trusted, ...found].slice(0, limit);
   }
 
   return {

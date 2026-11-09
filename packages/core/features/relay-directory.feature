@@ -19,7 +19,7 @@ Feature: Relay directory
   Scenario: the default monitor servers are the known monitors' servers
     Given a relay directory over the default monitor servers
     When the directory starts
-    Then the directory asked "wss://relay.nostr.watch,wss://relaypag.es,wss://monitorlizard.nostr1.com,wss://history.nostr.watch" once
+    Then the directory asked "wss://relay.nostr.watch,wss://relaypag.es,wss://monitorlizard.nostr1.com" once
 
   Scenario: reports from two monitors fold into one listing as they stream in
     When the directory starts
@@ -117,6 +117,7 @@ Feature: Relay directory
     And searching "nowhere" gives ""
 
   Scenario: inbox and outbox suggestions leave out servers that ask for a login, payment or permission
+    Given a relay directory with fallback ""
     When the directory starts
     And the directory holds these servers
       | server              | monitors | rtt-open | requirements |
@@ -129,7 +130,8 @@ Feature: Relay directory
     Then the "inbox" suggestions are "wss://busy.example/,wss://fast.example/,wss://open.example/"
     And the "outbox" suggestions without "wss://busy.example" limited to 2 are "wss://fast.example/,wss://open.example/"
 
-  Scenario: lookup suggestions prefer servers that index account lists
+  Scenario: lookup suggestions prefer servers that index account lists, after the host's own
+    Given a relay directory with fallback "wss://purplepag.es"
     When the directory starts
     And the directory holds these servers
       | server                | monitors | rtt-open | types   | nips | kinds |
@@ -137,7 +139,7 @@ Feature: Relay directory
       | wss://typed.example   | 2        | 100      | Indexer |      |       |
       | wss://nip.example     | 2        | 50       |         | 65   |       |
       | wss://kinds.example   | 1        | 50       |         |      | 10002 |
-    Then the "lookup" suggestions limited to 4 are "wss://nip.example/,wss://typed.example/,wss://kinds.example/,wss://purplepag.es/"
+    Then the "lookup" suggestions limited to 4 are "wss://purplepag.es/,wss://nip.example/,wss://typed.example/,wss://kinds.example/"
 
   Scenario: an empty directory suggests the built-in servers
     Then the "inbox" suggestions are "wss://relay.damus.io/,wss://nos.lol/,wss://relay.primal.net/"
@@ -145,13 +147,27 @@ Feature: Relay directory
     And the "outbox" suggestions without "wss://nos.lol" are "wss://relay.damus.io/,wss://relay.primal.net/"
     And every suggestion has 0 monitors
 
-  Scenario: sparse data is topped up from the built-in servers, minus any the directory knows to refuse
+  Scenario: well-known servers come first, minus any the directory knows to refuse, then the directory's
     When the directory starts
     And the directory holds these servers
       | server               | monitors | rtt-open | requirements |
       | wss://one.example    | 2        | 100      |              |
       | wss://nos.lol        | 3        | 100      | payment      |
-    Then the "inbox" suggestions are "wss://one.example/,wss://relay.damus.io/,wss://relay.primal.net/"
+    Then the "inbox" suggestions are "wss://relay.damus.io/,wss://relay.primal.net/,wss://one.example/"
+
+  Scenario: suggestions skip hosts that come and go, bare addresses, odd ports and sub-paths
+    Given a relay directory with fallback ""
+    When the directory starts
+    And the directory holds these servers
+      | server                              | monitors | rtt-open |
+      | wss://tunnel.trycloudflare.com      | 9        | 10       |
+      | wss://box.ts.net                    | 9        | 10       |
+      | wss://203.0.113.7                   | 9        | 10       |
+      | wss://ports.example:4848            | 9        | 10       |
+      | wss://paths.example/inbox           | 9        | 10       |
+      | wss://steady.example                | 2        | 100      |
+    Then the "inbox" suggestions are "wss://steady.example/"
+    And searching "tunnel" gives "wss://tunnel.trycloudflare.com/"
 
   Scenario: the host's own fallback replaces the built-in one
     Given a relay directory with fallback "wss://mine.example,not a url"
