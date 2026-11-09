@@ -1,7 +1,10 @@
 Feature: Relay adapters over the one applesauce pool
   Every kehto relay surface is a thin adapter over the shell's single pool
-  (D-002). Tier selection routes filters by kind; subscriptions report the end
-  of stored events once, after every relay answered.
+  (D-002). Tier selection routes filters by kind: profiles, follows and relay
+  lists go to the people tier (discovery, the user's outbox and the general
+  servers), manifests to the applet catalogue, everything else to the general
+  path. Subscriptions report the end of stored events once, after every relay
+  answered. A publish succeeds when any relay accepts it (D-028).
 
   Background:
     Given kernl relay tiers over empty storage
@@ -13,7 +16,7 @@ Feature: Relay adapters over the one applesauce pool
 
     Examples:
       | kinds          | tier      |
-      | 0,3,10002      | discovery |
+      | 0,3,10002      | people    |
       | 35129,5129     | apps      |
       | 32267          | apps      |
       | 1,0            | general   |
@@ -70,7 +73,7 @@ Feature: Relay adapters over the one applesauce pool
     Then 2 tracked cleanups ran
     When the shell untracks subscription "missing"
     Then 2 tracked cleanups ran
-    And the relay pool hooks select the "discovery" tier for kinds "0"
+    And the relay pool hooks select the "people" tier for kinds "0"
 
   Scenario: a scoped relay posts events and EOSE to the window's port
     Given kernl relay pool hooks
@@ -93,15 +96,34 @@ Feature: Relay adapters over the one applesauce pool
     And the shell publishes to the scoped relay of window "w1"
     Then the scoped publish failed
 
+  Scenario: a scoped relay that answers with a refusal reports failure
+    Given kernl relay pool hooks
+    And the fake pool relays "wss://group.example" answer publishes with a refusal
+    When the shell opens a scoped relay "wss://group.example" for window "w1"
+    And the shell publishes to the scoped relay of window "w1"
+    Then the scoped publish failed
+
+  Scenario: a publish that two of three relays accept succeeds
+    Given the fake pool relays "wss://c.example" answer publishes with a refusal
+    When the shell publishes through the accepting helper to "wss://a.example,wss://b.example,wss://c.example"
+    Then 2 relays accepted the publish
+
+  Scenario: a publish no relay accepts fails and says how many were tried
+    Given the fake pool relays "wss://a.example,wss://b.example" answer publishes with a refusal
+    When the shell publishes through the accepting helper to "wss://a.example,wss://b.example"
+    Then the shell refused with "unavailable:not-accepted:0/2"
+    When the shell publishes through the accepting helper to ""
+    Then the shell refused with "unavailable:not-accepted:0/0"
+
   Scenario: the applet relay backend routes by tier unless hinted
     Given the fake pool serves 1 events
     When the applet relay backend subscribes to kinds "0" without hints
-    Then the fake pool received a "req" for the "discovery" tier
+    Then the fake pool received a "req" for the "people" tier
     And the subscription delivered 1 events and 1 EOSE
     When the applet relay backend subscribes to kinds "1" hinted to "wss://hint.example"
     Then the fake pool received a "req" for "wss://hint.example"
     When the applet relay backend publishes a kind 0 event
-    Then the fake pool received a "publish" for the "discovery" tier
+    Then the fake pool received a "publish" for the "people" tier
     And the applet relay backend is available
 
   Scenario: the messaging relay pool reads, writes and queries through the same pool

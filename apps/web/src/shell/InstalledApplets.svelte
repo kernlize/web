@@ -1,6 +1,6 @@
 <script lang="ts">
+  import Publisher from './Publisher.svelte';
   import type { BootMode, InstalledApplet, ShellKernl } from './contract';
-  import { publisherWords } from './contract';
   import { observe } from './observe.svelte';
   import { acceptsWords, roleWords } from './store';
 
@@ -82,7 +82,7 @@
         <li class="shell-card row">
           <div>
             <h4>{applet.title}</h4>
-            <p class="shell-muted">{accepts ? `Takes requests to ${accepts}.` : publisherWords(applet)}</p>
+            <p class="shell-muted">{#if accepts}Takes requests to {accepts}.{:else}<Publisher {kernl} {applet} />{/if}</p>
           </div>
           <div class="shell-actions">
             <button type="button" class="shell-button" onclick={() => onopen(applet.address)} disabled={busy}>Open</button>

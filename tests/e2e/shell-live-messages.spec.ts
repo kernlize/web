@@ -95,3 +95,19 @@ test('keeping the order sends the sealed kind instead, and saying no sends nothi
   expect(mail.published.some((event) => event.kind === 4)).toBe(false);
   await expect(said(applet, 'Sealed, please.')).toBeVisible();
 });
+
+test('a correspondent who published a profile is listed by name, not by account id', async ({ page }) => {
+  const account = await installSignerExtension(page, { encrypts: true });
+  const grace = correspondent();
+  const hourAgo = Math.floor(Date.now() / 1000) - 3600;
+  await mailbox(page, [await grace.write(account.pubkey, 'Do you still read these?', hourAgo), grace.profile('Grace Hopper')]);
+  await page.goto(`${base}/app/`);
+  await page.getByRole('button', { name: 'Use', exact: true }).click();
+  await page.getByRole('button', { name: /^Messages/ }).click();
+  await expect(page.locator('section.window')).toHaveAttribute('data-status', 'running');
+  const applet = page.frameLocator('iframe[data-window-id]');
+  // The shell names the people in every conversation it lists for an applet (D-031).
+  await applet.getByRole('button', { name: /Grace Hopper/ }).click();
+  await expect(said(applet, 'Do you still read these?')).toBeVisible();
+  await expect(applet.getByRole('button', { name: new RegExp(grace.pubkey.slice(0, 8)) })).toHaveCount(0);
+});

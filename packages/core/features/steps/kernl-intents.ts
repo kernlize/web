@@ -1,3 +1,4 @@
+import { lastValueFrom } from 'rxjs';
 import { expect, vi } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import { decodeAddressPointer } from 'applesauce-core/helpers';
@@ -130,6 +131,10 @@ Given('a kernl shell that cannot open applets, with {string} asking for {string}
 
 Then('the shell offers the {string} domain', (world: CoreWorld, domain: string) => {
   expect(k(world).kernl.grants.availableDomains()).toContain(domain);
+});
+
+When('the shell streams the store', async (world: CoreWorld) => {
+  shell(world).catalog = await lastValueFrom(k(world).kernl.catalog.stream({ emitMs: 0 }));
 });
 
 When('the shell lists the store', async (world: CoreWorld) => {

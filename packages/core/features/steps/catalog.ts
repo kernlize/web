@@ -1,12 +1,14 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import { Observable } from 'rxjs';
-import { decodeAddressPointer, decodeEventPointer } from 'applesauce-core/helpers';
+import { PrivateKeySigner } from 'applesauce-signers';
+import { addSeenRelay, decodeAddressPointer, decodeEventPointer } from 'applesauce-core/helpers';
 import {
   addressOf,
   createRelayTiers,
   fuzzyScore,
   loadCatalog,
+  streamCatalog,
   newestEntries,
   popularTopics,
   searchCatalog,
@@ -18,6 +20,7 @@ import type { NostrEvent } from '@napplet/core';
 import { author, scratch, sha256Hex, signManifest, splitList, type CoreWorld } from './world.js';
 
 interface CatalogScratch {
+  emissions?: (readonly CatalogEntry[])[];
   event?: NostrEvent;
   entry?: CatalogEntry | undefined;
   entries: readonly CatalogEntry[];
@@ -203,15 +206,16 @@ When('the catalogue loads {int} manifests from the test publisher', async (world
   c(world).entries = await loadCatalog(scratch(world).pool, createRelayTiers(scratch(world).storage), { limit, publishers: [c(world).publisher as string] });
 });
 
-Then('the catalogue asked {string} for named and root manifests limited to {int}', (world: CoreWorld, relays: string, limit: number) => {
+Then('the catalogue asked {string} for named and root manifests and their deletions, limited to {int}', (world: CoreWorld, relays: string, limit: number) => {
   const [call] = scratch(world).pool.calls;
   expect(call?.relays).toEqual(splitList(relays));
-  expect(call?.filters).toEqual([{ kinds: [35129, 15129], limit }]);
+  expect(call?.filters).toEqual([{ kinds: [35129, 15129], limit }, { kinds: [5], '#k': ['35129', '15129'], limit }]);
 });
 
 Then('the catalogue asked for {int} manifests from the test publisher', (world: CoreWorld, limit: number) => {
   const [call] = scratch(world).pool.calls;
-  expect(call?.filters).toEqual([{ kinds: [35129, 15129], limit, authors: [c(world).publisher] }]);
+  const authors = [c(world).publisher];
+  expect(call?.filters).toEqual([{ kinds: [35129, 15129], limit, authors }, { kinds: [5], '#k': ['35129', '15129'], limit, authors }]);
   expect(describeEntries(c(world).entries)).toEqual(['solo@1']);
 });
 
@@ -261,4 +265,86 @@ Then('the popular topics are {string}', (world: CoreWorld, topics: string) => {
 
 Then('the {int} most popular topics are {string}', (world: CoreWorld, limit: number, topics: string) => {
   expect(describeTopics(popularTopics(c(world).entries, limit))).toEqual(splitList(topics));
+});
+
+Given('the fake pool streams catalogue manifests {string} seen on {string}, then fails', async (world: CoreWorld, specs: string, relay: string) => {
+  const events = await signedManifests(specs);
+  for (const event of events) addSeenRelay(event, relay);
+  const pool = scratch(world).pool;
+  pool.request = (() =>
+    new Observable<NostrEvent>((observer) => {
+      let at = 0;
+      const timer = setInterval(() => {
+        const event = events[at];
+        at += 1;
+        if (event) observer.next(event);
+        else observer.error(new Error('relay closed'));
+      }, 5);
+      return () => clearInterval(timer);
+    })) as typeof pool.request;
+});
+
+When('the catalogue is streamed, emitting at most every {int} ms', async (world: CoreWorld, emitMs: number) => {
+  const emissions: (readonly CatalogEntry[])[] = [];
+  c(world).emissions = emissions;
+  await new Promise<void>((resolve) => {
+    streamCatalog(scratch(world).pool, createRelayTiers(scratch(world).storage), { emitMs }).subscribe({ next: (list) => emissions.push(list), complete: resolve });
+  });
+  c(world).entries = emissions.at(-1) ?? [];
+});
+
+Then('the catalogue stream emitted {int} growing lists', (world: CoreWorld, count: number) => {
+  const sizes = (c(world).emissions ?? []).map((list) => list.length);
+  expect(sizes).toHaveLength(count);
+  expect([...sizes].sort((a, b) => a - b)).toEqual(sizes);
+});
+
+Then('every listed address hints {string}', (world: CoreWorld, relay: string) => {
+  for (const listed of c(world).entries) expect(decodeAddressPointer(listed.address)?.relays).toEqual([relay]);
+});
+
+Given('the fake pool serves catalogue manifests {string} and deletions {string}', async (world: CoreWorld, specs: string, deletions: string) => {
+  const manifests = await signedManifests(specs);
+  const stranger = new PrivateKeySigner();
+  const deletes: NostrEvent[] = [];
+  for (const spec of splitList(deletions)) {
+    const [how = '', target = '', at = '0'] = spec.split(':');
+    const manifest = manifests.find((event) => event.tags.some((tag) => tag[0] === 'd' && tag[1] === target)) as NostrEvent;
+    const tags = how === 'id' ? [['e', manifest.id]] : [['a', `35129:${manifest.pubkey}:${target}`]];
+    const signer = how === 'forged' ? stranger : author;
+    deletes.push(await signer.signEvent({ kind: 5, tags: [...tags, ['k', '35129']], content: '', created_at: Number(at) }));
+  }
+  scratch(world).pool.events = [...manifests, ...deletes];
+});
+
+Given('the fake pool serves a root catalogue manifest and a deletion of its address', async (world: CoreWorld) => {
+  const html = '<!doctype html><title>root</title>';
+  const root = await author.signEvent({ kind: 15129, tags: [['x', sha256Hex(html)], ['R', 'relay']], content: 'A root applet.', created_at: 1_700_000_000 });
+  const deletion = await author.signEvent({ kind: 5, tags: [['a', `15129:${root.pubkey}:`], ['e'], ['k', '15129']], content: '', created_at: 1_700_000_001 });
+  scratch(world).pool.events = [root, deletion];
+});
+
+Given('the fake pool serves catalogue manifests {string} after {int} ms', async (world: CoreWorld, specs: string, delayMs: number) => {
+  const events = await signedManifests(specs);
+  const pool = scratch(world).pool;
+  pool.request = (() =>
+    new Observable<NostrEvent>((observer) => {
+      const timer = setTimeout(() => {
+        for (const event of events) observer.next(event);
+        observer.complete();
+      }, delayMs);
+      return () => clearTimeout(timer);
+    })) as typeof pool.request;
+});
+
+When('the catalogue is streamed, settling after {int} ms', async (world: CoreWorld, settleMs: number) => {
+  const emissions: (readonly CatalogEntry[])[] = [];
+  c(world).emissions = emissions;
+  await new Promise<void>((resolve) => {
+    streamCatalog(scratch(world).pool, createRelayTiers(scratch(world).storage), { settleMs, emitMs: 1 }).subscribe({ next: (list) => emissions.push(list), complete: resolve });
+  });
+});
+
+Then('the catalogue stream emitted {string} and then {string}', (world: CoreWorld, first: string, second: string) => {
+  expect((c(world).emissions ?? []).map((list) => describeEntries(list).join(','))).toEqual([first, second]);
 });

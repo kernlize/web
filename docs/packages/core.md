@@ -9,6 +9,10 @@ Opinionated shell composition over kehto and applesauce. Browser-agnostic: the D
 | Version | `0.6.0` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts`; `@kernlize/core/wm` (`@kernl/core/wm` on JSR) is `./dist/wm/index.js`, the layouts and the window manager without the network stack; `@kernlize/core/crypto` (`@kernl/core/crypto` on JSR) is `./dist/crypto/index.js`, the Web Crypto fallback |
 | Dependencies | `@internet-privacy/marmot-ts ^0.9.0`; `@kehto/acl ^0.20.3`; `@kehto/firewall ^0.7.0`; `@kehto/nip ^0.8.0`; `@kehto/runtime ^0.28.0`; `@kehto/services ^0.30.1`; `@kehto/shell ^0.32.0`; `@kehto/wm ^0.0.2`; `@kernlize/bridges workspace:^`; `@kernlize/guard workspace:^`; `@kernlize/messaging workspace:^`; `@noble/ciphers ^2.4.0`; `@noble/curves ^2.4.0`; `@noble/hashes ^2.4.0`; `applesauce-accounts ^7.0.2`; `applesauce-common ^7.0.0`; `applesauce-core ^7.0.3`; `applesauce-loaders ^7.0.2`; `applesauce-relay ^7.0.0`; `applesauce-signers ^7.0.1`; `nostr-double-ratchet ^0.0.183`; `rxjs ^7.8.2` |
+
+| Version | `0.5.0` |
+| Entry | `./dist/index.js`, types `./dist/index.d.ts`; `@kernlize/core/wm` (`@kernl/core/wm` on JSR) is `./dist/wm/index.js`, the layouts and the window manager without the network stack; `@kernlize/core/crypto` (`@kernl/core/crypto` on JSR) is `./dist/crypto/index.js`, the Web Crypto fallback; `@kernlize/core/cache` (`@kernl/core/cache` on JSR) is `./dist/cache/index.js`, the event cache, which starts `./dist/sqlite-worker.js` |
+| Dependencies | `@internet-privacy/marmot-ts ^0.9.0`; `@kehto/acl ^0.20.3`; `@kehto/firewall ^0.7.0`; `@kehto/nip ^0.8.0`; `@kehto/runtime ^0.28.0`; `@kehto/services ^0.30.1`; `@kehto/shell ^0.32.0`; `@kehto/wm ^0.0.2`; `@kernlize/bridges workspace:^`; `@kernlize/guard workspace:^`; `@kernlize/messaging workspace:^`; `@noble/ciphers ^2.4.0`; `@noble/curves ^2.4.0`; `@noble/hashes ^2.4.0`; `@sqlite.org/sqlite-wasm 3.54.1-build1`; `applesauce-accounts ^7.0.2`; `applesauce-common ^7.0.0`; `applesauce-core ^7.0.3`; `applesauce-loaders ^7.0.2`; `applesauce-relay ^7.0.0`; `applesauce-signers ^7.0.1`; `applesauce-sqlite ^7.0.0`; `nostr-double-ratchet ^0.0.183`; `rxjs ^7.8.2` |
 | Peer dependencies | `@napplet/core >=0.38.0 <0.39.0`; `@napplet/nap >=0.37.0 <0.38.0`; `@napplet/shim >=0.30.0`; `nostr-tools >=2.23.3 <=2.x` |
 | Side effects | none |
 
@@ -62,6 +66,7 @@ if (plan.missingRequired.length === 0) kernl.mount(plan, iframe);
 9. **Consent.** Before steps 5 and 6, `lookupReplaceable(eventStore, { loader: createReplaceableLoader(eventStore, pool, tiers), relays: () => [...outbox, ...discovery] })` builds the before lookup and `createSigningConsent({ host, lookupBefore, resolveApplet: identityOf, pubkey })` builds the gate, and both of the routes an applet's write can take pass through it: `relay.publish` is signed through `ShellAdapter.auth.getSigner(windowId)`, whose `signEvent` calls the gate first, and `outbox.publish` is gated in the outbox service wrapper before kehto signs it. For a kind `isDestructiveKind` accepts (every replaceable and addressable kind, 5 and 62), the gate describes the draft against the current version, from the event store or else from the outbox and discovery relays within `CURRENT_VERSION_TIMEOUT_MS`, calls `host.presentConsent` and waits; anything but yes rejects with `denied:consent` and nothing is signed. Routine kinds are not prompted; the shell's own signing (no window) is not gated; answers are not remembered. kehto's runtime has no destructive-signing consent of its own. Separately, `bridge.registerConsentHandler(createConsentHandler(host, lookupBefore, identityOf))` answers kehto's own `ConsentRequest`, which the runtime raises only for a firewall `prompt` policy and without an event, so the handler refuses it without asking.
 10. **Session.** `accounts.active$` drives `session$` (`toSession(account)` or null) and calls `bridge.publishIdentityChanged(pubkey)` with the active pubkey or `''` on sign-out, so bound applets hear every identity change through kehto's live port.
 11. **Lifecycle.** `createAppletLifecycle` with `options.artifactCache ?? openDefaultArtifactCache` and `host.fetchBlob ?? defaultFetchBlob`.
+12. **Events.** `connectEventCache(eventStore, options.eventCache)` opens the event cache in the background; the replaceable loader, the profiles and the catalogue ask it first (D-030). `kernl.mailboxes` follows the active account's kind 10002 and sets the `outbox` tier from it; `kernl.directory` waits for `start()` (D-029).
 
 `destroy()` closes every open applet, unsubscribes the session subscription, disposes the dm service, destroys the bridge and closes the pool if the shell owns it.
 
@@ -91,9 +96,12 @@ The host is the only way the core reaches the user or the page. Applets never re
 | `accounts`, `eventStore`, `pool`, `bridge` | The applesauce `AccountManager`, `EventStore` and `RelayPool`, and kehto's `ShellBridge`. The web shell hides all but `accounts` from its UI. |
 | `guard: GuardFacade` | `config`, `profile$`, `setProfile(profile)`, `events$`, `mitigations()`, `release(windowId)`. `setProfile` rebuilds kernl's guard layers shell-wide; held window-level messages are dropped and counters restart. Open windows keep the runtime firewall rates they were mounted with. It is not persisted. |
 | `grants: Grants` | The user-facing grants surface, see [Grants](#grants). |
-| `relays: RelayTiers` | `get()`, `add(tier, url)`, `remove(tier, url)`, `changes$`. `add` throws `invalid:relay-url` for anything that is not `ws://` or `wss://`. |
+| `relays: RelayTiers` | `get()`, `add(tier, url)`, `remove(tier, url)`, `set(tier, urls)`, `changes$`. `add` and `set` throw `invalid:relay-url` for anything that is not `ws://` or `wss://`; `set` with an unchanged list emits nothing. |
+| `mailboxes: AccountMailboxes` | The signed-in account's published inbox and outbox (kind 10002, D-029). While a list is `found`, the `outbox` tier follows its outboxes, so every publish goes where the account says it writes. `save` signs with the active account and refuses `denied:read-only` for a read-only or signed-out session. |
+| `directory: RelayDirectory` | Monitored servers (kind 30166) from `DEFAULT_MONITOR_RELAYS`, idle until `start()`; `search` completes an address and `suggest` proposes servers. Settings starts it while open. |
 | `messaging`, `bridges` | The registries the services read. |
-| `catalog: AppletCatalog` | `load(options?)`: the store's entries from the `apps` and `super` tiers, see [The store and intents](../concepts/store-and-intents.md). |
+| `catalog: AppletCatalog` | `stream(options?)` emits the store's entries from the `apps` and `super` tiers as they arrive; `load(options?)` resolves with the final list, see [The store and intents](../concepts/store-and-intents.md). |
+| `profiles: Profiles` | `card$(pubkey)` and `card(pubkey)`: how the shell names a person. The session label follows the account's published name. |
 | `intents: Intents` | `installed$`, `installed()`, `uninstall(catalogId)` and `defaults` (a `HandlerDefaults`: `get`, `all`, `set(archetype, id \| undefined)`, `synced`, `load`, `sync`, `setSync`, `changes$`). |
 | `install(summary)` | Install a verified applet without opening it; throws `invalid:unresolved` for a summary this shell did not verify. |
 | `session$`, `session` | `Session \| null`: `{ accountId, pubkey, label, readOnly }`. The label is the account's `metadata.name`, then `account.name`, then the abbreviated pubkey. |
@@ -203,12 +211,12 @@ legacyMessages.subscribe({}, (message) => console.log(message.content));
 
 | Tier | Default | Serves |
 | --- | --- | --- |
-| `discovery` | `wss://purplepag.es`, `wss://relay.nos.social` | kinds 0, 3 and 10002 |
-| `apps` | `wss://relay.napplet.soy` | applet manifests (the NIP-5D kinds and 32267) |
+| `discovery` | `wss://purplepag.es`, `wss://relay.nos.social` | kinds 0, 3 and 10002, together with `outbox` and `super` |
+| `apps` | `wss://relay.napplet.soy`, `wss://relay.ditto.pub`, `wss://relay.nostr.com` | applet manifests (the NIP-5D kinds and 32267) |
 | `outbox` | none | the user's own relays, merged with `super` for everything else |
 | `super` | `wss://relay.damus.io`, `wss://nos.lol`, `wss://relay.primal.net` | everything else |
 
-`selectRelayTier(tiers, filters)` routes a filter set to `discovery` when every kind is a discovery kind, to `apps` when every kind is an applet kind, and to `super` plus `outbox` (deduplicated) otherwise, including filters without kinds. kehto's `RelayConfigHooks` sees `discovery`, `super` and `outbox`; `apps` is kernl's addition.
+`selectRelayTier(tiers, filters)` routes a filter set to `discovery`, `outbox` and `super` (deduplicated) when every kind is a discovery kind, because profiles, follows and relay lists live on indexers and on their authors' own servers (NIP-65), to `apps` when every kind is an applet kind, and to `super` plus `outbox` (deduplicated) otherwise, including filters without kinds. kehto's `RelayConfigHooks` sees `discovery`, `super` and `outbox`; `apps` is kernl's addition.
 
 ### Grants
 
@@ -247,7 +255,7 @@ Unknown domains need no capability (`capabilitiesForDomain('made-up')` is `[]`).
 | `3` | `destructive` | Change who you follow | "Follows added" and "Follows removed" with counts and the first three pubkeys abbreviated; or "No entries change". |
 | `5` | `destructive` | Delete N item(s), or Delete N post(s) when the `k` tags say every target is kind 1 and no `a` tag is present | One "Delete" line per `e` tag, abbreviated, and one "Delete every version of" line per `a` tag, naming the address in plain words, for example `record (type 30001) "books" by person 3bf0c63f…`. |
 | `62` | `destructive` | Ask services to erase your account | "Erase: Everything this account has published" and "Services asked": every service when the `relay` tags are absent or include `ALL_RELAYS`, else the first three named. |
-| `10002` | `destructive` | Change your connections list | "Connections added" and "Connections removed" with read/write markers. |
+| `10002` | `destructive` | Change your inbox and outbox | "What this is", then "Inbox added/removed" and "Outbox added/removed"; an unmarked relay is in both (NIP-65). |
 | 10000–10099, 30000–30099 | `destructive` | Change the list "title or d tag", or "Change a list" | "Entries added" and "Entries removed", each entry in plain words: `person 3bf0c63f…`, `item 3bf0c63f…`, `topic …`, `type N`, `server example.com`, `key 3bf0c63f…`, or `name value` for any other tag. |
 | any other replaceable (10100–19999) or addressable (30100–39999) kind | `destructive` | Replace one of your records (type N), with the `title` or `d` tag in quotes when there is one | "Entries added" and "Entries removed" over the tags other than `d`, `title` and `description`, and "Content: Replaced" when the content differs, without copying it. |
 | anything else | `routine` | Publish a post, repost, reaction, comment, article, sealed message, legacy private message, payment receipt, or "record (type N)" | One "Content" line with a 140-character preview. |
@@ -342,6 +350,56 @@ installCryptoFallback(); // { randomUUID: false, subtle: false } over HTTPS
 
 The fallback `SubtleCrypto` covers SHA-1/256/384/512 digests; HMAC and Ed25519 sign and verify; AES-GCM (128-bit tag) and AES-CBC; X25519 and HKDF `deriveBits`; Ed25519 and X25519 keys in `raw`, `pkcs8` and `jwk`. Anything else rejects with `NotSupportedError`. The mount plan gives every applet frame a `randomUUID` fallback too, before its own scripts; applets do not get the `SubtleCrypto` fallback.
 
+### Event cache
+
+Everything in this section is exported from `@kernlize/core/cache` and from `@kernlize/core`. The cache keeps events between visits, through one contract with a backend per context ([D-030](../decisions.md#d-030)). `createKernl` takes `eventCache`, an opener, and attaches what it opens to the shell's store through `connectEventCache`: the replaceable loader and the store's catalogue ask the cache before any relay, new events are written back in batches, and `destroy()` closes it. The shell starts at once; the cache opens in the background, and one that fails leaves the shell in memory. kernl's web shell passes `() => openEventCache(defaultWebCacheAdapters())`.
+
+```ts
+import { EventStore } from 'applesauce-core';
+import { attachEventCache, defaultWebCacheAdapters, openEventCache } from '@kernlize/core/cache';
+
+const store = new EventStore();
+const cache = await openEventCache(defaultWebCacheAdapters(), {
+  onFallback: (name, reason) => console.info(`${name} cache skipped: ${reason}`),
+});
+const { cacheRequest, stop } = attachEventCache(store, cache);
+await cacheRequest([{ kinds: [0], limit: 1 }]); // events marked as from the cache
+stop();
+await cache.close();
+```
+
+| `EventCache` member | Behaviour |
+| --- | --- |
+| `name` | `sqlite-opfs`, `indexeddb`, `memory`, or the name a custom adapter gave. |
+| `add(events)` | Stores events. A replaceable (0, 3, 10000–19999) or addressable (30000–39999, per `d`) event is kept only if it is the newest version, the lower id winning a tie, and the older versions are removed. A kind 5 deletion is stored and removes its author's targets, by `e` id and by `a` address up to its own `created_at`; a target that arrives later is dropped. Ephemeral kinds (20000–29999) are not stored. Writes run one after another. |
+| `query(filters)` | Events matching any filter, newest first (the lower id first on a tie), each filter's `limit` applied to that filter. `ids`, `authors`, `kinds`, `since`, `until`, `limit` and single-letter `#x` tags are supported; a filter with `search` matches nothing. |
+| `removeByFilters(filters)` | Removes what `query(filters)` returns and resolves how many. |
+| `clear()`, `close()` | Removes every event; releases the backend. |
+
+| Export | Behaviour |
+| --- | --- |
+| `openEventCache(adapters, { onFallback? })` | Opens the first adapter that opens. Each one that rejects is reported as `onFallback(name, reason)`; when none opens, the cache is `memory`. Never rejects. |
+| `defaultWebCacheAdapters()` | `[sqlite-opfs, indexeddb, memory]` with default options. |
+| `createMemoryCacheAdapter()` | applesauce's `EventMemory`, gone when the page closes. Always opens. |
+| `createIndexedDbCacheAdapter({ name?, indexedDB? })` | One object store keyed by id in the database `name` (default `kernl-events`), with indexes on kind, author, time and `name:value` tags. Rejects `unavailable:indexeddb` without a factory, and `unavailable:indexeddb (<error name>)` when the factory refuses, for example a database from a newer version. A write the browser aborts rejects `unavailable:indexeddb (aborted)`. |
+| `createSqliteOpfsCacheAdapter(options?)` | sqlite-wasm on the OPFS SAH pool VFS, in a dedicated worker, with applesauce-sqlite's schema. Options below. |
+| `fromEventDatabase(name, database, close?)` | Any applesauce `IEventDatabase` or `IAsyncEventDatabase` as a cache, with the rules above applied on top; `close` is called when the cache is closed. See [Add a cache backend](../how-tos/add-a-cache-backend.md). |
+| `createEventCache(name, records)` | The rules layer over an `EventRecords` (`put`, `query` for one filter, `remove` by id, `clear`, `close`), for a backend that is not an applesauce database. |
+| `attachEventCache(store, cache, { batchTime?, maxBatchSize? })` | Writes the store's new events in batches through applesauce's `persistEventsToCache` (default every 5 s), skipping events from the cache. `cacheRequest(filters)` is a loader `cacheRequest`: it marks what it returns with `markFromCache` and resolves `[]` when the cache rejects. `stop()` ends the writes. |
+| `isCorruptionError(error)` | True for `SQLITE_CORRUPT`, `SQLITE_NOTADB`, `database disk image is malformed` and `file is not a database`. |
+
+| `SqliteOpfsOptions` | Default | Meaning |
+| --- | --- | --- |
+| `filename` | `/kernl-events.sqlite3` | The database in the SAH pool. A rotation moves to `/kernl-events-1.sqlite3`, `/kernl-events-2.sqlite3`, … |
+| `storage` | `globalThis.localStorage` | Keeps the current filename at `kernl:event-cache:v1` after a rotation. |
+| `locks` | `navigator.locks` | Guards the database. Another tab holding it makes `open` reject `unavailable:locked`. Without a lock manager, the SAH pool's own exclusive handles are the only guard. |
+| `connect` | a module worker at `./sqlite-worker.js` | Opens the database files: a `SqliteFiles` (`open(filename)` to a `SqliteDriver` of `exec`, `query`, `close`; `wipe(filename)`; `close()`). Rejects `unavailable:opfs` where the page has no `Worker` or no `navigator.storage.getDirectory`. |
+| `onRecover` | none | Told `{ action, reason }` for each repair: `wiped`, `rotated` or `disabled`. |
+
+`open` rejects `unavailable:opfs (…)` when the worker cannot install the SAH pool, `unavailable:worker (…)` when the worker fails, `unavailable:locked`, `unavailable:corrupt` when every repair failed, and `unavailable:sqlite (…)` for any other failure to open. How the cache repairs a damaged database is in [Persistence](../concepts/persistence.md#events-kept-between-visits).
+
+The worker is `dist/sqlite-worker.js`, started with `new Worker(new URL('./sqlite-worker.js', import.meta.url), { type: 'module' })` beside the chunk that starts it; Vite and other bundlers that understand that form bundle it. Exclude `@sqlite.org/sqlite-wasm` from the bundler's dependency pre-bundling so its `sqlite3.wasm` resolves next to it.
+
 ## Exports
 
 Signatures are abbreviated; the generated reference has the full ones.
@@ -389,7 +447,8 @@ Signatures are abbreviated; the generated reference has the full ones.
 
 | Export | Signature | Description |
 | --- | --- | --- |
-| `loadCatalog` | `(pool: ApplesaucePool, tiers: RelayTiers, options?: LoadCatalogOptions) => Promise<readonly CatalogEntry[]>` | Root and named manifests from `catalogRelays(tiers)`, signature-checked, newest per catalogue id; waits at most `timeoutMs` (`CATALOG_TIMEOUT_MS`, 8000) and asks for `limit` (`CATALOG_LIMIT`, 500) per relay. |
+| `streamCatalog` | `(pool: ApplesaucePool, tiers: RelayTiers, options?: LoadCatalogOptions) => Observable<readonly CatalogEntry[]>` | Root and named manifests from `catalogRelays(tiers)`, signature-checked, newest per catalogue id, emitted again as relays answer (at most every `emitMs`, `CATALOG_EMIT_MS`, 120). A manifest its publisher deleted (kind 5, NIP-09) is left out. Completes when every relay finished, or after `timeoutMs` (`CATALOG_TIMEOUT_MS`, 30000), the outer bound; a failing relay never discards what others sent. Asks for `limit` (`CATALOG_LIMIT`, 500) per relay. |
+| `loadCatalog` | `(pool: ApplesaucePool, tiers: RelayTiers, options?: LoadCatalogOptions) => Promise<readonly CatalogEntry[]>` | The last list `streamCatalog` emits. |
 | `catalogRelays` | `(tiers: RelayTiers) => readonly string[]` | The `apps` tier, then `super`. |
 | `toCatalogEntry` | `(event: NostrEvent, relays?: readonly string[]) => CatalogEntry \| undefined` | A store entry from a manifest whose signature verifies; undefined otherwise. |
 | `addressOf` | `(event: NostrEvent, relays?: readonly string[]) => string` | `naddr1…` for a root or named manifest, `nevent1…` for a snapshot. |
@@ -455,18 +514,41 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `createAuthHooks` | `(accounts: AccountManager, consent: SigningConsent) => AuthHooks` | kehto's auth over the account manager; a signer asked for with a window id passes `consent` before signing. |
 | `wrapAccountSigner` | `(account: IAccount) => Signer` | The NIP-07-shaped signer kehto expects. |
 | `isReadOnlyAccount` | `(account: IAccount) => boolean` | True for `ReadonlyAccount`. |
-| `createReplaceableLoader` | `(store: EventStore, pool: ApplesaucePool, tiers: RelayTiers) => AddressPointerLoader` | The applesauce address loader for replaceable and addressable events the store lacks: it asks the pointer's relays, then the `discovery` tier, and adds what it finds to the store. Used by `createIdentityProviders` and the consent lookup. |
-| `createIdentityProviders` | `(store: EventStore, pool: ApplesaucePool, tiers: RelayTiers, options?: IdentityProviderOptions) => IdentityProviders` | Profile, follows, mutes and relays from the store, loaded once from the `discovery` tier on a miss; lists, zaps, blocked and badges are empty. |
+| `createReplaceableLoader` | `(store: EventStore, pool: ApplesaucePool, tiers: RelayTiers) => AddressPointerLoader` | The applesauce address loader for replaceable and addressable events the store lacks: it asks the pointer's relays, then `lookupRelaysOf(tiers)` (the `discovery` tier, then `super`), and adds what it finds to the store. Used by `createIdentityProviders` and the consent lookup. |
+| `createIdentityProviders` | `(store: EventStore, pool: ApplesaucePool, tiers: RelayTiers, options?: IdentityProviderOptions) => IdentityProviders` | Profile, follows, mutes and relays from the store, loaded once from the lookup relays on a miss; lists, zaps, blocked and badges are empty. |
 | `createRelayPoolHooks` | `(pool: ApplesaucePool, tiers: RelayTiers) => RelayPoolHooks` | kehto's relay-pool hooks, including one scoped relay per window. |
 | `createRelayPoolLike` | `(pool: ApplesaucePool) => RelayPoolLike` | `subscription`, `request`, `publish` over the one pool. |
-| `createAppletRelayBackend` | `(pool: ApplesaucePool, tiers: RelayTiers) => RelayPoolServiceOptions` | For kehto's `createRelayPoolService`; publishes go to the tier for the event's kind. |
+| `createAppletRelayBackend` | `(pool: ApplesaucePool, tiers: RelayTiers) => RelayPoolServiceOptions` | For kehto's `createRelayPoolService`; publishes go to the tier for the event's kind and succeed when any relay accepts. |
+| `publishAccepted` | `(pool: ApplesaucePool, relays: string[], event: NostrEvent) => Promise<number>` | Publishes everywhere and resolves with how many accepted; throws `unavailable:not-accepted:0/<n>` only when none did (D-028). |
+| `lookupRelaysOf` | `(config) => string[]` | Where an unhinted replaceable is looked up: `discovery`, then `super`. |
+| `createProfiles` | `(options: ProfilesOptions) => Profiles` | `card$(pubkey)` streams a `ProfileCard` (name, `https:` picture, address, about, `found`) and starts a lookup on the lookup relays, then on the author's own write relays when their relay list names servers the lookup relays lacked. Nothing times out; a late profile replaces the short key. `card(pubkey)` reads the store only. `settled(pubkey)` resolves once the profile is found or every lookup server has answered, never on a timer. |
+| `labelConversations` | `(adapter: DmAdapter, profiles: Pick<Profiles, 'settled'>) => DmAdapter` | Names every conversation participant the `dm` domain lists from their profile; a provider's own label is kept, and a person with no profile keeps none. `createKernlServices` applies it when given `profiles`, so messaging applets show names without looking anyone up. |
+| `toProfileCard` | `(pubkey: string, event: NostrEvent \| undefined) => ProfileCard` | Display name, then name, then the abbreviated key. |
 | `createDmRelayPool` | `(pool: ApplesaucePool, tiers: RelayTiers) => DmRelayPool` | For messaging backends. |
 | `createOutboxRelayPool` | `(pool: ApplesaucePool) => OutboxRelayPoolLike` | For kehto's `createRelayPoolOutboxRouter`, with per-relay publish outcomes. |
-| `subscribeWithEose` | `(pool, relays: string[], filters: NostrFilter[], callback: (item: NostrEvent \| 'EOSE') => void) => EoseSubscription` | Each event once, one `EOSE` after every relay answered or failed. |
+| `subscribeWithEose` | `(pool: Pick<ApplesaucePool, 'req'>, relays: string[], filters: NostrFilter[], callback: (item: NostrEvent \| 'EOSE') => void) => EoseSubscription` | Each event once, one `EOSE` after every relay answered or failed. |
 | `selectRelayTier` | `(tiers: RelayTiers, filters: readonly NostrFilter[]) => string[]` | The routing rule under Relay tiers. |
 | `createRelayTiers` | `(storage: StorageLike, defaults?: Partial<Record<RelayTier, readonly string[]>>) => RelayTiers` | Persisted at `kernl:relays:v1`; `changes$` replays the current value. |
 | `DEFAULT_RELAY_TIERS` | `Readonly<Record<RelayTier, readonly string[]>>` | The table above. |
 | `ApplesaucePool`, `EoseSubscription`, `OutboxRelayPoolLike`, `IdentityProfile`, `IdentityProviderOptions`, `IdentityProviders`, `RelayPermissions`, `RelayTier`, `RelayTiers` | types | `ApplesaucePool` is `Pick<RelayPool, 'req' \| 'request' \| 'publish'>` so tests can supply a fake. |
+
+### Servers and mailboxes
+
+Not yet composed by `createKernl`; [Inbox, outbox and finding servers](../concepts/inbox-outbox-and-servers.md) explains them.
+
+| Export | Signature | Description |
+| --- | --- | --- |
+| `summarizePublish` | `(responses: readonly PublishAnswer[]) => PublishOutcome` | `{ accepted, refused: { url, reason }[], ok }` from `RelayPool.publish`'s answers; `ok` when any relay accepted, a relay counts once, an acceptance wins ([D-028](../decisions.md#d-028)). |
+| `describeOutcome` | `(outcome: PublishOutcome) => string` | `Saved to 2 of 3 servers`, `Saved to all 3 servers`, `Saved to 1 server`, `No server accepted it`, `There was no server to save it to`. Never the relay's reason. |
+| `toRelayUrl` | `(url: string) => string \| undefined` | The normalised `ws:`/`wss:` URL, or undefined for anything else. |
+| `relayUrls` | `(urls: Iterable<string>) => string[]` | Normalised, deduplicated, non-URLs dropped. |
+| `createRelayDirectory` | `(options: RelayDirectoryOptions) => RelayDirectory` | NIP-66 reports (kind 30166) streamed from `options.relays` (`DEFAULT_MONITOR_RELAYS`), folded per relay; `listings$`, `listings()`, `search(text, limit?)`, `suggest({ purpose, exclude?, limit? })`, `start()`, `stop()` ([D-029](../decisions.md#d-029)). Options: `pool` (`DirectoryPool`, `Pick<RelayPool, 'subscription'>`), `relays` (array or Observable), `maxAgeSeconds` (two days), `now`, `fallback`, `throttleMs` (250). |
+| `DEFAULT_MONITOR_RELAYS` | `readonly string[]` | `wss://relay.nostr.watch`, `wss://relaypag.es`, `wss://monitorlizard.nostr1.com`. |
+| `DEFAULT_SUGGESTIONS` | `Readonly<Record<SuggestPurpose, readonly string[]>>` | The fallback per purpose: `relay.damus.io`, `nos.lol`, `relay.primal.net` for `inbox` and `outbox`; `purplepag.es`, `user.kindpag.es`, `indexer.coracle.social` for `lookup`. |
+| `createAccountMailboxes` | `(options: AccountMailboxesOptions) => AccountMailboxes` | The active account's kind 10002 list: `state$`, `state()` (`loading`, `missing` with `suggested`, `found` with `mailboxes` and `event`) and `save(next, onProgress?) => Promise<PublishOutcome>`; with `onProgress` and a pool that has `event()`, the outcome so far is reported as each server answers, the list enters the store once one server holds it, and a server that never answers counts as refusing with `no answer`. Options: `store`, `pool` (`MailboxPool`, `Pick<RelayPool, 'req' \| 'publish'>` and optionally `event`), `pubkey$`, `lookupRelays`, `signer` (`MailboxSigner`), `directory?`, `patienceMs?` (15 000). `save` rejects with `denied:read-only` or `invalid:relay-url`. |
+| `mailboxesFromEvent` | `(event: NostrEvent \| undefined) => Mailboxes` | `{ inboxes, outboxes }`; an unmarked `r` tag is both. |
+| `mailboxTags` | `(mailboxes: Mailboxes, previous?: NostrEvent) => string[][]` | `r` tags, unmarked for a relay in both lists, then the previous list's other tags. |
+| `PublishOutcome`, `PublishAnswer`, `RelayDirectory`, `RelayDirectoryOptions`, `RelayListing`, `SuggestOptions`, `SuggestPurpose`, `DirectoryPool`, `AccountMailboxes`, `AccountMailboxesOptions`, `MailboxState`, `Mailboxes`, `MailboxPool`, `MailboxSigner` | types | `RelayListing` is `{ url, monitors, lastSeen, rttOpen?, rttRead?, rttWrite?, network?, nips, types, requiresAuth, requiresPayment, restrictedWrites }`. |
 
 ### Registries, layouts and persistence
 
@@ -493,6 +575,20 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `DefaultMessagingOptions`, `DefaultBridgesOptions`, `LayoutOptions`, `MasterStackOptions`, `NamespacedStore` | types | |
 | `LayoutChoice`, `LayoutEntry`, `LayoutRegistry`, `ManagedWindow`, `VisibilityTarget`, `WindowManager`, `WindowManagerOptions`, `WindowManagerState`, `WindowSize` | types | The window-management surface. |
 | `LayoutStrategy`, `Rect`, `WindowPlacement`, `WindowState` | types | Re-exported from `@kehto/wm`, so a layout can be written against one import. |
+
+### Event cache
+
+| Export | Signature | Description |
+| --- | --- | --- |
+| `openEventCache` | `(adapters: readonly EventCacheAdapter[], options?: OpenEventCacheOptions) => Promise<EventCache>` | The first adapter that opens, or memory. Also on `@kernlize/core/cache`, like everything in this table. |
+| `defaultWebCacheAdapters` | `() => readonly EventCacheAdapter[]` | `[sqlite-opfs, indexeddb, memory]`. |
+| `createMemoryCacheAdapter`, `createIndexedDbCacheAdapter`, `createSqliteOpfsCacheAdapter` | `() => EventCacheAdapter`, `(options?: IndexedDbCacheOptions) => EventCacheAdapter`, `(options?: SqliteOpfsOptions) => EventCacheAdapter` | The three web backends. |
+| `fromEventDatabase` | `(name: string, database: IAsyncEventDatabase \| IEventDatabase, close?: () => Promise<void> \| void) => EventCache` | Any applesauce event database as a cache. |
+| `createEventCache` | `(name: string, records: EventRecords) => EventCache` | The shared rules over a backend's rows. |
+| `attachEventCache` | `(store: Pick<IEventStoreStreams, 'insert$'>, cache: EventCache, options?: AttachEventCacheOptions) => AttachedEventCache` | Writes and `cacheRequest` for loaders. |
+| `connectEventCache` | `(store, open?: EventCacheOpener) => ConnectedEventCache` | Opens in the background and attaches; `cacheRequest` waits for the open and answers `[]` without a cache; `close()` stops writes and closes. `createKernl` uses it for `options.eventCache`. |
+| `isCorruptionError` | `(error: unknown) => boolean` | Whether a sqlite error means a damaged file. |
+| `EventCache`, `EventCacheAdapter`, `EventRecords`, `OpenEventCacheOptions`, `IndexedDbCacheOptions`, `SqliteOpfsOptions`, `AttachEventCacheOptions`, `AttachedEventCache`, `CacheRecoveryEvent`, `SqliteDriver`, `SqliteFiles`, `SqlStatement`, `SqlValue`, `LockManagerLike`, `FilenameStorage` | types | |
 
 ## Scope
 

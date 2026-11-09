@@ -6,7 +6,7 @@ Feature: Relay tiers
   Scenario: fresh storage yields the defaults
     Given kernl relay tiers over empty storage
     Then the "discovery" tier is "wss://purplepag.es,wss://relay.nos.social"
-    And the "apps" tier is "wss://relay.napplet.soy"
+    And the "apps" tier is "wss://relay.napplet.soy,wss://relay.ditto.pub,wss://relay.nostr.com"
     And the "outbox" tier is ""
     And the "super" tier is "wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net"
 
@@ -45,9 +45,22 @@ Feature: Relay tiers
   Scenario: corrupt persisted tiers fall back to defaults
     Given storage key "kernl:relays:v1" holding 'not json'
     And kernl relay tiers over that storage
-    Then the "apps" tier is "wss://relay.napplet.soy"
+    Then the "apps" tier is "wss://relay.napplet.soy,wss://relay.ditto.pub,wss://relay.nostr.com"
 
   Scenario: a relay must be a websocket URL
     Given kernl relay tiers over empty storage
     When the shell adds "https://relay.mine" to the "outbox" tier
+    Then the shell refused with "invalid:relay-url"
+
+  Scenario: a tier can be replaced at once, and an unchanged list is not observed again
+    Given kernl relay tiers over empty storage
+    When the shell sets the "outbox" tier to "wss://a.test,wss://b.test,wss://a.test"
+    Then the "outbox" tier is "wss://a.test,wss://b.test"
+    When the shell sets the "outbox" tier to "wss://a.test,wss://b.test"
+    Then the tier configuration was observed 2 times
+    When the shell sets the "outbox" tier to "wss://b.test"
+    Then the "outbox" tier is "wss://b.test"
+    When the shell sets the "outbox" tier to "wss://b.test,wss://c.test"
+    Then the tier configuration was observed 4 times
+    When the shell sets the "outbox" tier to "https://b.test"
     Then the shell refused with "invalid:relay-url"

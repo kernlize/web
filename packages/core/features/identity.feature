@@ -1,6 +1,7 @@
 Feature: Identity lookups
   Applets never see the event store. The identity service answers from it on
-  their behalf and loads misses once from the discovery tier; what the shell
+  their behalf and loads misses once from the lookup relays, the discovery
+  tier then the general one; what the shell
   has not fetched is reported as empty, never invented.
 
   Background:
@@ -32,7 +33,7 @@ Feature: Identity lookups
     Given a loader that returns a kind 0 profile for "carol" with only a name
     When the identity providers look up the profile of "carol"
     Then the profile is exactly name "carol"
-    And the loader was asked for kind 0 from the discovery tier
+    And the loader was asked for kind 0 from the lookup relays
 
   Scenario: a loader that fills the store without emitting still resolves
     Given a loader that stores a kind 0 profile for "dave" with only a name and emits nothing
@@ -42,7 +43,7 @@ Feature: Identity lookups
   Scenario: an unresolved miss is null and the default loader asked the pool
     When the identity providers without an injected loader look up the profile of "erin"
     Then the profile is null
-    And the default loader asked every discovery relay
+    And the default loader asked every lookup relay
 
   Scenario: follows, mutes and relays come from their replaceable events
     Given the store holds a kind 3 follow list for "alice" following "0000000000000000000000000000000000000000000000000000000000000001,0000000000000000000000000000000000000000000000000000000000000002"

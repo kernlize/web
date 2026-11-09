@@ -58,7 +58,7 @@ Most writes an applet asks the shell to sign are additive: a note, a reaction, a
 | `3` | `destructive` | "Change who you follow": follows added and removed, counted, the first three named by abbreviated key. |
 | `5` | `destructive` | "Delete N items", or "Delete N posts" when the `k` tags say every target is a post: one line per event id (`e` tag), and one "Delete every version of" line per address (`a` tag), named in plain words such as `record (type 30001) "books" by person 3bf0c63f…`. |
 | `62` | `destructive` | "Ask services to erase your account": everything the account published, and which services are asked. |
-| `10002` | `destructive` | "Change your connections list": relays added and removed with their read/write markers. |
+| `10002` | `destructive` | "Change your inbox and outbox": a line saying what the two are, then relays added to and removed from each. An unmarked relay is both and appears in each (NIP-65). |
 | 10000–10099, 30000–30099 | `destructive` | "Change the list …": entries added and removed, each named as a person, item, topic, type, server or key rather than as a raw tag. |
 | any other replaceable or addressable kind | `destructive` | "Replace one of your records (type N)": tags added and removed, and "Content: Replaced" when the content changes, without copying it. |
 | everything else | `routine` | No prompt; the event is signed without asking. |

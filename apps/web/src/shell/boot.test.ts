@@ -53,7 +53,7 @@ describe('boot', () => {
     const createKernl = vi.fn(() => live);
     const { boot } = await bootWith({ createKernl });
     const booted = await boot(host, new URLSearchParams('preview=0'));
-    expect(createKernl).toHaveBeenCalledWith({ host, torrent: booted.downloads.torrent, builtins: shipped });
+    expect(createKernl).toHaveBeenCalledWith({ host, torrent: booted.downloads.torrent, builtins: shipped, eventCache: expect.any(Function) });
     expect(booted).toEqual({ kernl: live, mode: 'live', downloads: booted.downloads });
     expect(signers.NostrConnectSigner.pool).toBe(live.pool);
   });
@@ -62,7 +62,7 @@ describe('boot', () => {
     const createKernl = vi.fn(() => ({ pool: {} }));
     const { boot } = await bootWith({ createKernl });
     const live = await boot(host, new URLSearchParams(), theme);
-    expect(createKernl).toHaveBeenCalledWith({ host, torrent: live.downloads.torrent, builtins: shipped, theme });
+    expect(createKernl).toHaveBeenCalledWith({ host, torrent: live.downloads.torrent, builtins: shipped, eventCache: expect.any(Function), theme });
     const preview = await boot(host, new URLSearchParams('preview=1'), theme);
     expect(createPreviewKernl).toHaveBeenCalledWith(host, preview.downloads.torrent, { builtins: shipped, theme });
   });

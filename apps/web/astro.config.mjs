@@ -11,5 +11,6 @@ export default defineConfig({
   // D-023: the long-form pages moved under /about/; the addresses they had keep working.
   redirects: Object.fromEntries(['why', 'guard', 'messaging', 'bridges', 'developers'].map((page) => [`/${page}/`, `/about/${page}/`])),
   integrations: [svelte(), sitemap()],
-  vite: { build: { target: 'es2022' } },
+  // sqlite-wasm finds its .wasm beside its own module; pre-bundling would move it (D-030).
+  vite: { build: { target: 'es2022' }, optimizeDeps: { exclude: ['@sqlite.org/sqlite-wasm'] } },
 });

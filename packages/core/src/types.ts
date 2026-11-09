@@ -10,6 +10,10 @@ import type { GuardConfig, GuardEvent, GuardProfile, MitigationDescription, Wind
 import type { MessagingBackend, MessagingRegistry, ReplyAnswer, ReplyPrompt } from '@kernlize/messaging';
 import type { BridgeRegistry, TorrentBackend } from '@kernlize/bridges';
 import type { CatalogEntry } from './catalog/entry.js';
+import type { Profiles } from './profiles/profiles.js';
+import type { EventCacheOpener } from './cache/connect.js';
+import type { AccountMailboxes } from './relays/mailboxes.js';
+import type { RelayDirectory } from './relays/directory.js';
 import type { LoadCatalogOptions } from './catalog/fetch.js';
 import type { HandlerDefaults } from './intents/defaults.js';
 import type { InstalledApplet } from './intents/installed.js';
@@ -169,6 +173,8 @@ export interface RelayTiers {
   get(): Readonly<Record<RelayTier, readonly string[]>>;
   add(tier: RelayTier, url: string): void;
   remove(tier: RelayTier, url: string): void;
+  /** Replace a tier's relays at once; unchanged lists are not re-emitted. Throws `invalid:relay-url` for an entry that is not a websocket URL. */
+  set(tier: RelayTier, urls: readonly string[]): void;
   readonly changes$: Observable<Readonly<Record<RelayTier, readonly string[]>>>;
 }
 
@@ -286,6 +292,8 @@ export interface KernlOptions {
   readonly messagingBackends?: MessagingBackendFactories;
   /** Opens the verified-artifact cache. Defaults to Cache Storage when the page has it, otherwise none. */
   readonly artifactCache?: () => Promise<NappletArtifactCache | undefined>;
+  /** Opens the event cache, such as `() => openEventCache(defaultWebCacheAdapters())` from `@kernlize/core/cache`. Without one the shell keeps events in memory only (D-030). */
+  readonly eventCache?: EventCacheOpener;
   /** Applets that come with the host, opened by `kernl:<id>` without a lookup. */
   readonly builtins?: readonly BuiltinApplet[];
   /** How intent delivery waits for a target to come up; `DELIVERY_RETRY` by default. */
@@ -294,8 +302,10 @@ export interface KernlOptions {
 
 /** The applet store's catalogue. */
 export interface AppletCatalog {
-  /** List the applets published to the store's relays, newest first. */
+  /** List the applets published to the store's relays, newest first, once every relay has finished. */
   load(options?: LoadCatalogOptions): Promise<readonly CatalogEntry[]>;
+  /** The same list, emitted again as manifests arrive; completes when every relay has finished. */
+  stream(options?: LoadCatalogOptions): Observable<readonly CatalogEntry[]>;
 }
 
 /** Applets handing work to each other: what is installed, and which applet the user prefers for what. */
@@ -331,6 +341,12 @@ export interface Kernl {
   readonly messaging: MessagingRegistry;
   readonly bridges: BridgeRegistry;
   readonly catalog: AppletCatalog;
+  /** People's names and pictures, loaded from their profiles on demand. */
+  readonly profiles: Profiles;
+  /** The signed-in account's published inbox and outbox (NIP-65); the `outbox` tier follows its outboxes. */
+  readonly mailboxes: AccountMailboxes;
+  /** Monitored servers (NIP-66) for completing and suggesting; idle until `start()`. */
+  readonly directory: RelayDirectory;
   readonly intents: Intents;
   readonly session$: Observable<Session | null>;
   readonly session: Session | null;

@@ -10,13 +10,14 @@ export type TierMap = Readonly<Record<RelayTier, readonly string[]>>;
  *
  * @example
  * ```ts
- * DEFAULT_RELAY_TIERS.apps; // ['wss://relay.napplet.soy']
+ * DEFAULT_RELAY_TIERS.apps; // ['wss://relay.napplet.soy', 'wss://relay.ditto.pub', 'wss://relay.nostr.com']
  * DEFAULT_RELAY_TIERS.outbox; // []
  * ```
  */
 export const DEFAULT_RELAY_TIERS: TierMap = Object.freeze({
   discovery: ['wss://purplepag.es', 'wss://relay.nos.social'],
-  apps: ['wss://relay.napplet.soy'],
+  // The catalogues the two public napplet stores read; together with `super` they hold every napplet either lists.
+  apps: ['wss://relay.napplet.soy', 'wss://relay.ditto.pub', 'wss://relay.nostr.com'],
   outbox: [],
   super: ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.primal.net'],
 });
@@ -82,6 +83,12 @@ export function createRelayTiers(storage: StorageLike, defaults: Partial<Record<
       assertRelayUrl(url);
       const current = changes$.value[tier];
       if (!current.includes(url)) update(tier, [...current, url]);
+    },
+    set(tier, urls) {
+      urls.forEach(assertRelayUrl);
+      const next = [...new Set(urls)];
+      const current = changes$.value[tier];
+      if (next.length !== current.length || next.some((url, index) => url !== current[index])) update(tier, next);
     },
     remove(tier, url) {
       const current = changes$.value[tier];

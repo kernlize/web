@@ -9,6 +9,8 @@ export interface Correspondent {
   write(recipient: string, text: string, createdAt: number): Promise<VerifiedEvent>;
   /** Open a message `sender` wrote to this correspondent. */
   read(event: VerifiedEvent): Promise<string>;
+  /** Their published profile (kind 0) with this name. */
+  profile(name: string): VerifiedEvent;
 }
 
 export function correspondent(): Correspondent {
@@ -19,6 +21,7 @@ export function correspondent(): Correspondent {
       return finalizeEvent({ kind: 4, created_at: createdAt, tags: [['p', recipient]], content: await nip04.encrypt(secret, recipient, text) }, secret);
     },
     read: (event) => nip04.decrypt(secret, event.pubkey, event.content),
+    profile: (name) => finalizeEvent({ kind: 0, created_at: Math.floor(Date.now() / 1000) - 86_400, tags: [], content: JSON.stringify({ name }) }, secret),
   };
 }
 

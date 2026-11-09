@@ -24,7 +24,7 @@ import {
   type VisibilityGate,
   type WindowVisibility,
 } from '@kernlize/guard';
-import { BehaviorSubject, Subject } from 'rxjs';
+import { BehaviorSubject, of, Subject } from 'rxjs';
 import type {
   AppletHandle,
   AppletPointer,
@@ -41,15 +41,17 @@ import type {
 } from './contract';
 import { abbreviate, shortId } from './contract';
 import { domainLabel } from './domains';
-import { PREVIEW_CATALOG, renderPreviewApplet, sampleSummary, sealPreviewDocument } from './preview-applet';
+import { PREVIEW_CATALOG, PREVIEW_PUBLISHER, renderPreviewApplet, sampleSummary, sealPreviewDocument } from './preview-applet';
 import { createPreviewBuiltins } from './preview-builtin';
 import { PORT_DOMAINS, createPreviewPorts, type PortLike, type PreviewPorts } from './preview-port';
 import { createPreviewIntents, type PreviewIntentDeps, type PreviewIntents } from './preview-intents';
-import { createPreviewMessaging } from './preview-messaging';
+import { createPreviewMessaging, PREVIEW_CORRESPONDENT, PREVIEW_LEGACY_CORRESPONDENT } from './preview-messaging';
+import { createPreviewDirectory, createPreviewMailboxes } from './preview-mailboxes';
+import { createPreviewProfiles } from './preview-profiles';
 import type { ShellTheme } from './shell-theme';
 import { baselineDomains, createPreviewGrants, createPreviewRelays, loadBaselineDomains } from './preview-state';
 
-const PREVIEW_OWNER = 'e8f1a4b7c9d2e5f8a1b4c7d0e3f6a9b2c5d8e1f4a7b0c3d6e9f2a5b8c1d4e7f0';
+export const PREVIEW_OWNER = 'e8f1a4b7c9d2e5f8a1b4c7d0e3f6a9b2c5d8e1f4a7b0c3d6e9f2a5b8c1d4e7f0';
 
 interface Mounted {
   readonly plan: MountPlan;
@@ -374,6 +376,7 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
   const shipped = createPreviewBuiltins(builtins, grants);
   const bridges = createPreviewBridges(host, torrent);
   const session$ = new BehaviorSubject<Session | null>(null);
+  const profiles = createPreviewProfiles({ [PREVIEW_OWNER]: 'Preview account', [PREVIEW_CORRESPONDENT]: 'Ada', [PREVIEW_LEGACY_CORRESPONDENT]: 'Grace', [PREVIEW_PUBLISHER]: 'kernl samples' });
   const mounted = new Map<string, Mounted>();
   let windowCount = 0;
 
@@ -398,7 +401,7 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
   const pubkey = (): string => session$.value?.pubkey ?? PREVIEW_OWNER;
   const { perform } = createActions(host, bridges, pubkey, intents);
   const mount = createMounter(host, guard, mounted);
-  const ports = createPreviewPorts({ messaging, pubkey: () => PREVIEW_OWNER, notify: (notice) => host.notify(notice), ...(theme ? { theme: { initialTheme: theme } } : {}) });
+  const ports = createPreviewPorts({ messaging, profiles, pubkey: () => PREVIEW_OWNER, notify: (notice) => host.notify(notice), ...(theme ? { theme: { initialTheme: theme } } : {}) });
 
   return {
     accounts,
@@ -407,7 +410,10 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
     relays,
     messaging,
     bridges,
-    catalog: { load: async () => PREVIEW_CATALOG },
+    catalog: { load: async () => PREVIEW_CATALOG, stream: () => of(PREVIEW_CATALOG) },
+    profiles,
+    mailboxes: createPreviewMailboxes(),
+    directory: createPreviewDirectory(),
     intents: intents.intents,
     session$,
     get session() {

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Publisher from './Publisher.svelte';
   import type { AppletSummary, BootMode, CatalogEntry, MountPlan, ShellKernl, StorageLike } from './contract';
   import AppletReview from './AppletReview.svelte';
   import InstalledApplets from './InstalledApplets.svelte';
@@ -6,7 +7,6 @@
   import Overlay from './Overlay.svelte';
   import { forgetRecent, readRecent, rememberRecent, type RecentApplet } from './recent';
   import StoreBrowser from './StoreBrowser.svelte';
-  import { abbreviate } from './contract';
 
   interface Props {
     kernl: ShellKernl;
@@ -70,6 +70,7 @@
     {#if error}<p class="shell-error" role="alert">{error}</p>{/if}
 
     {#if tab === 'store'}
+      {#if mode === 'preview'}<p class="shell-muted" role="note">The preview is offline, so the store shows its three sample applets. Sign in to the live shell to browse every published applet.</p>{/if}
       <StoreBrowser {kernl} {busy} onpick={(entry: CatalogEntry) => resolve(entry.address)} onaddress={resolve} />
     {:else if tab === 'installed'}
       <InstalledApplets {kernl} {mode} {busy} onopen={resolve} />
@@ -79,7 +80,7 @@
           <li class="shell-card row">
             <div>
               <h4>{entry.title}</h4>
-              <p class="mono">{abbreviate(entry.publisher)}</p>
+              <p class="shell-muted"><Publisher {kernl} applet={entry} /></p>
             </div>
             <div class="shell-actions">
               <button type="button" class="shell-button" onclick={() => resolve(entry.address)} disabled={busy}>Open</button>

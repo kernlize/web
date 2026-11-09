@@ -4,7 +4,7 @@ kernl finds applets for the user and lets applets hand work to each other. The s
 
 ## The store
 
-The launcher opens on the store. `kernl.catalog.load()` (`loadCatalog`, `packages/core/src/catalog/fetch.ts`) asks the `apps` and `super` [relay tiers](./relay-tiers.md) for root and named applet manifests and waits at most `CATALOG_TIMEOUT_MS` (8 s) before listing what arrived, so a slow or dead relay never keeps the rest from showing.
+The launcher opens on the store. `kernl.catalog.stream()` (`streamCatalog`, `packages/core/src/catalog/fetch.ts`) asks the `apps` and `super` [relay tiers](./relay-tiers.md) for root and named applet manifests, and for the deletion requests (kind 5, NIP-09) their publishers signed, and emits the list again each time a relay sends more. The first relay to answer fills the store while slower ones are still talking; a relay that fails keeps nothing else from showing; a manifest its own publisher deleted is not listed. The stream completes when every relay has finished, or at `CATALOG_TIMEOUT_MS` (30 s), which is an outer bound and not a wait. `kernl.catalog.load()` resolves with the final list.
 
 Each manifest becomes a `CatalogEntry` (`toCatalogEntry`) only when its signature verifies, so a relay cannot list an applet under someone else's name. Its bytes are not fetched; they are verified when the user opens it, exactly as for a pasted address. Repeated versions collapse to the newest per catalogue id (`newestEntries`).
 

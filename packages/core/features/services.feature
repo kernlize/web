@@ -62,13 +62,23 @@ Feature: Shell services and adapter
     When service "outbox" handles '{"type":"outbox.query","id":"o1","filters":[{"kinds":[1]}]}' from window "w1"
     Then the service eventually replied with a "outbox.query.result" carrying 1 events
     When service "outbox" handles '{"type":"outbox.publish","id":"o2","event":{"kind":1,"content":"hi","tags":[],"created_at":1700000000}}' from window "w1"
-    Then the service eventually replied with a "outbox.publish.result" whose "ok" is false
+    Then the service eventually replied with a "outbox.publish.result" whose "ok" is true
+    And the fake pool received a "publish" for "wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net"
     Given the signing account publishes a relay list writing to "wss://nos.lol"
     When service "outbox" handles '{"type":"outbox.publish","id":"o3","event":{"kind":1,"content":"hi","tags":[],"created_at":1700000000}}' from window "w1"
     Then the service eventually replied with a "outbox.publish.result" whose "ok" is true
     And the fake pool received a "publish" for "wss://nos.lol/"
     Given kernl services without a signer
     When service "outbox" handles '{"type":"outbox.publish","id":"o4","event":{"kind":1,"content":"hi","tags":[],"created_at":1700000000}}' from window "w1"
+    Then the service eventually replied with a "outbox.publish.result" whose "ok" is false
+
+  Scenario: an outbox publish that one write relay refuses still succeeds
+    Given the signing account publishes a relay list writing to "wss://nos.lol,wss://relay.damus.io"
+    And the fake pool relays "wss://relay.damus.io/" answer publishes with a refusal
+    When service "outbox" handles '{"type":"outbox.publish","id":"p1","event":{"kind":1,"content":"hi","tags":[],"created_at":1700000000}}' from window "w1"
+    Then the service eventually replied with a "outbox.publish.result" whose "ok" is true
+    Given the fake pool relays "wss://nos.lol/" answer publishes with a refusal
+    When service "outbox" handles '{"type":"outbox.publish","id":"p2","event":{"kind":1,"content":"hi","tags":[],"created_at":1700000000}}' from window "w1"
     Then the service eventually replied with a "outbox.publish.result" whose "ok" is false
 
   Scenario: the shell adapter decides what kehto left open

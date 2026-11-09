@@ -1,4 +1,4 @@
-import { BehaviorSubject, Subject, Subscription } from 'rxjs';
+import { BehaviorSubject, map, of, Subject, Subscription, switchMap } from 'rxjs';
 import { EventStore } from 'applesauce-core';
 import { RelayPool } from 'applesauce-relay';
 import type { AccountManager, IAccount } from 'applesauce-accounts';
@@ -9,7 +9,9 @@ import { createGuardConfig, describeMitigations, type GuardEvent } from '@kernli
 import type { AppletIdentity, GuardFacade, Kernl, KernlOptions, RelayTiers, Session } from './types.js';
 import { createKernlAccounts } from './applesauce/accounts.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
-import { createReplaceableLoader } from './applesauce/identity-providers.js';
+import type { ProfileCard, Profiles } from './profiles/profiles.js';
+import { createKernlNetwork } from './kernl-network.js';
+import type { AccountMailboxes } from './relays/mailboxes.js';
 import { createRelayTiers } from './relays/tiers.js';
 import { decodePointer } from './applets/pointer.js';
 import { defaultFetchBlob, openDefaultArtifactCache } from './applets/resolve.js';
@@ -30,7 +32,7 @@ import { createKernlServices, isTheme } from './kernl-services.js';
 import { createShellAdapter } from './kernl-adapter.js';
 import { createAppletLifecycle } from './kernl-lifecycle.js';
 import { createKernlIntents } from './kernl-intents.js';
-import { loadCatalog } from './catalog/fetch.js';
+import { loadCatalog, streamCatalog } from './catalog/fetch.js';
 
 /**
  * Describe an account as a session the UI can show.
@@ -42,9 +44,10 @@ import { loadCatalog } from './catalog/fetch.js';
  * toSession(ReadonlyAccount.fromPubkey(pubkey)).readOnly; // true
  * ```
  */
-export function toSession(account: IAccount): Session {
+export function toSession(account: IAccount, card?: ProfileCard): Session {
   const metadata = account.metadata as { name?: unknown } | undefined;
-  const label = typeof metadata?.name === 'string' ? metadata.name : (account.name ?? abbreviate(account.pubkey));
+  const named = typeof metadata?.name === 'string' ? metadata.name : account.name;
+  const label = named ?? (card?.found ? card.name : abbreviate(account.pubkey));
   return { accountId: account.id, pubkey: account.pubkey, label, readOnly: isReadOnlyAccount(account) };
 }
 
@@ -54,18 +57,25 @@ interface ShellState {
   readonly handles: ReadonlyMap<string, MountedApplet>;
   readonly accounts: AccountManager;
   readonly session$: BehaviorSubject<Session | null>;
+  readonly profiles: Profiles;
+  readonly mailboxes: AccountMailboxes;
+  readonly tiers: RelayTiers;
 }
 
 /** Keep the runtime firewall on the guard's profile and the session on the active account. */
-function followShellState({ pipeline, bridge, handles, accounts, session$ }: ShellState): Subscription {
+function followShellState({ pipeline, bridge, handles, accounts, session$, profiles, mailboxes, tiers }: ShellState): Subscription {
   const subscriptions = new Subscription();
   subscriptions.add(pipeline.profile$.subscribe(() => {
     applyRuntimeFirewallProfile(bridge.runtime.firewallState, pipeline.config);
     for (const handle of handles.values()) applyRuntimeFirewallRules(bridge.runtime.firewallState, pipeline.config, handle.summary.identity.dTag);
   }));
-  subscriptions.add(accounts.active$.subscribe((account) => {
-    session$.next(account ? toSession(account) : null);
-    bridge.publishIdentityChanged(account?.pubkey ?? '');
+  subscriptions.add(accounts.active$.subscribe((account) => bridge.publishIdentityChanged(account?.pubkey ?? '')));
+  // The session's label follows the account's published name once it arrives.
+  const sessions = accounts.active$.pipe(switchMap((account) => (account ? profiles.card$(account.pubkey).pipe(map((card) => toSession(account, card))) : of(null))));
+  subscriptions.add(sessions.subscribe(session$));
+  // Where the account says it publishes is where the shell publishes for it (NIP-65, D-029).
+  subscriptions.add(mailboxes.state$.subscribe((state) => {
+    if (state.status === 'found') tiers.set('outbox', state.mailboxes.outboxes);
   }));
   return subscriptions;
 }
@@ -175,6 +185,7 @@ export function createKernl(options: KernlOptions): Kernl {
   const handles = new Map<string, MountedApplet>();
   const guardEvents$ = new Subject<GuardEvent>();
   const session$ = new BehaviorSubject<Session | null>(null);
+  const destroyed$ = new Subject<void>();
   const subscriptions = new Subscription();
   let grants: KernlGrants;
 
@@ -191,8 +202,9 @@ export function createKernl(options: KernlOptions): Kernl {
   });
 
   const identityOf = (windowId: string): AppletIdentity | undefined => handles.get(windowId)?.summary.identity;
+  const { eventCache, replaceableLoader, profiles, directory, mailboxes } = createKernlNetwork(options, { eventStore, pool, tiers, accounts, destroyed$ });
   const lookupBefore = lookupReplaceable(eventStore, {
-    loader: createReplaceableLoader(eventStore, pool, tiers),
+    loader: replaceableLoader,
     relays: () => [...tiers.get().outbox, ...tiers.get().discovery],
   });
   const consent = createSigningConsent({ host, lookupBefore, resolveApplet: identityOf, pubkey: () => accounts.active?.pubkey });
@@ -205,6 +217,7 @@ export function createKernl(options: KernlOptions): Kernl {
     host,
     bridges,
     messaging,
+    profiles,
     ...(isTheme(options.theme) ? { theme: options.theme } : {}),
     resolveIdentity(windowId) {
       const identity = identityOf(windowId);
@@ -234,7 +247,7 @@ export function createKernl(options: KernlOptions): Kernl {
   grants = createGrants({ acl: bridge.runtime.aclState, storage: host.storage, availableDomains: () => buildShellCapabilities(adapter).domains });
   bridge.registerConsentHandler(createConsentHandler(host, lookupBefore, identityOf));
 
-  subscriptions.add(followShellState({ pipeline, bridge, handles, accounts, session$ }));
+  subscriptions.add(followShellState({ pipeline, bridge, handles, accounts, session$, profiles, mailboxes, tiers }));
 
   const lifecycle = createAppletLifecycle({
     pool,
@@ -262,7 +275,13 @@ export function createKernl(options: KernlOptions): Kernl {
     relays: tiers,
     messaging,
     bridges,
-    catalog: { load: (loadOptions) => loadCatalog(pool, tiers, loadOptions) },
+    catalog: {
+      load: (loadOptions) => loadCatalog(pool, tiers, { cache: eventCache.cacheRequest, store: eventStore, ...loadOptions }),
+      stream: (streamOptions) => streamCatalog(pool, tiers, { cache: eventCache.cacheRequest, store: eventStore, ...streamOptions }),
+    },
+    profiles,
+    mailboxes,
+    directory,
     intents: intents.intents,
     session$,
     get session() {
@@ -275,6 +294,9 @@ export function createKernl(options: KernlOptions): Kernl {
       const open = [...handles.values()];
       for (const handle of open) handle.close();
       subscriptions.unsubscribe();
+      destroyed$.next();
+      directory.stop();
+      void eventCache.close();
       intents.close();
       services.dm.dispose();
       bridge.destroy();

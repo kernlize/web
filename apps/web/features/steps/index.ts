@@ -7,3 +7,4 @@ import './preview-intents.ts';
 import './site-motion.ts';
 import './preview-builtin.ts';
 import './messages.ts';
+import './mailboxes.ts';

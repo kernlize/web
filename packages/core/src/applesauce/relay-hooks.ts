@@ -55,7 +55,7 @@ export function asFilters(filters: NostrFilter[]): Filter[] {
  * ```
  */
 export function subscribeWithEose(
-  pool: ApplesaucePool,
+  pool: Pick<ApplesaucePool, 'req'>,
   relays: string[],
   filters: NostrFilter[],
   callback: (item: NostrEvent | 'EOSE') => void,
@@ -146,14 +146,15 @@ function unique(urls: readonly string[]): string[] {
  * @returns Relay URLs, deduplicated.
  * @example
  * ```ts
- * selectRelayTier(tiers, [{ kinds: [0], authors: [pubkey] }]); // tiers.get().discovery
+ * selectRelayTier(tiers, [{ kinds: [0], authors: [pubkey] }]); // discovery, then outbox and super
  * ```
  */
 export function selectRelayTier(tiers: RelayTiers, filters: readonly NostrFilter[]): string[] {
   const config = tiers.get();
   const kinds = kindsOf(filters);
   if (kinds && kinds.length > 0) {
-    if (kinds.every((kind) => DISCOVERY_KINDS.has(kind))) return unique(config.discovery);
+    // Profiles, follows and relay lists live on indexers and on their authors' own servers (NIP-65), so both are asked.
+    if (kinds.every((kind) => DISCOVERY_KINDS.has(kind))) return unique([...config.discovery, ...config.outbox, ...config.super]);
     if (kinds.every((kind) => APP_KINDS.has(kind))) return unique(config.apps);
   }
   return unique([...config.super, ...config.outbox]);
@@ -206,8 +207,8 @@ export function createRelayPoolHooks(pool: ApplesaucePool, tiers: RelayTiers): R
       const entry = scoped.get(windowId);
       if (!entry) return false;
       try {
-        await pool.publish([entry.relayUrl], event);
-        return true;
+        const [response] = await pool.publish([entry.relayUrl], event);
+        return response?.ok === true;
       } catch {
         return false;
       }

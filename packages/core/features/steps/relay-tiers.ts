@@ -41,6 +41,10 @@ When('the shell adds {string} to the {string} tier', async (world: CoreWorld, ur
   await attempt(world, () => tiers(world).add(tier, url));
 });
 
+When('the shell sets the {string} tier to {string}', async (world: CoreWorld, tier: RelayTier, urls: string) => {
+  await attempt(world, () => tiers(world).set(tier, splitList(urls)));
+});
+
 When('the shell removes {string} from the {string} tier', (world: CoreWorld, url: string, tier: RelayTier) => {
   tiers(world).remove(tier, url);
 });

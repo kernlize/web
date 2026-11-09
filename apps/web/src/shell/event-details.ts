@@ -23,7 +23,7 @@ const KIND_NAMES: Readonly<Record<number, string>> = {
   3: 'contacts',
   5: 'deletion',
   62: 'request to erase',
-  10002: 'connections',
+  10002: 'inbox and outbox',
 };
 
 /** The plain name of a record type: a known one by name, any other replaceable or list range as such. */

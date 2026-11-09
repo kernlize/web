@@ -654,3 +654,4 @@ Then('the fake pool published nothing', (world: CoreWorld) => {
 Then('the fake pool published a kind {int} event', (world: CoreWorld, kind: number) => {
   expect(published(world)).toEqual([kind]);
 });
+

@@ -1,6 +1,7 @@
 Feature: The applet store's catalogue
   The store lists applets from signed manifests on the applet relays and the
-  public relays. Each entry is read from a manifest whose signature verifies;
+  public relays, as each relay sends them: the list never waits for the
+  slowest server, and a server that fails keeps nothing else from showing. Each entry is read from a manifest whose signature verifies;
   its bytes are verified only when it is opened. Entries can be searched
   loosely, filtered by topic, by what the shell offers and by the requests
   they take, and the most common topics become filter bubbles.
@@ -55,7 +56,7 @@ Feature: The applet store's catalogue
     Given the fake pool serves catalogue manifests "older@1,newer@5,older@4" and a forged one
     When the catalogue loads from the shell's relays
     Then the catalogue lists "newer@5,older@4"
-    And the catalogue asked "wss://relay.napplet.soy,wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net" for named and root manifests limited to 500
+    And the catalogue asked "wss://relay.napplet.soy,wss://relay.ditto.pub,wss://relay.nostr.com,wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net" for named and root manifests and their deletions, limited to 500
 
   Scenario: the store can be narrowed to publishers and a smaller page
     Given the fake pool serves catalogue manifests "solo@1"
@@ -66,6 +67,28 @@ Feature: The applet store's catalogue
     Given the fake pool serves catalogue manifests "early@1" and then never finishes
     When the catalogue loads from the shell's relays waiting 20 ms
     Then the catalogue lists "early@1"
+
+  Scenario: applets are listed as they arrive, and a relay that fails late keeps what it sent
+    Given the fake pool streams catalogue manifests "first@1,second@2,third@3" seen on "wss://seen.example/", then fails
+    When the catalogue is streamed, emitting at most every 1 ms
+    Then the catalogue stream emitted 3 growing lists
+    And the catalogue lists "third@3,second@2,first@1"
+    And every listed address hints "wss://seen.example/"
+
+  Scenario: an applet its publisher deleted is not listed, unless someone else signed the deletion
+    Given the fake pool serves catalogue manifests "gone@1,kept@2,pinned@3,later@9,forged@4" and deletions "id:pinned:5,address:gone:5,address:later:6,forged:forged:9"
+    When the catalogue loads from the shell's relays
+    Then the catalogue lists "later@9,forged@4,kept@2"
+
+  Scenario: a root applet whose address its publisher deleted is not listed
+    Given the fake pool serves a root catalogue manifest and a deletion of its address
+    When the catalogue loads from the shell's relays
+    Then the catalogue lists ""
+
+  Scenario: when nothing has arrived for a while the store says so, and keeps listening
+    Given the fake pool serves catalogue manifests "late@7" after 40 ms
+    When the catalogue is streamed, settling after 10 ms
+    Then the catalogue stream emitted "" and then "late@7"
 
   Scenario: a dead relay leaves an empty store, not an error
     Given the fake pool fails requests

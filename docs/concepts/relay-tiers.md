@@ -9,7 +9,7 @@ kehto's `RelayConfigHooks` knows three tiers: `discovery`, `super` and `outbox`.
 | Tier | Settings label | What it serves | Default relays (`DEFAULT_RELAY_TIERS`) |
 | --- | --- | --- | --- |
 | `discovery` | Discovery | Profiles, follow lists and relay lists (kinds `0`, `3`, `10002`) | `wss://purplepag.es`, `wss://relay.nos.social` |
-| `apps` | Applet catalogue | Applet manifests (kehto's `NAPPLET_KINDS`, `5129`, `15129` and `35129`, plus the legacy catalogue kind `32267`) | `wss://relay.napplet.soy` |
+| `apps` | Applet catalogue | Applet manifests (kehto's `NAPPLET_KINDS`, `5129`, `15129` and `35129`, plus the legacy catalogue kind `32267`) | `wss://relay.napplet.soy`, `wss://relay.ditto.pub`, `wss://relay.nostr.com` (the catalogues the public napplet stores read; with `super` they hold every napplet either lists) |
 | `outbox` | Your connections | Where what the user publishes is delivered | none |
 | `super` | General | Everything that is not discovery or manifests | `wss://relay.damus.io`, `wss://nos.lol`, `wss://relay.primal.net` |
 
@@ -20,7 +20,7 @@ kehto's `RelayConfigHooks` knows three tiers: `discovery`, `super` and `outbox`.
 `selectRelayTier(tiers, filters)` in `packages/core/src/applesauce/relay-hooks.ts` collects the kinds of every filter and chooses:
 
 1. If any filter has no `kinds`, or an empty `kinds`, the request cannot be classified and takes the general path.
-2. If every kind is `0`, `3` or `10002`, the request goes to the `discovery` tier.
+2. If every kind is `0`, `3` or `10002`, the request goes to the `discovery` tier together with `outbox` and `super`: indexers hold most profiles and lists, and NIP-65 puts them on their authors' own servers too.
 3. If every kind is an applet-manifest kind, the request goes to the `apps` tier.
 4. Otherwise it goes to `super` and `outbox` together.
 
@@ -28,7 +28,7 @@ The result is deduplicated. A request that mixes a profile kind and a note kind 
 
 <!-- sample:skip illustrative calls; the tiers object comes from createKernl or createRelayTiers -->
 ```ts
-selectRelayTier(tiers, [{ kinds: [0], authors: [pubkey] }]); // tiers.get().discovery
+selectRelayTier(tiers, [{ kinds: [0], authors: [pubkey] }]); // discovery, outbox and super
 selectRelayTier(tiers, [{ kinds: [35129] }]);                 // tiers.get().apps
 selectRelayTier(tiers, [{ kinds: [1] }]);                     // super, then outbox
 selectRelayTier(tiers, [{ ids: [id] }]);                      // super, then outbox: no kinds
@@ -37,7 +37,7 @@ selectRelayTier(tiers, [{ ids: [id] }]);                      // super, then out
 The same function is used everywhere the shell picks relays on its own:
 
 - kehto's relay service asks `RelayPoolHooks.selectRelayTier`, which `createRelayPoolHooks` answers with this function.
-- kernl's applesauce relay backend (`relay-backend.ts`) uses it for a subscription or query that names no relays, and for every publish, by the published event's kind. A published profile therefore goes to the discovery tier, and a published note to `super` plus `outbox`.
+- kernl's applesauce relay backend (`relay-backend.ts`) uses it for a subscription or query that names no relays, and for every publish, by the published event's kind. A published profile therefore goes to the discovery tier and the user's own and general servers, and a published note to `super` plus `outbox`. A publish succeeds when any relay accepts it; when none does it fails with `unavailable:not-accepted:0/<n>` (D-028).
 - Manifest lookups (`fetchManifestEvent`) ask the relays named in the applet's address plus the whole `apps` tier, and fall back to the `super` tier when those do not produce the manifest. One relay failing does not fail the lookup, and a relay that answers quickly with nothing does not end a round before a slower one has had `MANIFEST_TIMING.patienceMs` to answer ([D-025](../decisions.md#d-025)).
 - The destructive-write consent lookup, which fetches the current version of a replaceable event before the user is asked, asks `outbox` plus `discovery`.
 
@@ -66,4 +66,5 @@ kehto lets a window open one relay of its own choosing, the NIP-29 group pattern
 
 - [Architecture](./architecture.md)
 - [Persistence](./persistence.md)
+- [Inbox, outbox and finding servers](./inbox-outbox-and-servers.md)
 - [`@kernlize/core`](../packages/core.md)

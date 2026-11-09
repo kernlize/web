@@ -11,7 +11,7 @@ Feature: The composed shell
     Given a kernl shell over that host and pool without a blob fetcher
     Then the shell session is null
     And the shell guard profile is "strict" with mitigations described
-    And the shell relays "apps" tier is "wss://relay.napplet.soy"
+    And the shell relays "apps" tier is "wss://relay.napplet.soy,wss://relay.ditto.pub,wss://relay.nostr.com"
     And the shell messaging provider "private" is unavailable
     And the shell bridges are "http,torrent,nzb,soulseek,mail"
     And the frame policy meta locks frame navigation
@@ -136,6 +136,29 @@ Feature: The composed shell
     Then the shell session label is "named"
     When the shell logs out
     Then the shell session is null
+
+  Scenario: an account without a name of its own is labelled by its published profile
+    Given a kernl shell over that host and pool
+    And the fake pool serves a profile named "Satoshi" for a fresh key
+    When the shell logs in read-only as that fresh key
+    Then the shell session label eventually is "Satoshi"
+    And the shell profile card for that fresh key is named "Satoshi"
+
+  Scenario: the shell publishes where the signed-in account says it does
+    Given a kernl shell over that host and pool
+    And the fake pool serves a relay list writing to "wss://own.test" for a fresh key
+    When the shell logs in read-only as that fresh key
+    Then the "outbox" tier eventually is "wss://own.test/"
+    And the shell mailboxes are found with outbox "wss://own.test/"
+    And the shell directory suggests 3 inbox servers before it starts
+    When the shell saves the account's inbox and outbox as "wss://own.test"
+    Then the shell refused with "denied:read-only"
+    When the shell logs out
+    And the shell saves the account's inbox and outbox as "wss://own.test"
+    Then the shell refused with "denied:read-only"
+    When the shell logs in with a password account named "alice"
+    And the shell saves the account's inbox and outbox as "wss://own.test"
+    Then the shell's last save was accepted by "wss://own.test/"
 
   Scenario: an applet is resolved, planned and mounted
     Given a kernl shell over that host and pool

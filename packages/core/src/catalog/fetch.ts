@@ -1,9 +1,11 @@
-import { lastValueFrom, takeUntil, timer, toArray } from 'rxjs';
+import { auditTime, catchError, EMPTY, from, lastValueFrom, map, merge, mergeAll, type Observable, scan, share, takeUntil, tap, timer } from 'rxjs';
+import { getSeenRelays, type Filter } from 'applesauce-core/helpers';
 import { NAPPLET_KIND_NAMED, NAPPLET_KIND_ROOT } from '@kehto/nip/5d';
-import type { NostrFilter } from '@napplet/core';
+import type { NostrEvent, NostrFilter } from '@napplet/core';
 import type { RelayTiers } from '../types.js';
 import { asFilters, type ApplesaucePool } from '../applesauce/relay-hooks.js';
 import { newestEntries, toCatalogEntry, type CatalogEntry } from './entry.js';
+import { DELETION_KIND, isWithdrawn, withdraw, type Withdrawals } from './withdrawn.js';
 
 /**
  * How many manifests the store asks each relay for.
@@ -16,14 +18,36 @@ import { newestEntries, toCatalogEntry, type CatalogEntry } from './entry.js';
 export const CATALOG_LIMIT = 500;
 
 /**
- * Milliseconds the store waits for relays before listing what has arrived.
+ * The longest the store keeps asking a relay that has not finished. Entries are
+ * listed as they arrive, so this is the outer bound, not a wait (D-028).
  *
  * @example
  * ```ts
- * await loadCatalog(pool, tiers, { timeoutMs: CATALOG_TIMEOUT_MS }); // 8 s, then whatever came in
+ * await loadCatalog(pool, tiers, { timeoutMs: CATALOG_TIMEOUT_MS }); // at most 30 s
  * ```
  */
-export const CATALOG_TIMEOUT_MS = 8000;
+export const CATALOG_TIMEOUT_MS = 30_000;
+
+/**
+ * When nothing has arrived after this long, the stream says so with an empty
+ * list and keeps listening; it is a moment to tell the person, not a cut-off.
+ *
+ * @example
+ * ```ts
+ * streamCatalog(pool, tiers, { settleMs: CATALOG_SETTLE_MS });
+ * ```
+ */
+export const CATALOG_SETTLE_MS = 3000;
+
+/**
+ * How often, at most, the streamed catalogue emits while manifests pour in.
+ *
+ * @example
+ * ```ts
+ * streamCatalog(pool, tiers); // emits at most every CATALOG_EMIT_MS
+ * ```
+ */
+export const CATALOG_EMIT_MS = 120;
 
 /** Options for {@link loadCatalog}. */
 export interface LoadCatalogOptions {
@@ -31,8 +55,16 @@ export interface LoadCatalogOptions {
   readonly limit?: number;
   /** Only manifests from these publishers. */
   readonly publishers?: readonly string[];
-  /** How long to wait for relays; {@link CATALOG_TIMEOUT_MS} by default. */
+  /** The outer bound on a relay that never finishes; {@link CATALOG_TIMEOUT_MS} by default. */
   readonly timeoutMs?: number;
+  /** How often the stream emits at most; {@link CATALOG_EMIT_MS} by default. */
+  readonly emitMs?: number;
+  /** When an empty list is emitted if nothing has arrived; {@link CATALOG_SETTLE_MS} by default. */
+  readonly settleMs?: number;
+  /** Manifests seen before, listed at once while the relays are asked for newer ones. */
+  readonly cache?: (filters: Filter[]) => Promise<NostrEvent[]>;
+  /** Where manifests from the relays are kept, so the event cache holds them for the next visit. */
+  readonly store?: { add(event: NostrEvent): unknown };
 }
 
 /**
@@ -51,13 +83,72 @@ export function catalogRelays(tiers: RelayTiers): readonly string[] {
   return Object.freeze([...new Set([...apps, ...shared])]);
 }
 
+function catalogFilters(options: LoadCatalogOptions): NostrFilter[] {
+  const limit = options.limit ?? CATALOG_LIMIT;
+  const authors = options.publishers ? { authors: [...options.publishers] } : {};
+  return [
+    { kinds: [NAPPLET_KIND_NAMED, NAPPLET_KIND_ROOT], limit, ...authors },
+    { kinds: [DELETION_KIND], '#k': [String(NAPPLET_KIND_NAMED), String(NAPPLET_KIND_ROOT)], limit, ...authors },
+  ];
+}
+
+interface Found {
+  readonly listed: readonly { readonly event: NostrEvent; readonly entry: CatalogEntry }[];
+  readonly withdrawn: Withdrawals;
+}
+
+function hintsFor(event: NostrEvent, relays: readonly string[]): readonly string[] {
+  const seen = [...(getSeenRelays(event) ?? [])];
+  return seen.length > 0 ? seen.slice(0, 2) : relays.slice(0, 2);
+}
+
 /**
- * List the applets published to the store's relays.
+ * Stream the applets published to the store's relays.
  *
  * Root and named manifests are fetched; pinned versions are reached by
- * pasting their address. A relay that fails contributes nothing, and the
- * store lists what arrived within the time budget, so a dead or slow relay
- * never keeps the rest from showing.
+ * pasting their address. A manifest its publisher deleted (NIP-09) is not
+ * listed, even when a relay still serves it. The list is emitted again as manifests arrive, so
+ * the first relay to answer fills the store while slower ones are still
+ * talking. A relay that fails contributes nothing and never discards what
+ * others sent; when nothing has arrived after `settleMs` an empty list says
+ * so, and listening goes on. The stream completes when every relay has
+ * finished, or at the outer bound.
+ *
+ * @param pool - The shared applesauce pool.
+ * @param tiers - The shell's relay tiers.
+ * @param options - Limit, publisher filter and outer bound.
+ * @returns The growing list, one entry per applet, newest first.
+ * @example
+ * ```ts
+ * streamCatalog(pool, tiers).subscribe((entries) => render(searchCatalog(entries, { text: 'notes' })));
+ * ```
+ */
+export function streamCatalog(pool: ApplesaucePool, tiers: RelayTiers, options: LoadCatalogOptions = {}): Observable<readonly CatalogEntry[]> {
+  const relays = catalogRelays(tiers);
+  const filters = asFilters(catalogFilters(options));
+  const cached = options.cache ? from(options.cache(filters).catch(() => [])).pipe(mergeAll()) : EMPTY;
+  const live = pool.request([...relays], filters).pipe(
+    takeUntil(timer(options.timeoutMs ?? CATALOG_TIMEOUT_MS)),
+    catchError(() => EMPTY),
+    tap((event) => options.store?.add(event)),
+  );
+  const events = merge(cached, live);
+  const found = events.pipe(
+    scan((state: Found, event): Found => {
+      if (event.kind === DELETION_KIND) return { ...state, withdrawn: withdraw(state.withdrawn, event) };
+      const entry = toCatalogEntry(event, hintsFor(event, relays));
+      return entry ? { ...state, listed: [...state.listed, { event, entry }] } : state;
+    }, { listed: [], withdrawn: new Map() }),
+  );
+  const listed = (state: Found): readonly CatalogEntry[] => newestEntries(state.listed.filter(({ event }) => !isWithdrawn(event, state.withdrawn)).map(({ entry }) => entry));
+  const lists = found.pipe(auditTime(options.emitMs ?? CATALOG_EMIT_MS), map(listed), share());
+  const nothingYet = timer(options.settleMs ?? CATALOG_SETTLE_MS).pipe(map((): readonly CatalogEntry[] => Object.freeze([])), takeUntil(lists));
+  return merge(nothingYet, lists);
+}
+
+/**
+ * List the applets published to the store's relays, once every relay has
+ * finished or the outer bound passed. Prefer {@link streamCatalog} for UI.
  *
  * @param pool - The shared applesauce pool.
  * @param tiers - The shell's relay tiers.
@@ -70,15 +161,5 @@ export function catalogRelays(tiers: RelayTiers): readonly string[] {
  * ```
  */
 export async function loadCatalog(pool: ApplesaucePool, tiers: RelayTiers, options: LoadCatalogOptions = {}): Promise<readonly CatalogEntry[]> {
-  const relays = catalogRelays(tiers);
-  const filter: NostrFilter = { kinds: [NAPPLET_KIND_NAMED, NAPPLET_KIND_ROOT], limit: options.limit ?? CATALOG_LIMIT };
-  if (options.publishers) filter.authors = [...options.publishers];
-  const request = pool.request([...relays], asFilters([filter])).pipe(takeUntil(timer(options.timeoutMs ?? CATALOG_TIMEOUT_MS)), toArray());
-  const events = await lastValueFrom(request, { defaultValue: [] }).catch(() => []);
-  const entries: CatalogEntry[] = [];
-  for (const event of events) {
-    const entry = toCatalogEntry(event, relays.slice(0, 2));
-    if (entry) entries.push(entry);
-  }
-  return newestEntries(entries);
+  return lastValueFrom(streamCatalog(pool, tiers, options), { defaultValue: Object.freeze([]) });
 }

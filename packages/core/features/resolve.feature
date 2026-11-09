@@ -12,7 +12,7 @@ Feature: Resolving an applet
     Given the fake pool serves the manifest and an older manifest
     When the shell fetches the manifest for the address pointer with relays "wss://hint.example"
     Then the fetched manifest is the signed one
-    And the fake pool received a "request" for "wss://hint.example,wss://relay.napplet.soy"
+    And the fake pool received a "request" for "wss://hint.example,wss://relay.napplet.soy,wss://relay.ditto.pub,wss://relay.nostr.com"
 
   Scenario: the newest manifest wins whatever order relays answer in
     Given the fake pool serves the manifest before an older manifest

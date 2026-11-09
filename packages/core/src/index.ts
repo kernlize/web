@@ -32,6 +32,29 @@ export type * from './types.js';
 export { createNamespacedStore, type NamespacedStore } from './persistence/store.js';
 export { DEFAULT_RELAY_TIERS, createRelayTiers } from './relays/tiers.js';
 export type { TierMap } from './relays/tiers.js';
+export { describeOutcome, relayUrls, summarizePublish, toRelayUrl, type PublishAnswer, type PublishOutcome } from './relays/publish-outcome.js';
+export {
+  DEFAULT_MONITOR_RELAYS,
+  DEFAULT_SUGGESTIONS,
+  createRelayDirectory,
+  type DirectoryPool,
+  type RelayDirectory,
+  type RelayDirectoryOptions,
+  type RelayListing,
+  type SuggestOptions,
+  type SuggestPurpose,
+} from './relays/directory.js';
+export {
+  createAccountMailboxes,
+  mailboxTags,
+  mailboxesFromEvent,
+  type AccountMailboxes,
+  type AccountMailboxesOptions,
+  type MailboxPool,
+  type MailboxSigner,
+  type MailboxState,
+  type Mailboxes,
+} from './relays/mailboxes.js';
 
 export {
   createRelayPoolHooks,
@@ -41,11 +64,12 @@ export {
   type ApplesaucePool,
   type EoseSubscription,
 } from './applesauce/relay-hooks.js';
-export { createAppletRelayBackend, createDmRelayPool, createOutboxRelayPool, type OutboxRelayPoolLike } from './applesauce/relay-backend.js';
+export { createAppletRelayBackend, createDmRelayPool, createOutboxRelayPool, publishAccepted, type OutboxRelayPoolLike } from './applesauce/relay-backend.js';
 export { createAuthHooks, isReadOnlyAccount, wrapAccountSigner } from './applesauce/auth-hooks.js';
 export {
   createIdentityProviders,
   createReplaceableLoader,
+  lookupRelaysOf,
   type IdentityProfile,
   type IdentityProviderOptions,
   type IdentityProviders,
@@ -136,6 +160,35 @@ export {
   type WindowState,
 } from './wm/index.js';
 export { createFallbackSubtle, installCryptoFallback, randomUuidFallback, renderRandomUuidFallbackScript, type CryptoFallbackReport, type CryptoScope } from './crypto/index.js';
+export {
+  attachEventCache,
+  createEventCache,
+  createIndexedDbCacheAdapter,
+  createMemoryCacheAdapter,
+  createSqliteOpfsCacheAdapter,
+  defaultWebCacheAdapters,
+  fromEventDatabase,
+  isCorruptionError,
+  openEventCache,
+  type AttachedEventCache,
+  type AttachEventCacheOptions,
+  type CacheRecoveryEvent,
+  type EventCache,
+  type EventCacheAdapter,
+  type EventRecords,
+  type FilenameStorage,
+  type IndexedDbCacheOptions,
+  type LockManagerLike,
+  type OpenEventCacheOptions,
+  type SqliteDriver,
+  type SqliteFiles,
+  type SqliteOpfsOptions,
+  type SqlStatement,
+  type SqlValue,
+  connectEventCache,
+  type ConnectedEventCache,
+  type EventCacheOpener,
+} from './cache/index.js';
 
 export { createDefaultMessaging, type DefaultMessagingOptions } from './messaging/default-registry.js';
 export { MESSAGING_UNAVAILABLE_REASONS, messagingSigner, signerAvailability, type MessagingEncryption } from './messaging/availability.js';
@@ -150,12 +203,15 @@ export type { InboxRelays } from './messaging/inbox-relays.js';
 export { createSealedRatchetStorage, type SealedRatchetStorageOptions } from './messaging/ratchet-storage.js';
 export { createDefaultBridges, type DefaultBridgesOptions } from './bridges/default-registry.js';
 
+export { labelConversations } from './messaging/label-conversations.js';
+export { createKernlNetwork, type KernlNetwork, type KernlNetworkParts } from './kernl-network.js';
 export { LINK_PROTOCOLS, createKernlServices, isTheme, resourceInitFor, type KernlServiceDeps, type KernlServices } from './kernl-services.js';
 export { createShellAdapter, type ShellAdapterDeps } from './kernl-adapter.js';
 export { createAppletLifecycle, resolveWindow, type AppletLifecycle, type LifecycleContext } from './kernl-lifecycle.js';
 export { createKernl, toSession } from './kernl.js';
+export { createProfiles, toProfileCard, type ProfileCard, type ProfileLoader, type ProfilePointer, type Profiles, type ProfilesOptions } from './profiles/profiles.js';
 export { addressOf, newestEntries, toCatalogEntry, type CatalogEntry } from './catalog/entry.js';
-export { CATALOG_LIMIT, CATALOG_TIMEOUT_MS, catalogRelays, loadCatalog, type LoadCatalogOptions } from './catalog/fetch.js';
+export { CATALOG_EMIT_MS, CATALOG_LIMIT, CATALOG_SETTLE_MS, CATALOG_TIMEOUT_MS, catalogRelays, loadCatalog, streamCatalog, type LoadCatalogOptions } from './catalog/fetch.js';
 export { fuzzyScore, popularTopics, searchCatalog, type CatalogQuery, type TopicCount } from './catalog/search.js';
 export { createInstalledApplets, type InstallableApplet, type InstalledApplet, type InstalledApplets, type InstalledContract } from './intents/installed.js';
 export {

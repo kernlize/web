@@ -29,8 +29,8 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 | `invalid:domain` | `@kernlize/core` | `Grants.allowDomain` | The shell does not offer this domain in its current configuration. |
 | `denied:baseline-domain` | `@kernlize/core` | `Grants.revokeDomain` | Baseline domains (`shell`, `inc`, `theme`, `storage`) cannot be revoked. |
 | `denied:plaintext-key-persistence` | `@kernlize/core` | `KernlAccountManager.addAccount` | The account type stores a raw secret key (`PLAINTEXT_KEY_ACCOUNT_TYPES`). |
-| `invalid:relay-url` | `@kernlize/core` | `RelayTiers.add` | The URL is not `ws://` or `wss://`. |
-| `denied:read-only` | `@kernlize/core` | the outbox service's signer | The session cannot sign, so an outbox publish is refused. |
+| `invalid:relay-url` | `@kernlize/core` | `RelayTiers.add`; `mailboxTags`, so `AccountMailboxes.save` | The URL is not `ws://` or `wss://`. A save refused this way signs and publishes nothing. |
+| `denied:read-only` | `@kernlize/core` | the outbox service's signer; `AccountMailboxes.save` | The session cannot sign, so an outbox publish or a new inbox and outbox list is refused. |
 | `denied:consent` | `@kernlize/core` | `createSigningConsent`, through the window signer (`relay.publish`) or the outbox gate (`outbox.publish`) | An applet window asked to sign a destructive kind (any replaceable or addressable kind, 5 or 62) and the user denied or dismissed `host.presentConsent`. Nothing was signed or published. |
 | `denied:unknown-applet` | `@kernlize/core` | `createSigningConsent` | A destructive write from a window the shell did not mount. |
 | `denied:signed-out` | `@kernlize/core` | `createSigningConsent` | A destructive write (in practice an `outbox.publish`) while nobody is signed in. |
