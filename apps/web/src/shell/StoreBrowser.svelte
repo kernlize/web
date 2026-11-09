@@ -22,7 +22,8 @@
   const PAGE = 40;
   let text = $state(initialText);
   let topics = $state<string[]>([]);
-  let workingOnly = $state(true);
+  // Every published applet is listed, as the public stores do; each one this shell cannot fully run says what it needs (D-031).
+  let workingOnly = $state(false);
   let shown = $state(PAGE);
   let entries = $state.raw<readonly CatalogEntry[] | null>(null);
   let failed = $state(false);
@@ -32,8 +33,9 @@
   const pasted = $derived(looksLikeAddress(text));
   const base = $derived(convention === undefined ? {} : { convention });
   const all = $derived(search && entries ? search.searchCatalog(entries, { ...base, text: pasted ? '' : text, topics }) : []);
-  const results = $derived(search && entries ? search.searchCatalog(entries, { ...base, text: pasted ? '' : text, topics, ...(workingOnly ? { available } : {}) }) : []);
-  const hidden = $derived(all.length - results.length);
+  const working = $derived(search && entries ? search.searchCatalog(entries, { ...base, text: pasted ? '' : text, topics, available }) : []);
+  const results = $derived(workingOnly ? working : all);
+  const limited = $derived(all.length - working.length);
   const bubbles = $derived(search && entries ? topicBubbles(search.popularTopics(search.searchCatalog(entries, base), 14), topics) : []);
 
   let finished = $state(false);
@@ -99,7 +101,7 @@
   <label class="shell-toggle works">
     <span class="text">
       <span>Only applets that work here</span>
-      {#if hidden > 0}<small>{hidden} {hidden === 1 ? 'applet needs' : 'applets need'} something this shell does not offer</small>{/if}
+      {#if limited > 0}<small>{limited} {limited === 1 ? 'applet needs' : 'applets need'} something this shell does not offer{workingOnly ? ', hidden' : ', marked below'}</small>{/if}
     </span>
     <input type="checkbox" bind:checked={workingOnly} />
   </label>
