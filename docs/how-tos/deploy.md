@@ -55,7 +55,8 @@ This runs, in order: `pnpm build` (packages), `pnpm docs:check` (TypeDoc, VitePr
 
 ```
 .pages/
-├── index.html            landing site
+├── index.html            landing
+├── about/                long-form pages
 ├── app/                  shell
 ├── llms.txt              site index (Astro)
 ├── docs/

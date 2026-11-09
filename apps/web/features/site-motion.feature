@@ -1,6 +1,6 @@
 Feature: Site motion
   The landing site crosses between its own pages behind a curtain, and draws its
-  stage in the page's own colours (DECISIONS D-021). The shell, the docs and plain
+  stage in the page's own colours (DECISIONS D-023). The shell, the docs and plain
   files are not the site's pages: they load on their own, with no curtain.
 
   Scenario Outline: only the site's own pages carry the curtain

@@ -130,7 +130,7 @@ function pageMarkdown(html, page) {
   return { title, description, markdown: `${[lead, `> ${description}`, ...remainder].filter(Boolean).join('\n\n')}\n` };
 }
 
-/** A redirect stub (D-021) is an address that moved, not a page: it gets a pointer for a twin and stays out of the listings. */
+/** A redirect stub (D-023) is an address that moved, not a page: it gets a pointer for a twin and stays out of the listings. */
 function movedTo(html, page) {
   const target = /<meta http-equiv="refresh" content="\d+;\s*url=([^"]+)"/i.exec(html)?.[1];
   return target ? `${absolute(target, `${SITE_URL}${page}`)}index.md` : null;

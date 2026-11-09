@@ -2,7 +2,7 @@ const OUTSIDE = ['app', 'docs'];
 
 /**
  * Whether a path is one of the site's own pages. Only those carry the stage, so only they get the curtain;
- * the shell, the docs and plain files load on their own (D-021).
+ * the shell, the docs and plain files load on their own (D-023).
  */
 export function isSitePage(pathname: string, base = '/'): boolean {
   const prefix = base.endsWith('/') ? base : `${base}/`;

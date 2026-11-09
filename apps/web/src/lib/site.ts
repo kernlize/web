@@ -9,7 +9,7 @@ export interface PageLink {
   readonly label: string;
 }
 
-/** The long-form pages live under this prefix; the root is the short landing (D-021). */
+/** The long-form pages live under this prefix; the root is the short landing (D-023). */
 export const ABOUT = 'about/';
 
 export const NAV: readonly PageLink[] = [

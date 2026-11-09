@@ -100,7 +100,7 @@ function enterPage(): void {
 
 /**
  * Start the site's motion: reveals on scroll, the hero's flow field, and the curtain that crosses the screen
- * between pages (D-021). Runs once per visit; the router's events drive it from then on.
+ * between pages (D-023). Runs once per visit; the router's events drive it from then on.
  */
 export function startMotion(): void {
   gsap.registerPlugin(ScrollTrigger);

@@ -37,6 +37,8 @@ Each entry says what ships, per package and app. [Alpha status](./alpha-status.m
 
 ### Shell and site (`apps/web`)
 
+- The landing at `/` is now one screen and two adoption paths: add applets to an application you have, or start a shell from the reference one. What the home page held before is at `/about/`, with the five pages beneath it at `/about/<page>/`; their old addresses redirect. Moving between the site's pages no longer reloads the document: a WebGL curtain crosses the screen and the new page's content rises into place. Reduced motion, no WebGL and no scripts each leave a whole, still page ([D-023](./decisions.md#d-023)).
+
 - The Messages panel lists "Group sessions" beside the other providers, unranked; a send to someone who has not set it up says so in plain words. The site's vocabulary check also refuses the group protocol's names.
 
 - Magnet links download inside the shell. A Downloads panel lists each download with progress, peers and speed, and offers pause, resume, remove and Save. Settings has a Downloads choice, "Download in kernl" (the default where the browser can connect to peers) or "Open in an app on your device", remembered under `kernl:downloads:mode:v1`. The shell host page loads `webtorrent` 3.0.21 (browser build) on the first download only; applet frames are unchanged. The preview downloads from nobody and finishes each download with a short text file.
