@@ -1,6 +1,7 @@
 Feature: The applet store's catalogue
   The store lists applets from signed manifests on the applet relays and the
-  public relays. Each entry is read from a manifest whose signature verifies;
+  public relays, as each relay sends them: the list never waits for the
+  slowest server, and a server that fails keeps nothing else from showing. Each entry is read from a manifest whose signature verifies;
   its bytes are verified only when it is opened. Entries can be searched
   loosely, filtered by topic, by what the shell offers and by the requests
   they take, and the most common topics become filter bubbles.
@@ -66,6 +67,13 @@ Feature: The applet store's catalogue
     Given the fake pool serves catalogue manifests "early@1" and then never finishes
     When the catalogue loads from the shell's relays waiting 20 ms
     Then the catalogue lists "early@1"
+
+  Scenario: applets are listed as they arrive, and a relay that fails late keeps what it sent
+    Given the fake pool streams catalogue manifests "first@1,second@2,third@3" seen on "wss://seen.example/", then fails
+    When the catalogue is streamed, emitting at most every 1 ms
+    Then the catalogue stream emitted 3 growing lists
+    And the catalogue lists "third@3,second@2,first@1"
+    And every listed address hints "wss://seen.example/"
 
   Scenario: a dead relay leaves an empty store, not an error
     Given the fake pool fails requests

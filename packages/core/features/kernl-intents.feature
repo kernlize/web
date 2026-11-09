@@ -12,6 +12,8 @@ Feature: Intents in the composed shell
     Then the shell offers the "intent" domain
     When the shell lists the store
     Then the store lists "Profiles,Chat"
+    When the shell streams the store
+    Then the store lists "Profiles,Chat"
 
   Scenario: planning installs an applet, and only verified applets can be installed
     When the shell resolves and plans "profiles"

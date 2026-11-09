@@ -1,12 +1,13 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import { Observable } from 'rxjs';
-import { decodeAddressPointer, decodeEventPointer } from 'applesauce-core/helpers';
+import { addSeenRelay, decodeAddressPointer, decodeEventPointer } from 'applesauce-core/helpers';
 import {
   addressOf,
   createRelayTiers,
   fuzzyScore,
   loadCatalog,
+  streamCatalog,
   newestEntries,
   popularTopics,
   searchCatalog,
@@ -18,6 +19,7 @@ import type { NostrEvent } from '@napplet/core';
 import { author, scratch, sha256Hex, signManifest, splitList, type CoreWorld } from './world.js';
 
 interface CatalogScratch {
+  emissions?: (readonly CatalogEntry[])[];
   event?: NostrEvent;
   entry?: CatalogEntry | undefined;
   entries: readonly CatalogEntry[];
@@ -261,4 +263,40 @@ Then('the popular topics are {string}', (world: CoreWorld, topics: string) => {
 
 Then('the {int} most popular topics are {string}', (world: CoreWorld, limit: number, topics: string) => {
   expect(describeTopics(popularTopics(c(world).entries, limit))).toEqual(splitList(topics));
+});
+
+Given('the fake pool streams catalogue manifests {string} seen on {string}, then fails', async (world: CoreWorld, specs: string, relay: string) => {
+  const events = await signedManifests(specs);
+  for (const event of events) addSeenRelay(event, relay);
+  const pool = scratch(world).pool;
+  pool.request = (() =>
+    new Observable<NostrEvent>((observer) => {
+      let at = 0;
+      const timer = setInterval(() => {
+        const event = events[at];
+        at += 1;
+        if (event) observer.next(event);
+        else observer.error(new Error('relay closed'));
+      }, 5);
+      return () => clearInterval(timer);
+    })) as typeof pool.request;
+});
+
+When('the catalogue is streamed, emitting at most every {int} ms', async (world: CoreWorld, emitMs: number) => {
+  const emissions: (readonly CatalogEntry[])[] = [];
+  c(world).emissions = emissions;
+  await new Promise<void>((resolve) => {
+    streamCatalog(scratch(world).pool, createRelayTiers(scratch(world).storage), { emitMs }).subscribe({ next: (list) => emissions.push(list), complete: resolve });
+  });
+  c(world).entries = emissions.at(-1) ?? [];
+});
+
+Then('the catalogue stream emitted {int} growing lists', (world: CoreWorld, count: number) => {
+  const sizes = (c(world).emissions ?? []).map((list) => list.length);
+  expect(sizes).toHaveLength(count);
+  expect([...sizes].sort((a, b) => a - b)).toEqual(sizes);
+});
+
+Then('every listed address hints {string}', (world: CoreWorld, relay: string) => {
+  for (const listed of c(world).entries) expect(decodeAddressPointer(listed.address)?.relays).toEqual([relay]);
 });
