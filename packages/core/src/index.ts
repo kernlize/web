@@ -64,6 +64,7 @@ export {
   resolveApplet,
   summarize,
   type ManifestTiming,
+  type PublishedPointer,
   type ResolveAppletOptions,
   type ResolvedApplet,
 } from './applets/resolve.js';

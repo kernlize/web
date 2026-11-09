@@ -69,6 +69,14 @@ Feature: The composed shell
     Then the shell messaging status is available for the signed-in account
     When the shell is destroyed
 
+  Scenario: someone who never chose a provider has two switched on once they sign in
+    Given a kernl shell over that host and pool
+    Then the shell's switched-on messaging providers are ""
+    When the shell logs in with a password account named "alice"
+    Then the shell's switched-on messaging providers are "private,legacy"
+    And the shell's first messaging provider is "private"
+    When the shell is destroyed
+
   Scenario: an applet reaches ratchet sessions through the dm domain
     Given a kernl shell over a message network serving that manifest
     And bob opens ratchet sessions on the same relays
