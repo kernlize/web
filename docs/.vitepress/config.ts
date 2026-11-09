@@ -48,6 +48,7 @@ export const sidebar = [
       { text: 'Messaging', link: '/concepts/messaging' },
       { text: 'Bridges', link: '/concepts/bridges' },
       { text: 'Relay tiers', link: '/concepts/relay-tiers' },
+      { text: 'Inbox, outbox and finding servers', link: '/concepts/inbox-outbox-and-servers' },
       { text: 'Persistence', link: '/concepts/persistence' },
       { text: 'Layouts', link: '/concepts/layouts' },
       { text: 'Applets under kernl', link: '/concepts/applets-under-kernl' },

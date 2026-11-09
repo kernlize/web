@@ -55,7 +55,7 @@ export function asFilters(filters: NostrFilter[]): Filter[] {
  * ```
  */
 export function subscribeWithEose(
-  pool: ApplesaucePool,
+  pool: Pick<ApplesaucePool, 'req'>,
   relays: string[],
   filters: NostrFilter[],
   callback: (item: NostrEvent | 'EOSE') => void,
