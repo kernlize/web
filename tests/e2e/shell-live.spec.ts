@@ -113,8 +113,8 @@ test('a relay that never answers does not stop an applet another relay has', asy
 
 test('relays that answer without the applet say there is none at that address', async ({ page }) => {
   const applet = signApplet({ servers: ['https://blobs.test'] });
-  // The shell's built-in catalogue and its general relays answer too, so every relay asked has said it holds nothing.
-  await fakeNetwork(page, applet, { 'general.test': 'empty', 'relay.napplet.soy': 'empty', ...generalRelays('empty') }, { 'blobs.test': 'has' });
+  // The shell's built-in catalogues and its general relays answer too, so every relay asked has said it holds nothing.
+  await fakeNetwork(page, applet, { 'general.test': 'empty', 'relay.napplet.soy': 'empty', 'relay.ditto.pub': 'empty', 'relay.nostr.com': 'empty', ...generalRelays('empty') }, { 'blobs.test': 'has' });
   await signInFresh(page);
   const address = applet.address(['wss://general.test']);
   await lookUp(page, address);
@@ -125,7 +125,7 @@ test('relays that answer without the applet say there is none at that address', 
 
 test('an applet its own relays do not have is found on the general relays', async ({ page }) => {
   const applet = signApplet({ servers: ['https://blobs.test'] });
-  const network = await fakeNetwork(page, applet, { 'catalogue.test': 'empty', 'relay.napplet.soy': 'empty', ...generalRelays('empty'), 'nos.lol': 'holds' }, { 'blobs.test': 'has' });
+  const network = await fakeNetwork(page, applet, { 'catalogue.test': 'empty', 'relay.napplet.soy': 'empty', 'relay.ditto.pub': 'empty', 'relay.nostr.com': 'empty', ...generalRelays('empty'), 'nos.lol': 'holds' }, { 'blobs.test': 'has' });
   await signInFresh(page);
   await lookUp(page, applet.address(['wss://catalogue.test']));
   await expect(page.getByRole('dialog').getByRole('heading', { name: 'Feed applet' })).toBeVisible();

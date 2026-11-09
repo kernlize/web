@@ -6,7 +6,7 @@ Feature: Relay tiers
   Scenario: fresh storage yields the defaults
     Given kernl relay tiers over empty storage
     Then the "discovery" tier is "wss://purplepag.es,wss://relay.nos.social"
-    And the "apps" tier is "wss://relay.napplet.soy"
+    And the "apps" tier is "wss://relay.napplet.soy,wss://relay.ditto.pub,wss://relay.nostr.com"
     And the "outbox" tier is ""
     And the "super" tier is "wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net"
 
@@ -45,7 +45,7 @@ Feature: Relay tiers
   Scenario: corrupt persisted tiers fall back to defaults
     Given storage key "kernl:relays:v1" holding 'not json'
     And kernl relay tiers over that storage
-    Then the "apps" tier is "wss://relay.napplet.soy"
+    Then the "apps" tier is "wss://relay.napplet.soy,wss://relay.ditto.pub,wss://relay.nostr.com"
 
   Scenario: a relay must be a websocket URL
     Given kernl relay tiers over empty storage

@@ -10,13 +10,14 @@ export type TierMap = Readonly<Record<RelayTier, readonly string[]>>;
  *
  * @example
  * ```ts
- * DEFAULT_RELAY_TIERS.apps; // ['wss://relay.napplet.soy']
+ * DEFAULT_RELAY_TIERS.apps; // ['wss://relay.napplet.soy', 'wss://relay.ditto.pub', 'wss://relay.nostr.com']
  * DEFAULT_RELAY_TIERS.outbox; // []
  * ```
  */
 export const DEFAULT_RELAY_TIERS: TierMap = Object.freeze({
   discovery: ['wss://purplepag.es', 'wss://relay.nos.social'],
-  apps: ['wss://relay.napplet.soy'],
+  // The catalogues the two public napplet stores read; together with `super` they hold every napplet either lists.
+  apps: ['wss://relay.napplet.soy', 'wss://relay.ditto.pub', 'wss://relay.nostr.com'],
   outbox: [],
   super: ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.primal.net'],
 });

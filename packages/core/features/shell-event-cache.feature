@@ -24,6 +24,7 @@ Feature: The shell's event cache
     When the catalogue is streamed from the cache and the relays
     Then the first streamed list is "cached@3"
     And the catalogue lists "fresh@5,cached@3"
+    And the store kept the relays' manifest "fresh"
 
   Scenario: a catalogue cache that fails is skipped
     Given the fake pool serves catalogue manifests "fresh@5"

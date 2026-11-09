@@ -14,6 +14,7 @@ interface ShellCacheScratch {
   closed: boolean;
   catalogCache?: (filters: unknown[]) => Promise<NostrEvent[]>;
   lists?: (readonly CatalogEntry[])[];
+  store?: EventStore;
 }
 
 function s(world: CoreWorld): ShellCacheScratch {
@@ -91,7 +92,9 @@ Given('the catalogue cache fails', (world: CoreWorld) => {
 
 When('the catalogue is streamed from the cache and the relays', async (world: CoreWorld) => {
   const cache = s(world).catalogCache as (filters: unknown[]) => Promise<NostrEvent[]>;
-  const stream = streamCatalog(scratch(world).pool, createRelayTiers(scratch(world).storage), { cache, emitMs: 0 });
+  const store = new EventStore();
+  s(world).store = store;
+  const stream = streamCatalog(scratch(world).pool, createRelayTiers(scratch(world).storage), { cache, store, emitMs: 0 });
   const lists = await lastValueFrom(stream.pipe(toArray()));
   s(world).lists = lists;
   const catalog = (scratch(world).catalog ??= { entries: [] }) as { entries: readonly CatalogEntry[] };
@@ -112,4 +115,9 @@ Given('a kernl shell whose event cache holds a profile named {string} for a fres
 Then("the shell's event cache closes when the shell is destroyed", async (world: CoreWorld) => {
   k(world).kernl.destroy();
   await expect.poll(() => s(world).closed).toBe(true);
+});
+
+Then("the store kept the relays' manifest {string}", (world: CoreWorld, dTag: string) => {
+  const held = s(world).store?.getByFilters({ kinds: [35129], '#d': [dTag] }) ?? [];
+  expect([...held]).toHaveLength(1);
 });

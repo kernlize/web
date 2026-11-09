@@ -1,4 +1,4 @@
-import { auditTime, catchError, EMPTY, from, lastValueFrom, map, merge, mergeAll, type Observable, scan, share, takeUntil, timer } from 'rxjs';
+import { auditTime, catchError, EMPTY, from, lastValueFrom, map, merge, mergeAll, type Observable, scan, share, takeUntil, tap, timer } from 'rxjs';
 import { getSeenRelays, type Filter } from 'applesauce-core/helpers';
 import { NAPPLET_KIND_NAMED, NAPPLET_KIND_ROOT } from '@kehto/nip/5d';
 import type { NostrEvent, NostrFilter } from '@napplet/core';
@@ -63,6 +63,8 @@ export interface LoadCatalogOptions {
   readonly settleMs?: number;
   /** Manifests seen before, listed at once while the relays are asked for newer ones. */
   readonly cache?: (filters: Filter[]) => Promise<NostrEvent[]>;
+  /** Where manifests from the relays are kept, so the event cache holds them for the next visit. */
+  readonly store?: { add(event: NostrEvent): unknown };
 }
 
 /**
@@ -128,6 +130,7 @@ export function streamCatalog(pool: ApplesaucePool, tiers: RelayTiers, options: 
   const live = pool.request([...relays], filters).pipe(
     takeUntil(timer(options.timeoutMs ?? CATALOG_TIMEOUT_MS)),
     catchError(() => EMPTY),
+    tap((event) => options.store?.add(event)),
   );
   const events = merge(cached, live);
   const found = events.pipe(

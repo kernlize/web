@@ -275,8 +275,8 @@ export function createKernl(options: KernlOptions): Kernl {
     messaging,
     bridges,
     catalog: {
-      load: (loadOptions) => loadCatalog(pool, tiers, { cache: eventCache.cacheRequest, ...loadOptions }),
-      stream: (streamOptions) => streamCatalog(pool, tiers, { cache: eventCache.cacheRequest, ...streamOptions }),
+      load: (loadOptions) => loadCatalog(pool, tiers, { cache: eventCache.cacheRequest, store: eventStore, ...loadOptions }),
+      stream: (streamOptions) => streamCatalog(pool, tiers, { cache: eventCache.cacheRequest, store: eventStore, ...streamOptions }),
     },
     profiles,
     mailboxes,

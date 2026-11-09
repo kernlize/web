@@ -56,7 +56,7 @@ Feature: The applet store's catalogue
     Given the fake pool serves catalogue manifests "older@1,newer@5,older@4" and a forged one
     When the catalogue loads from the shell's relays
     Then the catalogue lists "newer@5,older@4"
-    And the catalogue asked "wss://relay.napplet.soy,wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net" for named and root manifests and their deletions, limited to 500
+    And the catalogue asked "wss://relay.napplet.soy,wss://relay.ditto.pub,wss://relay.nostr.com,wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net" for named and root manifests and their deletions, limited to 500
 
   Scenario: the store can be narrowed to publishers and a smaller page
     Given the fake pool serves catalogue manifests "solo@1"

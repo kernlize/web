@@ -9,7 +9,7 @@ kehto's `RelayConfigHooks` knows three tiers: `discovery`, `super` and `outbox`.
 | Tier | Settings label | What it serves | Default relays (`DEFAULT_RELAY_TIERS`) |
 | --- | --- | --- | --- |
 | `discovery` | Discovery | Profiles, follow lists and relay lists (kinds `0`, `3`, `10002`) | `wss://purplepag.es`, `wss://relay.nos.social` |
-| `apps` | Applet catalogue | Applet manifests (kehto's `NAPPLET_KINDS`, `5129`, `15129` and `35129`, plus the legacy catalogue kind `32267`) | `wss://relay.napplet.soy` |
+| `apps` | Applet catalogue | Applet manifests (kehto's `NAPPLET_KINDS`, `5129`, `15129` and `35129`, plus the legacy catalogue kind `32267`) | `wss://relay.napplet.soy`, `wss://relay.ditto.pub`, `wss://relay.nostr.com` (the catalogues the public napplet stores read; with `super` they hold every napplet either lists) |
 | `outbox` | Your connections | Where what the user publishes is delivered | none |
 | `super` | General | Everything that is not discovery or manifests | `wss://relay.damus.io`, `wss://nos.lol`, `wss://relay.primal.net` |
 

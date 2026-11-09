@@ -212,7 +212,7 @@ legacyMessages.subscribe({}, (message) => console.log(message.content));
 | Tier | Default | Serves |
 | --- | --- | --- |
 | `discovery` | `wss://purplepag.es`, `wss://relay.nos.social` | kinds 0, 3 and 10002, together with `outbox` and `super` |
-| `apps` | `wss://relay.napplet.soy` | applet manifests (the NIP-5D kinds and 32267) |
+| `apps` | `wss://relay.napplet.soy`, `wss://relay.ditto.pub`, `wss://relay.nostr.com` | applet manifests (the NIP-5D kinds and 32267) |
 | `outbox` | none | the user's own relays, merged with `super` for everything else |
 | `super` | `wss://relay.damus.io`, `wss://nos.lol`, `wss://relay.primal.net` | everything else |
 

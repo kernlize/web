@@ -11,7 +11,7 @@ Feature: The composed shell
     Given a kernl shell over that host and pool without a blob fetcher
     Then the shell session is null
     And the shell guard profile is "strict" with mitigations described
-    And the shell relays "apps" tier is "wss://relay.napplet.soy"
+    And the shell relays "apps" tier is "wss://relay.napplet.soy,wss://relay.ditto.pub,wss://relay.nostr.com"
     And the shell messaging provider "private" is unavailable
     And the shell bridges are "http,torrent,nzb,soulseek,mail"
     And the frame policy meta locks frame navigation
