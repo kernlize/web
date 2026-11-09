@@ -1,6 +1,6 @@
 {
   "name": "@kernlize/bridges",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Locator parsing, bridge contract, registry and HTTP bridge with SSRF policy for the kernl shell",
   "type": "module",
   "main": "./dist/index.js",

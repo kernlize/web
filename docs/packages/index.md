@@ -4,10 +4,10 @@ kernl has four packages under the npm `@kernlize` scope and the JSR `@kernl` sco
 
 | Package | Version | Role | Dependencies | Peer dependencies |
 | --- | --- | --- | --- | --- |
-| [`@kernlize/guard`](./guard.md) | `0.1.0` | Ingress flood control, visibility gate, focus-aware firewall, CSP profile, nested-frame lock, mitigation descriptions. | `@kehto/firewall` | `@napplet/core` |
-| [`@kernlize/messaging`](./messaging.md) | `0.2.0` | Messaging provider contract, registry, composite direct-message adapter, in-memory backend. | none | `@napplet/core` (the `Dm*` wire types) |
-| [`@kernlize/bridges`](./bridges.md) | `0.2.0` | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy. | none | none |
-| [`@kernlize/core`](./core.md) | `0.2.0` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts, persistence. | the three above, `@kehto/*`, `applesauce-*`, `rxjs` | `@napplet/core`, `@napplet/nap`, `@napplet/shim`, `nostr-tools` (required by kehto and applesauce; never imported) |
+| [`@kernlize/guard`](./guard.md) | `0.1.1` | Ingress flood control, visibility gate, focus-aware firewall, CSP profile, nested-frame lock, mitigation descriptions. | `@kehto/firewall` | `@napplet/core` |
+| [`@kernlize/messaging`](./messaging.md) | `0.3.0` | Messaging provider contract, registry, composite direct-message adapter, in-memory backend. | none | `@napplet/core` (the `Dm*` wire types) |
+| [`@kernlize/bridges`](./bridges.md) | `0.2.1` | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy. | none | none |
+| [`@kernlize/core`](./core.md) | `0.3.0` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts, persistence. | the three above, `@kehto/*`, `applesauce-*`, `rxjs` | `@napplet/core`, `@napplet/nap`, `@napplet/shim`, `nostr-tools` (required by kehto and applesauce; never imported) |
 
 ## Shared rules
 

@@ -5,7 +5,7 @@ Opinionated shell composition over kehto and applesauce. Browser-agnostic: the D
 | Field | Value |
 | --- | --- |
 | Package | `@kernlize/core` |
-| Version | `0.2.0` |
+| Version | `0.3.0` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts` |
 | Dependencies | `@kernlize/guard`, `@kernlize/messaging`, `@kernlize/bridges` (`workspace:^`); `@kehto/acl ^0.20.2`, `@kehto/firewall ^0.6.3`, `@kehto/runtime ^0.27.2`, `@kehto/shell ^0.30.0`, `@kehto/services ^0.29.0`, `@kehto/nip ^0.8.0`, `@kehto/wm ^0.0.2`; `applesauce-core ^7.0.3`, `applesauce-relay ^7.0.0`, `applesauce-signers ^7.0.1`, `applesauce-accounts ^7.0.2`, `applesauce-loaders ^7.0.2`; `rxjs ^7.8.2` |
 | Peer dependencies | `@napplet/core >=0.37.0 <0.38.0`, `@napplet/nap >=0.36.0 <0.37.0`, `@napplet/shim >=0.30.0`, `nostr-tools >=2.23.3 <=2.x` (required by kehto and applesauce; never imported here) |
