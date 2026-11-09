@@ -20,5 +20,9 @@ export default defineConfig({
     reuseExistingServer: false,
     env: { PAGES_PORT: String(port) },
   },
-  projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
+  projects: [
+    { name: 'chromium', use: { browserName: 'chromium' } },
+    // The live shell's network path differs by engine (socket failures, fetch aborts), so its specs run in a second one.
+    { name: 'firefox', use: { browserName: 'firefox' }, testMatch: /shell-live.*\.spec\.ts$/ },
+  ],
 });

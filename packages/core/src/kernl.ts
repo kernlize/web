@@ -153,7 +153,7 @@ export function createKernl(options: KernlOptions): Kernl {
     pool,
     tiers,
     eventStore,
-    auth: { getSigner: () => adapter.auth.getSigner() },
+    auth: { getSigner: () => adapter.auth.getSigner(), getUserPubkey: () => adapter.auth.getUserPubkey() },
     consent,
     host,
     bridges,

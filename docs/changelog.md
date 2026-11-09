@@ -16,6 +16,11 @@ Each entry says what ships, per package and app. [Alpha status](./alpha-status.m
 - `@kernlize/core/wm` (`@kernl/core/wm` on JSR): a second entry exporting the layouts, the registry and the window manager, importing only `rxjs`. The same names stay on the main entry, which now also re-exports `LayoutStrategy`, `Rect`, `WindowPlacement` and `WindowState` from `@kehto/wm`.
 - `LayoutOptions.margin`: the pixels between the windows and the container edge, defaulting to `gap`. The tiling layouts now round rectangle edges rather than sizes, so two windows that share an edge never overlap or leave a hole when the space does not divide evenly.
 
+- Opening an address no longer depends on every server behaving ([D-025](./decisions.md#d-025)). `fetchManifestEvent` drops hints that are not relay URLs, survives relays that are down, silent or hang up, no longer lets a quick relay with nothing to say end the lookup before a slower catalogue answers, and falls back to the `super` tier when the address's relays and the `apps` tier do not produce the manifest. Each of the two rounds ends within `MANIFEST_TIMING.timeoutMs`. It takes an optional `timing` argument, and `MANIFEST_TIMING` and `ManifestTiming` are exported.
+- New reason `unavailable:network` from `fetchManifestEvent` and `Kernl.resolve`: no relay answered. Before, this surfaced as the relay library's own error with no kernl prefix, after up to thirty seconds.
+- `decodePointer` finds an encoded address inside a link or a sentence.
+- A read-only account is an account a granted applet can be shown: the `identity` service answers `identity.getPublicKey` for it. `KernlServiceDeps.auth` gains an optional `getUserPubkey`.
+
 - `createDefaultBridges` takes an optional `torrent` backend that replaces the hand-off for magnet links only; `KernlOptions.torrent` passes one through `createKernl`.
 
 - `createPrivateMessagesBackend`: NIP-17 messages over the account signer. The seal is signed by the account with `nip44`; the wrap is signed by an ephemeral key that lives inside an applesauce `PrivateKeySigner` and is discarded after the wrap. Sends go to the recipient's kind 10050 inbox relays, falling back to the user's `outbox` and `super` tiers, with a copy wrapped to the user ([D-015](./decisions.md#d-015)).

@@ -1,7 +1,8 @@
 <script lang="ts">
   import type { AppletSummary, MountPlan, SampleApplet, ShellKernl, StorageLike } from './contract';
   import { abbreviate } from './contract';
-  import { domainChoices, domainLabel, type DomainChoice } from './domains';
+  import { choiceNote, domainChoices, domainLabel, type DomainChoice } from './domains';
+  import { openFailure } from './launcher-reasons';
   import Overlay from './Overlay.svelte';
   import { forgetRecent, readRecent, rememberRecent, type RecentApplet } from './recent';
 
@@ -30,33 +31,15 @@
   let error = $state<string | null>(null);
   let recent = $state.raw<readonly RecentApplet[]>(readRecent(storage));
 
-  const missing = $derived(choices.filter((choice) => choice.required && !choice.on));
+  const missing = $derived(choices.filter((choice) => choice.required && choice.available && !choice.on));
+  const unprovided = $derived(choices.filter((choice) => choice.required && !choice.available));
   const listWords = (words: readonly string[]): string => (words.length < 2 ? words.join('') : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`);
 
-  /** Exact reasons first, then reason prefixes; anything else gets one generic sentence, never the raw reason. */
-  const ERRORS: Readonly<Record<string, string>> = {
-    'invalid:pointer': 'That does not look like an applet address.',
-    'invalid:unresolved': 'The applet could not be prepared. Look it up again.',
-    'invalid:frame-detached': 'The applet window closed before the applet could start.',
-    'unavailable:preview-offline': 'The preview runs offline. Pick one of the sample applets below.',
-    'unavailable:manifest': 'No applet was found at that address. Check it and try again.',
-    'unavailable:blob': 'The applet was found, but its file could not be downloaded right now. Try again later.',
-    'unavailable:frame-lock': 'This applet could not be sealed safely, so the shell did not open it.',
-    'denied:blocked': 'You blocked this applet. Unblock it from its grants first.',
-    'denied:signed-out': 'Sign in to open applets.',
-  };
-  const PREFIXES: readonly (readonly [string, string])[] = [
-    ['invalid:', 'This applet did not pass the shell\'s checks, so it was not opened.'],
-    ['unavailable:', 'The applet cannot be reached right now. Try again later.'],
-    ['denied:', 'The shell refused to open this applet.'],
-    ['timeout', 'Looking up the applet took too long. Try again.'],
-  ];
-  const GENERIC_ERROR = 'Could not open the applet. Try again, or try another address.';
-
   const explain = (reason: unknown): string => {
-    const message = reason instanceof Error ? reason.message : String(reason);
-    const code = message.split(' ')[0] ?? '';
-    return ERRORS[message] ?? ERRORS[code] ?? PREFIXES.find(([prefix]) => code.startsWith(prefix))?.[1] ?? GENERIC_ERROR;
+    const failure = openFailure(reason);
+    // A reason the shell has no words for is a defect; the console keeps what the sentence cannot say.
+    if (!failure.expected) console.warn('kernl: an applet could not be opened for an unexpected reason', reason);
+    return failure.words;
   };
 
   async function resolve(target = typed): Promise<void> {
@@ -66,7 +49,7 @@
     try {
       const found = await kernl.resolve(kernl.decodePointer(address));
       const record = kernl.grants.get(found.identity);
-      const input = { requires: found.requires, optional: found.optional, baseline: kernl.grants.baselineDomains(), granted: record?.domains ?? [], firstRun: record === undefined };
+      const input = { requires: found.requires, optional: found.optional, baseline: kernl.grants.baselineDomains(), granted: record?.domains ?? [], available: kernl.grants.availableDomains(), firstRun: record === undefined };
       choices = domainChoices(input).map((choice) => ({ ...choice, on: choice.granted || choice.preset }));
       summary = found;
       typed = '';
@@ -83,7 +66,8 @@
     error = null;
     try {
       for (const choice of choices) {
-        if (choice.baseline) continue;
+        // A domain the shell cannot offer is never asked for: granting it is refused, and the applet was told it is absent.
+        if (choice.baseline || !choice.available) continue;
         if (choice.on && !choice.granted) kernl.grants.allowDomain(summary.identity, choice.domain);
         if (!choice.on && choice.granted) kernl.grants.revokeDomain(summary.identity, choice.domain);
       }
@@ -122,14 +106,17 @@
             <li class="shell-toggle">
               <label class="text" for="grant-{choice.domain}">
                 <span>{choice.label}</span>
-                <small>{choice.baseline ? 'always on' : choice.required ? 'the applet says it needs this' : 'optional'}</small>
+                <small>{choiceNote(choice)}</small>
               </label>
-              <input id="grant-{choice.domain}" type="checkbox" bind:checked={choice.on} disabled={choice.baseline} />
+              <input id="grant-{choice.domain}" type="checkbox" bind:checked={choice.on} disabled={choice.baseline || !choice.available} />
             </li>
           {/each}
         </ul>
       {:else}
         <p class="shell-muted">This applet asks for nothing beyond the baseline.</p>
+      {/if}
+      {#if unprovided.length}
+        <p class="warning" role="status">This shell cannot provide {listWords(unprovided.map((choice) => domainLabel(choice.domain)))}, so this applet may not work here. You can still run it.</p>
       {/if}
       {#if missing.length}
         <p class="warning" role="status">Without {listWords(missing.map((choice) => domainLabel(choice.domain)))}, this applet may not work. You can still run it.</p>

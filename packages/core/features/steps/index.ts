@@ -22,3 +22,4 @@ import './kernl-dm.js';
 import './group-sessions.js';
 import './kernl-bridges.js';
 import './crypto-fallback.js';
+import './live-lookup.js';

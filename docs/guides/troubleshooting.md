@@ -32,13 +32,27 @@ pnpm site:dev
 
 **Fix.** Nothing, for the shipped suites: `packages/core/features/steps/world.ts` installs an in-memory `localStorage` when the global has no `getItem`, and the warning is harmless. In your own tests, pass a `StorageLike` (a `Map` behind `getItem`, `setItem` and `removeItem`) as `KernlHost.storage`, and install a stand-in before importing kehto if your test reaches its persistence.
 
+## An address does not open
+
+**Symptom.** The launcher shows a sentence under the address field instead of the applet.
+
+**Cause and fix.** Each sentence is one reason:
+
+- "That does not look like an applet address." (`invalid:pointer`): the text holds no address. A link with the address in it is fine; a link to a page about the applet is not.
+- "No applet was found at that address." (`unavailable:manifest`): the servers answered and none has it, including the general servers the shell falls back to. Add the server that does under **Settings**, in the applet catalogue tier, or use an address that names it.
+- "None of the servers that list applets could be reached." (`unavailable:network`): none of the servers the address names, the applet catalogue or the general servers answered; the shell gives each group ten seconds. Check the connection, a VPN or a content blocker that stops secure socket connections, then look it up again.
+- "The applet was found, but its file could not be downloaded right now." (`unavailable:blob`): the servers named by the applet did not return its file.
+- "Could not open the applet. Try again, or try another address.": the shell had no reason for the failure, which is a defect. The browser console has a line starting `kernl: an applet could not be opened for an unexpected reason` with the underlying error; include it in the report.
+
+To check a published applet end to end, the way a person would open it, run `KERNL_PUBLIC_NETWORK=1 pnpm exec playwright test tests/e2e/shell-live-network.spec.ts` after adding its address to that file.
+
 ## An applet opens but never gets past its first screen
 
 **Symptom.** The window shows the applet, which waits forever, shows its own "not available" state, or gets refusals.
 
 **Cause.** A domain the applet `requires` is not granted. kernl never grants a domain because an applet asked for it: the launcher shows the required domains as switches that start off, warns "Without …, this applet may not work. You can still run it.", and `plan.missingRequired` names what is missing. The applet's `shell.init` lists only the baseline and the domains you turned on.
 
-**Fix.** Open the window's **Grants** panel and turn the domain on. The grant reaches the ACL at once, but the domains the applet was told about at mount do not change until it is opened again, so close the window and open the applet again. If the launcher instead says "Could not open the applet (invalid:domain).", you switched on a domain this shell does not offer; turn that switch off and click **Run** again. A domain the shell does not offer has no switch in the grants panel (for example `config`, `intent` or `upload`; see [Architecture](../concepts/architecture.md#where-each-nap-domain-is-served-from)), and the applet cannot get it in kernl. A new build of an applet has a new hash, so it starts with no grants; see [Applets under kernl](../concepts/applets-under-kernl.md).
+**Fix.** Open the window's **Grants** panel and turn the domain on. The grant reaches the ACL at once, but the domains the applet was told about at mount do not change until it is opened again, so close the window and open the applet again. A domain the shell does not offer cannot be switched on: the launcher lists it disabled as "not available in this shell", and it has no switch in the grants panel (for example `config`, `intent` or `upload`; see [Architecture](../concepts/architecture.md#where-each-nap-domain-is-served-from)), and the applet cannot get it in kernl. A new build of an applet has a new hash, so it starts with no grants; see [Applets under kernl](../concepts/applets-under-kernl.md).
 
 ## An applet was quarantined
 

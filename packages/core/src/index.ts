@@ -56,11 +56,13 @@ export { KernlAccountManager, PLAINTEXT_KEY_ACCOUNT_TYPES, createKernlAccounts }
 export { decodePointer } from './applets/pointer.js';
 export {
   BLOB_TIMEOUT_MS,
+  MANIFEST_TIMING,
   defaultFetchBlob,
   fetchManifestEvent,
   openDefaultArtifactCache,
   resolveApplet,
   summarize,
+  type ManifestTiming,
   type ResolveAppletOptions,
   type ResolvedApplet,
 } from './applets/resolve.js';

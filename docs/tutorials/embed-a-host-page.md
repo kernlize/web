@@ -179,7 +179,7 @@ async function open(pubkey: string, address: string): Promise<void> {
 naddr1qvzqqqyf8ypzqw49s9e88sajl985jxzquprj7pyapugqp83rme3sqctxhj5mxm4rqythwumn8ghj7un9d3shjtnwv9c8qmr9wsh8xmmeqqxkuttzvy6nyefnxpjr2e3jqg5uk8
 ```
 
-You should see "Signed in as …", then "Looking up the applet…", then `Verified "Freeze Frame Response" (build b5633add)`, and finally `"Freeze Frame Response" is running in applet-1.` with the game in the frame. The build prefix changes if the publisher releases a new version. "Could not open it: unavailable:manifest" means no connection returned the applet's description; check your network and try again.
+You should see "Signed in as …", then "Looking up the applet…", then `Verified "Freeze Frame Response" (build b5633add)`, and finally `"Freeze Frame Response" is running in applet-1.` with the game in the frame. The build prefix changes if the publisher releases a new version. "Could not open it: unavailable:manifest" means the servers answered and none had the applet's description; "unavailable:network" means none of them could be reached, so check your network and try again.
 
 ## 6. Watch the guard
 

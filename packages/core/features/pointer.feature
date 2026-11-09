@@ -48,6 +48,22 @@ Feature: Applet pointers
     When the shell decodes that encoded pointer
     Then the pointer is an event with id "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d"
 
+  Scenario: an address copied as a link is found inside it
+    Given an naddr for kind 35129 by "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d" with identifier "chat" and relays "wss://relay.napplet.soy"
+    When the shell decodes that encoded pointer wrapped as "https://applets.example/n/{address}?ref=share"
+    Then the pointer is an address for kind 35129 by "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d" with identifier "chat"
+    And the pointer has relay hints "wss://relay.napplet.soy"
+
+  Scenario: an address inside a sentence is found too
+    Given a note for id "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d"
+    When the shell decodes that encoded pointer wrapped as "try this one: {address}, it is good"
+    Then the pointer is an event with id "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d"
+
+  Scenario: an address typed in capitals still decodes
+    Given an naddr for kind 35129 by "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d" with identifier "chat" and relays ""
+    When the shell decodes that encoded pointer in capitals
+    Then the pointer is an address for kind 35129 by "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d" with identifier "chat"
+
   Scenario Outline: anything else is refused
     When the shell decodes pointer "<input>"
     Then the shell refused with "invalid:pointer"
@@ -58,4 +74,6 @@ Feature: Applet pointers
       | naddr1notreallyvalid    |
       | nevent1notreallyvalid   |
       | npub1qqqqqqqqqqqqqqqq   |
+      | https://applets.example/n/naddr1notreallyvalid |
+      | https://applets.example/about |
       |                         |

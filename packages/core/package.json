@@ -63,10 +63,12 @@
     "nostr-tools": ">=2.23.3 <=2.x"
   },
   "devDependencies": {
+    "@types/ws": "^8.18.2",
     "quickpickle": "^1.11.2",
     "tsup": "^8.5.0",
     "typescript": "^5.9.3",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.0",
+    "ws": "^8.22.1"
   },
   "license": "MIT",
   "repository": {

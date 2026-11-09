@@ -36,6 +36,14 @@ Given('a note for id {string}', (world: CoreWorld, id: string) => {
   scratch(world).encoded = noteEncode(id);
 });
 
+When('the shell decodes that encoded pointer wrapped as {string}', async (world: CoreWorld, wrapper: string) => {
+  await decode(world, wrapper.replace('{address}', String(scratch(world).encoded)));
+});
+
+When('the shell decodes that encoded pointer in capitals', async (world: CoreWorld) => {
+  await decode(world, String(scratch(world).encoded).toUpperCase());
+});
+
 When('the shell decodes that encoded pointer', async (world: CoreWorld) => {
   await decode(world, `nostr:${String(scratch(world).encoded)}`);
 });
