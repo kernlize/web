@@ -124,3 +124,12 @@ Then('the host was asked about a reply to {string} from {string} to {string}', (
 Then('the message left through {string}', (world: CoreWorld, provider: string) => {
   expect(reply(world).conversationId?.startsWith(`${provider}:`)).toBe(true);
 });
+
+Then("the shell's switched-on messaging providers are {string}", (world: CoreWorld, ids: string) => {
+  const running = k(world).kernl.messaging.list().filter((entry) => entry.enabled).map((entry) => entry.provider.id);
+  expect(running).toEqual(splitList(ids));
+});
+
+Then("the shell's first messaging provider is {string}", (world: CoreWorld, id: string) => {
+  expect(k(world).kernl.messaging.preferences().defaultProvider).toBe(id);
+});
