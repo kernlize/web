@@ -1,4 +1,5 @@
 <script lang="ts">
+  import './crypto-fallback';
   import { PasswordAccount } from 'applesauce-accounts/accounts';
   import { onMount } from 'svelte';
   import './shell.css';

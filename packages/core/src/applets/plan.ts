@@ -10,6 +10,7 @@ import {
   type ShellAdapter,
 } from '@kehto/shell';
 import { createAppletCsp, renderInsertionLockScript, type GuardProfile } from '@kernlize/guard';
+import { renderRandomUuidFallbackScript } from '../crypto/install.js';
 import type { AppletSummary, MountPlan } from '../types.js';
 
 /** Inputs for {@link planMount}. */
@@ -63,12 +64,13 @@ function assertNoFrame(html: string): void {
 /**
  * Insert kernl's insertion lock (D-014) immediately after the CSP meta and
  * locked namespace prelude kehto put first in `<head>`, before any applet
- * script. `@kehto/shell` has no hook for a second prelude, so the pair is
- * re-rendered and located in the srcdoc.
+ * script, followed by the `randomUUID` fallback (D-024) the prelude needs when
+ * the shell is not a secure context. `@kehto/shell` has no hook for a second
+ * prelude, so the pair is re-rendered and located in the srcdoc.
  */
 function addInsertionLock(srcdoc: string, csp: NappletCspOptions, domains: readonly string[]): string {
   const head = renderNappletCspMeta(csp, true) + renderNappletNamespacePrelude({ domains, experimental: NESTED_CONTEXT_LOCK });
-  return spliceOnce(srcdoc, head, head + renderInsertionLockScript());
+  return spliceOnce(srcdoc, head, head + renderInsertionLockScript() + renderRandomUuidFallbackScript());
 }
 
 /**

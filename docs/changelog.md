@@ -11,6 +11,7 @@ Each entry says what ships, per package and app. [Alpha status](./alpha-status.m
 
 ### `@kernlize/core`
 
+- `@kernlize/core/crypto` (`@kernl/core/crypto` on JSR): `installCryptoFallback` adds `crypto.randomUUID` and a pure-JS `crypto.subtle` where the browser withholds them outside a secure context, such as an onion or overlay address served over HTTP. The shell installs it first, and the mount plan gives every applet frame a `randomUUID` fallback ([D-024](./decisions.md#d-024)).
 - `createWindowManager(options?)` and the `WindowManager` interface: placement, focus, stacking, minimising and what the guard is told about each window, with no DOM, publishing `WindowManagerState` on `state$`. `createLayoutRegistry` and `createDefaultLayouts` hold the layouts it offers; a layout of your own is one `register` ([D-022](./decisions.md#d-022)).
 - `@kernlize/core/wm` (`@kernl/core/wm` on JSR): a second entry exporting the layouts, the registry and the window manager, importing only `rxjs`. The same names stay on the main entry, which now also re-exports `LayoutStrategy`, `Rect`, `WindowPlacement` and `WindowState` from `@kehto/wm`.
 - `LayoutOptions.margin`: the pixels between the windows and the container edge, defaulting to `gap`. The tiling layouts now round rectangle edges rather than sizes, so two windows that share an edge never overlap or leave a hole when the space does not divide evenly.
