@@ -39,3 +39,11 @@ Feature: The shell's event cache
     When the shell logs in read-only as that fresh key
     Then the shell session label eventually is "From last time"
     And the shell's event cache closes when the shell is destroyed
+
+  Scenario: a host plugs its own database into the shell, as a native backend would
+    Given a kernl host over empty storage
+    And a fake applesauce pool
+    And a host database of its own holding a profile named "From the host's database" for a fresh key
+    And a kernl shell whose event cache is that database, wrapped with fromEventDatabase
+    When the shell logs in read-only as that fresh key
+    Then the shell session label eventually is "From the host's database"

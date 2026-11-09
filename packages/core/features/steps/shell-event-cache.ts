@@ -1,10 +1,10 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import { lastValueFrom, toArray } from 'rxjs';
-import { EventStore } from 'applesauce-core';
+import { EventMemory, EventStore } from 'applesauce-core';
 import { isFromCache, type NostrEvent } from 'applesauce-core/helpers';
 import { PrivateKeySigner } from 'applesauce-signers';
-import { connectEventCache, createMemoryCacheAdapter, createRelayTiers, streamCatalog, type CatalogEntry, type ConnectedEventCache, type EventCache } from '@kernlize/core';
+import { connectEventCache, createMemoryCacheAdapter, fromEventDatabase, createRelayTiers, streamCatalog, type CatalogEntry, type ConnectedEventCache, type EventCache } from '@kernlize/core';
 import { boot, k } from './kernl.js';
 import { scratch, signManifest, splitList, type CoreWorld } from './world.js';
 
@@ -120,4 +120,18 @@ Then("the shell's event cache closes when the shell is destroyed", async (world:
 Then("the store kept the relays' manifest {string}", (world: CoreWorld, dTag: string) => {
   const held = s(world).store?.getByFilters({ kinds: [35129], '#d': [dTag] }) ?? [];
   expect([...held]).toHaveLength(1);
+});
+
+Given('a host database of its own holding a profile named {string} for a fresh key', async (world: CoreWorld, name: string) => {
+  const signer = new PrivateKeySigner();
+  scratch(world).freshKey = await signer.getPublicKey();
+  // Any applesauce event database works: this stands in for postgres, LMDB or nostrdb behind the same interface.
+  const database = new EventMemory();
+  database.add(await signer.signEvent({ kind: 0, tags: [], content: JSON.stringify({ name }), created_at: 1_700_000_000 }));
+  scratch(world).hostDatabase = database;
+});
+
+Given('a kernl shell whose event cache is that database, wrapped with fromEventDatabase', (world: CoreWorld) => {
+  const database = scratch(world).hostDatabase as EventMemory;
+  boot(world, { eventCache: async () => fromEventDatabase('host-database', database) });
 });
