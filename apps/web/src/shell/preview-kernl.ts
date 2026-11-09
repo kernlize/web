@@ -45,7 +45,7 @@ import { PREVIEW_CATALOG, PREVIEW_PUBLISHER, renderPreviewApplet, sampleSummary,
 import { createPreviewBuiltins } from './preview-builtin';
 import { PORT_DOMAINS, createPreviewPorts, type PortLike, type PreviewPorts } from './preview-port';
 import { createPreviewIntents, type PreviewIntentDeps, type PreviewIntents } from './preview-intents';
-import { createPreviewMessaging, PREVIEW_CORRESPONDENT } from './preview-messaging';
+import { createPreviewMessaging, PREVIEW_CORRESPONDENT, PREVIEW_LEGACY_CORRESPONDENT } from './preview-messaging';
 import { createPreviewDirectory, createPreviewMailboxes } from './preview-mailboxes';
 import { createPreviewProfiles } from './preview-profiles';
 import type { ShellTheme } from './shell-theme';
@@ -376,7 +376,7 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
   const shipped = createPreviewBuiltins(builtins, grants);
   const bridges = createPreviewBridges(host, torrent);
   const session$ = new BehaviorSubject<Session | null>(null);
-  const profiles = createPreviewProfiles({ [PREVIEW_OWNER]: 'Preview account', [PREVIEW_CORRESPONDENT]: 'Ada', [PREVIEW_PUBLISHER]: 'kernl samples' });
+  const profiles = createPreviewProfiles({ [PREVIEW_OWNER]: 'Preview account', [PREVIEW_CORRESPONDENT]: 'Ada', [PREVIEW_LEGACY_CORRESPONDENT]: 'Grace', [PREVIEW_PUBLISHER]: 'kernl samples' });
   const mounted = new Map<string, Mounted>();
   let windowCount = 0;
 
@@ -401,7 +401,7 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
   const pubkey = (): string => session$.value?.pubkey ?? PREVIEW_OWNER;
   const { perform } = createActions(host, bridges, pubkey, intents);
   const mount = createMounter(host, guard, mounted);
-  const ports = createPreviewPorts({ messaging, pubkey: () => PREVIEW_OWNER, notify: (notice) => host.notify(notice), ...(theme ? { theme: { initialTheme: theme } } : {}) });
+  const ports = createPreviewPorts({ messaging, profiles, pubkey: () => PREVIEW_OWNER, notify: (notice) => host.notify(notice), ...(theme ? { theme: { initialTheme: theme } } : {}) });
 
   return {
     accounts,

@@ -36,3 +36,4 @@ import './event-cache.js';
 import './event-cache-sqlite.js';
 import './shell-event-cache.js';
 import './kernl-network.js';
+import './dm-labels.js';

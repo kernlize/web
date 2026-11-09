@@ -203,6 +203,7 @@ export type { InboxRelays } from './messaging/inbox-relays.js';
 export { createSealedRatchetStorage, type SealedRatchetStorageOptions } from './messaging/ratchet-storage.js';
 export { createDefaultBridges, type DefaultBridgesOptions } from './bridges/default-registry.js';
 
+export { labelConversations } from './messaging/label-conversations.js';
 export { createKernlNetwork, type KernlNetwork, type KernlNetworkParts } from './kernl-network.js';
 export { LINK_PROTOCOLS, createKernlServices, isTheme, resourceInitFor, type KernlServiceDeps, type KernlServices } from './kernl-services.js';
 export { createShellAdapter, type ShellAdapterDeps } from './kernl-adapter.js';

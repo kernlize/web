@@ -50,9 +50,12 @@ function build(world: CoreWorld, fail: boolean): void {
     const feed = state.feeds.get(pointer.kind) ?? new Subject<NostrEvent>();
     state.feeds.set(pointer.kind, feed);
     return new Observable<NostrEvent>((observer) => {
-      const subscription = feed.subscribe((event) => {
-        store(world).add(event);
-        observer.next(event);
+      const subscription = feed.subscribe({
+        next: (event) => {
+          store(world).add(event);
+          observer.next(event);
+        },
+        complete: () => observer.complete(),
       });
       return () => {
         state.closed += 1;
@@ -166,4 +169,25 @@ Then('the card lookups for {string} were closed after the keep-alive', async (wo
   expect(p(world).closed).toBe(0);
   await new Promise((resolve) => setTimeout(resolve, KEEP_ALIVE_MS * 4));
   expect(p(world).closed).toBe(2);
+});
+
+When('the shell settles the card for {string}', async (world: CoreWorld, who: string) => {
+  scratch(world).settling = p(world).profiles.settled(await keyOf(who));
+});
+
+When('the shell settles the card for key {string}', (world: CoreWorld, key: string) => {
+  scratch(world).settling = p(world).profiles.settled(key);
+});
+
+When('the loader finishes without a profile', (world: CoreWorld) => {
+  p(world).feeds.get(0)?.complete();
+});
+
+Then('the settled card is named {string}', async (world: CoreWorld, name: string) => {
+  expect((await (scratch(world).settling as Promise<ProfileCard>)).name).toBe(name);
+});
+
+Then('the settled card for {string} is the short key', async (world: CoreWorld, who: string) => {
+  const pubkey = await keyOf(who);
+  expect(await (scratch(world).settling as Promise<ProfileCard>)).toEqual({ pubkey, name: `${pubkey.slice(0, 8)}…`, found: false });
 });

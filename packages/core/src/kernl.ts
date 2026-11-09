@@ -217,6 +217,7 @@ export function createKernl(options: KernlOptions): Kernl {
     host,
     bridges,
     messaging,
+    profiles,
     ...(isTheme(options.theme) ? { theme: options.theme } : {}),
     resolveIdentity(windowId) {
       const identity = identityOf(windowId);

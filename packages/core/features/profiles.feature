@@ -58,3 +58,18 @@ Feature: Profiles
   Scenario: an unwatched card stops asking after it has been left alone
     When the shell watches the card for "alice" and stops
     Then the card lookups for "alice" were closed after the keep-alive
+
+  Scenario: settling waits for a name or for every lookup server, never for a clock
+    When the shell settles the card for "alice"
+    And the loader delivers a profile for "alice" named "Alice"
+    Then the settled card is named "Alice"
+    When the shell settles the card for "bob"
+    And the loader finishes without a profile
+    Then the settled card for "bob" is the short key
+    When the shell settles the card for key "not-a-key"
+    Then the settled card is named "not-a-ke…"
+
+  Scenario: settling a key whose lookup fails gives the short key
+    Given a profile service over a failing loader
+    When the shell settles the card for "carol"
+    Then the settled card for "carol" is the short key

@@ -12,5 +12,5 @@ export function createPreviewProfiles(names: Readonly<Record<string, string>>): 
     const name = names[pubkey.toLowerCase()];
     return Object.freeze(name === undefined ? { pubkey, name: abbreviate(pubkey), found: false } : { pubkey, name, found: true });
   };
-  return { card, card$: (pubkey) => of(card(pubkey)) };
+  return { card, card$: (pubkey) => of(card(pubkey)), settled: async (pubkey) => card(pubkey) };
 }

@@ -27,6 +27,8 @@ import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { createAppletRelayBackend, createOutboxRelayPool } from './applesauce/relay-backend.js';
 import { createIdentityProviders, type IdentityProviders, type RelayPermissions } from './applesauce/identity-providers.js';
 import type { SigningConsent, SigningTemplate } from './consent/handler.js';
+import { labelConversations } from './messaging/label-conversations.js';
+import type { Profiles } from './profiles/profiles.js';
 
 /**
  * Whether a host-supplied theme has the colours NAP-THEME requires.
@@ -68,6 +70,8 @@ export interface KernlServiceDeps {
   readonly host: Pick<KernlHost, 'notify' | 'openLink'>;
   readonly bridges: BridgeRegistry;
   readonly messaging: MessagingRegistry;
+  /** Names conversation participants for applets; without it they are listed by key alone. */
+  readonly profiles?: Pick<Profiles, 'settled'>;
   readonly theme?: Theme;
   /** Maps a live window to its verified identity, or null. */
   readonly resolveIdentity: (windowId: string) => { dTag: string; aggregateHash: string } | null;
@@ -236,7 +240,8 @@ function gateOutboxPublish(outbox: ServiceHandler, consent: SigningConsent): Ser
 export function createKernlServices(deps: KernlServiceDeps): KernlServices {
   const identity = deps.identity ?? createIdentityProviders(deps.eventStore, deps.pool, deps.tiers);
   const theme = createThemeService(deps.theme ? { initialTheme: deps.theme } : {});
-  const dm = createDmService({ adapter: deps.messaging.composite() });
+  const composite = deps.messaging.composite();
+  const dm = createDmService({ adapter: deps.profiles ? labelConversations(composite, deps.profiles) : composite });
   const resolve = createBridgeResourceResolver(deps.bridges);
 
   const registry: ServiceRegistry = {

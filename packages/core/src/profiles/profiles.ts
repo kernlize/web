@@ -1,4 +1,4 @@
-import { distinctUntilChanged, filter, map, Observable, share, switchMap, take, timer, type Subscription } from 'rxjs';
+import { catchError, distinctUntilChanged, EMPTY, endWith, filter, firstValueFrom, ignoreElements, map, merge, Observable, share, switchMap, take, timer, type Subscription } from 'rxjs';
 import type { EventStore } from 'applesauce-core';
 import { getDisplayName, getOutboxes, getProfileContent, getProfilePicture } from 'applesauce-core/helpers';
 import type { NostrEvent } from '@napplet/core';
@@ -33,6 +33,8 @@ export interface Profiles {
   card$(pubkey: string): Observable<ProfileCard>;
   /** The card from what the store already holds, without asking anyone. */
   card(pubkey: string): ProfileCard;
+  /** The card once the profile is found, or once the lookup servers have all answered without it; never on a timer. */
+  settled(pubkey: string): Promise<ProfileCard>;
 }
 
 /** Options for {@link createProfiles}. */
@@ -137,7 +139,9 @@ export function createProfiles(options: ProfilesOptions): Profiles {
       };
     }).pipe(share({ resetOnRefCountZero: () => timer(keepAlive) }));
 
-  return {
+  const card = (pubkey: string): ProfileCard => toProfileCard(pubkey, store.getReplaceable(PROFILE_KIND, pubkey.toLowerCase()));
+
+  const profiles: Profiles = {
     card$(pubkey) {
       const key = pubkey.toLowerCase();
       let card = cards.get(key);
@@ -147,6 +151,19 @@ export function createProfiles(options: ProfilesOptions): Profiles {
       }
       return card;
     },
-    card: (pubkey) => toProfileCard(pubkey, store.getReplaceable(PROFILE_KIND, pubkey.toLowerCase())),
+    card,
+    settled(pubkey) {
+      const key = pubkey.toLowerCase();
+      if (!HEX_KEY.test(key)) return Promise.resolve(card(key));
+      const found = profiles.card$(key).pipe(filter((next) => next.found));
+      const answered = load({ kind: PROFILE_KIND, pubkey: key, relays: [...options.lookupRelays()] }).pipe(
+        catchError(() => EMPTY),
+        ignoreElements(),
+        endWith(undefined),
+        map(() => card(key)),
+      );
+      return firstValueFrom(merge(found, answered));
+    },
   };
+  return profiles;
 }

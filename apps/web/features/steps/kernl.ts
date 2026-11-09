@@ -522,6 +522,7 @@ Then('the preview kernl names the correspondent {string}, the publisher {string}
   expect(profiles.card(PREVIEW_CORRESPONDENT).name).toBe(correspondent);
   expect((await firstValueFrom(profiles.card$(PREVIEW_PUBLISHER))).name).toBe(publisher);
   expect(profiles.card(PREVIEW_OWNER)).toMatchObject({ name: owner, found: true });
+  expect(await profiles.settled(PREVIEW_CORRESPONDENT)).toMatchObject({ name: correspondent, found: true });
 });
 
 Then('the preview kernl names key {string} by its short form', (world: PreviewWorld, key: string) => {
