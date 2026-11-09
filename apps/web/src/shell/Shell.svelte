@@ -13,11 +13,12 @@
   import { NoticeStore } from './notice-store.svelte';
   import SignIn from './SignIn.svelte';
   import { WindowStore } from './window-store.svelte';
+  import { createShellWindowManager } from './windows';
 
   const storage = pickStorage();
   const notices = new NoticeStore();
   const consent = new ConsentQueue();
-  const windows = new WindowStore();
+  const windows = new WindowStore(createShellWindowManager(storage));
   const guardLog = new GuardLog();
   const host = createHost({ storage, consent, notices, windows });
 
@@ -58,7 +59,10 @@
       restoreSession(result);
       cleanups.push(() => kernl.destroy());
     });
-    return () => cleanups.forEach((cleanup) => cleanup());
+    return () => {
+      cleanups.forEach((cleanup) => cleanup());
+      windows.manager.destroy();
+    };
   });
 
   function onKeydown(event: KeyboardEvent): void {

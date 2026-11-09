@@ -1,7 +1,8 @@
 <script lang="ts">
+  import type { Rect } from '@kernlize/core/wm';
   import { shortId } from './contract';
-  import type { Rect } from './layout';
-  import { TITLE_BAR_HEIGHT, type ShellWindow, type WindowStore } from './window-store.svelte';
+  import type { ShellWindow, WindowStore } from './window-store.svelte';
+  import { TITLE_BAR_HEIGHT } from './windows';
 
   interface Props {
     win: ShellWindow;
@@ -10,9 +11,8 @@
   }
 
   const { win, windows, ongrants }: Props = $props();
-  const rect = $derived(windows.rectOf(win));
-  const focused = $derived(windows.focusedId === win.id);
-  const floating = $derived(windows.layout === 'floating' && !windows.compact);
+  const rect = $derived(win.rect);
+  const floating = $derived(windows.freeform);
   const title = $derived(win.plan.summary.title);
 
   type Mode = 'move' | 'resize';
@@ -27,7 +27,7 @@
     const onMove = (move: PointerEvent): void => {
       const dx = move.clientX - origin.x;
       const dy = move.clientY - origin.y;
-      windows.move(win.id, mode === 'move' ? { ...start, x: start.x + dx, y: start.y + dy } : { ...start, width: start.width + dx, height: start.height + dy });
+      windows.move(win.id, mode === 'move' ? { ...start, x: start.x + dx, y: start.y + dy } : { ...start, w: start.w + dx, h: start.h + dy });
     };
     const onUp = (): void => {
       target.removeEventListener('pointermove', onMove);
@@ -47,13 +47,13 @@
     const delta = moves[event.key];
     if (!delta) return;
     event.preventDefault();
-    windows.move(win.id, { ...window.rect, x: win.rect.x + delta[0], y: win.rect.y + delta[1] });
+    windows.move(win.id, { ...win.rect, x: win.rect.x + delta[0], y: win.rect.y + delta[1] });
   }
 </script>
 
 <section
   class="window"
-  class:focused
+  class:focused={win.focused}
   class:hidden={win.minimised}
   class:revoked={Boolean(win.revoked)}
   class:compact={windows.compact}
@@ -62,8 +62,8 @@
   data-status={win.status}
   style:left="{rect.x}px"
   style:top="{rect.y}px"
-  style:width="{rect.width}px"
-  style:height="{rect.height}px"
+  style:width="{rect.w}px"
+  style:height="{rect.h}px"
   style:z-index={win.z * 2}
   onpointerdowncapture={() => windows.focus(win.id)}
 >

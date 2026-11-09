@@ -45,7 +45,7 @@ Then('the shell abbreviates {string} as {string}', (_world: WordsWorld, value: s
 });
 
 Then('a new shell window opens at {int} by {int}', (_world: WordsWorld, width: number, height: number) => {
-  expect(DEFAULT_WINDOW_SIZE).toEqual({ width, height });
+  expect(DEFAULT_WINDOW_SIZE).toEqual({ w: width, h: height });
 });
 
 Then('the shell keeps recent applets under {string} and the layout under {string}', (_world: WordsWorld, recent: string, layout: string) => {
