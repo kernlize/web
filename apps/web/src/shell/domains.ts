@@ -45,6 +45,8 @@ export interface DomainChoice {
   readonly granted: boolean;
   /** Switched on before the user decides: a required account grant on an applet's first run. */
   readonly preset: boolean;
+  /** False when this shell has nothing behind the domain, so it can be shown but never switched on. */
+  readonly available: boolean;
 }
 
 interface ChoiceInput {
@@ -52,6 +54,8 @@ interface ChoiceInput {
   readonly optional: readonly string[];
   readonly baseline: readonly string[];
   readonly granted: readonly string[];
+  /** Every domain the shell can offer; an applet may name ones it cannot. */
+  readonly available: readonly string[];
   /** True when the user has never decided anything for this applet. */
   readonly firstRun: boolean;
   /** The applet takes requests from other applets, so it needs the intent domain to receive them. */
@@ -63,6 +67,9 @@ interface ChoiceInput {
  * Your account and opening other applets are grants, not baseline; an applet that requires one gets
  * the switch on at first run. An applet that takes requests from other applets gets the intent row
  * even when its manifest did not list it, switched on at first run, because without it nothing reaches it.
+ * A domain the shell cannot offer still gets its row, so the person sees what the applet wanted,
+ * but it is neither granted nor preset: granting it is refused by the shell, and a row that could
+ * be ticked would turn a wish the applet can live without into a failure to open it.
  */
 export function domainChoices(input: ChoiceInput): DomainChoice[] {
   const seen = new Set<string>();
@@ -71,13 +78,21 @@ export function domainChoices(input: ChoiceInput): DomainChoice[] {
     if (seen.has(domain)) return;
     seen.add(domain);
     const baseline = input.baseline.includes(domain);
-    const preset = input.firstRun && (presetAlways || (required && PRESET_WHEN_REQUIRED.has(domain)));
-    rows.push({ domain, label: domainLabel(domain), required, baseline, granted: baseline || input.granted.includes(domain), preset });
+    const available = baseline || input.available.includes(domain);
+    const preset = available && input.firstRun && (presetAlways || (required && PRESET_WHEN_REQUIRED.has(domain)));
+    rows.push({ domain, label: domainLabel(domain), required, baseline, granted: baseline || (available && input.granted.includes(domain)), preset, available });
   };
   for (const domain of input.requires) push(domain, true, input.receives === true && domain === RECEIVING_DOMAIN);
   for (const domain of input.optional) push(domain, false, input.receives === true && domain === RECEIVING_DOMAIN);
   if (input.receives) push(RECEIVING_DOMAIN, false, true);
   return rows;
+}
+
+/** How a domain row is captioned under its label in the launcher. */
+export function choiceNote(choice: Pick<DomainChoice, 'available' | 'baseline' | 'required'>): string {
+  if (!choice.available) return choice.required ? 'the applet says it needs this, and this shell cannot provide it' : 'not available in this shell';
+  if (choice.baseline) return 'always on';
+  return choice.required ? 'the applet says it needs this' : 'optional';
 }
 
 const UNITS = ['B', 'KiB', 'MiB', 'GiB'];

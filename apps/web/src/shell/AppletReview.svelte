@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { AppletSummary, ShellKernl } from './contract';
   import { abbreviate } from './contract';
-  import { domainChoices, domainLabel, type DomainChoice } from './domains';
-  import { explainLaunchError } from './launch-errors';
+  import { choiceNote, domainChoices, domainLabel, type DomainChoice } from './domains';
+  import { explainOpenFailure } from './launcher-reasons';
   import { acceptsWords } from './store';
 
   interface Props {
@@ -28,6 +28,7 @@
       optional: summary.optional,
       baseline: kernl.grants.baselineDomains(),
       granted: record?.domains ?? [],
+      available: kernl.grants.availableDomains(),
       firstRun: record === undefined,
       receives: summary.manifest.archetypes.length > 0,
     };
@@ -38,9 +39,8 @@
   let busy = $state(false);
   let error = $state<string | null>(null);
 
-  const missing = $derived(choices.filter((choice) => choice.required && !choice.on));
-  const offered = $derived(kernl.grants.availableDomains());
-  const unavailable = $derived(summary.requires.filter((domain) => !offered.includes(domain) && !kernl.grants.baselineDomains().includes(domain)));
+  const missing = $derived(choices.filter((choice) => choice.required && choice.available && !choice.on));
+  const unprovided = $derived(choices.filter((choice) => choice.required && !choice.available));
   const accepts = $derived(acceptsWords(summary.manifest.archetypes.map((entry) => entry.convention)));
   const listWords = (words: readonly string[]): string => (words.length < 2 ? words.join('') : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`);
 
@@ -49,13 +49,14 @@
     error = null;
     try {
       for (const choice of choices) {
-        if (choice.baseline || !offered.includes(choice.domain)) continue;
+        // A domain the shell cannot offer is never asked for: granting it is refused, and the applet was told it is absent.
+        if (choice.baseline || !choice.available) continue;
         if (choice.on && !choice.granted) kernl.grants.allowDomain(summary.identity, choice.domain);
         if (!choice.on && choice.granted) kernl.grants.revokeDomain(summary.identity, choice.domain);
       }
       await onconfirm(summary);
     } catch (reason) {
-      error = explainLaunchError(reason);
+      error = explainOpenFailure(reason);
     } finally {
       busy = false;
     }
@@ -76,18 +77,19 @@
         <li class="shell-toggle">
           <label class="text" for="grant-{choice.domain}">
             <span>{choice.label}</span>
-            <small>{choice.baseline ? 'always on' : !offered.includes(choice.domain) ? 'this shell does not offer it' : choice.required ? 'the applet says it needs this' : 'optional'}</small>
+            <small>{choiceNote(choice)}</small>
           </label>
-          <input id="grant-{choice.domain}" type="checkbox" bind:checked={choice.on} disabled={choice.baseline || !offered.includes(choice.domain)} />
+          <input id="grant-{choice.domain}" type="checkbox" bind:checked={choice.on} disabled={choice.baseline || !choice.available} />
         </li>
       {/each}
     </ul>
   {:else}
     <p class="shell-muted">This applet asks for nothing beyond the baseline.</p>
   {/if}
-  {#if unavailable.length}
-    <p class="warning" role="status">It needs {listWords(unavailable.map(domainLabel))}, which this shell does not offer. Parts of it may not work.</p>
-  {:else if missing.length}
+  {#if unprovided.length}
+    <p class="warning" role="status">This shell cannot provide {listWords(unprovided.map((choice) => domainLabel(choice.domain)))}, so this applet may not work here. You can still run it.</p>
+  {/if}
+  {#if missing.length}
     <p class="warning" role="status">Without {listWords(missing.map((choice) => domainLabel(choice.domain)))}, this applet may not work. You can still run it.</p>
   {/if}
   {#if error}<p class="shell-error" role="alert">{error}</p>{/if}

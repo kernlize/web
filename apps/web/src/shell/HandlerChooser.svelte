@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { AppletSummary, CatalogEntry, HandlerChoice, HandlerPrompt, ShellKernl } from './contract';
   import AppletReview from './AppletReview.svelte';
-  import { explainLaunchError } from './launch-errors';
+  import { explainOpenFailure } from './launcher-reasons';
   import Overlay from './Overlay.svelte';
   import StoreBrowser from './StoreBrowser.svelte';
   import { rememberWords, requestWords } from './store';
@@ -28,7 +28,7 @@
     try {
       summary = await kernl.resolve(kernl.decodePointer(address));
     } catch (reason) {
-      error = explainLaunchError(reason);
+      error = explainOpenFailure(reason);
     } finally {
       busy = false;
     }

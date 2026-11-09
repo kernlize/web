@@ -2,7 +2,8 @@ import { expect } from 'vitest';
 import { Given, Then, When, type DataTable } from 'quickpickle';
 import type { Bridge, BridgeAvailability } from '@kernlize/bridges';
 import { abbreviate, DEFAULT_WINDOW_SIZE, LAYOUT_KEY, RECENT_KEY, shortId, type ConsentSummary } from '../../src/shell/contract.ts';
-import { domainChoices, domainLabel, formatBytes, type DomainChoice } from '../../src/shell/domains.ts';
+import { choiceNote, domainChoices, domainLabel, formatBytes, type DomainChoice } from '../../src/shell/domains.ts';
+import { openFailure } from '../../src/shell/launcher-reasons.ts';
 import { serverAddress, serverLabel, serverName } from '../../src/shell/servers.ts';
 import { namesProtocol } from '../../src/shell/vocabulary.ts';
 import { messagingError, unavailableWhy } from '../../src/shell/messaging-reasons.ts';
@@ -13,7 +14,7 @@ import './shell-windows.ts';
 type ShellRecord = ConsentSummary['event'];
 
 interface WordsScratch {
-  applet: { requires: string[]; optional: string[]; baseline: string[]; granted: string[]; firstRun: boolean; receives?: boolean };
+  applet: { requires: string[]; optional: string[]; baseline: string[]; granted: string[]; available: string[]; firstRun: boolean; receives?: boolean };
   choices: DomainChoice[];
   record: ShellRecord;
   details: readonly EventDetail[];
@@ -26,7 +27,7 @@ interface WordsWorld {
 
 function words(world: WordsWorld): WordsScratch {
   world.shellWords ??= {
-    applet: { requires: [], optional: [], baseline: [], granted: [], firstRun: true },
+    applet: { requires: [], optional: [], baseline: [], granted: [], available: [], firstRun: true },
     choices: [],
     record: { id: '', kind: 1, pubkey: '', created_at: 0, content: '', tags: [], sig: '' },
     details: [],
@@ -72,6 +73,10 @@ Given('the shell baseline is {string}', (world: WordsWorld, baseline: string) =>
   words(world).applet.baseline = list(baseline);
 });
 
+Given('the shell can offer {string}', (world: WordsWorld, available: string) => {
+  words(world).applet.available = list(available);
+});
+
 Given('the applet was earlier granted {string}', (world: WordsWorld, granted: string) => {
   words(world).applet.granted = list(granted);
 });
@@ -96,8 +101,25 @@ Then('the domain choices are:', (world: WordsWorld, table: DataTable) => {
     baseline: row.baseline === 'yes',
     granted: row.granted === 'yes',
     preset: row.preset === 'yes',
+    available: row.available === 'yes',
   }));
   expect(words(world).choices).toEqual(expected);
+});
+
+Then('the domain choices are captioned:', (world: WordsWorld, table: DataTable) => {
+  expect(words(world).choices.map((choice) => ({ domain: choice.domain, note: choiceNote(choice) }))).toEqual(table.hashes());
+});
+
+Then('the shell explains the open failure {string} as {string}', (_world: WordsWorld, reason: string, text: string) => {
+  expect(openFailure(reason)).toEqual({ words: text, expected: true });
+});
+
+Then('the shell explains the thrown open failure {string} as {string}', (_world: WordsWorld, reason: string, text: string) => {
+  expect(openFailure(new Error(reason))).toEqual({ words: text, expected: true });
+});
+
+Then('the shell explains the unexpected open failure {string} as {string}', (_world: WordsWorld, reason: string, text: string) => {
+  expect(openFailure(new Error(reason))).toEqual({ words: text, expected: false });
 });
 
 Then('the shell shows {float} bytes as {string}', (_world: WordsWorld, bytes: number, text: string) => {

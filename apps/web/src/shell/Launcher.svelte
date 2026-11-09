@@ -2,7 +2,7 @@
   import type { AppletSummary, BootMode, CatalogEntry, MountPlan, ShellKernl, StorageLike } from './contract';
   import AppletReview from './AppletReview.svelte';
   import InstalledApplets from './InstalledApplets.svelte';
-  import { explainLaunchError } from './launch-errors';
+  import { explainOpenFailure } from './launcher-reasons';
   import Overlay from './Overlay.svelte';
   import { forgetRecent, readRecent, rememberRecent, type RecentApplet } from './recent';
   import StoreBrowser from './StoreBrowser.svelte';
@@ -37,7 +37,7 @@
     try {
       summary = await kernl.resolve(kernl.decodePointer(address));
     } catch (reason) {
-      error = explainLaunchError(reason);
+      error = explainOpenFailure(reason);
     } finally {
       busy = false;
     }

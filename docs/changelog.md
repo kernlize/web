@@ -11,7 +11,7 @@ Each entry says what ships, per package and app. [Alpha status](./alpha-status.m
 
 ### `@kernlize/core`
 
-- The applet store: `kernl.catalog.load()` over `loadCatalog`, with `toCatalogEntry`, `addressOf`, `newestEntries`, `searchCatalog`, `fuzzyScore` and `popularTopics` ([D-025](./decisions.md#d-025)).
+- The applet store: `kernl.catalog.load()` over `loadCatalog`, with `toCatalogEntry`, `addressOf`, `newestEntries`, `searchCatalog`, `fuzzyScore` and `popularTopics` ([D-026](./decisions.md#d-026)).
 - Intents: `createKernl` offers the `intent` domain through kehto's `createIntentService` and kernl's `createIntentRouter` and `createIntentDelivery`. `kernl.intents` exposes the installed set and the user's handler defaults; `kernl.install(summary)` installs a verified applet without opening it, and `kernl.plan` installs the applet it plans. `KernlHost` gains the optional `chooseHandler`, `openApplet` and `focusApplet`; `KernlOptions.intentRetry` tunes delivery.
 - Handler preferences (kind 31129): `createHandlerDefaults`, `parseHandlerPreferences`, `preferenceTemplate`, `preferredHandlers`, `catalogIdForRef` and `refForCatalogId`. The signed-in account's preferences are read on sign-in; publishing is opt-in. `describeChange` names the archetype and the applets added and removed when an applet writes one.
 - **Breaking.** `AppletSummary.address` is required, and `summarize(resolved, address)` takes it.
@@ -19,6 +19,11 @@ Each entry says what ships, per package and app. [Alpha status](./alpha-status.m
 - `createWindowManager(options?)` and the `WindowManager` interface: placement, focus, stacking, minimising and what the guard is told about each window, with no DOM, publishing `WindowManagerState` on `state$`. `createLayoutRegistry` and `createDefaultLayouts` hold the layouts it offers; a layout of your own is one `register` ([D-022](./decisions.md#d-022)).
 - `@kernlize/core/wm` (`@kernl/core/wm` on JSR): a second entry exporting the layouts, the registry and the window manager, importing only `rxjs`. The same names stay on the main entry, which now also re-exports `LayoutStrategy`, `Rect`, `WindowPlacement` and `WindowState` from `@kehto/wm`.
 - `LayoutOptions.margin`: the pixels between the windows and the container edge, defaulting to `gap`. The tiling layouts now round rectangle edges rather than sizes, so two windows that share an edge never overlap or leave a hole when the space does not divide evenly.
+
+- Opening an address no longer depends on every server behaving ([D-025](./decisions.md#d-025)). `fetchManifestEvent` drops hints that are not relay URLs, survives relays that are down, silent or hang up, no longer lets a quick relay with nothing to say end the lookup before a slower catalogue answers, and falls back to the `super` tier when the address's relays and the `apps` tier do not produce the manifest. Each of the two rounds ends within `MANIFEST_TIMING.timeoutMs`, and a round whose relays all refused the connection is asked once more after `MANIFEST_TIMING.retryDelayMs`. It takes an optional `timing` argument, and `MANIFEST_TIMING` and `ManifestTiming` are exported.
+- New reason `unavailable:network` from `fetchManifestEvent` and `Kernl.resolve`: no relay answered. Before, this surfaced as the relay library's own error with no kernl prefix, after up to thirty seconds.
+- `decodePointer` finds an encoded address inside a link or a sentence.
+- A read-only account is an account a granted applet can be shown: the `identity` service answers `identity.getPublicKey` for it. `KernlServiceDeps.auth` gains an optional `getUserPubkey`.
 
 - `createDefaultBridges` takes an optional `torrent` backend that replaces the hand-off for magnet links only; `KernlOptions.torrent` passes one through `createKernl`.
 

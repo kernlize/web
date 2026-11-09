@@ -1,7 +1,8 @@
 import type { CatalogEntry, HandlerPrompt } from './contract';
 import { domainLabel } from './domains';
 
-const SHARED_ADDRESS = /^(?:nostr:)?(?:naddr1|nevent1|note1)[02-9ac-hj-np-z]{20,}$/i;
+/** An encoded address anywhere in the text, as the core's `decodePointer` finds it: pasted bare, behind `nostr:`, in a link or in a sentence. */
+const SHARED_ADDRESS = /(?:naddr|nevent|note)1[02-9ac-hj-np-z]{20,}/i;
 const HEX_64 = /^[0-9a-f]{64}$/i;
 const COORDINATE = /^(?:\d+:[0-9a-f]{64}|[0-9a-f]{64}:\d+):\S*$/i;
 const PREVIEW_ADDRESS = /^preview:[a-z0-9-]+$/i;
@@ -9,7 +10,7 @@ const PREVIEW_ADDRESS = /^preview:[a-z0-9-]+$/i;
 /**
  * Whether what the person typed into the store's search is an applet address
  * rather than words, so the store offers to open it. Pasting an address always
- * works, whatever else the store shows.
+ * works, whatever else the store shows, including one copied as a share link.
  */
 export function looksLikeAddress(text: string): boolean {
   const value = text.trim();

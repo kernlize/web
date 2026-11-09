@@ -26,3 +26,4 @@ import './intents.js';
 import './intent-routing.js';
 import './kernl-intents.js';
 import './crypto-fallback.js';
+import './live-lookup.js';

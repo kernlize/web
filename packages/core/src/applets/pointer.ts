@@ -4,6 +4,8 @@ import type { AppletPointer } from '../types.js';
 const HEX_64 = /^[0-9a-f]{64}$/;
 const COORDINATE = /^([0-9a-f]{64}):(\d+):(.*)$/s;
 const A_TAG_COORDINATE = /^(\d+):([0-9a-f]{64}):(.*)$/s;
+/** An encoded address anywhere in the text, so one copied as a link or inside a sentence still opens. */
+const ENCODED = /(?:naddr|nevent|note)1[02-9ac-hj-np-z]+/i;
 
 function invalid(): never {
   throw new Error('invalid:pointer');
@@ -39,8 +41,9 @@ function fromBech32(input: string): AppletPointer | undefined {
  * Accepts `naddr1…`, `nevent1…`, `note1…`, a bare 64-hex event id, any of
  * those behind a `nostr:` prefix, and plain coordinates in either
  * `<pubkey>:<kind>:<identifier>` or NIP-01 `<kind>:<pubkey>:<identifier>`
- * order. The result says which event to fetch and nothing more; trust comes
- * from verifying that event, never from the pointer.
+ * order. An encoded address is also found inside a link or a sentence, since
+ * that is how addresses are shared. The result says which event to fetch and
+ * nothing more; trust comes from verifying that event, never from the pointer.
  *
  * @param input - The address text.
  * @returns The decoded pointer.
@@ -49,6 +52,7 @@ function fromBech32(input: string): AppletPointer | undefined {
  * ```ts
  * decodePointer('nostr:naddr1…').kind; // 'address'
  * decodePointer(`${pubkey}:35129:chat`); // { kind: 'address', pubkey, identifier: 'chat', eventKind: 35129, relays: [] }
+ * decodePointer('https://applets.example/n/naddr1…?ref=share').kind; // 'address'
  * ```
  */
 export function decodePointer(input: string): AppletPointer {
@@ -60,5 +64,5 @@ export function decodePointer(input: string): AppletPointer {
   const aTag = A_TAG_COORDINATE.exec(text);
   if (aTag) return fromCoordinate(aTag[2] as string, aTag[1] as string, aTag[3] as string);
 
-  return fromBech32(text.toLowerCase()) ?? invalid();
+  return fromBech32((ENCODED.exec(text)?.[0] ?? text).toLowerCase()) ?? invalid();
 }

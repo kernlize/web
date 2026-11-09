@@ -25,7 +25,7 @@ kernl's packages are shell-side. You do not import them in an applet.
 
 `intent` is "opening other applets": with it your applet can ask for a role and an action and receive what other applets hand it. An applet that requires it to ask, or that takes requests (it has `z` and `i` tags), is offered the switch already on at its first run, because a handler without it receives nothing. See [The store and intents](./store-and-intents.md).
 
-Put a domain in `requires` only if your applet is useless without it. The launcher lists every domain you name in `requires` or `optional` as a switch that starts off on a first run, marks the required ones "the applet says it needs this", and warns when one is still off; the user can run your applet anyway, and then it sees the domain as unavailable. A user who switches on a domain this shell does not offer gets an error (`invalid:domain`) instead of your applet. Prefer `optional` and a graceful fallback.
+Put a domain in `requires` only if your applet is useless without it. The launcher lists every domain you name in `requires` or `optional` as a switch that starts off on a first run, marks the required ones "the applet says it needs this", and warns when one is still off; the user can run your applet anyway, and then it sees the domain as unavailable. A domain this shell does not offer is listed with its switch disabled and marked "not available in this shell"; your applet opens without it, and when it was in `requires` the launcher says the applet may not work here. Prefer `optional` and a graceful fallback.
 
 ## Where the guard acts on your traffic
 

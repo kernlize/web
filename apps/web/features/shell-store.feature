@@ -14,6 +14,8 @@ Feature: The applet store's words and filters
       | 35129:3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d:notes          | is     |
       | 3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d:35129:notes          | is     |
       |   preview:notes                                                                       | is     |
+      | https://applets.example/n/naddr1qvzqqqrcvypzqfngzhsvjggdlgeycm96x4emzjlwf8dyyzdfg4hefp89zpkdgz99qqdkuctswpkx2apddpskuervv4ez6urjv4nx2un9de3k2uc050cjv?ref=share | is     |
+      | try nevent1qqsrhuxx8l9ex335q7he0f09aej04zpazpl0ne2cgukyawd24mayt8gpp4mhxue69uhkummn9ekx7mqzyrhxagf6h8l9cjngatumrg60uq22v66qz979pm32v985ek54ndh8gj8u2gng please | is     |
       | chess                                                                                 | is not |
       | naddr1short                                                                           | is not |
       | open a profile                                                                        | is not |
@@ -43,19 +45,8 @@ Feature: The applet store's words and filters
     Then accepting "napplet:profile/open,napplet:text-editor/edit,bogus" reads "open a profile, edit a text editor"
     And accepting "" reads ""
 
-  Scenario Outline: why an applet could not be opened, in plain words
-    Then the launch error for "<reason>" reads "<words>"
+  Scenario: a failure the store knows is shown in its words, and nothing is logged
+    Then opening fails with "unavailable:preview-offline" and the store says "The preview runs offline. Pick one of the applets in the store." without a warning
 
-    Examples:
-      | reason                       | words                                                                                 |
-      | invalid:pointer              | That does not look like an applet address.                                            |
-      | unavailable:manifest         | No applet was found at that address. Check it and try again.                          |
-      | unavailable:preview-offline  | The preview runs offline. Pick one of the applets in the store.                      |
-      | invalid:bad-hash and details | This applet did not pass the shell's checks, so it was not opened.                    |
-      | unavailable:something        | The applet cannot be reached right now. Try again later.                              |
-      | denied:other                 | The shell refused to open this applet.                                                |
-      | timeout after 20s            | Looking up the applet took too long. Try again.                                       |
-      | surprise                     | Could not open the applet. Try again, or try another address.                         |
-
-  Scenario: a thrown error is explained by its message
-    Then the launch error for a thrown "denied:blocked" reads "You blocked this applet. Unblock it from its grants first."
+  Scenario: a failure the store has no words for is said generically and left in the console
+    Then opening fails with "Relay sockets exploded" and the store says "Could not open the applet. Try again, or try another address." with a warning

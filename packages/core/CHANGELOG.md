@@ -1,5 +1,18 @@
 # @kernlize/core
 
+## 0.4.1
+
+### Patch Changes
+
+- 5563bfe: Opening an applet address no longer depends on every relay behaving. `fetchManifestEvent` ignores hints that are not relay URLs, survives relays that are down, silent or hang up, no longer lets a quick relay with nothing end the lookup before a slower catalogue answers, and falls back to the `super` tier when the address's relays and the `apps` tier do not produce the manifest; each round ends within `MANIFEST_TIMING.timeoutMs`, and it takes an optional `timing` argument. No relay answering is the new reason `unavailable:network` where it used to be the relay library's unprefixed error. `decodePointer` finds an encoded address inside a link or a sentence. The `identity` service answers `identity.getPublicKey` for a read-only account, through the new optional `KernlServiceDeps.auth.getUserPubkey`.
+- 155318e: `fetchManifestEvent` asks a round of relays once more when every one of them refused the connection, after `MANIFEST_TIMING.retryDelayMs`. A busy public relay answers a websocket upgrade with 502 or 503 for a moment, and one such refusal no longer fails an applet lookup. `ManifestTiming` gains `retryDelayMs`.
+
+## 0.4.0
+
+### Minor Changes
+
+- 81fbff7: Add `@kernlize/core/crypto`: `installCryptoFallback` fills in `crypto.randomUUID` and a pure-JS `crypto.subtle` outside a secure context (onion or overlay addresses over HTTP). The mount plan gives applet frames a `randomUUID` fallback.
+
 ## 0.3.1
 
 ### Patch Changes

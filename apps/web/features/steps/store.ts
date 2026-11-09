@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { Then } from 'quickpickle';
-import { explainLaunchError } from '../../src/shell/launch-errors.ts';
+import { explainOpenFailure } from '../../src/shell/launcher-reasons.ts';
 import { acceptsWords, looksLikeAddress, missingDomains, rememberWords, requestWords, roleWords, toggleTopic, topicBubbles } from '../../src/shell/store.ts';
 
 const list = (text: string): string[] => (text === '' ? [] : text.split(',').map((part) => part.trim()));
@@ -59,10 +59,18 @@ Then('accepting {string} reads {string}', (_world: unknown, conventions: string,
   expect(acceptsWords(list(conventions))).toBe(words);
 });
 
-Then('the launch error for {string} reads {string}', (_world: unknown, reason: string, words: string) => {
-  expect(explainLaunchError(reason)).toBe(words);
+function explainWithWarnings(reason: string): { words: string; warnings: unknown[] } {
+  const warnings: unknown[] = [];
+  const words = explainOpenFailure(new Error(reason), (_message, cause) => void warnings.push(cause));
+  return { words, warnings };
+}
+
+Then('opening fails with {string} and the store says {string} without a warning', (_world: unknown, reason: string, words: string) => {
+  expect(explainWithWarnings(reason)).toEqual({ words, warnings: [] });
 });
 
-Then('the launch error for a thrown {string} reads {string}', (_world: unknown, reason: string, words: string) => {
-  expect(explainLaunchError(new Error(reason))).toBe(words);
+Then('opening fails with {string} and the store says {string} with a warning', (_world: unknown, reason: string, words: string) => {
+  const result = explainWithWarnings(reason);
+  expect(result.words).toBe(words);
+  expect(result.warnings.map((cause) => (cause as Error).message)).toEqual([reason]);
 });
