@@ -43,7 +43,7 @@ function store(world: CoreWorld): EventStore {
 }
 
 function build(world: CoreWorld, fail: boolean): void {
-  const state: ProfilesScratch = { profiles: undefined as unknown as Profiles, asked: [], feeds: new Map(), closed: 0, watched: new Map(), subscriptions: [] };
+  const state: Omit<ProfilesScratch, 'profiles'> & { profiles?: Profiles } = { asked: [], feeds: new Map(), closed: 0, watched: new Map(), subscriptions: [] };
   const load = (pointer: ProfilePointer): Observable<NostrEvent> => {
     state.asked.push(pointer);
     if (fail) return new Observable<NostrEvent>((observer) => observer.error(new Error('relay down')));

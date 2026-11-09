@@ -1,4 +1,4 @@
-import { BehaviorSubject, map, of, Subject, Subscription, switchMap, takeUntil } from 'rxjs';
+import { BehaviorSubject, map, of, Subject, Subscription, switchMap } from 'rxjs';
 import { EventStore } from 'applesauce-core';
 import { RelayPool } from 'applesauce-relay';
 import type { AccountManager, IAccount } from 'applesauce-accounts';
@@ -9,11 +9,9 @@ import { createGuardConfig, describeMitigations, type GuardEvent } from '@kernli
 import type { AppletIdentity, GuardFacade, Kernl, KernlOptions, RelayTiers, Session } from './types.js';
 import { createKernlAccounts } from './applesauce/accounts.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
-import { createReplaceableLoader, lookupRelaysOf } from './applesauce/identity-providers.js';
-import { createProfiles, type ProfileCard, type Profiles } from './profiles/profiles.js';
-import { createRelayDirectory } from './relays/directory.js';
-import { connectEventCache } from './cache/connect.js';
-import { createAccountMailboxes, type AccountMailboxes } from './relays/mailboxes.js';
+import type { ProfileCard, Profiles } from './profiles/profiles.js';
+import { createKernlNetwork } from './kernl-network.js';
+import type { AccountMailboxes } from './relays/mailboxes.js';
 import { createRelayTiers } from './relays/tiers.js';
 import { decodePointer } from './applets/pointer.js';
 import { defaultFetchBlob, openDefaultArtifactCache } from './applets/resolve.js';
@@ -204,18 +202,7 @@ export function createKernl(options: KernlOptions): Kernl {
   });
 
   const identityOf = (windowId: string): AppletIdentity | undefined => handles.get(windowId)?.summary.identity;
-  const eventCache = connectEventCache(eventStore, options.eventCache);
-  const replaceableLoader = createReplaceableLoader(eventStore, pool, tiers, eventCache.cacheRequest);
-  const profiles = createProfiles({ store: eventStore, load: replaceableLoader, lookupRelays: () => lookupRelaysOf(tiers.get()) });
-  const directory = createRelayDirectory({ pool });
-  const mailboxes = createAccountMailboxes({
-    store: eventStore,
-    pool,
-    pubkey$: accounts.active$.pipe(map((account) => account?.pubkey), takeUntil(destroyed$)),
-    lookupRelays: () => lookupRelaysOf(tiers.get()),
-    signer: () => (accounts.active && !isReadOnlyAccount(accounts.active) ? accounts.active.signer : undefined),
-    directory,
-  });
+  const { eventCache, replaceableLoader, profiles, directory, mailboxes } = createKernlNetwork(options, { eventStore, pool, tiers, accounts, destroyed$ });
   const lookupBefore = lookupReplaceable(eventStore, {
     loader: replaceableLoader,
     relays: () => [...tiers.get().outbox, ...tiers.get().discovery],

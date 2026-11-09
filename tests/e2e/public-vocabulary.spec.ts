@@ -96,9 +96,9 @@ test('every shell surface names no protocol', async ({ page }) => {
   const servers = page.locator('[data-address]');
   await expect(servers.first()).toBeVisible();
   expect(await servers.count()).toBeGreaterThanOrEqual(4);
-  await expect(page.getByText('damus.io', { exact: true })).toBeVisible();
+  await expect(page.getByText('damus.io', { exact: true }).first()).toBeVisible();
   await expectClean(page, 'settings panel with servers');
-  const add = page.getByRole('textbox', { name: 'Server address' }).first();
+  const add = page.getByRole('textbox', { name: 'Add a server to People lookup' });
   await add.fill('relay.example.org');
   await add.press('Enter');
   await expect(page.getByText('example.org', { exact: true })).toBeVisible();
@@ -143,7 +143,7 @@ test('every consent the preview can ask for, and its exact record, names no prot
     ['Update your profile', /^Update your profile/],
     ['Delete a note', /^Delete/],
     ['Replace your contacts', /^Change who you follow/],
-    ['Change your servers', /^Change your/],
+    ['Change your inbox and outbox', /^Change your inbox and outbox/],
     ['Ask to erase your account', /erase your account/],
   ] as const;
   for (const [button, title] of cases) {

@@ -323,3 +323,43 @@ test('an empty desktop reads as two sentences and the sign-in choices follow the
   await page.getByRole('button', { name: 'Try the preview' }).click();
   await expect(page.locator('.desktop .empty p')).toHaveText(/^No applets open\. (Press|Use)/);
 });
+
+test('settings show a new account suggested inbox and outbox servers, and say how many took the published list', async ({ page }) => {
+  await page.goto(`${base}/app/?preview=1`);
+  await page.getByRole('button', { name: 'Try the preview' }).click();
+  await openSettings(page);
+  await expect(page.getByRole('heading', { name: 'Inbox and outbox' })).toBeVisible();
+  await expect(page.getByText('This account has not said where it can be reached yet.')).toBeVisible();
+  const inbox = page.getByRole('list', { name: 'Inbox servers' });
+  await expect(inbox.getByRole('listitem')).toHaveCount(3);
+  await inbox.getByRole('button', { name: 'Remove nos.lol from Inbox' }).click();
+  await expect(inbox.getByRole('listitem')).toHaveCount(2);
+  // A removed server comes back as a suggestion, and a typed address completes from monitored servers.
+  await page.getByRole('group', { name: 'Suggested for Inbox' }).getByRole('button', { name: 'Add nos.lol to Inbox' }).click();
+  await expect(inbox.getByRole('listitem')).toHaveCount(3);
+  const field = page.getByRole('combobox', { name: 'Add an inbox server' });
+  await field.fill('inbox.example.org');
+  await field.press('Enter');
+  await expect(inbox.getByText('inbox.example.org', { exact: true })).toBeVisible();
+  await field.fill('not a server');
+  await field.press('Enter');
+  await expect(page.getByRole('alert')).toHaveText('Enter a server address such as nos.lol.');
+  await page.getByRole('button', { name: 'Publish this list' }).click();
+  await expect(page.getByText('Saved to all 4 servers')).toBeVisible();
+  await expect(page.getByText('This account has not said where it can be reached yet.')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Publish this list' })).toBeDisabled();
+  // The shell's own lists say what each is for, and the outbox is no longer a separate local list.
+  await expect(page.getByRole('heading', { name: 'People lookup' })).toBeVisible();
+  await expect(page.getByText('Your connections')).toHaveCount(0);
+});
+
+test('a relay list change asks in terms of inbox and outbox', async ({ page }) => {
+  const applet = await runPulse(page);
+  await applet.locator('details').evaluateAll((all) => all.forEach((d) => d.setAttribute('open', '')));
+  await applet.getByRole('button', { name: 'Change your inbox and outbox' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('heading', { name: 'Change your inbox and outbox' })).toBeVisible();
+  await expect(dialog.getByText('Inbox added')).toBeVisible();
+  await expect(dialog.getByText('Outbox added')).toBeVisible();
+  await expect(dialog.getByText('(write)')).toHaveCount(0);
+});

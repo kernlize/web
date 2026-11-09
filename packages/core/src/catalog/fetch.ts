@@ -1,4 +1,4 @@
-import { auditTime, catchError, EMPTY, from, lastValueFrom, map, merge, mergeAll, type Observable, scan, takeUntil, timer } from 'rxjs';
+import { auditTime, catchError, EMPTY, from, lastValueFrom, map, merge, mergeAll, type Observable, scan, share, takeUntil, timer } from 'rxjs';
 import { getSeenRelays, type Filter } from 'applesauce-core/helpers';
 import { NAPPLET_KIND_NAMED, NAPPLET_KIND_ROOT } from '@kehto/nip/5d';
 import type { NostrEvent, NostrFilter } from '@napplet/core';
@@ -29,6 +29,17 @@ export const CATALOG_LIMIT = 500;
 export const CATALOG_TIMEOUT_MS = 30_000;
 
 /**
+ * When nothing has arrived after this long, the stream says so with an empty
+ * list and keeps listening; it is a moment to tell the person, not a cut-off.
+ *
+ * @example
+ * ```ts
+ * streamCatalog(pool, tiers, { settleMs: CATALOG_SETTLE_MS });
+ * ```
+ */
+export const CATALOG_SETTLE_MS = 3000;
+
+/**
  * How often, at most, the streamed catalogue emits while manifests pour in.
  *
  * @example
@@ -48,6 +59,8 @@ export interface LoadCatalogOptions {
   readonly timeoutMs?: number;
   /** How often the stream emits at most; {@link CATALOG_EMIT_MS} by default. */
   readonly emitMs?: number;
+  /** When an empty list is emitted if nothing has arrived; {@link CATALOG_SETTLE_MS} by default. */
+  readonly settleMs?: number;
   /** Manifests seen before, listed at once while the relays are asked for newer ones. */
   readonly cache?: (filters: Filter[]) => Promise<NostrEvent[]>;
 }
@@ -95,8 +108,9 @@ function hintsFor(event: NostrEvent, relays: readonly string[]): readonly string
  * listed, even when a relay still serves it. The list is emitted again as manifests arrive, so
  * the first relay to answer fills the store while slower ones are still
  * talking. A relay that fails contributes nothing and never discards what
- * others sent; the stream completes when every relay has finished, or at
- * the outer bound.
+ * others sent; when nothing has arrived after `settleMs` an empty list says
+ * so, and listening goes on. The stream completes when every relay has
+ * finished, or at the outer bound.
  *
  * @param pool - The shared applesauce pool.
  * @param tiers - The shell's relay tiers.
@@ -124,7 +138,9 @@ export function streamCatalog(pool: ApplesaucePool, tiers: RelayTiers, options: 
     }, { listed: [], withdrawn: new Map() }),
   );
   const listed = (state: Found): readonly CatalogEntry[] => newestEntries(state.listed.filter(({ event }) => !isWithdrawn(event, state.withdrawn)).map(({ entry }) => entry));
-  return found.pipe(auditTime(options.emitMs ?? CATALOG_EMIT_MS), map(listed));
+  const lists = found.pipe(auditTime(options.emitMs ?? CATALOG_EMIT_MS), map(listed), share());
+  const nothingYet = timer(options.settleMs ?? CATALOG_SETTLE_MS).pipe(map((): readonly CatalogEntry[] => Object.freeze([])), takeUntil(lists));
+  return merge(nothingYet, lists);
 }
 
 /**

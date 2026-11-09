@@ -323,3 +323,28 @@ Given('the fake pool serves a root catalogue manifest and a deletion of its addr
   const deletion = await author.signEvent({ kind: 5, tags: [['a', `15129:${root.pubkey}:`], ['e'], ['k', '15129']], content: '', created_at: 1_700_000_001 });
   scratch(world).pool.events = [root, deletion];
 });
+
+Given('the fake pool serves catalogue manifests {string} after {int} ms', async (world: CoreWorld, specs: string, delayMs: number) => {
+  const events = await signedManifests(specs);
+  const pool = scratch(world).pool;
+  pool.request = (() =>
+    new Observable<NostrEvent>((observer) => {
+      const timer = setTimeout(() => {
+        for (const event of events) observer.next(event);
+        observer.complete();
+      }, delayMs);
+      return () => clearTimeout(timer);
+    })) as typeof pool.request;
+});
+
+When('the catalogue is streamed, settling after {int} ms', async (world: CoreWorld, settleMs: number) => {
+  const emissions: (readonly CatalogEntry[])[] = [];
+  c(world).emissions = emissions;
+  await new Promise<void>((resolve) => {
+    streamCatalog(scratch(world).pool, createRelayTiers(scratch(world).storage), { settleMs, emitMs: 1 }).subscribe({ next: (list) => emissions.push(list), complete: resolve });
+  });
+});
+
+Then('the catalogue stream emitted {string} and then {string}', (world: CoreWorld, first: string, second: string) => {
+  expect((c(world).emissions ?? []).map((list) => describeEntries(list).join(','))).toEqual([first, second]);
+});

@@ -108,10 +108,8 @@
     <p class="shell-muted" role="status">Looking for applets…</p>
   {:else if failed}
     <p class="shell-error" role="alert">The store could not be reached. You can still paste an applet address above.</p>
-  {:else if results.length === 0 && !finished}
-    <p class="shell-muted" role="status">Looking for applets…</p>
   {:else if results.length === 0}
-    <p class="shell-muted" role="status">{convention ? 'No listed applet can do this yet.' : 'No applets match.'}</p>
+    <p class="shell-muted" role="status">{convention ? 'No listed applet can do this yet.' : 'No applets match.'}{finished ? '' : ' More may still arrive.'}</p>
   {:else}
     <ul class="shell-list results" aria-label="Applets">
       {#each results.slice(0, shown) as entry (entry.catalogId)}

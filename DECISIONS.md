@@ -449,3 +449,17 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Consequences.** `@kernlize/core` gains `@sqlite.org/sqlite-wasm` (pinned, since its versions are pre-release-shaped) and `applesauce-sqlite`, whose helpers import only `applesauce-core`. The worker is its own build entry, emitted beside the chunk that starts it by URL, and the build fails if it is not. Recovery discards the damaged cache's contents, which relays can serve again; nothing in the cache is the only copy of anything. Two tabs cache in two places. IndexedDB queries narrow by one index and filter the rest in memory, so a broad filter over a large IndexedDB cache reads more than sqlite would. Wiring the cache into `createKernl` is a separate change.
 
 **Reversal cost.** Low. The cache is additive behind one contract; dropping an adapter from `defaultWebCacheAdapters` changes the order, and not attaching a cache returns the shell to memory only.
+
+## D-031 · People are shown by the name they published; the store and profiles stream; servers are named by the role they play
+
+**Context.** The shell showed people as abbreviated keys everywhere, because nothing in it loaded profiles (kind 0) for the UI, and the one loader that did asked only the two discovery relays. The store waited a fixed eight seconds, then threw away what had arrived if any relay group failed. Settings called the account's write relays "Your connections" and every list "Server address", which read as the people you follow and gave no way to tell a message server from a file server. A relay-list consent showed `(write)` markers.
+
+**Decision.**
+
+- **Always look for kind 0.** `createProfiles` asks the lookup relays (`discovery`, then `super`) for the profile and the relay list at once; when the list names write relays the profile was not found on, it asks there (NIP-65). A card never gives up on a timer, and a late profile replaces the short key. The session label follows the account's published name. Every person in the shell is drawn through one component that does this.
+- **Stream, and bound only at the extremes.** The store emits its list as each relay answers, says "no applets match, more may still arrive" after `CATALOG_SETTLE_MS` (3 s) with nothing, and stops listening at `CATALOG_TIMEOUT_MS` (30 s). Cached manifests are listed first. A manifest its publisher deleted (kind 5) is left out.
+- **Name servers by role.** Settings has "Inbox and outbox", the account's published list (D-029), with "Inbox: where people send things to you" and "Outbox: where your posts are kept, and where others look for them", and says that pictures and applet files live on separate file servers. The shell's own lists are "People lookup", "Applet catalogue" and "General". The consent for a relay list says "Change your inbox and outbox" and lists what each side gains and loses. The word for the protocol's server still never appears (D-006).
+
+**Consequences.** Names appear wherever a key did, from cache at once and from the network as it answers. The store fills from the first relay. The `outbox` tier is no longer edited by hand; it follows the published list.
+
+**Reversal cost.** Low. Each is one module behind an interface the preview also implements.

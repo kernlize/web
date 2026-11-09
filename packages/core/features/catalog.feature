@@ -85,6 +85,11 @@ Feature: The applet store's catalogue
     When the catalogue loads from the shell's relays
     Then the catalogue lists ""
 
+  Scenario: when nothing has arrived for a while the store says so, and keeps listening
+    Given the fake pool serves catalogue manifests "late@7" after 40 ms
+    When the catalogue is streamed, settling after 10 ms
+    Then the catalogue stream emitted "" and then "late@7"
+
   Scenario: a dead relay leaves an empty store, not an error
     Given the fake pool fails requests
     When the catalogue loads from the shell's relays

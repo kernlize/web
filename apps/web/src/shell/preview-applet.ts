@@ -169,7 +169,7 @@ const ACTIONS: readonly Action[] = [
 
 const EXTRA_ACTIONS: readonly Action[] = [
   { id: 'contacts', label: 'Replace your contacts', hint: 'asks you first: it replaces who you follow', domain: 'relay' },
-  { id: 'servers', label: 'Change your servers', hint: 'asks you first: it replaces your server list', domain: 'relay' },
+  { id: 'servers', label: 'Change your inbox and outbox', hint: 'asks you first: it replaces your published inbox and outbox', domain: 'relay' },
   { id: 'vanish', label: 'Ask to erase your account', hint: 'asks you first: it cannot be undone', domain: 'relay' },
 ];
 

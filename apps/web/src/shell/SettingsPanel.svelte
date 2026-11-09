@@ -5,6 +5,7 @@
   import type { BootMode, RelayTier, ShellKernl } from './contract';
   import type { DownloadMode, ShellDownloads } from './downloads';
   import { toggleTheme } from '../lib/theme';
+  import MailboxSettings from './MailboxSettings.svelte';
   import MessagingSettings from './MessagingSettings.svelte';
   import { observe } from './observe.svelte';
   import Overlay from './Overlay.svelte';
@@ -32,31 +33,32 @@
   const tiers = observe(kernl.relays.changes$, kernl.relays.get());
   $effect(() => tiers.stop);
 
-  const TIERS: readonly { id: RelayTier; label: string; help: string }[] = [
-    { id: 'discovery', label: 'Discovery', help: 'Where the shell looks up people and their preferences.' },
+  // The outbox tier is not listed: it follows the account's published outbox, edited above (D-029).
+  const TIERS: readonly { id: Exclude<RelayTier, 'outbox'>; label: string; help: string }[] = [
+    { id: 'discovery', label: 'People lookup', help: 'Where the shell finds profiles, follow lists and other people\'s inbox and outbox.' },
     { id: 'apps', label: 'Applet catalogue', help: 'Where applets are published and verified from.' },
-    { id: 'outbox', label: 'Your connections', help: 'Where what you publish is delivered.' },
-    { id: 'super', label: 'General', help: 'Used when nothing more specific applies.' },
+    { id: 'super', label: 'General', help: 'Asked for everything else, and for anyone who has not listed their own servers.' },
   ];
 
-  let drafts = $state<Record<RelayTier, string>>({ discovery: '', apps: '', outbox: '', super: '' });
+  let drafts = $state<Record<Exclude<RelayTier, 'outbox'>, string>>({ discovery: '', apps: '', super: '' });
   let error = $state<string | null>(null);
 
-  function add(tier: RelayTier): void {
+  function add(tier: Exclude<RelayTier, 'outbox'>): void {
     error = null;
     try {
       kernl.relays.add(tier, serverAddress(drafts[tier]));
       drafts[tier] = '';
     } catch (reason) {
-      error = reason instanceof Error && reason.message.startsWith('invalid:') ? 'Enter a server address such as server.example.' : 'That server could not be added.';
+      error = reason instanceof Error && reason.message.startsWith('invalid:') ? 'Enter a server address such as nos.lol.' : 'That server could not be added.';
     }
   }
 </script>
 
 <Overlay title="Settings" {onclose} wide>
+  <MailboxSettings {kernl} {mode} />
   <section class="shell-section">
-    <h3>Network</h3>
-    <p class="shell-muted small">Four tiers, each with its own servers. The shell connects to these on your behalf; applets never do.</p>
+    <h3>How the shell finds things</h3>
+    <p class="shell-muted small">Servers the shell itself asks, on your behalf; applets never connect to anything. Your own posts go to your outbox first.</p>
     <div class="tiers">
       {#each TIERS as tier (tier.id)}
         <div class="shell-card tier">
@@ -71,7 +73,7 @@
             {/each}
           </ul>
           <form class="add" onsubmit={(event) => (event.preventDefault(), add(tier.id))}>
-            <label class="shell-field"><span>Server address</span><input class="shell-input mono" type="text" inputmode="url" autocomplete="off" spellcheck="false" bind:value={drafts[tier.id]} placeholder="server.example" /></label>
+            <label class="shell-field"><span>Add a server to {tier.label}</span><input class="shell-input mono" type="text" inputmode="url" autocomplete="off" spellcheck="false" bind:value={drafts[tier.id]} placeholder="nos.lol" /></label>
             <button type="submit" class="shell-button" disabled={!drafts[tier.id].trim()}>Add</button>
           </form>
         </div>
