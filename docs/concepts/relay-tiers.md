@@ -38,7 +38,7 @@ The same function is used everywhere the shell picks relays on its own:
 
 - kehto's relay service asks `RelayPoolHooks.selectRelayTier`, which `createRelayPoolHooks` answers with this function.
 - kernl's applesauce relay backend (`relay-backend.ts`) uses it for a subscription or query that names no relays, and for every publish, by the published event's kind. A published profile therefore goes to the discovery tier, and a published note to `super` plus `outbox`.
-- Manifest lookups (`fetchManifestEvent`) ask the relays named in the applet's address plus the whole `apps` tier.
+- Manifest lookups (`fetchManifestEvent`) ask the relays named in the applet's address plus the whole `apps` tier. One relay failing does not fail the lookup, and a relay that answers quickly with nothing does not end it before a slower one has had `MANIFEST_TIMING.patienceMs` to answer ([D-025](../decisions.md#d-025)).
 - The destructive-write consent lookup, which fetches the current version of a replaceable event before the user is asked, asks `outbox` plus `discovery`.
 
 ## Where the configuration lives

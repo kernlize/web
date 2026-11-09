@@ -114,7 +114,7 @@ Applets are ordinary NIP-5D napplets; kernl changes the posture, not the wire fo
 pnpm check
 ```
 
-That runs, in order: build, type-check, features with 100% coverage, dependency rules, docs gate, site build, public-vocabulary scan, agent-readiness audit, slop gate. `pnpm test:e2e` adds the browser suite, and `PLAYWRIGHT_BASE_URL=https://kernl.run pnpm exec playwright test` runs it against the live site. `pnpm site:publish` publishes.
+That runs, in order: build, type-check, features with 100% coverage, dependency rules, docs gate, site build, public-vocabulary scan, agent-readiness audit, slop gate. `pnpm test:e2e` adds the browser suite, which drives both the preview and the live shell; the live shell runs against relays and blob servers that exist only inside the test browser, so it needs no network. `PLAYWRIGHT_BASE_URL=https://kernl.run pnpm exec playwright test` runs the suite against the live site, and adding `KERNL_PUBLIC_NETWORK=1` also opens the published applets listed in `tests/e2e/shell-live-network.spec.ts` over the public network. `pnpm site:publish` publishes.
 
 ## How behaviour is specified
 

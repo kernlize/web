@@ -14,8 +14,9 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 
 | Reason | Package | Thrown by | Meaning |
 | --- | --- | --- | --- |
-| `invalid:pointer` | `@kernlize/core` | `decodePointer` | The input is not an `naddr`, `nevent`, `note`, 64-hex event id or coordinate. |
-| `unavailable:manifest` | `@kernlize/core` | `fetchManifestEvent`, so `Kernl.resolve` | No relay in the hints or the `apps` tier returned the manifest event. |
+| `invalid:pointer` | `@kernlize/core` | `decodePointer` | The input is not, and does not contain, an `naddr`, `nevent`, `note`, 64-hex event id or coordinate. |
+| `unavailable:manifest` | `@kernlize/core` | `fetchManifestEvent`, so `Kernl.resolve` | A relay in the hints or the `apps` tier answered, and none returned the manifest event; or there was no usable relay to ask. |
+| `unavailable:network` | `@kernlize/core` | `fetchManifestEvent`, so `Kernl.resolve` | No relay answered: every one failed, or none answered within `MANIFEST_TIMING.timeoutMs`. The applet may well exist. |
 | `unavailable:blob` | `@kernlize/core` | `defaultFetchBlob`, `resolveApplet` | No server returned the artifact bytes. kehto's `blob-unavailable` maps here. |
 | `invalid:invalid-signature`, `invalid:invalid-manifest`, `invalid:aggregate-mismatch`, `invalid:blob-hash-mismatch`, `invalid:missing-index` | `@kernlize/core` | `resolveApplet` | Verification failed. The part after `invalid:` is kehto's `NappletResolutionErrorCode`. Nothing runs. |
 | `invalid:unresolved` | `@kernlize/core` | `Kernl.plan` | The summary was not produced by this shell's `resolve`, so no verified bytes are held for it. |
