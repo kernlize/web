@@ -5,13 +5,17 @@ import { expect, test as base } from '@playwright/test';
  * applet frames included, fails the test that caused it: an effect loop or a thrown handler
  * must not hide behind assertions that happen to pass.
  */
-export const test = base.extend<{ pageErrors: string[] }>({
+export const test = base.extend<{ pageErrors: string[]; expectedConsoleErrors: readonly RegExp[] }>({
+  // A spec that takes a server down on purpose names the browser's own complaint about it here; nothing else is excused.
+  expectedConsoleErrors: [[], { option: true }],
   pageErrors: [
-    async ({ page }, use) => {
+    async ({ page, expectedConsoleErrors }, use) => {
       const errors: string[] = [];
       page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
       page.on('console', (message) => {
-        if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+        if (message.type() !== 'error') return;
+        if (expectedConsoleErrors.some((pattern) => pattern.test(message.text()))) return;
+        errors.push(`console: ${message.text()}`);
       });
       await use(errors);
       expect(errors, 'page errors and console errors').toEqual([]);
