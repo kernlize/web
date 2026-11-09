@@ -19,7 +19,7 @@ Finish interrupted work before starting new work. Never discard changes you did 
 | `packages/guard` | `@kernlize/guard` | Ingress flood control, visibility gate, focus-aware firewall, CSP profile, mitigation descriptions |
 | `packages/messaging` | `@kernlize/messaging` | Messaging provider contract, registry, composite NAP-DM adapter |
 | `packages/bridges` | `@kernlize/bridges` | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy |
-| `packages/core` | `@kernlize/core` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, persistence; layouts and the window manager, also at `@kernlize/core/wm` |
+| `packages/core` | `@kernlize/core` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, persistence; layouts and the window manager, also at `@kernlize/core/wm`; the event cache, also at `@kernlize/core/cache` |
 | `apps/web` | `@kernlize/web` | Astro site: landing at `/`, long-form pages under `/about/`, shell at `/app/` |
 | `docs` | `@kernlize/docs` | VitePress site at `/docs/` |
 | `scripts` | | Build, audit and guard scripts |

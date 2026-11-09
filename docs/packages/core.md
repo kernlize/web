@@ -7,8 +7,8 @@ Opinionated shell composition over kehto and applesauce. Browser-agnostic: the D
 | npm | `@kernlize/core` |
 | JSR | `@kernl/core` |
 | Version | `0.5.0` |
-| Entry | `./dist/index.js`, types `./dist/index.d.ts`; `@kernlize/core/wm` (`@kernl/core/wm` on JSR) is `./dist/wm/index.js`, the layouts and the window manager without the network stack; `@kernlize/core/crypto` (`@kernl/core/crypto` on JSR) is `./dist/crypto/index.js`, the Web Crypto fallback |
-| Dependencies | `@internet-privacy/marmot-ts ^0.9.0`; `@kehto/acl ^0.20.3`; `@kehto/firewall ^0.7.0`; `@kehto/nip ^0.8.0`; `@kehto/runtime ^0.28.0`; `@kehto/services ^0.30.1`; `@kehto/shell ^0.32.0`; `@kehto/wm ^0.0.2`; `@kernlize/bridges workspace:^`; `@kernlize/guard workspace:^`; `@kernlize/messaging workspace:^`; `@noble/ciphers ^2.4.0`; `@noble/curves ^2.4.0`; `@noble/hashes ^2.4.0`; `applesauce-accounts ^7.0.2`; `applesauce-common ^7.0.0`; `applesauce-core ^7.0.3`; `applesauce-loaders ^7.0.2`; `applesauce-relay ^7.0.0`; `applesauce-signers ^7.0.1`; `nostr-double-ratchet ^0.0.183`; `rxjs ^7.8.2` |
+| Entry | `./dist/index.js`, types `./dist/index.d.ts`; `@kernlize/core/wm` (`@kernl/core/wm` on JSR) is `./dist/wm/index.js`, the layouts and the window manager without the network stack; `@kernlize/core/crypto` (`@kernl/core/crypto` on JSR) is `./dist/crypto/index.js`, the Web Crypto fallback; `@kernlize/core/cache` (`@kernl/core/cache` on JSR) is `./dist/cache/index.js`, the event cache, which starts `./dist/sqlite-worker.js` |
+| Dependencies | `@internet-privacy/marmot-ts ^0.9.0`; `@kehto/acl ^0.20.3`; `@kehto/firewall ^0.7.0`; `@kehto/nip ^0.8.0`; `@kehto/runtime ^0.28.0`; `@kehto/services ^0.30.1`; `@kehto/shell ^0.32.0`; `@kehto/wm ^0.0.2`; `@kernlize/bridges workspace:^`; `@kernlize/guard workspace:^`; `@kernlize/messaging workspace:^`; `@noble/ciphers ^2.4.0`; `@noble/curves ^2.4.0`; `@noble/hashes ^2.4.0`; `@sqlite.org/sqlite-wasm 3.54.1-build1`; `applesauce-accounts ^7.0.2`; `applesauce-common ^7.0.0`; `applesauce-core ^7.0.3`; `applesauce-loaders ^7.0.2`; `applesauce-relay ^7.0.0`; `applesauce-signers ^7.0.1`; `applesauce-sqlite ^7.0.0`; `nostr-double-ratchet ^0.0.183`; `rxjs ^7.8.2` |
 | Peer dependencies | `@napplet/core >=0.38.0 <0.39.0`; `@napplet/nap >=0.37.0 <0.38.0`; `@napplet/shim >=0.30.0`; `nostr-tools >=2.23.3 <=2.x` |
 | Side effects | none |
 
@@ -339,6 +339,56 @@ installCryptoFallback(); // { randomUUID: false, subtle: false } over HTTPS
 
 The fallback `SubtleCrypto` covers SHA-1/256/384/512 digests; HMAC and Ed25519 sign and verify; AES-GCM (128-bit tag) and AES-CBC; X25519 and HKDF `deriveBits`; Ed25519 and X25519 keys in `raw`, `pkcs8` and `jwk`. Anything else rejects with `NotSupportedError`. The mount plan gives every applet frame a `randomUUID` fallback too, before its own scripts; applets do not get the `SubtleCrypto` fallback.
 
+### Event cache
+
+Everything in this section is exported from `@kernlize/core/cache` and from `@kernlize/core`. The cache keeps events between visits, through one contract with a backend per context ([D-027](../decisions.md#d-027)). It is not yet wired into `createKernl`; a host opens and attaches it.
+
+```ts
+import { EventStore } from 'applesauce-core';
+import { attachEventCache, defaultWebCacheAdapters, openEventCache } from '@kernlize/core/cache';
+
+const store = new EventStore();
+const cache = await openEventCache(defaultWebCacheAdapters(), {
+  onFallback: (name, reason) => console.info(`${name} cache skipped: ${reason}`),
+});
+const { cacheRequest, stop } = attachEventCache(store, cache);
+await cacheRequest([{ kinds: [0], limit: 1 }]); // events marked as from the cache
+stop();
+await cache.close();
+```
+
+| `EventCache` member | Behaviour |
+| --- | --- |
+| `name` | `sqlite-opfs`, `indexeddb`, `memory`, or the name a custom adapter gave. |
+| `add(events)` | Stores events. A replaceable (0, 3, 10000–19999) or addressable (30000–39999, per `d`) event is kept only if it is the newest version, the lower id winning a tie, and the older versions are removed. A kind 5 deletion is stored and removes its author's targets, by `e` id and by `a` address up to its own `created_at`; a target that arrives later is dropped. Ephemeral kinds (20000–29999) are not stored. Writes run one after another. |
+| `query(filters)` | Events matching any filter, newest first (the lower id first on a tie), each filter's `limit` applied to that filter. `ids`, `authors`, `kinds`, `since`, `until`, `limit` and single-letter `#x` tags are supported; a filter with `search` matches nothing. |
+| `removeByFilters(filters)` | Removes what `query(filters)` returns and resolves how many. |
+| `clear()`, `close()` | Removes every event; releases the backend. |
+
+| Export | Behaviour |
+| --- | --- |
+| `openEventCache(adapters, { onFallback? })` | Opens the first adapter that opens. Each one that rejects is reported as `onFallback(name, reason)`; when none opens, the cache is `memory`. Never rejects. |
+| `defaultWebCacheAdapters()` | `[sqlite-opfs, indexeddb, memory]` with default options. |
+| `createMemoryCacheAdapter()` | applesauce's `EventMemory`, gone when the page closes. Always opens. |
+| `createIndexedDbCacheAdapter({ name?, indexedDB? })` | One object store keyed by id in the database `name` (default `kernl-events`), with indexes on kind, author, time and `name:value` tags. Rejects `unavailable:indexeddb` without a factory, and `unavailable:indexeddb (<error name>)` when the factory refuses, for example a database from a newer version. A write the browser aborts rejects `unavailable:indexeddb (aborted)`. |
+| `createSqliteOpfsCacheAdapter(options?)` | sqlite-wasm on the OPFS SAH pool VFS, in a dedicated worker, with applesauce-sqlite's schema. Options below. |
+| `fromEventDatabase(name, database, close?)` | Any applesauce `IEventDatabase` or `IAsyncEventDatabase` as a cache, with the rules above applied on top; `close` is called when the cache is closed. See [Add a cache backend](../how-tos/add-a-cache-backend.md). |
+| `createEventCache(name, records)` | The rules layer over an `EventRecords` (`put`, `query` for one filter, `remove` by id, `clear`, `close`), for a backend that is not an applesauce database. |
+| `attachEventCache(store, cache, { batchTime?, maxBatchSize? })` | Writes the store's new events in batches through applesauce's `persistEventsToCache` (default every 5 s), skipping events from the cache. `cacheRequest(filters)` is a loader `cacheRequest`: it marks what it returns with `markFromCache` and resolves `[]` when the cache rejects. `stop()` ends the writes. |
+| `isCorruptionError(error)` | True for `SQLITE_CORRUPT`, `SQLITE_NOTADB`, `database disk image is malformed` and `file is not a database`. |
+
+| `SqliteOpfsOptions` | Default | Meaning |
+| --- | --- | --- |
+| `filename` | `/kernl-events.sqlite3` | The database in the SAH pool. A rotation moves to `/kernl-events-1.sqlite3`, `/kernl-events-2.sqlite3`, … |
+| `storage` | `globalThis.localStorage` | Keeps the current filename at `kernl:event-cache:v1` after a rotation. |
+| `locks` | `navigator.locks` | Guards the database. Another tab holding it makes `open` reject `unavailable:locked`. Without a lock manager, the SAH pool's own exclusive handles are the only guard. |
+| `connect` | a module worker at `./sqlite-worker.js` | Opens the database files: a `SqliteFiles` (`open(filename)` to a `SqliteDriver` of `exec`, `query`, `close`; `wipe(filename)`; `close()`). Rejects `unavailable:opfs` where the page has no `Worker` or no `navigator.storage.getDirectory`. |
+| `onRecover` | none | Told `{ action, reason }` for each repair: `wiped`, `rotated` or `disabled`. |
+
+`open` rejects `unavailable:opfs (…)` when the worker cannot install the SAH pool, `unavailable:worker (…)` when the worker fails, `unavailable:locked`, `unavailable:corrupt` when every repair failed, and `unavailable:sqlite (…)` for any other failure to open. How the cache repairs a damaged database is in [Persistence](../concepts/persistence.md#events-kept-between-visits).
+
+The worker is `dist/sqlite-worker.js`, started with `new Worker(new URL('./sqlite-worker.js', import.meta.url), { type: 'module' })` beside the chunk that starts it; Vite and other bundlers that understand that form bundle it. Exclude `@sqlite.org/sqlite-wasm` from the bundler's dependency pre-bundling so its `sqlite3.wasm` resolves next to it.
+
 ## Exports
 
 Signatures are abbreviated; the generated reference has the full ones.
@@ -485,6 +535,19 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `DefaultMessagingOptions`, `DefaultBridgesOptions`, `LayoutOptions`, `MasterStackOptions`, `NamespacedStore` | types | |
 | `LayoutChoice`, `LayoutEntry`, `LayoutRegistry`, `ManagedWindow`, `VisibilityTarget`, `WindowManager`, `WindowManagerOptions`, `WindowManagerState`, `WindowSize` | types | The window-management surface. |
 | `LayoutStrategy`, `Rect`, `WindowPlacement`, `WindowState` | types | Re-exported from `@kehto/wm`, so a layout can be written against one import. |
+
+### Event cache
+
+| Export | Signature | Description |
+| --- | --- | --- |
+| `openEventCache` | `(adapters: readonly EventCacheAdapter[], options?: OpenEventCacheOptions) => Promise<EventCache>` | The first adapter that opens, or memory. Also on `@kernlize/core/cache`, like everything in this table. |
+| `defaultWebCacheAdapters` | `() => readonly EventCacheAdapter[]` | `[sqlite-opfs, indexeddb, memory]`. |
+| `createMemoryCacheAdapter`, `createIndexedDbCacheAdapter`, `createSqliteOpfsCacheAdapter` | `() => EventCacheAdapter`, `(options?: IndexedDbCacheOptions) => EventCacheAdapter`, `(options?: SqliteOpfsOptions) => EventCacheAdapter` | The three web backends. |
+| `fromEventDatabase` | `(name: string, database: IAsyncEventDatabase \| IEventDatabase, close?: () => Promise<void> \| void) => EventCache` | Any applesauce event database as a cache. |
+| `createEventCache` | `(name: string, records: EventRecords) => EventCache` | The shared rules over a backend's rows. |
+| `attachEventCache` | `(store: Pick<IEventStoreStreams, 'insert$'>, cache: EventCache, options?: AttachEventCacheOptions) => AttachedEventCache` | Writes and `cacheRequest` for loaders. |
+| `isCorruptionError` | `(error: unknown) => boolean` | Whether a sqlite error means a damaged file. |
+| `EventCache`, `EventCacheAdapter`, `EventRecords`, `OpenEventCacheOptions`, `IndexedDbCacheOptions`, `SqliteOpfsOptions`, `AttachEventCacheOptions`, `AttachedEventCache`, `CacheRecoveryEvent`, `SqliteDriver`, `SqliteFiles`, `SqlStatement`, `SqlValue`, `LockManagerLike`, `FilenameStorage` | types | |
 
 ## Scope
 
