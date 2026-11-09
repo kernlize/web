@@ -163,6 +163,28 @@ function linkNodeModules(repo, dir) {
   }
 }
 
+/**
+ * Map every specifier a sample may import from the workspace to its source: each package's root, and
+ * each subpath its manifest exports, such as `@kernlize/core/wm`.
+ * @param {string} packagesDir Absolute path of the `packages/` directory.
+ * @returns {Record<string, string[]>} TypeScript `paths`, one source file per specifier.
+ * @example
+ * samplePaths('/repo/packages')['@kernlize/core/wm']; // ['/repo/packages/core/src/wm/index.ts']
+ */
+export function samplePaths(packagesDir) {
+  const entries = [];
+  for (const slug of readdirSync(packagesDir).sort()) {
+    const source = join(packagesDir, slug, 'src');
+    if (!existsSync(join(source, 'index.ts'))) continue;
+    const manifest = JSON.parse(readFileSync(join(packagesDir, slug, 'package.json'), 'utf8'));
+    for (const key of Object.keys(manifest.exports ?? { '.': {} })) {
+      const subpath = key.replace(/^\.\/?/, '');
+      entries.push([['@kernlize', slug, subpath].filter(Boolean).join('/'), [join(source, subpath, 'index.ts')]]);
+    }
+  }
+  return Object.fromEntries(entries);
+}
+
 const HEADER = 'export {};\n';
 
 async function main() {
@@ -187,11 +209,7 @@ async function main() {
       byModule.set(name, sample);
       writeFileSync(join(dir, name), `${HEADER}${sample.code}\n`);
     }
-    const paths = Object.fromEntries(
-      readdirSync(join(repo, 'packages'))
-        .filter((slug) => existsSync(join(repo, 'packages', slug, 'src', 'index.ts')))
-        .map((slug) => [`@kernlize/${slug}`, [join(repo, 'packages', slug, 'src', 'index.ts')]]),
-    );
+    const paths = samplePaths(join(repo, 'packages'));
     const tsconfig = {
       extends: join(repo, 'tsconfig.base.json'),
       // A consumer's settings, not the packages' own: applesauce's account classes are not clean under exactOptionalPropertyTypes.

@@ -10,6 +10,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./wm": {
+      "types": "./dist/wm/index.d.ts",
+      "import": "./dist/wm/index.js"
     }
   },
   "files": [

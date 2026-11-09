@@ -69,3 +69,20 @@ Feature: Window layouts
     Given no window is shown
     When the shell arranges with the master-stack layout using defaults
     Then there are no placements
+
+  Scenario: a margin of its own leaves the container edge bare
+    When the shell arranges with the dwindle layout, a gap of 8 and a margin of 0
+    Then the placements are:
+      | id | x   | y   | w   | h   |
+      | a  | 0   | 0   | 596 | 800 |
+      | b  | 604 | 0   | 596 | 396 |
+      | d  | 604 | 404 | 596 | 396 |
+
+  Scenario: neighbours share an edge exactly when the space does not divide evenly
+    Given a container of 1001 by 601 at 0,0
+    When the shell arranges with the columns layout using defaults
+    Then the placements are:
+      | id | x   | y | w   | h   |
+      | a  | 0   | 0 | 334 | 601 |
+      | b  | 334 | 0 | 333 | 601 |
+      | d  | 667 | 0 | 334 | 601 |
