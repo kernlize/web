@@ -1,188 +1,139 @@
-/* global $state, $derived, $effect */
+/* global $state, $derived */
+import type { LayoutChoice, ManagedWindow, Rect, WindowManager, WindowManagerState } from '@kernlize/core/wm';
 import type { WindowVisibility } from '@kernlize/guard';
 import type { AppletHandle, AppletStatus, FrameLike, MountPlan } from './contract';
-import { DEFAULT_WINDOW_SIZE, LAYOUT_KEY } from './contract';
-import { cascade, clampRect, dwindle, type Rect } from './layout';
+import { frameRect, layoutAfter } from './windows';
 
-export type LayoutMode = 'floating' | 'tiled';
+/** A window as the shell draws it: where the manager put it, and the applet inside. */
+export interface ShellWindow extends ManagedWindow {
+  readonly plan: MountPlan;
+  readonly status: AppletStatus;
+  /** Why the applet was stopped, in plain words. */
+  readonly revoked?: string;
+}
 
-export const TITLE_BAR_HEIGHT = 36;
-/** At or below this desktop width every window fills the desktop; the topmost one shows. */
-export const COMPACT_WIDTH = 720;
-
-export interface ShellWindow {
+interface Applet {
   readonly id: string;
   readonly plan: MountPlan;
-  rect: Rect;
-  z: number;
-  minimised: boolean;
-  status: AppletStatus;
-  revoked?: string;
-  handle?: AppletHandle;
-  focusGainedAt?: number;
+  readonly status: AppletStatus;
+  readonly revoked?: string;
 }
 
 type Mount = (plan: MountPlan, frame: FrameLike) => AppletHandle;
 
-function readLayout(): LayoutMode {
-  try {
-    return localStorage.getItem(LAYOUT_KEY) === 'tiled' ? 'tiled' : 'floating';
-  } catch {
-    return 'floating';
-  }
-}
-
 /**
- * Every open applet window. The array order is the opening order and never
- * changes while a window lives: the iframe layer keys on it, and a reordered
- * iframe node would reload the applet.
+ * The shell's side of its windows: which applet is in each, and the manager's latest state as
+ * something Svelte can draw from. Where windows go, which is focused and what the guard is told
+ * are the `WindowManager`'s business (D-022); this store only passes the person's actions on.
  */
 export class WindowStore {
-  windows = $state<ShellWindow[]>([]);
-  layout = $state<LayoutMode>(readLayout());
-  focusedId = $state<string | null>(null);
-  area = $state<Rect>({ x: 0, y: 0, width: 1280, height: 800 });
+  readonly manager: WindowManager;
   dragging = $state(false);
-  pageVisible = $state(true);
-  #nextZ = 1;
-  #onVisibility: (window: ShellWindow, visibility: WindowVisibility) => void = (window, visibility) =>
-    window.handle?.setVisibility(visibility);
+  #state: WindowManagerState;
+  #applets = $state.raw<readonly Applet[]>([]);
+  readonly #handles = new Map<string, AppletHandle>();
 
-  readonly visible = $derived(this.windows.filter((window) => !window.minimised && !window.revoked));
-  readonly tiles = $derived(dwindle(this.area, this.visible.length));
-  readonly compact = $derived(this.area.width <= COMPACT_WIDTH);
+  /** Every window in opening order. The order never changes while a window lives: a reordered iframe node would reload its applet. */
+  readonly windows: readonly ShellWindow[];
+  readonly layout: LayoutChoice;
+  /** The layout the bar's control switches to next. */
+  readonly nextLayout: LayoutChoice;
+  /** False when the manager offers a single layout, and the bar has nothing to switch to. */
+  readonly canSwitchLayout: boolean;
+  readonly compact: boolean;
+  /** Whether the person may drag and resize windows now. */
+  readonly freeform: boolean;
+
+  constructor(manager: WindowManager) {
+    this.manager = manager;
+    this.#state = $state.raw(manager.snapshot());
+    this.windows = $derived(
+      this.#state.windows.flatMap((placed) => {
+        const applet = this.#applets.find((item) => item.id === placed.id);
+        return applet ? [{ ...placed, ...applet }] : [];
+      }),
+    );
+    this.layout = $derived(this.#state.layout);
+    this.nextLayout = $derived(layoutAfter(manager.layouts(), this.#state.layout.id) ?? this.#state.layout);
+    this.canSwitchLayout = $derived(this.nextLayout.id !== this.layout.id);
+    this.compact = $derived(this.#state.compact);
+    this.freeform = $derived(this.#state.freeform);
+    manager.state$.subscribe((state) => {
+      this.#state = state;
+    });
+  }
 
   get(id: string): ShellWindow | undefined {
     return this.windows.find((window) => window.id === id);
   }
 
-  /** The chrome rectangle: the whole desktop on narrow screens, else floating or tiled. */
-  rectOf(window: ShellWindow): Rect {
-    if (this.compact) return this.area;
-    if (this.layout === 'floating') return window.rect;
-    const index = this.visible.indexOf(window);
-    return this.tiles[index] ?? window.rect;
-  }
-
-  /** Where the iframe sits: the chrome rectangle minus its title bar. */
+  /** Where the iframe sits: the window's rectangle minus its title bar. */
   frameRectOf(window: ShellWindow): Rect {
-    const rect = this.rectOf(window);
-    return { x: rect.x, y: rect.y + TITLE_BAR_HEIGHT, width: rect.width, height: Math.max(0, rect.height - TITLE_BAR_HEIGHT) };
+    return frameRect(window.rect);
   }
 
   visibilityOf(id: string): WindowVisibility {
-    const window = this.get(id);
-    const visible = Boolean(window) && this.pageVisible && !window!.minimised && !window!.revoked;
-    const focused = visible && this.focusedId === id;
-    const since = window?.focusGainedAt;
-    return focused && since !== undefined ? { visible, focused, msSinceFocusGain: Date.now() - since } : { visible, focused };
+    return this.manager.visibilityOf(id);
   }
 
-  open(plan: MountPlan): ShellWindow {
-    const window: ShellWindow = {
-      id: plan.windowId,
-      plan,
-      rect: cascade(this.windows.length, this.area, DEFAULT_WINDOW_SIZE),
-      z: this.#nextZ++,
-      minimised: false,
-      status: 'mounting',
-    };
-    this.windows.push(window);
-    this.focus(window.id);
-    return window;
+  open(plan: MountPlan): void {
+    this.#applets = [...this.#applets, { id: plan.windowId, plan, status: 'mounting' }];
+    this.manager.open(plan.windowId);
   }
 
-  /** Called once by the iframe layer when the frame element exists. */
+  /** Called by the iframe layer when the frame element exists. Mounts once per window, however often it is called. */
   attach(id: string, frame: FrameLike, mount: Mount): void {
-    const window = this.get(id);
-    if (!window || window.handle) return;
-    const handle = mount(window.plan, frame);
-    window.handle = handle;
-    handle.status$.subscribe((status) => {
-      const current = this.get(id);
-      if (current) current.status = status;
-    });
-    this.#publish(window);
+    const applet = this.#applets.find((item) => item.id === id);
+    if (!applet || this.#handles.has(id)) return;
+    const handle = mount(applet.plan, frame);
+    this.#handles.set(id, handle);
+    handle.status$.subscribe((status) => this.#update(id, { status }));
+    this.manager.attach(id, handle);
   }
 
   focus(id: string): void {
-    const window = this.get(id);
-    if (!window || window.revoked) return;
-    const previous = this.focusedId;
-    if (window.minimised) window.minimised = false;
-    if (previous !== id) {
-      window.focusGainedAt = Date.now();
-      this.focusedId = id;
-    }
-    window.z = this.#nextZ++;
-    this.#publishAll();
+    this.manager.focus(id);
   }
 
   /** The user is working in the chrome; no applet holds focus. */
   blur(): void {
-    if (this.focusedId === null) return;
-    this.focusedId = null;
-    this.#publishAll();
+    this.manager.blur();
   }
 
   minimise(id: string): void {
-    const window = this.get(id);
-    if (!window) return;
-    window.minimised = true;
-    if (this.focusedId === id) this.focusedId = this.topmost()?.id ?? null;
-    this.#publishAll();
+    this.manager.minimise(id);
   }
 
   move(id: string, rect: Rect): void {
-    const window = this.get(id);
-    if (window) window.rect = clampRect(rect, this.area);
+    this.manager.move(id, rect);
   }
 
   close(id: string): void {
-    const window = this.get(id);
-    if (!window) return;
-    window.handle?.close();
-    this.windows = this.windows.filter((item) => item.id !== id);
-    if (this.focusedId === id) this.focusedId = this.topmost()?.id ?? null;
-    this.#publishAll();
+    this.#handles.get(id)?.close();
+    this.#handles.delete(id);
+    this.#applets = this.#applets.filter((item) => item.id !== id);
+    this.manager.close(id);
   }
 
   markRevoked(id: string, reason: string): void {
-    const window = this.get(id);
-    if (!window) return;
-    window.revoked = reason;
-    window.status = 'revoked';
-    if (this.focusedId === id) this.focusedId = this.topmost()?.id ?? null;
+    this.#handles.delete(id);
+    this.#update(id, { revoked: reason, status: 'revoked' });
+    this.manager.stop(id);
   }
 
-  setLayout(layout: LayoutMode): void {
-    this.layout = layout;
-    try {
-      localStorage.setItem(LAYOUT_KEY, layout);
-    } catch {
-      // Private windows refuse storage; the layout still applies to this page.
-    }
+  setLayout(id: string): void {
+    this.manager.setLayout(id);
   }
 
   setArea(area: Rect): void {
-    this.area = area;
-    for (const window of this.windows) window.rect = clampRect(window.rect, area);
+    this.manager.setArea(area);
   }
 
   setPageVisible(visible: boolean): void {
-    this.pageVisible = visible;
-    this.#publishAll();
+    this.manager.setPageVisible(visible);
   }
 
-  topmost(): ShellWindow | undefined {
-    return this.visible.reduce<ShellWindow | undefined>((best, window) => (best && best.z > window.z ? best : window), undefined);
-  }
-
-  #publish(window: ShellWindow): void {
-    this.#onVisibility(window, this.visibilityOf(window.id));
-  }
-
-  #publishAll(): void {
-    for (const window of this.windows) this.#publish(window);
+  #update(id: string, change: Partial<Pick<Applet, 'status' | 'revoked'>>): void {
+    this.#applets = this.#applets.map((item) => (item.id === id ? { ...item, ...change } : item));
   }
 }

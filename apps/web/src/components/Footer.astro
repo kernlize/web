@@ -1,5 +1,5 @@
 ---
-import { DECISIONS_URL, href, TOOLKIT_URL } from '../lib/site';
+import { ABOUT, DECISIONS_URL, href, TOOLKIT_URL } from '../lib/site';
 ---
 
 <footer class="site-footer">
@@ -10,6 +10,7 @@ import { DECISIONS_URL, href, TOOLKIT_URL } from '../lib/site';
     </div>
     <nav aria-label="Footer">
       <ul>
+        <li><a href={href(ABOUT)}>About</a></li>
         <li><a href={href('docs/')}>Documentation</a></li>
         <li><a href={DECISIONS_URL}>Decisions</a></li>
         <li><a href={TOOLKIT_URL}>kehto toolkit</a></li>

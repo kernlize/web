@@ -11,6 +11,8 @@ export default defineConfig({
       '@kernlize/guard': pkg('guard'),
       '@kernlize/messaging': pkg('messaging'),
       '@kernlize/bridges': pkg('bridges'),
+      // The subpath comes first: a string alias also matches as a path prefix.
+      '@kernlize/core/wm': pkg('core', 'wm/index.ts'),
       '@kernlize/core': pkg('core'),
     },
   },

@@ -6,9 +6,22 @@
 
   const { kernl, windows }: { kernl: ShellKernl; windows: WindowStore } = $props();
 
-  /** Mount exactly once per frame node. The node is never moved: moving an iframe reloads it. */
-  const attachFrame = (id: string): Attachment<HTMLIFrameElement> => (frame) => {
-    untrack(() => windows.attach(id, frame, (plan, element) => kernl.mount(plan, element)));
+  const attachments = new Map<string, Attachment<HTMLIFrameElement>>();
+
+  /**
+   * Mount exactly once per frame node. The node is never moved: moving an iframe reloads it. One
+   * attachment is kept per window, so a redraw of the list hands Svelte the same function and it
+   * does not run again.
+   */
+  const attachFrame = (id: string): Attachment<HTMLIFrameElement> => {
+    const known = attachments.get(id);
+    if (known) return known;
+    const attachment: Attachment<HTMLIFrameElement> = (frame) => {
+      untrack(() => windows.attach(id, frame, (plan, element) => kernl.mount(plan, element)));
+      return () => attachments.delete(id);
+    };
+    attachments.set(id, attachment);
+    return attachment;
   };
 
   /** Clicking inside an iframe never reaches the shell; the focus change does. */
@@ -25,15 +38,15 @@
 <div class="frames">
   {#each windows.windows as win (win.id)}
     {@const rect = windows.frameRectOf(win)}
-    {@const shown = !win.minimised && !win.revoked}
+    {@const shown = !win.minimised && !win.stopped}
     <iframe
       title="{win.plan.summary.title} applet"
       sandbox="allow-scripts"
       data-window-id={win.id}
       style:left="{rect.x}px"
       style:top="{rect.y}px"
-      style:width="{rect.width}px"
-      style:height="{rect.height}px"
+      style:width="{rect.w}px"
+      style:height="{rect.h}px"
       style:z-index={win.z * 2 + 1}
       style:visibility={shown ? 'visible' : 'hidden'}
       style:pointer-events={windows.dragging ? 'none' : 'auto'}

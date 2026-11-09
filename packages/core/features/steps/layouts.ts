@@ -45,6 +45,10 @@ When('the shell arranges with the dwindle layout and a gap of {int}', (world: Co
   arrange(world, createDwindleLayout({ gap }));
 });
 
+When('the shell arranges with the dwindle layout, a gap of {int} and a margin of {int}', (world: CoreWorld, gap: number, margin: number) => {
+  arrange(world, createDwindleLayout({ gap, margin }));
+});
+
 When('the shell arranges with the columns layout using defaults', (world: CoreWorld) => {
   arrange(world, createColumnsLayout());
 });

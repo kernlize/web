@@ -7,7 +7,7 @@ import { expectClean } from './vocabulary';
 // shows servers by a display name and keeps pairing codes out of the page (QR and clipboard only).
 // The live shell, with its real default servers, is walked in public-vocabulary-live.spec.ts.
 
-for (const path of ['/', '/why/', '/guard/', '/messaging/', '/bridges/', '/developers/', '/app/']) {
+for (const path of ['/', '/about/', '/about/why/', '/about/guard/', '/about/messaging/', '/about/bridges/', '/about/developers/', '/app/']) {
   test(`${path} names no protocol`, async ({ page }) => {
     await page.goto(path);
     await page.waitForLoadState('networkidle');

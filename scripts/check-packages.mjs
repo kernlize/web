@@ -29,11 +29,15 @@ try {
   }
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
   run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', ...tarballs], dir);
-  const names = tarballs.map((path) => JSON.parse(run('tar', ['-xOf', path, 'package/package.json'])).name);
+  // Every entry a manifest exports is imported, so a subpath such as `@kernlize/core/wm` is checked like the root.
+  const names = tarballs.flatMap((path) => {
+    const packed = JSON.parse(run('tar', ['-xOf', path, 'package/package.json']));
+    return Object.keys(packed.exports).map((key) => join(packed.name, key).replaceAll('\\', '/'));
+  });
   run(process.execPath, ['--input-type=module', '-e', `await Promise.all(${JSON.stringify(names)}.map((name) => import(name)))`], dir);
   writeFileSync(join(dir, 'consumer.ts'), names.map((name, index) => `import * as pkg${index} from '${name}';\nconsole.log(pkg${index});`).join('\n'));
   run(process.execPath, [join(root, 'node_modules/typescript/bin/tsc'), '--noEmit', '--strict', '--skipLibCheck', '--module', 'NodeNext', '--target', 'ES2022', 'consumer.ts'], dir);
-  console.log(`[check-packages] ${names.length} tarballs installed, imported and type-checked outside the workspace`);
+  console.log(`[check-packages] ${tarballs.length} tarballs installed; ${names.length} entries imported and type-checked outside the workspace`);
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }

@@ -1,0 +1,231 @@
+---
+import Site from '../../layouts/Site.astro';
+import HeroFigure from '../../components/HeroFigure.astro';
+import OpenApplet from '../../components/OpenApplet.astro';
+import { ABOUT, DECISIONS_URL, href } from '../../lib/site';
+
+const description =
+  'What kernl is: what an applet gets in its sealed window, the five opinions behind the shell, where the alpha stands, what it costs, and the questions asked most.';
+
+const faq = [
+  {
+    q: 'What is an applet?',
+    a: 'A small, self-contained program published as a single verified file. kernl checks its content hash before it runs and gives it a sealed window with no network of its own.',
+  },
+  {
+    q: 'What can an applet see?',
+    a: 'Only what you grant, for as long as you grant it. By default it sees your theme, its own storage and which account is signed in. Network access, messages, notifications and files are each a separate grant you can take back.',
+  },
+  {
+    q: 'Does kernl hold my keys?',
+    a: 'No applet ever does. You can sign in with a browser extension or a remote signer so your key never enters the shell, or create a local account whose key is encrypted with a password you choose.',
+  },
+  {
+    q: 'What does kernl cost?',
+    a: 'Nothing. kernl is free, with no account to buy and no paid tier. It is MIT licensed; the source is private during alpha and opens with the first public release.',
+  },
+  {
+    q: 'Can I try it without signing in?',
+    a: 'Yes. The preview runs the whole shell in your browser with a small store of applets and a throwaway account. Nothing leaves the tab.',
+  },
+  {
+    q: 'Is it ready for daily use?',
+    a: 'Not yet. kernl is alpha software. The sandbox and the guard work. Private, legacy and ratchet messages work once you sign in with an account that can encrypt, such as a browser extension, a remote signer or a local account; ratchet sessions are experimental. Downloads, sharing and mail work by handing off to an app on your device, after the shell asks you; in-shell backends are planned.',
+  },
+];
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faq.map((item) => ({ '@type': 'Question', name: item.q, acceptedAnswer: { '@type': 'Answer', text: item.a } })),
+  },
+];
+---
+
+<Site title="About" description={description} jsonLd={jsonLd}>
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <p class="label">A shell for applets · alpha</p>
+        <h1 id="hero-title">Run things you don't have to trust.</h1>
+        <p class="lede">
+          kernl runs small, self-contained applets in a sealed sandbox. <strong>Your identity, contacts, messages and files are yours</strong> and travel with you. An applet borrows them only with your say-so, and only while you watch.
+        </p>
+        <div class="open">
+          <OpenApplet />
+        </div>
+      </div>
+      <HeroFigure />
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="gets-title">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="label">What an applet gets</p>
+        <h2 id="gets-title">A window, a loan, and a line it cannot cross alone.</h2>
+      </div>
+      <div class="grid cols-3">
+        <article class="card reveal">
+          <p class="label">Sealed</p>
+          <h3>A window of its own</h3>
+          <p>Each applet runs in a sealed frame with no address of its own and no way to call out, and it cannot open a frame of its own inside it. It can draw and compute; it cannot reach anything you did not hand it.</p>
+        </article>
+        <article class="card reveal">
+          <p class="label">Borrowed</p>
+          <h3>Your things, on loan</h3>
+          <p>Contacts, messages, files and your account are read by the shell on the applet's behalf. A grant is something you gave and can take back, and the shell shows what each one changes.</p>
+        </article>
+        <article class="card reveal">
+          <p class="label">Watched</p>
+          <h3>A network it reaches through you</h3>
+          <p>Everything an applet sends or fetches goes through the shell. The guard shows you what it holds, refuses or quarantines, including refusals made deeper inside the shell. You can block an applet, take back any grant, or make the guard stricter for the whole shell, at any time.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="opinions-title">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="label">Five opinions</p>
+        <h2 id="opinions-title">kernl is opinionated so you don't have to be.</h2>
+        <p class="lede">It is built on <a href="https://github.com/kehto/web">kehto</a>, an open toolkit that leaves every choice open. kernl makes the choices, in your favour, and writes down why.</p>
+      </div>
+      <ol class="steps reveal">
+        <li><h3>Everything in one place, reached one way</h3><p>One store, one connection, one account manager. There is no second copy of your world for an applet to get at.</p></li>
+        <li><h3>The shell empowers you and contains the applet</h3><p>Those are its only two jobs, in that order.</p></li>
+        <li><h3>Protections are on by default</h3><p>The shell starts strict on every visit. Only you can ease it, for the whole shell until you reload; easing one applet at a time is planned. A developer flag never can.</p></li>
+        <li><h3>One account, many networks, no brand names</h3><p>Downloads, sharing and mail plug in as bridges named by what they do for you.</p></li>
+        <li><h3>No private-messaging system is "the best"</h3><p>The shell describes each provider truthfully and lets you choose the one your correspondent can read.</p></li>
+        <li><h3>Applets ask for a job, you pick who does it</h3><p>Find applets in the store by name or topic, or paste an address. When one applet wants a profile opened or a note edited, it asks for the job, not another applet, and you choose which applet does it, once or always.</p></li>
+      </ol>
+      <p class="after"><a class="button" href={href(`${ABOUT}why/`)}>Read the five opinions</a></p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="honest-title">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="label">Where it stands</p>
+        <h2 id="honest-title">Alpha, and said so.</h2>
+      </div>
+      <div class="grid cols-2 reveal">
+        <div class="note">
+          <p>kernl is alpha software. The sandbox and the guard work today. Private, legacy and ratchet messages work when your account can encrypt; ratchet sessions are experimental. Downloads, sharing and mail work by handing off to an app on your device; in-shell backends are planned. The shell shows anything it cannot do as unavailable rather than pretending.</p>
+        </div>
+        <div>
+          <p>Applets are verified by content hash before they run and re-checked on every read from cache. If the bytes change, the applet's grants die with them.</p>
+          <p><a class="button" href={href(`${ABOUT}developers/`)}>Build on it</a> <a class="button" href={DECISIONS_URL}>Read the decisions</a></p>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="section" aria-labelledby="cost-title">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="label">What it costs</p>
+        <h2 id="cost-title">Free. $0, no tier, no catch.</h2>
+      </div>
+      <div class="grid cols-3 reveal">
+        <div class="card"><p class="label">Price</p><h3>$0</h3><p>No subscription and no paid features. The whole shell is the free version.</p></div>
+        <div class="card"><p class="label">Licence</p><h3>MIT</h3><p>The source is private during alpha and opens under the MIT licence with the first public release. The decisions behind it are public now.</p></div>
+        <div class="card"><p class="label">To try it</p><h3>No sign-up</h3><p><a href={href('app/?preview=1')}>Open the preview</a> and use the shell with a small store of applets, entirely in your browser.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="faq-title">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="label">Questions</p>
+        <h2 id="faq-title">Asked often, answered plainly.</h2>
+      </div>
+      <div class="faq reveal">
+        {faq.map((item) => (
+          <details>
+            <summary><h3>{item.q}</h3></summary>
+            <p>{item.a}</p>
+          </details>
+        ))}
+      </div>
+    </div>
+  </section>
+</Site>
+
+<style>
+  .faq {
+    display: grid;
+    gap: 0;
+    max-width: 48rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .faq details {
+    border-bottom: 1px solid var(--line);
+    padding-block: 1.1rem;
+  }
+
+  .faq summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .faq summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .faq summary::after {
+    content: '+';
+    font-family: var(--font-mono);
+    color: var(--accent);
+  }
+
+  .faq details[open] summary::after {
+    content: '−';
+  }
+
+  .faq summary h3 {
+    margin: 0;
+    font-size: 1.15rem;
+  }
+
+  .faq details p {
+    margin: 0.75rem 0 0;
+    color: var(--ink-muted);
+    max-width: 42rem;
+  }
+
+  .hero {
+    padding-block: clamp(3rem, 8vw, 7rem) clamp(3rem, 6vw, 5rem);
+  }
+
+  .hero-grid {
+    display: grid;
+    gap: 2.5rem;
+    align-items: center;
+  }
+
+  @media (min-width: 960px) {
+    .hero-grid {
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+      gap: 4rem;
+    }
+  }
+
+  .hero-copy .label {
+    margin-bottom: 1.25rem;
+  }
+
+  .open {
+    margin-top: 2rem;
+  }
+
+  .after {
+    margin-top: 2rem;
+  }
+</style>

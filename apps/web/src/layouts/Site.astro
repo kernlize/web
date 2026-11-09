@@ -1,8 +1,11 @@
 ---
 import '../styles/global.css';
 import '../styles/site-menu.css';
+import '../styles/motion.css';
+import { ClientRouter } from 'astro:transitions';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import Stage from '../components/Stage.astro';
 import { absoluteUrl, href, markdownTwin, SITE_NAME } from '../lib/site';
 
 interface Props {
@@ -20,7 +23,7 @@ const fullTitle = title === SITE_NAME ? `${SITE_NAME} · a shell for applets you
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" transition:animate="none">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -54,23 +57,36 @@ const fullTitle = title === SITE_NAME ? `${SITE_NAME} · a shell for applets you
     />
     {jsonLd.map((item) => <script type="application/ld+json" set:html={JSON.stringify(item)} />)}
     <script is:inline>
-      document.documentElement.classList.add('js');
-      try {
-        const stored = localStorage.getItem('kernl-theme');
-        if (stored === 'light' || stored === 'dark') document.documentElement.dataset.theme = stored;
-      } catch {}
+      (() => {
+        const root = document.documentElement;
+        let hiding = true;
+        const apply = () => {
+          if (hiding) root.classList.add('js');
+          try {
+            const stored = localStorage.getItem('kernl-theme');
+            if (stored === 'light' || stored === 'dark') root.dataset.theme = stored;
+          } catch {}
+        };
+        apply();
+        // A page transition replaces the root element's attributes; this puts ours back before the next paint.
+        document.addEventListener('astro:after-swap', apply);
+        // Reveals start hidden. If the script that shows them never arrives, stop hiding them.
+        const giveUp = setTimeout(() => {
+          hiding = false;
+          root.classList.remove('js');
+        }, 4000);
+        document.addEventListener('kernl:motion', () => clearTimeout(giveUp), { once: true });
+      })();
     </script>
+    {!bare && <ClientRouter fallback="swap" />}
   </head>
   <body>
+    {!bare && <Stage />}
     <a class="skip-link" href="#content">Skip to content</a>
     <Header pathname={pathname} />
     <main id="content">
       <slot />
     </main>
     {!bare && <Footer />}
-    <script>
-      import { startReveal } from '../lib/reveal';
-      startReveal();
-    </script>
   </body>
 </html>

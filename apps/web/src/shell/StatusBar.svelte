@@ -23,7 +23,6 @@
   let menuOpen = $state(false);
   let accountOpen = $state(false);
   const minimised = $derived(windows.windows.filter((win) => win.minimised));
-  const otherLayout = $derived(windows.layout === 'floating' ? 'tiled' : 'floating');
   const windowCount = $derived(`${windows.windows.length} ${windows.windows.length === 1 ? 'window' : 'windows'}`);
 
   $effect(() => {
@@ -76,7 +75,11 @@
         {@render guardButton()}
         {@render messagesButton()}
         {@render downloadsButton()}
-        <button type="button" class="shell-button quiet" onclick={() => choose(() => windows.setLayout(otherLayout))}>Layout: {windows.layout} · {windowCount}</button>
+        {#if windows.canSwitchLayout}
+          <button type="button" class="shell-button quiet" onclick={() => choose(() => windows.setLayout(windows.nextLayout.id))}>Layout: {windows.layout.label} · {windowCount}</button>
+        {:else}
+          <p class="shell-muted who">{windowCount}</p>
+        {/if}
         {@render dock()}
         <button type="button" class="shell-button quiet" onclick={() => choose(() => onpanel('settings'))}>Settings</button>
         <button type="button" class="shell-button quiet" onclick={() => choose(onsignout)}>Sign out</button>
@@ -85,7 +88,9 @@
   {:else}
     <div class="workspace" aria-label="Workspace">
       <span class="shell-muted">Workspace 1 · {windowCount}</span>
-      <button type="button" class="shell-button quiet" onclick={() => windows.setLayout(otherLayout)} aria-label="Layout: {windows.layout}. Switch to {otherLayout}">{windows.layout}</button>
+      {#if windows.canSwitchLayout}
+        <button type="button" class="shell-button quiet" onclick={() => windows.setLayout(windows.nextLayout.id)} aria-label="Layout: {windows.layout.label}. Switch to {windows.nextLayout.label}">{windows.layout.label}</button>
+      {/if}
       {@render dock()}
     </div>
     <div class="right">

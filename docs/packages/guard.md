@@ -4,7 +4,8 @@ Ingress flood control, visibility gating, focus-aware firewall, CSP profile and 
 
 | Field | Value |
 | --- | --- |
-| Package | `@kernlize/guard` |
+| npm | `@kernlize/guard` |
+| JSR | `@kernl/guard` |
 | Version | `0.1.1` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts` |
 | Dependencies | `@kehto/firewall ^0.7.0` |
@@ -13,7 +14,15 @@ Ingress flood control, visibility gating, focus-aware firewall, CSP profile and 
 
 ## Install
 
-`@kernlize/guard` is not yet published to npm, so `pnpm add @kernlize/guard` fails. During the alpha it is built from the kernl source repository, which is private, and consumed as a workspace dependency. The [package index](./index.md#install) has the steps.
+This package is `@kernlize/guard` on npm and `@kernl/guard` on JSR, the same code at the same version. Once released:
+
+```sh
+npm install @kernlize/guard
+# or
+deno add jsr:@kernl/guard
+```
+
+Neither registry has a release yet, so both commands fail. During the alpha the package is built from the kernl source repository, which is private, and consumed as a workspace dependency under its npm name. The [package index](./index.md#install) has the steps.
 
 ```json
 { "dependencies": { "@kernlize/guard": "workspace:^" } }

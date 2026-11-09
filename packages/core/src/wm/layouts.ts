@@ -2,8 +2,10 @@ import type { LayoutStrategy, Rect, WindowPlacement, WindowState } from '@kehto/
 
 /** Spacing options shared by the tiling layouts. */
 export interface LayoutOptions {
-  /** Pixels between windows and from the container edge. Defaults to 0. */
+  /** Pixels between windows. Defaults to 0. */
   readonly gap?: number;
+  /** Pixels between the windows and the container edge. Defaults to `gap`. */
+  readonly margin?: number;
 }
 
 /** Options for {@link createMasterStackLayout}. */
@@ -29,12 +31,25 @@ function visible(windows: ReadonlyArray<WindowState>): WindowState[] {
   return windows.filter((window) => !window.minimized);
 }
 
-function inset(rect: Rect, gap: number): Rect {
-  return { x: rect.x + gap, y: rect.y + gap, w: Math.max(0, rect.w - gap * 2), h: Math.max(0, rect.h - gap * 2) };
+interface Spacing {
+  readonly gap: number;
+  readonly margin: number;
 }
 
+function spacing(options: LayoutOptions): Spacing {
+  const gap = options.gap ?? 0;
+  return { gap, margin: options.margin ?? gap };
+}
+
+function inset(rect: Rect, margin: number): Rect {
+  return { x: rect.x + margin, y: rect.y + margin, w: Math.max(0, rect.w - margin * 2), h: Math.max(0, rect.h - margin * 2) };
+}
+
+/** Round the edges, not the sizes: two windows that share an edge then agree on where it is, so they never overlap or leave a hole. */
 function place(id: string, rect: Rect): WindowPlacement {
-  return { id, rect: { x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.w), h: Math.round(rect.h) } };
+  const x = Math.round(rect.x);
+  const y = Math.round(rect.y);
+  return { id, rect: { x, y, w: Math.round(rect.x + rect.w) - x, h: Math.round(rect.y + rect.h) - y } };
 }
 
 function splitRows(area: Rect, count: number, gap: number): Rect[] {
@@ -52,7 +67,7 @@ function splitColumns(area: Rect, count: number, gap: number): Rect[] {
  * area, splitting vertically then horizontally in turn, so the last window
  * ends up in the smallest corner. Minimised windows are left out.
  *
- * @param options - Gap between windows.
+ * @param options - Gap between windows and margin at the container edge.
  * @returns A `LayoutStrategy`.
  * @example
  * ```ts
@@ -60,12 +75,12 @@ function splitColumns(area: Rect, count: number, gap: number): Rect[] {
  * ```
  */
 export function createDwindleLayout(options: LayoutOptions = {}): LayoutStrategy {
-  const gap = options.gap ?? 0;
+  const { gap, margin } = spacing(options);
   return {
     arrange(windows, containerRect) {
       const shown = visible(windows);
       const placements: WindowPlacement[] = [];
-      let remaining = inset(containerRect, gap);
+      let remaining = inset(containerRect, margin);
       shown.forEach((window, index) => {
         if (index === shown.length - 1) {
           placements.push(place(window.id, remaining));
@@ -84,7 +99,7 @@ export function createDwindleLayout(options: LayoutOptions = {}): LayoutStrategy
 /**
  * Equal-width columns in window order. Minimised windows are left out.
  *
- * @param options - Gap between windows.
+ * @param options - Gap between windows and margin at the container edge.
  * @returns A `LayoutStrategy`.
  * @example
  * ```ts
@@ -92,11 +107,11 @@ export function createDwindleLayout(options: LayoutOptions = {}): LayoutStrategy
  * ```
  */
 export function createColumnsLayout(options: LayoutOptions = {}): LayoutStrategy {
-  const gap = options.gap ?? 0;
+  const { gap, margin } = spacing(options);
   return {
     arrange(windows, containerRect) {
       const shown = visible(windows);
-      const columns = splitColumns(inset(containerRect, gap), shown.length, gap);
+      const columns = splitColumns(inset(containerRect, margin), shown.length, gap);
       return shown.map((window, index) => place(window.id, columns[index] as Rect));
     },
   };
@@ -107,7 +122,7 @@ export function createColumnsLayout(options: LayoutOptions = {}): LayoutStrategy
  * window is the master; without focus, the first window is. Minimised windows
  * are left out and a single window fills the container.
  *
- * @param options - Master width ratio and gap.
+ * @param options - Master width ratio, gap and margin.
  * @returns A `LayoutStrategy`.
  * @example
  * ```ts
@@ -115,13 +130,13 @@ export function createColumnsLayout(options: LayoutOptions = {}): LayoutStrategy
  * ```
  */
 export function createMasterStackLayout(options: MasterStackOptions = {}): LayoutStrategy {
-  const gap = options.gap ?? 0;
+  const { gap, margin } = spacing(options);
   const ratio = options.ratio ?? 0.6;
   return {
     arrange(windows, containerRect) {
       const shown = visible(windows);
       if (shown.length === 0) return [];
-      const area = inset(containerRect, gap);
+      const area = inset(containerRect, margin);
       const master = shown.find((window) => window.focused) ?? (shown[0] as WindowState);
       const stack = shown.filter((window) => window !== master);
       if (stack.length === 0) return [place(master.id, area)];

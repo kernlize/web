@@ -150,6 +150,97 @@ test('the default window shows the whole sample applet', async ({ page }) => {
   expect(buttonBox!.y + buttonBox!.height).toBeLessThanOrEqual(frameBox!.y + frameBox!.height);
 });
 
+async function openSample(page: Page, name: string): Promise<void> {
+  await page.getByRole('button', { name: 'Open an applet' }).click();
+  await page.getByRole('listitem').filter({ hasText: name }).getByRole('button', { name: 'Open' }).click();
+  await page.getByRole('button', { name: 'Run' }).click();
+  await expect(page.frameLocator(`iframe[title="${name} applet"]`).getByRole('heading', { name })).toBeVisible();
+}
+
+async function startWithNotesAndPulse(page: Page): Promise<void> {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`${base}/app/?preview=1`);
+  await page.getByRole('button', { name: 'Try the preview' }).click();
+  await openSample(page, 'Notes');
+  await openSample(page, 'Pulse');
+}
+
+/** Each window's rectangle, relative to the desktop it is laid out in. */
+async function windowRects(page: Page): Promise<Record<string, { x: number; y: number; w: number; h: number }>> {
+  const desk = await page.locator('.desk').boundingBox();
+  const rects = await page.locator('section.window:not(.hidden)').evaluateAll((all) =>
+    all.map((element) => {
+      const box = element.getBoundingClientRect();
+      return [(element.getAttribute('aria-label') ?? '').replace(' window', ''), { x: box.x, y: box.y, w: box.width, h: box.height }] as const;
+    }),
+  );
+  return Object.fromEntries(rects.map(([title, box]) => [title, { ...box, y: box.y - (desk?.y ?? 0) }]));
+}
+
+test('the layout control steps through every layout, and the windows follow without reloading their applets', async ({ page }) => {
+  await startWithNotesAndPulse(page);
+  const control = page.getByRole('button', { name: /^Layout:/ });
+  const desk = await page.locator('.desk').boundingBox();
+  const height = desk?.height ?? 0;
+  const applets = page.frames().filter((frame) => frame.parentFrame() === page.mainFrame());
+  expect(applets).toHaveLength(2);
+  for (const applet of applets) await applet.evaluate(() => Object.assign(window, { sinceTheStart: true }));
+
+  await expect(control).toHaveAccessibleName('Layout: floating. Switch to tiled');
+  await expect(page.getByRole('button', { name: /^Resize / })).toHaveCount(2);
+  const floating = await windowRects(page);
+  expect(floating).toEqual({ Notes: { x: 40, y: 24, w: 720, h: 660 }, Pulse: { x: 72, y: 56, w: 720, h: 660 } });
+
+  await control.click();
+  await expect(control).toHaveAccessibleName('Layout: tiled. Switch to columns');
+  await expect(page.getByRole('button', { name: /^Resize / })).toHaveCount(0);
+  expect(await windowRects(page)).toEqual({ Notes: { x: 0, y: 0, w: 716, h: height }, Pulse: { x: 724, y: 0, w: 716, h: height } });
+
+  await control.click();
+  await expect(control).toHaveAccessibleName('Layout: columns. Switch to main and stack');
+  expect(await windowRects(page)).toEqual({ Notes: { x: 0, y: 0, w: 716, h: height }, Pulse: { x: 724, y: 0, w: 716, h: height } });
+
+  await control.click();
+  await expect(control).toHaveAccessibleName('Layout: main and stack. Switch to floating');
+  expect(await windowRects(page)).toEqual({ Pulse: { x: 0, y: 0, w: 859, h: height }, Notes: { x: 867, y: 0, w: 573, h: height } });
+  // The window the person turns to becomes the main one.
+  await page.getByRole('toolbar', { name: 'Notes window controls' }).click({ position: { x: 200, y: 10 } });
+  await expect.poll(() => windowRects(page)).toEqual({ Notes: { x: 0, y: 0, w: 859, h: height }, Pulse: { x: 867, y: 0, w: 573, h: height } });
+
+  await control.click();
+  await expect(control).toHaveAccessibleName('Layout: floating. Switch to tiled');
+  expect(await windowRects(page)).toEqual(floating);
+  for (const applet of applets) expect(await applet.evaluate(() => 'sinceTheStart' in window)).toBe(true);
+});
+
+test('a minimised window leaves the arrangement and comes back from the dock', async ({ page }) => {
+  await startWithNotesAndPulse(page);
+  await page.getByRole('button', { name: /^Layout:/ }).click();
+  await page.getByRole('button', { name: 'Minimise Notes' }).click();
+  const width = (await page.locator('.desk').boundingBox())?.width;
+  await expect.poll(async () => (await windowRects(page)).Pulse?.w).toBe(width);
+  await expect(page.locator('iframe[title="Notes applet"]')).toBeHidden();
+  await page.getByRole('list', { name: 'Minimised windows' }).getByRole('button', { name: 'Notes' }).click();
+  await expect.poll(async () => Object.keys(await windowRects(page)).sort()).toEqual(['Notes', 'Pulse']);
+  await expect(page.locator('iframe[title="Notes applet"]')).toBeVisible();
+  await expect(page.locator('section.window.focused')).toHaveAccessibleName('Notes window');
+});
+
+test('the chosen layout is remembered, and a choice stored by an earlier build still reads', async ({ page }) => {
+  await page.goto(`${base}/app/?preview=1`);
+  await page.evaluate(() => localStorage.setItem('kernl:layout:v1', 'tiled'));
+  await page.reload();
+  await page.getByRole('button', { name: 'Try the preview' }).click();
+  const control = page.getByRole('button', { name: /^Layout:/ });
+  await expect(control).toHaveAccessibleName('Layout: tiled. Switch to columns');
+  await control.click();
+  await expect(control).toHaveAccessibleName('Layout: columns. Switch to main and stack');
+  expect(await page.evaluate(() => localStorage.getItem('kernl:layout:v1'))).toBe('columns');
+  await page.reload();
+  await page.getByRole('button', { name: 'Try the preview' }).click();
+  await expect(page.getByRole('button', { name: /^Layout:/ })).toHaveAccessibleName('Layout: columns. Switch to main and stack');
+});
+
 async function openSettings(page: Page): Promise<void> {
   await page.locator('details.account summary').click();
   await page.getByRole('button', { name: 'Settings' }).click();

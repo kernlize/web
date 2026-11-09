@@ -1,6 +1,6 @@
 # The store and intents
 
-kernl finds applets for the user and lets applets hand work to each other. The store lists what publishers have released; intents let one applet ask for a role and an action, "open a profile", without naming the applet that does it. The user picks who does it, once or every time. This page explains both from the shell's side; [D-022](../decisions.md#d-022) records the decisions.
+kernl finds applets for the user and lets applets hand work to each other. The store lists what publishers have released; intents let one applet ask for a role and an action, "open a profile", without naming the applet that does it. The user picks who does it, once or every time. This page explains both from the shell's side; [D-024](../decisions.md#d-024) records the decisions.
 
 ## The store
 
@@ -57,6 +57,6 @@ Preferences are the user's, never an applet's.
 
 ## Limits
 
-- kehto's ACL gives `intent.deliver` no recipient capability, so kehto's recipient-checked send refuses it. kernl delivers over the target's bound port behind its own `intent:read` check, as kehto's reference host does, until kehto maps the delivery ([D-022](../decisions.md#d-022)).
+- kehto's ACL gives `intent.deliver` no recipient capability, so kehto's recipient-checked send refuses it. kernl delivers over the target's bound port behind its own `intent:read` check, as kehto's reference host does, until kehto maps the delivery ([D-024](../decisions.md#d-024)).
 - Private (encrypted) preference entries are carried over, not read. kehto's default-handler hook takes only the role, so a preference for one request ("edit a profile") ranks the chooser rather than selecting silently.
 - The store lists titles, descriptions and icons as publishers wrote them.

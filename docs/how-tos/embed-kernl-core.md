@@ -2,7 +2,7 @@
 
 `apps/web` is one host for `@kernlize/core`; your own page can be another. This how-to implements `KernlHost`, calls `createKernl`, and mounts an applet in an iframe you own. The sample is type-checked with `strict` on by `node scripts/check-doc-samples.mjs`, part of `pnpm docs:check`. For a slower, step-by-step version with a complete page, follow the tutorial [Embed kernl in a page](../tutorials/embed-a-host-page.md).
 
-The packages are not yet published to npm, so your page lives in a clone of the kernl source as a workspace package that depends on `@kernlize/core` and `@kernlize/guard` with `workspace:^`, and you run `pnpm build` first ([Packages](../packages/index.md#install)).
+The packages are not released yet, neither on npm (`@kernlize/*`) nor on JSR (`@kernl/*`), so your page lives in a clone of the kernl source as a workspace package that depends on `@kernlize/core` and `@kernlize/guard` with `workspace:^`, and you run `pnpm build` first ([Packages](../packages/index.md#install)).
 
 ## 1. Put the frame policy in the page head
 
@@ -110,7 +110,7 @@ export async function openApplet(address: string, container: HTMLElement): Promi
 5. **The frame.** Create the iframe and attach it to the document first: `mount` needs its `contentWindow` and throws `invalid:frame-detached` otherwise. Do not set `src`, `sandbox` or `srcdoc` yourself. Record it under `plan.windowId` so `getVisibility` can answer for it.
 6. **`mount(plan, frame)`** installs the profile's runtime rates, sets the `sandbox` attribute to exactly `allow-scripts` (replacing anything you set) and the controller-denying `allow` policy, registers the window, and only then assigns `srcdoc`. It returns an `AppletHandle`.
 
-After mount, keep the guard informed: call `handle.setVisibility(...)` whenever a window is shown, hidden, focused or blurred (the sample does it on `visibilitychange` and on pointer focus). `handle.close()` revokes the binding and removes the frame; grants stay, keyed by identity. `kernl.destroy()` closes everything when the page goes away.
+After mount, keep the guard informed: call `handle.setVisibility(...)` whenever a window is shown, hidden, focused or blurred (the sample does it on `visibilitychange` and on pointer focus). A page with more than one applet can leave that to kernl's window manager, which also places the windows: [Write your own window manager](./write-a-window-manager.md#outside-the-shell) shows it outside the shell. `handle.close()` revokes the binding and removes the frame; grants stay, keyed by identity. `kernl.destroy()` closes everything when the page goes away.
 
 ## 4. Check it
 

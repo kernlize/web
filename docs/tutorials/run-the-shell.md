@@ -14,7 +14,7 @@ Open the hosted preview:
 https://kernl.run/app/?preview=1
 ```
 
-The preview runs the same shell UI over an offline stand-in for the `Kernl` contract, with a store of three preview applets and no network ([D-011](../decisions.md#d-011), [D-022](../decisions.md#d-022)). It behaves like the live shell where it stands in for it: it asks before a write only for the kinds `@kernlize/core` rates destructive, using the core's own `isDestructiveKind` and `describeChange`; its guard observes and stops an applet only by quarantine; it starts in `strict` on every load; and its applets remove WebRTC the way kehto's prelude does. Messaging here goes nowhere; in the live shell private and legacy messages are sent for real once you sign in with an account that can encrypt ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)).
+The preview runs the same shell UI over an offline stand-in for the `Kernl` contract, with a store of three preview applets and no network ([D-011](../decisions.md#d-011), [D-024](../decisions.md#d-024)). It behaves like the live shell where it stands in for it: it asks before a write only for the kinds `@kernlize/core` rates destructive, using the core's own `isDestructiveKind` and `describeChange`; its guard observes and stops an applet only by quarantine; it starts in `strict` on every load; and its applets remove WebRTC the way kehto's prelude does. Messaging here goes nowhere; in the live shell private and legacy messages are sent for real once you sign in with an account that can encrypt ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)).
 
 **You should now see** a card headed "Who is at the keyboard?" with a **Try the preview** button. Click it, then **Open an applet**; the store lists *Notes*, *Pulse* and *Profiles* with topic bubbles above them. Type `profle` into the search to see the loose matching, clear it, then open *Notes*, turn on the *network* switch (it starts off, like most grants on a first run), and click **Run**. It appears in a window with buttons to try:
 
@@ -27,7 +27,7 @@ Without `?preview=1`, `https://kernl.run/app/` is the live shell: everything bel
 
 ## Prerequisites for running from source
 
-- Access to the kernl source repository. It is private during the alpha; the packages are not on npm either ([Packages](../packages/index.md#install)). Without access, use the hosted shell above.
+- Access to the kernl source repository. It is private during the alpha; the packages are not released on npm (`@kernlize/*`) or JSR (`@kernl/*`) either ([Packages](../packages/index.md#install)). Without access, use the hosted shell above.
 - Node 22 or newer and pnpm 10. The repository pins `pnpm@10.24.0` through `packageManager`; `corepack enable` picks it up.
 - A way to sign: a browser extension that speaks NIP-07, a remote signer that speaks NIP-46, or nothing, in which case the shell creates a local account protected by a password. kernl never asks for a private key directly and never stores one in plaintext.
 - Nothing else: the live shell's store lists published applets. An address from a publisher (an `naddr1…` or `nevent1…` string, or a coordinate) also works pasted into the store's search; step 4 gives one you can try.

@@ -16,13 +16,13 @@ The person at the keyboard is the only principal that matters.
 ![agent readiness: 90](https://img.shields.io/badge/agent%20readiness-90-0b0b0b)
 [![license: MIT](https://img.shields.io/badge/license-MIT-0b0b0b)](./LICENSE)
 
-[**Try the shell**](https://kernl.run/app/?preview=1) · [Website](https://kernl.run/) · [Docs](https://kernl.run/docs/) · [Why](https://kernl.run/why/)
+[**Try the shell**](https://kernl.run/app/?preview=1) · [Website](https://kernl.run/) · [Docs](https://kernl.run/docs/) · [About](https://kernl.run/about/) · [Why](https://kernl.run/about/why/)
 
 <br />
 
 </div>
 
-> **Alpha.** kernl is a first draft: the guard, the contracts, the composition over kehto and the shell are real and tested; private, legacy and ratchet messages work for accounts that can encrypt (ratchet sessions are experimental), and downloads, sharing and mail only hand off to apps on your device. The source is private and the `@kernlize/*` packages are not on npm yet; the [site and docs](https://kernl.run/) are public. Read [`docs/alpha-status.md`](./docs/alpha-status.md) before relying on anything, and note that the badges are measured by `pnpm check` and an agent-readiness scan, not live CI.
+> **Alpha.** kernl is a first draft: the guard, the contracts, the composition over kehto and the shell are real and tested; private, legacy and ratchet messages work for accounts that can encrypt (ratchet sessions are experimental), and downloads, sharing and mail only hand off to apps on your device. The source is private and the packages are not released yet, neither as `@kernlize/*` on npm nor as `@kernl/*` on JSR; the [site and docs](https://kernl.run/) are public. Read [`docs/alpha-status.md`](./docs/alpha-status.md) before relying on anything, and note that the badges are measured by `pnpm check` and an agent-readiness scan, not live CI.
 
 <p align="center">
   <img src=".github/assets/shell.png" alt="The kernl preview shell in its tiled layout: the Notes and Pulse sample applets side by side, Notes granted network access and Pulse not, each listing actions such as Publish a note (no prompt), Update your profile and Delete a note (ask first), with the guard indicator reading strict and no events." width="880" />
@@ -61,12 +61,12 @@ The full reasoning is in [`SOUL.md`](./SOUL.md). Each concrete choice is in [`DE
 
 ## Packages
 
-| Package | Purpose | Docs |
-|---|---|---|
-| [`@kernlize/guard`](./packages/guard) | Ingress flood control, visibility gating, focus-aware firewall, CSP profile, nested-frame lock, mitigation descriptions. Pure. | [guard](./docs/packages/guard.md) |
-| [`@kernlize/messaging`](./packages/messaging) | Provider contract, registry, composite direct-message adapter, three providers. Pure. | [messaging](./docs/packages/messaging.md) |
-| [`@kernlize/bridges`](./packages/bridges) | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy, backend interfaces, hand-off backends, in-page download backend. Pure. | [bridges](./docs/packages/bridges.md) |
-| [`@kernlize/core`](./packages/core) | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts. | [core](./docs/packages/core.md) |
+| npm | JSR | Purpose | Docs |
+|---|---|---|---|
+| [`@kernlize/guard`](./packages/guard) | `@kernl/guard` | Ingress flood control, visibility gating, focus-aware firewall, CSP profile, nested-frame lock, mitigation descriptions. Pure. | [guard](./docs/packages/guard.md) |
+| [`@kernlize/messaging`](./packages/messaging) | `@kernl/messaging` | Provider contract, registry, composite direct-message adapter, three providers. Pure. | [messaging](./docs/packages/messaging.md) |
+| [`@kernlize/bridges`](./packages/bridges) | `@kernl/bridges` | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy, backend interfaces, hand-off backends, in-page download backend. Pure. | [bridges](./docs/packages/bridges.md) |
+| [`@kernlize/core`](./packages/core) | `@kernl/core` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts and a replaceable window manager. | [core](./docs/packages/core.md) |
 
 Published packages have zero framework dependencies and never import `nostr-tools` directly. `pnpm check:deps` (`scripts/check-dependency-rules.mjs`) enforces both.
 

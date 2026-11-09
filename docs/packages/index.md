@@ -1,13 +1,13 @@
 # Packages
 
-kernl has four packages under the npm `@kernlize` scope and the JSR `@kernl` scope, not yet published to npm (see [Install](#install)). Three are pure contracts and engines with zero framework dependencies; one composes them with kehto and applesauce. The shell app at `apps/web` is not published.
+kernl has four packages. Each has two names: `@kernlize/*` on npm and `@kernl/*` on JSR, for the same code at the same version. Neither registry has a release yet (see [Install](#install)). Three are pure contracts and engines with zero framework dependencies; one composes them with kehto and applesauce. The shell app at `apps/web` is not published.
 
-| Package | Version | Role | Dependencies | Peer dependencies |
-| --- | --- | --- | --- | --- |
-| [`@kernlize/guard`](./guard.md) | `0.1.1` | Ingress flood control, visibility gate, focus-aware firewall, CSP profile, nested-frame lock, mitigation descriptions. | `@kehto/firewall` | `@napplet/core` |
-| [`@kernlize/messaging`](./messaging.md) | `0.3.0` | Messaging provider contract, registry, composite direct-message adapter, in-memory backend. | none | `@napplet/core` (the `Dm*` wire types) |
-| [`@kernlize/bridges`](./bridges.md) | `0.2.1` | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy. | none | none |
-| [`@kernlize/core`](./core.md) | `0.3.0` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts, persistence. | the three above, `@kehto/*`, `applesauce-*`, `rxjs` | `@napplet/core`, `@napplet/nap`, `@napplet/shim`, `nostr-tools` (required by kehto and applesauce; never imported) |
+| npm | Version | JSR | Role | Dependencies | Peer dependencies |
+| --- | --- | --- | --- | --- | --- |
+| [`@kernlize/guard`](./guard.md) | `0.1.1` | `@kernl/guard` | Ingress flood control, visibility gate, focus-aware firewall, CSP profile, nested-frame lock, mitigation descriptions. | `@kehto/firewall` | `@napplet/core` |
+| [`@kernlize/messaging`](./messaging.md) | `0.3.0` | `@kernl/messaging` | Messaging provider contract, registry, composite direct-message adapter, in-memory backend. | none | `@napplet/core` (the `Dm*` wire types) |
+| [`@kernlize/bridges`](./bridges.md) | `0.2.1` | `@kernl/bridges` | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy. | none | none |
+| [`@kernlize/core`](./core.md) | `0.3.1` | `@kernl/core` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts, persistence. | the three above, `@kehto/*`, `applesauce-*`, `rxjs` | `@napplet/core`, `@napplet/nap`, `@napplet/shim`, `nostr-tools` (required by kehto and applesauce; never imported) |
 
 ## Shared rules
 
@@ -23,18 +23,26 @@ All packages are `0.x`. A breaking change is a `minor` bump; everything else is 
 
 ## Install
 
+Every package has an npm name and a JSR name. The code, the exports and the version are the same under both.
+
+| Directory | npm | JSR |
+| --- | --- | --- |
+| `packages/guard` | `@kernlize/guard` | `@kernl/guard` |
+| `packages/messaging` | `@kernlize/messaging` | `@kernl/messaging` |
+| `packages/bridges` | `@kernlize/bridges` | `@kernl/bridges` |
+| `packages/core` | `@kernlize/core` | `@kernl/core` |
+
 After the first release, install from either registry:
 
 ```sh
 npm install @kernlize/core
-# or, with Deno
+# or, with Deno or any JSR client
 deno add jsr:@kernl/core
 ```
 
-The leaf packages follow the same mapping: npm `@kernlize/{guard,messaging,bridges}`, JSR `@kernl/{guard,messaging,bridges}`. Both registries use the same package versions. JSR ships TypeScript source; npm ships JavaScript and declarations. The examples in these docs use npm imports. See [Publish packages](../how-tos/publish-packages.md) for release setup and validation.
+Import by the name of the registry you installed from. The examples in these docs use the npm names; with JSR, write `@kernl/` where they write `@kernlize/`. That holds for subpaths too: `@kernlize/core/wm` on npm is `@kernl/core/wm` on JSR. npm ships JavaScript and declarations; JSR ships the TypeScript source. [Publish packages](../how-tos/publish-packages.md) covers release setup.
 
-
-The `@kernlize/*` packages are not yet published to npm; `pnpm add @kernlize/core` fails with a not-found error. During the alpha the source repository is private, and the packages are used from a clone of it:
+Neither registry has a release yet: `npm install @kernlize/core` and `deno add jsr:@kernl/core` both fail with a not-found error. During the alpha the source repository is private, and the packages are used from a clone of it:
 
 ```bash
 # in a clone of the kernl source repository

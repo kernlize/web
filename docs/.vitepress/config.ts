@@ -71,6 +71,8 @@ export const sidebar = [
       { text: 'Add a bridge backend', link: '/how-tos/add-a-bridge-backend' },
       { text: 'Grant and revoke', link: '/how-tos/grant-and-revoke' },
       { text: 'Embed kernl core', link: '/how-tos/embed-kernl-core' },
+      { text: "Change the shell's layout", link: '/how-tos/change-the-shells-layout' },
+      { text: 'Write your own window manager', link: '/how-tos/write-a-window-manager' },
       { text: 'Deploy', link: '/how-tos/deploy' },
       { text: 'Publish packages', link: '/how-tos/publish-packages' },
     ],

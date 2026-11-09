@@ -9,7 +9,7 @@ const SITE_URL = withSlash(process.env.SITE_URL ?? 'https://kernl.run/');
 const SITE_BASE = withSlash(process.env.SITE_BASE ?? '/');
 const DECISIONS_URL = `${SITE_URL}docs/decisions`;
 const TOOLKIT_URL = 'https://github.com/kehto/web';
-const PAGE_ORDER = ['', 'why/', 'guard/', 'messaging/', 'bridges/', 'developers/', 'app/'];
+const PAGE_ORDER = ['', 'about/', 'about/why/', 'about/guard/', 'about/messaging/', 'about/bridges/', 'about/developers/', 'app/'];
 const STRIP = 'script, style, noscript, template, svg, form, button, input, select, textarea, nav, header, footer, [aria-hidden="true"], [hidden], .skip-link, .section-head .label, .hero-copy .label';
 
 function withSlash(url) {
@@ -130,10 +130,21 @@ function pageMarkdown(html, page) {
   return { title, description, markdown: `${[lead, `> ${description}`, ...remainder].filter(Boolean).join('\n\n')}\n` };
 }
 
+/** A redirect stub (D-023) is an address that moved, not a page: it gets a pointer for a twin and stays out of the listings. */
+function movedTo(html, page) {
+  const target = /<meta http-equiv="refresh" content="\d+;\s*url=([^"]+)"/i.exec(html)?.[1];
+  return target ? `${absolute(target, `${SITE_URL}${page}`)}index.md` : null;
+}
+
 async function writeTwins() {
   const pages = [];
   for (const page of await listIndexPages(DIST)) {
     const html = await readFile(path.join(DIST, page, 'index.html'), 'utf8');
+    const moved = movedTo(html, page);
+    if (moved) {
+      await writeFile(path.join(DIST, page, 'index.md'), `# Moved\n\nThis page moved to ${moved}\n`);
+      continue;
+    }
     const twin = pageMarkdown(html, page);
     await writeFile(path.join(DIST, page, 'index.md'), twin.markdown);
     pages.push({ page, url: `${SITE_URL}${page}`, markdownUrl: `${SITE_URL}${page}index.md`, ...twin });
