@@ -8,12 +8,13 @@ import {
   createOutboxRelayPool,
   createRelayPoolHooks,
   createRelayPoolLike,
+  publishAccepted,
   selectRelayTier,
   subscribeWithEose,
   type RelayTier,
   type RelayTiers,
 } from '@kernlize/core';
-import { createFakePool, last, scratch, signEvent, splitList, type CoreWorld, type ReqMessage } from './world.js';
+import { attempt, createFakePool, last, scratch, signEvent, splitList, type CoreWorld, type ReqMessage } from './world.js';
 
 interface Delivered {
   events: NostrEvent[];
@@ -53,6 +54,7 @@ function filtersFor(kinds: string): NostrFilter[] {
 function tierRelays(world: CoreWorld, tier: string): string[] {
   const config = tiers(world).get();
   if (tier === 'general') return [...new Set([...config.super, ...config.outbox])];
+  if (tier === 'people') return [...new Set([...config.discovery, ...config.outbox, ...config.super])];
   return [...config[tier as RelayTier]];
 }
 
@@ -72,6 +74,20 @@ Given('the fake pool serves {int} events', async (world: CoreWorld, count: numbe
 
 Given('the fake pool fails requests', (world: CoreWorld) => {
   scratch(world).pool.failRequests = true;
+});
+
+Given('the fake pool relays {string} answer publishes with a refusal', (world: CoreWorld, relays: string) => {
+  for (const url of splitList(relays)) scratch(world).pool.refusing.add(url);
+});
+
+When('the shell publishes through the accepting helper to {string}', async (world: CoreWorld, relays: string) => {
+  await attempt(world, async () => {
+    scratch(world).accepted = await publishAccepted(scratch(world).pool, splitList(relays), await signEvent({ kind: 1 }));
+  });
+});
+
+Then('{int} relays accepted the publish', (world: CoreWorld, count: number) => {
+  expect(scratch(world).accepted).toBe(count);
 });
 
 Given('the fake pool refuses publishes', (world: CoreWorld) => {
@@ -229,7 +245,7 @@ When('the applet relay backend publishes a kind {int} event', async (world: Core
 Then('the applet relay backend is available', (world: CoreWorld) => {
   const backend = createAppletRelayBackend(scratch(world).pool, tiers(world));
   expect(backend.isAvailable()).toBe(true);
-  expect(backend.selectRelayTier([{ kinds: [0] }])).toEqual(tierRelays(world, 'discovery'));
+  expect(backend.selectRelayTier([{ kinds: [0] }])).toEqual(tierRelays(world, 'people'));
 });
 
 When('the messaging relay pool subscribes to kinds {string} without hints', (world: CoreWorld, kinds: string) => {

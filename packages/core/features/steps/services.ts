@@ -96,7 +96,8 @@ Given('kernl services with the theme {string}', async (world: CoreWorld, theme: 
 });
 
 Given('the signing account publishes a relay list writing to {string}', async (world: CoreWorld, url: string) => {
-  const event = await state(world).signer.signEvent({ kind: 10002, tags: [['r', url, 'write'], ['r', 'wss://purplepag.es', 'read']], content: '', created_at: 1_700_000_000 });
+  const writes = splitList(url).map((relay) => ['r', relay, 'write']);
+  const event = await state(world).signer.signEvent({ kind: 10002, tags: [...writes, ['r', 'wss://purplepag.es', 'read']], content: '', created_at: 1_700_000_000 });
   (scratch(world).eventStore as EventStore).add(event);
 });
 

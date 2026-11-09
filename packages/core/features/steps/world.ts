@@ -66,6 +66,8 @@ export interface FakePool extends ApplesaucePool {
   extra: ReqMessage[];
   /** When set, `publish` reports this `ok` per relay. */
   publishOk: boolean;
+  /** Relays that answer a publish with `OK false`. */
+  readonly refusing: Set<string>;
   /** When true, `request` errors instead of completing. */
   failRequests: boolean;
 }
@@ -76,6 +78,7 @@ export function createFakePool(): FakePool {
     events: [],
     extra: [],
     publishOk: true,
+    refusing: new Set<string>(),
     failRequests: false,
     req(relays, filters) {
       const urls = relays as string[];
@@ -98,7 +101,7 @@ export function createFakePool(): FakePool {
       const urls = relays as string[];
       pool.calls.push({ method: 'publish', relays: urls, event: event as NostrEvent });
       if (!pool.publishOk) throw new Error('publish failed');
-      return urls.map((from): PublishResponse => ({ ok: true, from }));
+      return urls.map((from): PublishResponse => (pool.refusing.has(from) ? { ok: false, from, message: 'blocked: not allowed' } : { ok: true, from }));
     },
   };
   return pool;
