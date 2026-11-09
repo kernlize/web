@@ -54,15 +54,11 @@ Feature: Consent summaries
       | label  | before | after             |
       | Change |        | No entries change |
 
-  Scenario: a first follow list, relay list and list have nothing to remove
+  Scenario: a first follow list and list have nothing to remove
     When the shell describes signing a kind 3 event following "a1"
     Then the summary lines are:
       | label         | before | after        |
       | Follows added |        | 1: a1a1a1a1… |
-    When the shell describes signing a kind 10002 event with relays "wss://a.example="
-    Then the summary lines are:
-      | label             | before | after        |
-      | Connections added |        | 1: a.example |
     When the shell describes signing a kind 30000 list "friends" titled "" with entries "p:x1"
     Then the summary lines are:
       | label         | before | after                 |
@@ -138,14 +134,30 @@ Feature: Consent summaries
     Then kinds "0,3,10000,10002,17375,19999,30000,30311,39999,5,62" are destructive
     And kinds "1,4,7,1059,9735,20000,29999,40000" are routine
 
-  Scenario: relay list changes keep their read and write markers
-    Given the current relay list is "wss://a.example=read,wss://b.example="
-    When the shell describes signing a kind 10002 event with relays "wss://a.example=write,wss://b.example="
-    Then the summary is "destructive" titled "Change your connections list"
+  Scenario: a relay list change reads as the inbox and outbox it changes
+    Given the current relay list is "wss://a.test=read,wss://relay.b.test="
+    When the shell describes signing a kind 10002 event with relays "wss://a.test=write,wss://relay.b.test=,wss://c.test=read"
+    Then the summary is "destructive" titled "Change your inbox and outbox"
     And the summary lines are:
-      | label               | before               | after                 |
-      | Connections added   |                      | 1: a.example (write) |
-      | Connections removed | 1: a.example (read)  |                       |
+      | label          | before    | after                                                                                          |
+      | What this is   |           | Your inbox is where people send things to you; your outbox is where your posts are kept and found. |
+      | Inbox added    |           | 1: c.test                                                                                      |
+      | Inbox removed  | 1: a.test |                                                                                                |
+      | Outbox added   |           | 1: a.test                                                                                      |
+
+  Scenario: a relay list that changes nothing, or arrives with nothing before it, says so plainly
+    When the shell describes signing a kind 10002 event with relays "wss://a.test="
+    Then the summary lines are:
+      | label          | before | after                                                                                          |
+      | What this is   |        | Your inbox is where people send things to you; your outbox is where your posts are kept and found. |
+      | Inbox added    |        | 1: a.test                                                                                      |
+      | Outbox added   |        | 1: a.test                                                                                      |
+    Given the current relay list is "wss://a.test="
+    When the shell describes signing a kind 10002 event with relays "wss://a.test="
+    Then the summary lines are:
+      | label          | before | after                                                                                          |
+      | What this is   |        | Your inbox is where people send things to you; your outbox is where your posts are kept and found. |
+      | Change         |        | No entries change                                                                              |
 
   Scenario: an applet changing which applets open requests for the user is named in plain words
     Given the current handler preferences for "profile" are "a=viewer,i=napplet:profile/edit>editor"

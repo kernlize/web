@@ -1,4 +1,4 @@
-import { isReplaceable } from 'applesauce-core/helpers';
+import { getInboxes, getOutboxes, isReplaceable } from 'applesauce-core/helpers';
 import type { NostrEvent } from '@napplet/core';
 import type { AppletIdentity, ConsentLine, ConsentSummary } from '../types.js';
 
@@ -139,10 +139,18 @@ function profileLines(event: NostrEvent, before: NostrEvent | undefined): Consen
   return lines;
 }
 
-function relayEntries(event: NostrEvent | undefined): string[] {
-  return (event?.tags ?? [])
-    .filter((tag) => tag[0] === 'r' && typeof tag[1] === 'string')
-    .map((tag) => serverName(tag[1] as string) + (tag[2] ? ` (${tag[2]})` : ''));
+const MAILBOX_HELP: ConsentLine = { label: 'What this is', after: 'Your inbox is where people send things to you; your outbox is where your posts are kept and found.' };
+
+/**
+ * A relay list (NIP-65) as the two lists a person knows: where they are reached
+ * and where they publish. An unmarked entry is both and appears in each.
+ */
+function mailboxLines(event: NostrEvent, before: NostrEvent | undefined): ConsentLine[] {
+  const names = (urls: string[]): string[] => urls.map(serverName);
+  const inbox = changeLines(names(before ? getInboxes(before) : []), names(getInboxes(event)), 'Inbox', (item) => item);
+  const outbox = changeLines(names(before ? getOutboxes(before) : []), names(getOutboxes(event)), 'Outbox', (item) => item);
+  const changed = [...inbox, ...outbox].filter((line) => line.label !== 'Change');
+  return [MAILBOX_HELP, ...(changed.length > 0 ? changed : [{ label: 'Change', after: 'No entries change' }])];
 }
 
 function isListKind(kind: number): boolean {
@@ -288,7 +296,7 @@ export function describeChange(event: NostrEvent, before: NostrEvent | undefined
     case HANDLER_PREFERENCES:
       return handlerPreferences(event, before, applet);
     case 10002:
-      return destructive(event, applet, 'Change your connections list', changeLines(relayEntries(before), relayEntries(event), 'Connections', (item) => item));
+      return destructive(event, applet, 'Change your inbox and outbox', mailboxLines(event, before));
     default:
       if (isListKind(event.kind)) {
         return destructive(event, applet, listTitle(event), changeLines(listItems(before), listItems(event), 'Entries', (item) => item));
