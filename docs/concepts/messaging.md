@@ -99,38 +99,70 @@ Three things the table says that the picker says too:
 
 kernl holds no key bytes. The private and legacy backends sign and encrypt everything with the account's applesauce signer; the ratchet and group libraries' own keys stay inside the libraries and reach storage only sealed by that signer; an extension or remote signer may ask its own question per decryption, and kernl lets it.
 
-The Messages panel opens the user's own messages without a consent prompt from kernl: the shell is asking, for the user, to show the user their own mail. Applets are different. An applet reaches messages only through the NAP `dm` domain, which is a grant the user gives per applet and can revoke ([Identity and grants](./identity-and-grants.md)).
+The shell draws no conversation itself. Messages are shown by an applet over the NAP `dm` domain, like any other applet would: see [The Messages applet](#the-messages-applet). An applet reaches messages only through that domain, which is a grant per applet that the user can revoke ([Identity and grants](./identity-and-grants.md)). The shell's own part is what an applet must not decide: which providers are on, in what order, and which one carries a reply.
 
 ## The registry
 
-The shell holds exactly one `MessagingRegistry`, built with `createMessagingRegistry({ preferences?, onChange? })`. It owns the backend instances:
+The shell holds exactly one `MessagingRegistry`, built with `createMessagingRegistry({ preferences?, onChange?, askReply? })`. It owns the backend instances:
 
-- `register(provider)` adds a provider. Nothing is enabled by registration unless the saved `preferences.enabled` list names the provider; then it is enabled at once if available, and left disabled (reporting why through `list()`) if not. A second registration of the same id throws `invalid:duplicate-provider`.
+- `register(provider)` adds a provider at the end of the user's order, unless the saved order already places it. A provider the saved `preferences.enabled` list names is started at once if it is available. One that cannot run yet (nobody is signed in, say) waits: it reports why through `list()`, stays in the saved list, and starts the next time the registry is read after it became available. A second registration of the same id throws `invalid:duplicate-provider`.
 - `enable(id)` calls `availability()` and throws `unavailable:<reason>` when the provider cannot run; otherwise it calls `createBackend()` once and keeps the instance. Enabling an enabled provider does nothing. Unknown ids throw `invalid:unknown-provider`.
-- `disable(id)` calls the backend's `close?()` and drops it. If the default pointed at it, the default is cleared.
-- `setDefault(id)` names the provider for sends that name no provider and no conversation. The provider must be enabled, else `invalid:provider-not-enabled`. A saved `defaultProvider` is restored when that provider registers, unless `setDefault` was called first.
-- `preferences()` returns a frozen `{ enabled, defaultProvider? }` snapshot; `onChange` receives the same snapshot after every change.
-- `composite()` returns one `MessagingBackend` spanning every enabled provider, for the NAP `dm` service. It is the same instance on every call and sees providers come and go.
+- `disable(id)` calls the backend's `close?()` and drops it, or forgets a provider that was still waiting.
+- `setOrder(ids)` puts the named providers first, in that order; providers left out keep their relative order after them. `list()` returns the providers in the user's order. An unknown id throws `invalid:unknown-provider` and changes nothing.
+- **The default is the first enabled provider in the order.** There is no separate default to set. `setDefault(id)` is kept as "move this enabled provider to the top" and throws `invalid:provider-not-enabled` for one that is not running.
+- `setReplyRule(rule)` and `forgetReplyChoice(pubkey?)` change how a reply is routed; see [Which provider carries a message](#which-provider-carries-a-message).
+- `preferences()` returns a frozen `{ enabled, order, defaultProvider?, reply, replyChoices }` snapshot; `onChange` receives the same snapshot after every change. `enabled` lists what the user wants on, running or waiting. Snapshots saved before there was an order carry only `enabled` and `defaultProvider`, and restore with that default on top.
+- `composite()` returns one `MessagingBackend` spanning every running provider, for the NAP `dm` service. It is the same instance on every call and sees providers come and go.
 - `close()` closes every backend and leaves the preferences untouched, so a shutdown never erases what the user chose. A closed registry is not reused.
 
-See `registry.feature`, scenarios "saved preferences enable providers as they register" and "closing the registry closes every backend and keeps the preferences".
+See `registry.feature`, scenarios "the default is the first provider in the order that is enabled", "a waiting provider starts as soon as it can run" and "closing the registry closes every backend and keeps the preferences".
+
+`createDefaultMessaging` in `@kernlize/core` registers `private`, `legacy`, `ratchet` and `group` in that order. For someone who has never chosen, `private` and `legacy` are switched on: they reach anyone with an account, and a message that arrives through either can be read and answered. `ratchet` and `group` publish something about the account when they start, so they wait for the user ([D-027](../decisions.md#d-027)).
+
+## Which provider carries a message
+
+NAP-DM leaves the choice of transport to the runtime, and requires that a runtime with several of them never weakens privacy silently. kernl's rule has two halves ([D-027](../decisions.md#d-027)), both in `reply.feature`:
+
+**Someone new: the order decides.** A `dm.send` that names recipients and no conversation goes to the first enabled provider. When that provider answers `unavailable:recipient-not-ready` (the person has not set it up), the next enabled one is tried, in order; when none can reach them the first refusal is reported. Any other refusal stops the send. Providers ahead of the default are never tried.
+
+**A reply: the correspondent's last provider is offered.** Before a one-to-one message leaves, the composite looks up which enabled provider that person last wrote through (their newest incoming message; a tie goes to the earlier provider in the order). When it is not the provider the message is planned for, the reply rule decides:
+
+| Rule | What happens |
+| --- | --- |
+| `ask` (the default) | The registry calls `askReply({ peer, theirs, mine })`. The host shows the question; the answer is `{ use: 'theirs' \| 'mine', remember: 'once' \| 'conversation' \| 'always' }`, and `undefined` stops the send with `denied:cancelled`. |
+| `theirs` | The reply leaves through the provider they used, without asking. |
+| `mine` | The reply leaves through the provider the order picked, without asking. |
+
+An answer kept for the `conversation` is stored per person in `replyChoices` and comes before the rule; `always` makes the answer the rule. `forgetReplyChoice(pubkey)` forgets one person's answer and `forgetReplyChoice()` all of them. Without `askReply` the rule `ask` behaves like `mine`.
+
+The check applies to a send with one recipient other than the owner, and to a send into a `direct` conversation with one other participant: there, a reply moved to their provider is sent to the person, not into the conversation that was named, so its result carries the other provider's conversation id. It never applies to a group conversation, a message to several people, a send that names a `provider`, or when fewer than two providers are running. Someone who never wrote to the user gets the order's provider with no question.
+
+In the shell the question is a dialog: who wrote, through what, what the order would do, the two providers with their descriptions, and whether to keep the answer for this message, this person or everyone. Settings, Messages holds the order, the switches, the rule and the button that forgets kept answers.
+
+## The Messages applet
+
+Pressing **Messages** opens an applet. kernl ships one, `applets/messages` in the repository, built with the napplet toolchain into a single file and listed in `KernlOptions.builtins`, so it opens as `kernl:messages` from bytes pinned by hash, with no lookup ([Applets under kernl](./applets-under-kernl.md), [D-027](../decisions.md#d-027)). It requires only `dm`; `identity`, `theme`, `notify`, `storage` and `keys` are optional and each has a fallback. On its first run `dm`, `identity` and `notify` are switched on, because the applet came with the shell the user is already trusting; each stays a grant the user can withdraw from the window's **Grants**.
+
+The applet shows one thread per person: it merges every `direct` conversation with the same participants, whichever provider each belongs to, and sends a reply to the person without naming a conversation, so the shell's rule above picks the transport. Group conversations stay one thread each and are answered in place. It never parses a conversation id, never learns a provider's name, and counts unread messages itself, because a provider's `unread` number is a lifetime count.
+
+If the user made another installed applet their default for the `dm` role (Applets, Yours), Messages opens that one instead; when it cannot be reached, the shipped applet opens. The count on the Messages button is the shell's own: messages from other people that arrived, after Messages was first opened, while no window showing messages had focus.
 
 ## The composite backend
 
-The NAP `dm` domain is a projection over every enabled provider. `createCompositeBackend(resolveEnabled, getDefault)` builds it, and the only thing an applet can observe is the id namespace:
+The NAP `dm` domain is a projection over every enabled provider. `createCompositeBackend(resolveEnabled, getDefault, options?)` builds it, and the only thing an applet can observe is the id namespace:
 
 - Every conversation and message id leaving the composite is `"<providerId>:<innerId>"`, built by `namespaceId`. `private:direct:ab,cd` is the conversation `direct:ab,cd` as the `private` provider knows it. The inner id may itself contain `:`; `splitId` splits on the first one only.
 - Ids arriving from the applet are split to find the provider. An id without a prefix, or with a prefix no enabled provider owns, rejects with `invalid:unknown-provider`.
 - `conversations()` with a cursor routes to the provider named in the cursor and passes the inner cursor through. Without a cursor and with exactly one provider enabled, the provider's page is returned with its cursor namespaced (`private:2`). With several providers, every provider's page is fetched, the conversations are merged and sorted by `updatedAt` descending (conversations without activity sort last), `limit` is applied to the merged list, and the page carries no cursor, because no single provider can resume a merged page.
 - `messages()` routes by the conversation prefix and prefixes the ids on the way out.
-- `send()` routes by the conversation id when there is one, else by the `provider` field (`WithProvider<DmSendRequest>`) the shell adds when the user picks a provider for a new conversation, else by the default provider. An unknown provider rejects with `invalid:unknown-provider`; no default, or a default that is no longer enabled, rejects with `unavailable:no-default-provider`.
+- `send()` routes by the conversation id when there is one, else by the `provider` field (`WithProvider<DmSendRequest>`) a caller may add, else by the default provider and the order after it. A one-to-one send is first checked against the correspondent's last provider through `options.chooseReply`; see [Which provider carries a message](#which-provider-carries-a-message). An unknown provider rejects with `invalid:unknown-provider`; no default, or a default that is no longer enabled, rejects with `unavailable:no-default-provider`.
 - `subscribe()` with a conversation id subscribes on that provider; without one it subscribes on every enabled provider and fans the messages in, prefixed. Subscription ids are `composite-<n>`. Unsubscribing skips providers disabled in the meantime, since disabling already closed their backend, and reports `ok: false` if any surviving provider did.
 - `status()` merges: `available` if any provider is, the first `ownerPubkey` found, the union of `implementations` and `capabilities`.
 - `close()` on the composite is a no-op. The registry owns backend lifetimes.
 
-Every provider is reachable this way, not only from the Messages panel: `kernl.feature` drives the `dm` domain over a real applet port for `ratchet` and for `group` (grant `dm`, then `dm.status`, `dm.send` with `provider`, `dm.subscribe`, `dm.conversations` and `dm.messages`) and checks the provider-namespaced ids. The fields that choose a provider are the `provider` hint on `dm.send` for a new conversation and the `<providerId>:` prefix of `conversationId` everywhere else; `dm.status` lists each enabled provider's implementation (`nip17`, `nip04`, `ndr`, `marmot`).
+Every provider is reachable this way: `kernl.feature` drives the `dm` domain over a real applet port for `ratchet` and for `group` (grant `dm`, then `dm.status`, `dm.send` with `provider`, `dm.subscribe`, `dm.conversations` and `dm.messages`) and checks the provider-namespaced ids. The fields that choose a provider are the `provider` hint on `dm.send` for a new conversation and the `<providerId>:` prefix of `conversationId` everywhere else; `dm.status` lists each enabled provider's implementation (`nip17`, `nip04`, `ndr`, `marmot`).
 
-An applet that uses `dm` therefore sees one inbox. Which provider carries a given conversation is visible in its id, and the shell shows it as a label the user can change for new conversations. See `composite.feature`.
+An applet that uses `dm` therefore sees one inbox. Which provider carries a given conversation is encoded in its id, which an applet treats as opaque; the user sets the order and the reply rule in the shell's settings. See `composite.feature` and `reply.feature`.
 
 ## The in-memory backend
 
@@ -145,6 +177,8 @@ An applet that uses `dm` therefore sees one inbox. Which provider carries a give
 | `unavailable:<reason>` | `enable` when `availability()` is false; `<reason>` is the shell's word |
 | `invalid:provider-not-enabled` | `setDefault` |
 | `unavailable:no-default-provider` | composite `send` with no conversation, no hint and no usable default |
+| `unavailable:recipient-not-ready` | composite `send` to someone new when no enabled provider from the default onward can reach them; the first provider's refusal is passed through |
+| `denied:cancelled` | composite `send` when the user dismissed the reply question |
 | `invalid:no-recipients`, `invalid:unknown-conversation`, `unavailable:offline` | memory backend `send` |
 
 ## Related

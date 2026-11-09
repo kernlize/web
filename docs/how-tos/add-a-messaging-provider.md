@@ -139,7 +139,7 @@ const kernl = createKernl({ host, messaging });
 
 When `messaging` is supplied, `createKernl` uses it as is and ignores `messagingBackends`; pass any built-in backends to `createDefaultMessaging({ storage, backends })` instead. To ship a provider inside kernl itself, register it in `createDefaultMessaging` next to the three built-ins.
 
-Registration does not enable, unless the user's saved preferences already list `example`; then it is enabled on registration if `available()` agrees, and left disabled otherwise. The user enables it in the provider picker, which calls `registry.enable('example')`. Registering the same id twice throws `invalid:duplicate-provider`. See `registry.feature`, scenarios "a registered provider starts disabled" and "saved preferences enable providers as they register".
+Registration does not enable, unless the user's saved preferences already list `example`; then it starts on registration if `available()` agrees, and otherwise waits until it does. A new provider joins the end of the user's order. The user switches it on, and moves it, under Settings, Messages, which calls `registry.enable('example')` and `registry.setOrder([...])`. Registering the same id twice throws `invalid:duplicate-provider`. See `registry.feature`, scenarios "a registered provider starts disabled", "saved preferences enable providers as they register" and "a waiting provider starts as soon as it can run".
 
 ## 5. Specify and document
 

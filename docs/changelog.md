@@ -11,6 +11,10 @@ Each entry says what ships, per package and app. [Alpha status](./alpha-status.m
 
 ### `@kernlize/core`
 
+- Built-in applets ([D-027](./decisions.md#d-027)): `KernlOptions.builtins` lists applets the host ships, `kernl:<id>` decodes to a `builtin` pointer, and `Kernl.resolve` loads the bytes and checks them against the pinned SHA-256 with no lookup. New exports `resolveBuiltin`, `builtinAddress`, `BUILTIN_PUBLISHER`, `BuiltinApplet` and `PublishedPointer`; `AppletSummary.builtin`; new reason `invalid:artifact-hash`. **Breaking** for exhaustive switches over `AppletPointer['kind']`, and `fetchManifestEvent` takes a `PublishedPointer`.
+- `KernlHost.chooseReply` carries the messaging registry's reply question to the user; `createDefaultMessaging` takes it as `askReply`.
+- `createDefaultMessaging` switches `private` and `legacy` on for someone who has never chosen; each starts once an account that can run it signs in.
+
 - The applet store: `kernl.catalog.load()` over `loadCatalog`, with `toCatalogEntry`, `addressOf`, `newestEntries`, `searchCatalog`, `fuzzyScore` and `popularTopics` ([D-026](./decisions.md#d-026)).
 - Intents: `createKernl` offers the `intent` domain through kehto's `createIntentService` and kernl's `createIntentRouter` and `createIntentDelivery`. `kernl.intents` exposes the installed set and the user's handler defaults; `kernl.install(summary)` installs a verified applet without opening it, and `kernl.plan` installs the applet it plans. `KernlHost` gains the optional `chooseHandler`, `openApplet` and `focusApplet`; `KernlOptions.intentRetry` tunes delivery.
 - Handler preferences (kind 31129): `createHandlerDefaults`, `parseHandlerPreferences`, `preferenceTemplate`, `preferredHandlers`, `catalogIdForRef` and `refForCatalogId`. The signed-in account's preferences are read on sign-in; publishing is opt-in. `describeChange` names the archetype and the applets added and removed when an applet writes one.
@@ -38,6 +42,11 @@ Each entry says what ships, per package and app. [Alpha status](./alpha-status.m
 
 ### `@kernlize/messaging`
 
+- Providers are kept in the user's order ([D-027](./decisions.md#d-027)). `MessagingRegistry.setOrder(ids)` reorders them, `list()` returns them in order, and the first enabled provider is the default; a send to someone new falls to the next enabled provider when the first answers `unavailable:recipient-not-ready`.
+- The reply rule: before a one-to-one message leaves through a provider other than the one its recipient last wrote through, `ask` puts a `ReplyPrompt` to `MessagingRegistryOptions.askReply`, `theirs` follows the correspondent and `mine` keeps the order. `setReplyRule`, `forgetReplyChoice`, and `CompositeOptions.chooseReply` on `createCompositeBackend`. A dismissed question rejects with `denied:cancelled`.
+- A saved provider that cannot run when it registers now waits and starts when it can, and stays in the saved list meanwhile.
+- **Breaking.** `MessagingPreferences` gains required `order`, `reply` and `replyChoices`; `MessagingRegistryOptions.preferences` takes `SavedMessagingPreferences`, which accepts older snapshots. `defaultProvider` is now derived from the order: enabling a provider with nothing else on makes it the default, and `setDefault` moves a provider to the top.
+
 - `createGroupMessagesProvider`: the `group` provider, "Group sessions". Forward secrecy, post-compromise security and groups; experimental; specification `Marmot (MLS, RFC 9420; supersedes NIP-EE)`.
 
 ### `@kernlize/guard`
@@ -46,6 +55,12 @@ Each entry says what ships, per package and app. [Alpha status](./alpha-status.m
 - **Breaking.** Removed `appletMarkupHasFrame`, `assertAppletHasNoFrame`, `TRUSTED_TYPES_DIRECTIVES` and the `trustedTypes` field of `AppletCsp`. `createAppletCsp` returns the 14 baseline directives only, and `@kernlize/guard` no longer throws outside the applet realm.
 
 ### Shell and site (`apps/web`)
+
+- Messages are an applet ([D-027](./decisions.md#d-027)). The Messages panel is gone; the button opens the Messages applet the shell ships (`applets/messages`, built with the napplet toolchain, pinned by hash), or the applet the user chose for messages. It shows one conversation per person across providers, keeps drafts, counts unread itself and follows the shell's colours. The preview runs the same bytes over a real message port.
+- Settings has a Messages section: the providers in the user's order with move up, move down and on or off, what each protects, the reply rule, and a button that forgets kept answers. The per-conversation provider picker is gone.
+- A reply to someone who last wrote through a provider other than the first in the order opens a question first: send it their way or keep the order, for this message, this person or everyone.
+- The count on the Messages button is the shell's own: messages that arrived, after Messages was first opened, while no messages window had focus.
+- Applets that ask for the theme are told the shell's colours when they open.
 
 - The launcher is a store: fuzzy search, topic bubbles, a filter for applets this shell can run fully, and an address pasted into the search still opens. **Yours** lists installed applets and which one opens each kind of request, with an opt-in to keep those choices with the account. When an applet asks another to do something, the shell picks the user's default, or asks with a chooser that can also find a handler in the store. The sample applets are gone; the preview's store lists its own applets, and its Notes can ask its Profiles to open a profile.
 - The landing at `/` is now one screen and two adoption paths: add applets to an application you have, or start a shell from the reference one. What the home page held before is at `/about/`, with the five pages beneath it at `/about/<page>/`; their old addresses redirect. Moving between the site's pages no longer reloads the document: a WebGL curtain crosses the screen and the new page's content rises into place. Reduced motion, no WebGL and no scripts each leave a whole, still page ([D-023](./decisions.md#d-023)).

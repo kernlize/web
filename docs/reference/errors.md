@@ -14,11 +14,12 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 
 | Reason | Package | Thrown by | Meaning |
 | --- | --- | --- | --- |
-| `invalid:pointer` | `@kernlize/core` | `decodePointer` | The input is not, and does not contain, an `naddr`, `nevent`, `note`, 64-hex event id or coordinate. |
+| `invalid:pointer` | `@kernlize/core` | `decodePointer`, `resolveBuiltin` | The input is not, and does not contain, an `naddr`, `nevent`, `note`, 64-hex event id, coordinate or `kernl:<id>`; or it names a built-in applet the host does not ship. |
 | `unavailable:manifest` | `@kernlize/core` | `fetchManifestEvent`, so `Kernl.resolve` | A relay answered, in the hints, the `apps` tier or the `super` tier, and none returned the manifest event; or there was no usable relay to ask. |
 | `unavailable:network` | `@kernlize/core` | `fetchManifestEvent`, so `Kernl.resolve` | No relay answered in either round: every one failed, or none answered within `MANIFEST_TIMING.timeoutMs`. The applet may well exist. |
 | `unavailable:blob` | `@kernlize/core` | `defaultFetchBlob`, `resolveApplet` | No server returned the artifact bytes. kehto's `blob-unavailable` maps here. |
 | `invalid:invalid-signature`, `invalid:invalid-manifest`, `invalid:aggregate-mismatch`, `invalid:blob-hash-mismatch`, `invalid:missing-index` | `@kernlize/core` | `resolveApplet` | Verification failed. The part after `invalid:` is kehto's `NappletResolutionErrorCode`. Nothing runs. |
+| `invalid:artifact-hash` | `@kernlize/core` | `resolveBuiltin`, so `Kernl.resolve` of a `kernl:<id>` address | The bytes an applet shipped with the host loaded are not the bytes the host pinned. |
 | `invalid:unresolved` | `@kernlize/core` | `Kernl.plan`, `Kernl.install` | The summary was not produced by this shell's `resolve`, so no verified bytes are held for it and it cannot be run or installed. |
 | `unavailable:handler`, `unavailable:window`, `unavailable:delivery` | `@kernlize/core` | `createIntentDelivery`, after a request was accepted | The handler is no longer installed, the host did not open it, or it never held the receiving grant while delivery was retried. The asking applet was already told yes, so the user is told instead ([The store and intents](../concepts/store-and-intents.md)). |
 | `denied:blocked` | `@kernlize/core` | `Kernl.plan` | The user blocked this applet identity. |
@@ -40,7 +41,8 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 | `invalid:duplicate-provider` | `@kernlize/messaging` | `MessagingRegistry.register` | A provider with this id is already registered. |
 | `invalid:unknown-provider` | `@kernlize/messaging` | `MessagingRegistry.enable`, `disable`; the composite backend | No provider has this id, or a namespaced id, cursor or `provider` hint names no enabled provider. |
 | `unavailable:<reason>` | `@kernlize/messaging` | `MessagingRegistry.enable` | The provider's `availability()` is false; `<reason>` is the bare word it reported. |
-| `invalid:provider-not-enabled` | `@kernlize/messaging` | `MessagingRegistry.setDefault` | Only an enabled provider can be the default. |
+| `invalid:provider-not-enabled` | `@kernlize/messaging` | `MessagingRegistry.setDefault` | Only an enabled provider can be moved to the top as the default. |
+| `denied:cancelled` | `@kernlize/messaging` | composite `send` | The user dismissed the question about which provider a reply should use; nothing was sent. |
 | `unavailable:no-default-provider` | `@kernlize/messaging` | composite `send` | The request names no conversation and no provider, and there is no enabled default. |
 | `invalid:no-recipients`, `invalid:unknown-conversation`, `unavailable:offline` | `@kernlize/messaging` | `createMemoryBackend` `send` | No recipient besides the owner; a `conversationId` the backend does not hold; the backend was created with `available: false`. |
 | `invalid:recipient`, `invalid:groups-unsupported`, `unavailable:offline` | `@kernlize/core` | `createPrivateMessagesBackend`, `createLegacyMessagesBackend` `send` | The recipient is not a public key; the legacy backend got more than one correspondent; no relay accepted the message. |
