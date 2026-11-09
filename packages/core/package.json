@@ -47,12 +47,14 @@
     "@noble/ciphers": "^2.4.0",
     "@noble/curves": "^2.4.0",
     "@noble/hashes": "^2.4.0",
+    "@sqlite.org/sqlite-wasm": "3.54.1-build1",
     "applesauce-accounts": "^7.0.2",
     "applesauce-common": "^7.0.0",
     "applesauce-core": "^7.0.3",
     "applesauce-loaders": "^7.0.2",
     "applesauce-relay": "^7.0.0",
     "applesauce-signers": "^7.0.1",
+    "applesauce-sqlite": "^7.0.0",
     "nostr-double-ratchet": "^0.0.183",
     "rxjs": "^7.8.2"
   },
@@ -64,6 +66,7 @@
   },
   "devDependencies": {
     "@types/ws": "^8.18.2",
+    "fake-indexeddb": "^6.2.8",
     "quickpickle": "^1.11.2",
     "tsup": "^8.5.0",
     "typescript": "^5.9.3",
