@@ -7,7 +7,7 @@ import type { Capability } from '@kehto/runtime';
 import type { NappletArtifactCache, NappletManifest } from '@kehto/nip/5d';
 import type { NostrEvent } from '@napplet/core';
 import type { GuardConfig, GuardEvent, GuardProfile, MitigationDescription, WindowVisibility } from '@kernlize/guard';
-import type { MessagingBackend, MessagingRegistry } from '@kernlize/messaging';
+import type { MessagingBackend, MessagingRegistry, ReplyAnswer, ReplyPrompt } from '@kernlize/messaging';
 import type { BridgeRegistry, TorrentBackend } from '@kernlize/bridges';
 import type { CatalogEntry } from './catalog/entry.js';
 import type { LoadCatalogOptions } from './catalog/fetch.js';
@@ -24,7 +24,29 @@ export interface AppletIdentity {
 /** The address a user typed or clicked. Decoded, never trusted beyond "which event to fetch". */
 export type AppletPointer =
   | { readonly kind: 'address'; readonly pubkey: string; readonly identifier: string; readonly eventKind: number; readonly relays: readonly string[] }
-  | { readonly kind: 'event'; readonly id: string; readonly relays: readonly string[]; readonly author?: string };
+  | { readonly kind: 'event'; readonly id: string; readonly relays: readonly string[]; readonly author?: string }
+  | { readonly kind: 'builtin'; readonly id: string; readonly relays: readonly string[] };
+
+/**
+ * An applet the host ships with itself. No manifest is fetched for it: its bytes are pinned by hash in
+ * the host's own code, which is the trust the shell already rests on. It runs sealed like any other applet.
+ */
+export interface BuiltinApplet {
+  /** Lowercase name; the applet's address is `kernl:<id>` and its grants are keyed on it. */
+  readonly id: string;
+  readonly title: string;
+  readonly description: string;
+  /** SHA-256 of the artifact, in hex. Bytes that do not hash to it are refused. */
+  readonly sha256: string;
+  readonly requires: readonly string[];
+  readonly optional: readonly string[];
+  /** Requests it takes from other applets, such as `napplet:dm/open`. */
+  readonly archetypes?: readonly { readonly slug: string; readonly convention: string; readonly params?: readonly string[] }[];
+  /** Domains switched on the first time it is opened; the user can withdraw each one afterwards. */
+  readonly grants?: readonly string[];
+  /** Load the single-file artifact. */
+  load(): Promise<string>;
+}
 
 /** What the shell shows before the user agrees to run an applet. Derived from the verified manifest. */
 export interface AppletSummary {
@@ -41,6 +63,8 @@ export interface AppletSummary {
   readonly optional: readonly string[];
   readonly archetypes: readonly string[];
   readonly source?: string;
+  /** The applet came with the shell; nobody published it, so `publisher` names no one. */
+  readonly builtin?: true;
   readonly manifest: NappletManifest;
 }
 
@@ -218,6 +242,12 @@ export interface KernlHost {
   openApplet?(address: string): Promise<string | undefined>;
   /** Bring a running applet's window to the front. */
   focusApplet?(windowId: string): void;
+  /**
+   * Ask the user which provider a reply should leave through when the person it is for last wrote
+   * through another one. Resolve `undefined` on dismiss, which stops the send. Without it the
+   * provider the user's order picked is used.
+   */
+  chooseReply?(prompt: ReplyPrompt): Promise<ReplyAnswer | undefined>;
   /** Verify an artifact blob. Defaults to `fetch` over the manifest's servers. */
   fetchBlob?(sha256: string, servers: readonly string[]): Promise<Uint8Array>;
   now?(): number;
@@ -256,6 +286,8 @@ export interface KernlOptions {
   readonly messagingBackends?: MessagingBackendFactories;
   /** Opens the verified-artifact cache. Defaults to Cache Storage when the page has it, otherwise none. */
   readonly artifactCache?: () => Promise<NappletArtifactCache | undefined>;
+  /** Applets that come with the host, opened by `kernl:<id>` without a lookup. */
+  readonly builtins?: readonly BuiltinApplet[];
   /** How intent delivery waits for a target to come up; `DELIVERY_RETRY` by default. */
   readonly intentRetry?: { readonly intervalMs: number; readonly attempts: number };
 }

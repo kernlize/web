@@ -115,9 +115,11 @@ function createAccountMessaging(options: KernlOptions, parts: MessagingParts): M
     selfPubkey: () => parts.accounts.active?.pubkey,
     accountChanges: parts.accounts.active$,
   };
+  const { host } = options;
   return createDefaultMessaging({
-    storage: options.host.storage,
+    storage: host.storage,
     signer,
+    ...(host.chooseReply ? { askReply: host.chooseReply.bind(host) } : {}),
     backends: {
       private: () => createPrivateMessagesBackend(deps),
       legacy: () => createLegacyMessagesBackend(deps),
@@ -247,6 +249,7 @@ export function createKernl(options: KernlOptions): Kernl {
     subscriptions,
     openCache: options.artifactCache ?? openDefaultArtifactCache,
     fetchBlob: host.fetchBlob ? host.fetchBlob.bind(host) : defaultFetchBlob,
+    builtins: options.builtins ?? [],
   });
 
   return {

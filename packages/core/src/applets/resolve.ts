@@ -22,7 +22,10 @@ import { addressOf } from '../catalog/entry.js';
  */
 export const BLOB_TIMEOUT_MS = 20_000;
 
-function filterFor(pointer: AppletPointer): NostrFilter {
+/** A pointer to something published: a built-in applet is never looked up. */
+export type PublishedPointer = Exclude<AppletPointer, { kind: 'builtin' }>;
+
+function filterFor(pointer: PublishedPointer): NostrFilter {
   if (pointer.kind === 'event') return { ids: [pointer.id] };
   const filter: NostrFilter = { kinds: [pointer.eventKind], authors: [pointer.pubkey] };
   if (pointer.identifier !== '') filter['#d'] = [pointer.identifier];
@@ -153,7 +156,7 @@ async function askRelays(pool: ApplesaucePool, relays: string[], filter: NostrFi
  * const event = await fetchManifestEvent(pool, tiers, decodePointer('naddr1…'));
  * ```
  */
-export async function fetchManifestEvent(pool: ApplesaucePool, tiers: RelayTiers, pointer: AppletPointer, timing: Partial<ManifestTiming> = {}): Promise<NostrEvent> {
+export async function fetchManifestEvent(pool: ApplesaucePool, tiers: RelayTiers, pointer: PublishedPointer, timing: Partial<ManifestTiming> = {}): Promise<NostrEvent> {
   const config = tiers.get();
   const first = dialable([...pointer.relays, ...config.apps]);
   const rounds = [first, dialable([...first, ...config.super]).slice(first.length)].filter((relays) => relays.length > 0);

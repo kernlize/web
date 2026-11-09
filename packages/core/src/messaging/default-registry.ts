@@ -5,10 +5,11 @@ import {
   createPrivateMessagesProvider,
   createRatchetMessagesProvider,
   type MessagingBackend,
-  type MessagingPreferences,
   type MessagingRegistry,
+  type MessagingRegistryOptions,
   type ProviderAvailability,
   type ProviderDeps,
+  type SavedMessagingPreferences,
 } from '@kernlize/messaging';
 import type { ISigner } from 'applesauce-signers';
 import type { MessagingBackendFactories, StorageLike } from '../types.js';
@@ -28,6 +29,8 @@ export interface DefaultMessagingOptions {
    * `legacy` only while it has `nip04`, whichever backend is supplied for them.
    */
   readonly signer?: () => ISigner | undefined;
+  /** Puts the reply question to the user; see `MessagingRegistryOptions.askReply`. */
+  readonly askReply?: MessagingRegistryOptions['askReply'];
 }
 
 const ENCRYPTION: Readonly<Record<keyof MessagingBackendFactories, MessagingEncryption>> = { private: 'nip44', legacy: 'nip04', ratchet: 'nip44', group: 'nip44' };
@@ -65,7 +68,10 @@ function depsFor(id: keyof MessagingBackendFactories, options: DefaultMessagingO
  * backend stays unavailable: `no-runtime` for `ratchet` and `group`, `sign-in-required`
  * for the others. The shell describes, it does not pretend.
  *
- * @param options - Storage, backend constructors and the active signer.
+ * The providers start in the order private, legacy, ratchet, group; the user's
+ * own order, reply rule and per-person answers are saved with the rest.
+ *
+ * @param options - Storage, backend constructors, the active signer and the reply question.
  * @returns A `MessagingRegistry`.
  * @example
  * ```ts
@@ -77,9 +83,10 @@ function depsFor(id: keyof MessagingBackendFactories, options: DefaultMessagingO
  */
 export function createDefaultMessaging(options: DefaultMessagingOptions): MessagingRegistry {
   const store = createNamespacedStore(options.storage, 'kernl');
-  const preferences = store.getJson<MessagingPreferences | null>(STORAGE_KEY, null);
+  const preferences = store.getJson<SavedMessagingPreferences | null>(STORAGE_KEY, null);
   const registry = createMessagingRegistry({
     ...(preferences ? { preferences } : {}),
+    ...(options.askReply ? { askReply: options.askReply } : {}),
     onChange: (next) => store.setJson(STORAGE_KEY, next),
   });
   registry.register(createPrivateMessagesProvider(depsFor('private', options)));
