@@ -38,3 +38,4 @@ import './shell-event-cache.js';
 import './kernl-network.js';
 import './dm-labels.js';
 import './file-uploads.js';
+import './common-actions.js';

@@ -508,3 +508,21 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Consequences.** Releasing needs no action beyond merging. Every push to `main` costs two registry lookups, and a push that follows a merge of the version PR costs the full validation again (CI ran it on the PR, but against the branch, not the merge). The first publish of each npm package needs the token secret set once and deleted once the trusted publishers exist; the how-to records the order. `check-unpublished` is also the local answer to "what would a release publish now".
 
 **Reversal cost.** Low. The `push` trigger and the `pending` job are the change; the tag and manual paths remain.
+
+## D-035 · Applets take social actions through the shell; changing who the person follows is shown to them first
+
+**Context.** Twelve published applets require `common` (NAP-COMMON): read a profile or the person's follows, follow and unfollow, react, report. kehto ships the service. The host supplies the hooks.
+
+**Decision.**
+
+- **Reads are public data.** `getProfile` accepts a key or a shared profile address and answers from the profile service, which follows the author's own servers (D-031). `follows` reads the account's current follow list.
+- **Writes are the person's.** Each write is signed by the account's signer through the shell's signing gate and published to the tier for its kind; it succeeds when any relay accepts it (D-028).
+  - `follow` and `unfollow` replace the follow list (kind 3). The current list is loaded first, and every other entry, tag and the content are kept. Because the change replaces part of the public record, the person sees "Change who you follow" with who is added and removed before anything is signed.
+  - `react` (kind 7) names the event and, when the shell has seen it, its author and kind, plus a custom emoji when given.
+  - `report` (kind 1984, NIP-56) names its target and reason.
+  - Reactions and reports are posts and are not asked about, like any other post.
+- A read-only or signed-out session cannot write (`denied:read-only`). A key that is not one is `invalid:pubkey`.
+
+**Consequences.** Social applets run in the shell without holding a key or a relay connection, and a follow-list change can never be made behind the person's back.
+
+**Reversal cost.** Low. `createCommonActions` is one module of hooks; a host can pass its own.

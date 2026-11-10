@@ -206,7 +206,8 @@ export { createDefaultBridges, type DefaultBridgesOptions } from './bridges/defa
 export { labelConversations } from './messaging/label-conversations.js';
 export { createAccountFileServers, DEFAULT_FILE_SERVERS, fileServersFromEvent, fileServerTags, type AccountFileServers, type AccountFileServersOptions, type FileServerState } from './files/file-servers.js';
 export { askUploadConsent, createBlossomUploader, describeUpload, sizeWords, type BlossomUploaderOptions, type MultiServerUpload, type UploadDetails } from './files/uploader.js';
-export { createKernlNetwork, type KernlNetwork, type KernlNetworkParts } from './kernl-network.js';
+export { createCommonActions, type CommonActionsOptions } from './social/common-actions.js';
+export { commonActionsFor, createKernlNetwork, type KernlNetwork, type KernlNetworkParts } from './kernl-network.js';
 export { LINK_PROTOCOLS, createKernlServices, isTheme, resourceInitFor, type KernlServiceDeps, type KernlServices } from './kernl-services.js';
 export { createShellAdapter, type ShellAdapterDeps } from './kernl-adapter.js';
 export { createAppletLifecycle, resolveWindow, type AppletLifecycle, type LifecycleContext } from './kernl-lifecycle.js';

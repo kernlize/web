@@ -1,4 +1,4 @@
-import { map, takeUntil, type Observable } from 'rxjs';
+import { lastValueFrom, map, takeUntil, type Observable } from 'rxjs';
 import type { EventStore } from 'applesauce-core';
 import type { RelayPool } from 'applesauce-relay';
 import type { AccountManager } from 'applesauce-accounts';
@@ -12,6 +12,11 @@ import { createProfiles, type Profiles } from './profiles/profiles.js';
 import { createRelayDirectory, type RelayDirectory } from './relays/directory.js';
 import { createAccountMailboxes, type AccountMailboxes } from './relays/mailboxes.js';
 import { createAccountFileServers, type AccountFileServers } from './files/file-servers.js';
+import type { CommonServiceOptions } from '@kehto/services';
+import type { SigningConsent } from './consent/handler.js';
+import { publishAccepted } from './applesauce/relay-backend.js';
+import { selectRelayTier } from './applesauce/relay-hooks.js';
+import { createCommonActions } from './social/common-actions.js';
 
 /** The parts of the shell that know people and servers: the event cache, the loader over it, profiles, mailboxes and the directory. */
 export interface KernlNetwork {
@@ -78,4 +83,36 @@ export function createKernlNetwork(options: Pick<KernlOptions, 'eventCache'>, pa
     signer,
   });
   return { eventCache, replaceableLoader, profiles, directory, mailboxes, files, signer };
+}
+
+/**
+ * The social actions the shell offers applets, over the composed network:
+ * profiles from the profile service, the account's follow list loaded before
+ * it changes, writes signed through the signing gate and published to the
+ * tier for their kind (D-035).
+ *
+ * @param parts - The store, pool, tiers and accounts.
+ * @param network - The composed network.
+ * @param consent - The shell's signing gate.
+ * @returns Options for kehto's `createCommonService`.
+ * @example
+ * ```ts
+ * createKernlServices({ ..., common: commonActionsFor(parts, network, consent) });
+ * ```
+ */
+export function commonActionsFor(parts: Omit<KernlNetworkParts, 'destroyed$'>, network: Pick<KernlNetwork, 'profiles' | 'replaceableLoader' | 'signer'>, consent: SigningConsent): CommonServiceOptions {
+  const { eventStore, pool, tiers, accounts } = parts;
+  return createCommonActions({
+    store: eventStore,
+    profiles: network.profiles,
+    pubkey: () => accounts.active?.pubkey,
+    signer: network.signer,
+    consent,
+    publish: (event) => publishAccepted(pool, selectRelayTier(tiers, [{ kinds: [event.kind] }]), event),
+    loadFollows: (pubkey) =>
+      lastValueFrom(network.replaceableLoader({ kind: 3, pubkey, relays: lookupRelaysOf(tiers.get()) }), { defaultValue: undefined }).then(
+        () => undefined,
+        () => undefined,
+      ),
+  });
 }
