@@ -12,19 +12,15 @@ Branch `feat/applet-config`, based on main after PR #26. The core is done and te
   - A kernl scenario where an applet registers a schema, opens settings, the form commits `level: 4`, and the applet reads it back.
   - 51 scenarios across the two specs pass.
 
+## Also done
+- Web form: `apps/web/src/shell/AppletSettings.svelte` over `settings-form.ts` (spec `apps/web/features/shell-settings.feature`), wired through `host.presentSettings` and a `SettingsQueue` in `Shell.svelte`.
+- Preview: `preview-config.ts` runs kehto's config service over `createAppletConfig`; the Notes sample has "Open its settings" (`preview-settings.feature`, Playwright in `shell-preview.spec.ts`).
+- D-036, docs rows in `docs/packages/core.md`, changeset `applet-config.md` (minor, core).
+- Local: web specs 100% coverage on touched files, slop 100, docs gate, vocabulary/agent-ready/links, 32 Playwright tests green. Some crypto and script scenarios time out locally under load (load average ~120), including on unchanged main; CI is the authority.
+
 ## To do
-1. **Web form:** `apps/web/src/shell/AppletSettings.svelte`, shown from `host.presentSettings` (wire it the way `presentConsent` and the consent queue are wired; see `host.ts` and `Shell.svelte`).
-   - Render `context.schema.properties`:
-     - string → text, or a select when it has `enum`
-     - number/integer → number input with `minimum`/`maximum`
-     - boolean → checkbox
-     - group by the section extension
-     - mask secret fields
-   - On save call `context.commit(values)`. Show an error if it throws.
-   - Any logic goes in a `.ts` with a Gherkin feature in `apps/web/features`, because shell `.ts` needs 100% coverage. Svelte is covered by e2e.
-   - Add the preview implementation, and a Playwright test (preview).
-2. **Paperwork:** D-036 in `DECISIONS.md` (next free number; check main first), a docs row in `docs/packages/core.md` for `createAppletConfig`/`SettingsPrompt`/`presentSettings`, and a changeset (minor, core).
-3. **Ship:** `pnpm check` (the machine has been heavily loaded by other sessions, so heavy crypto scenarios can time out locally; CI is the authority), PR, CI, ask the user before merging, then verify on kernl.run that applets needing `config` are no longer marked.
+1. CI green on the PR; ask the user before merging.
+2. After deploy, verify on kernl.run that applets needing `config` are no longer marked.
 
 ## Context
 - Goal: better nostr compatibility, always extensible.
