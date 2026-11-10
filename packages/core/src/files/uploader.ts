@@ -145,7 +145,7 @@ function completed(uploadId: string, stored: readonly BlobDescriptor[], mimeType
  * success, and the result names every copy (D-028). The person is asked first,
  * once per file, with what it is, its size and where it goes; nothing is signed
  * or sent unless they allow it. A read-only session cannot upload. An applet
- * never chooses the servers (D-032).
+ * never chooses the servers (D-033).
  *
  * @param options - Servers, signer, the consent question and an optional transfer for tests.
  * @returns An `Uploader`.

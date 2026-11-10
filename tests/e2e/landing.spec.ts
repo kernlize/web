@@ -35,6 +35,27 @@ test.describe('landing site', () => {
     }
   });
 
+  test('every footer link into the site answers, and a docs page opened at its clean address stays that page', async ({ page }) => {
+    await page.goto('/');
+    const site = new URL((await page.locator('link[rel="canonical"]').getAttribute('href')) as string).origin;
+    const hrefs = await page.locator('footer nav[aria-label="Footer"] a').evaluateAll((links) => links.map((link) => link.getAttribute('href') as string));
+    expect(hrefs).toHaveLength(6);
+    // Copy names the production origin outright in places; here those links are followed on the site under test.
+    const paths = hrefs.map((href) => new URL(href, site)).filter((url) => url.origin === site).map((url) => url.pathname);
+    expect(paths).toHaveLength(5);
+    for (const path of paths) expect((await page.request.get(path)).status(), path).toBe(200);
+
+    // D-032: the host serving the file is half of it; the docs app must also recognise the address it wakes up at.
+    const docs = paths.filter((path) => path.startsWith('/docs/') && path !== '/docs/');
+    expect(docs).toHaveLength(2);
+    for (const path of docs) {
+      await page.goto(path, { waitUntil: 'networkidle' });
+      await expect(page.locator('.VPDoc h1')).toBeVisible();
+      await expect(page.locator('.NotFound')).toHaveCount(0);
+      expect(new URL(page.url()).pathname).toBe(path);
+    }
+  });
+
   for (const [width, height] of [[1280, 720], [390, 844]] as const) {
     test(`at ${width}x${height} the hero is whole above the fold`, async ({ page }) => {
       await page.setViewportSize({ width, height });

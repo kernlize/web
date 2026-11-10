@@ -48,6 +48,7 @@ Code, features, step definitions and docs change in the same PR.
 - Every public export has JSDoc with `@param`, `@returns` and `@example`, and a reference page reachable from the docs sidebar. `pnpm docs:check` enforces a page per package with a `| Version | \`x.y.z\` |` row.
 - `pnpm check:vocabulary` fails if `apps/web` output names a protocol. Public copy says applet, account, network, provider, guard.
 - `pnpm check:agent-ready` fails if the built site is missing any agent-discovery artifact.
+- `pnpm check:links` fails if any link in the built site, fragment included, does not resolve under the production host's rules in `scripts/pages-host.mjs`. The preview server uses the same rules; never make it more forgiving than production.
 - `pnpm slop` must score 100. `.aislop/config.yml` is pinned; disabling a rule needs a written reason in the config.
 
 ### Code conventions
@@ -80,6 +81,7 @@ Code, features, step definitions and docs change in the same PR.
 | `pnpm site:dev` / `pnpm site:build` | Astro dev server / full Pages artifact in `.pages/` |
 | `pnpm check:vocabulary` | Public-copy denylist scan |
 | `pnpm check:agent-ready` | Agent-discovery artifact audit |
+| `pnpm check:links` | Link gate over `.pages/`; `--external` requests outbound links, `--live <url>` asks a deployed site |
 | `pnpm slop` | aislop scan |
 | `pnpm check` | Everything above that runs without a browser |
 

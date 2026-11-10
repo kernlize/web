@@ -5,7 +5,7 @@ Feature: Uploading files
   with what it is, its size and where it goes, before anything is signed or
   sent. The file is uploaded to the first server and mirrored to the others
   with the Blossom client SDK; any server that stores it makes the upload a
-  success (D-028, D-032).
+  success (D-028, D-033).
 
   Scenario: a file-server list reads in order, and a new one keeps its other tags
     Then the file servers of a list naming "https://cdn.one.test,https://two.test/,https://cdn.one.test/" are "https://cdn.one.test/,https://two.test/"

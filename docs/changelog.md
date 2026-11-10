@@ -62,6 +62,7 @@ Each entry says what ships, per package and app. [Alpha status](./alpha-status.m
 
 ### Shell and site (`apps/web`)
 
+- Every docs page answers at its clean address ([D-032](./decisions.md#d-032)). On kernl.run, `/docs/<page>` returned 404 when opened directly, which broke two footer links on the landing and every docs link on a fresh load; the build now writes each page at `<page>/index.html` as well. `pnpm check:links` checks every link and fragment in the built site against the host's rules in CI and before each deploy, and against the live site after it. The preview server follows the same rules.
 - Messages are an applet ([D-027](./decisions.md#d-027)). The Messages panel is gone; the button opens the Messages applet the shell ships (`applets/messages`, built with the napplet toolchain, pinned by hash), or the applet the user chose for messages. It shows one conversation per person across providers, keeps drafts, counts unread itself and follows the shell's colours. The preview runs the same bytes over a real message port.
 - Settings has a Messages section: the providers in the user's order with move up, move down and on or off, what each protects, the reply rule, and a button that forgets kept answers. The per-conversation provider picker is gone.
 - A reply to someone who last wrote through a provider other than the first in the order opens a question first: send it their way or keep the order, for this message, this person or everyone.
