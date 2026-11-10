@@ -172,3 +172,17 @@ test('text that is not an address is searched for, never looked up', async ({ pa
   await expect(page.getByRole('alert')).toHaveCount(0);
   expect(network.lookups).toEqual([]);
 });
+
+test('the store lists an applet this shell cannot fully run, says what it needs, and hides it only when asked', async ({ page }) => {
+  const applet = signApplet({ servers: ['https://blobs.test'], requires: ['upload'] });
+  await fakeNetwork(page, applet, generalRelays('holds'), { 'blobs.test': 'has' });
+  await signInFresh(page);
+  await page.getByRole('button', { name: 'Open an applet' }).click();
+  const listed = page.getByRole('list', { name: 'Applets' }).getByRole('listitem').filter({ hasText: 'Feed applet' });
+  await expect(listed).toBeVisible({ timeout: 15_000 });
+  await expect(listed).toContainText('which this shell does not offer');
+  await expect(page.getByText('1 applet needs something this shell does not offer, marked below')).toBeVisible();
+  await page.getByRole('checkbox', { name: /Only applets that work here/ }).check();
+  await expect(listed).toHaveCount(0);
+  await expect(page.getByText('1 applet needs something this shell does not offer, hidden')).toBeVisible();
+});
