@@ -31,7 +31,8 @@
     "site:publish": "bash scripts/publish-site.sh",
     "prepare:jsr": "node scripts/prepare-jsr.mjs",
     "check:jsr": "pnpm prepare:jsr && cd .jsr && deno publish --dry-run --allow-dirty",
-    "check:packages": "node scripts/check-packages.mjs"
+    "check:packages": "node scripts/check-packages.mjs",
+    "check:unpublished": "node scripts/check-unpublished.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "^2.30.0",

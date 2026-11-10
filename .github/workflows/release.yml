@@ -1,7 +1,13 @@
 name: Release
 
+# D-034: a release is whatever main carries that a registry does not have. Every push to main asks npm and
+# JSR for each package's version; merging the Version Packages PR is what makes one missing. A tag or a
+# manual run publishes without asking. Both publishers skip versions that already exist, so a rerun at the
+# same commit finishes whatever the last run left.
+
 on:
   push:
+    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
 
@@ -14,7 +20,22 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  pending:
+    name: Anything to publish?
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.registries.outputs.pending }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - id: registries
+        run: node scripts/check-unpublished.mjs
+
   validate:
+    needs: pending
+    if: needs.pending.outputs.release == 'true' || github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,14 +61,28 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org
+          cache: pnpm
       - run: npm install --global npm@11
+      # A granular token carries the first publish of a package, which trusted publishing cannot do; once the
+      # package exists and its trusted publisher names this workflow, remove NPM_TOKEN and npm exchanges the
+      # job's OIDC token instead. setup-node's registry-url is not used: it would write an empty token line
+      # whenever the secret is absent, and npm then never tries OIDC.
+      - name: Choose npm credentials
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "registry=https://registry.npmjs.org/" >> "$HOME/.npmrc"
+          if [ -n "$NPM_TOKEN" ]; then
+            echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> "$HOME/.npmrc"
+            echo "::notice::Publishing with NPM_TOKEN. Once every package exists and has a trusted publisher, delete the secret."
+          else
+            echo "::notice::NPM_TOKEN is not set; publishing through npm trusted publishing (OIDC)."
+          fi
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm exec changeset publish
         env:
           NPM_CONFIG_PROVENANCE: "true"
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   jsr:
     needs: validate
@@ -58,6 +93,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: pnpm
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.9.8
@@ -65,3 +101,19 @@ jobs:
       - run: pnpm prepare:jsr
       - run: deno publish
         working-directory: .jsr
+
+  published:
+    name: Registries carry main
+    needs: [npm, jsr]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - id: registries
+        run: node scripts/check-unpublished.mjs
+      - if: steps.registries.outputs.pending == 'true'
+        run: |
+          echo "::error::A publish job reported success but a registry still lacks a version; see the list above."
+          exit 1
