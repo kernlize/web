@@ -192,6 +192,20 @@ Feature: The composed shell
     When the person answers no to the follow
     Then the applet is told its follow failed with "denied:consent"
 
+  Scenario: an applet granted settings registers its schema and opens the shell's form
+    Given a kernl shell over that host and pool whose host shows settings
+    When the shell logs in with a password account named "alice"
+    And the shell resolves the manifest address
+    And the shell allows "config" for the resolved applet
+    And the shell plans the summary
+    And the shell mounts the plan into a fake frame
+    And the applet sends its hello through the shell
+    And the applet asks "shell.ready" over its port
+    And the applet registers a settings schema with a "level" number and opens its settings over its port
+    Then the host was shown the settings form for the resolved applet with "level" in its schema
+    When the person sets "level" to 4 in the form
+    Then the applet reads its settings as '{"level":4}' over its port
+
   Scenario: an applet is resolved, planned and mounted
     Given a kernl shell over that host and pool
     When the shell resolves the manifest address

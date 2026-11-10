@@ -4,6 +4,7 @@ import type { AuthHooks } from '@kehto/shell';
 import type { ServiceHandler, ServiceRegistry, Signer } from '@kehto/runtime';
 import {
   createCommonService,
+  createConfigService,
   createDmService,
   createIdentityService,
   createLinkService,
@@ -15,6 +16,7 @@ import {
   createThemeService,
   createUploadService,
   type CommonServiceOptions,
+  type ConfigServiceOptions,
   type DmService,
   type OutboxRouter,
   type RelayListEntry,
@@ -74,6 +76,8 @@ export interface KernlServiceDeps {
   readonly host: Pick<KernlHost, 'notify' | 'openLink'>;
   readonly bridges: BridgeRegistry;
   readonly messaging: MessagingRegistry;
+  /** Applet settings (NAP-CONFIG); without them the `config` domain is not offered. */
+  readonly config?: ConfigServiceOptions;
   /** Social actions for applets (NAP-COMMON); without them the `common` domain is not offered. */
   readonly common?: CommonServiceOptions;
   /** Uploads for applets (NAP-UPLOAD); without it the `upload` domain is not offered. */
@@ -272,6 +276,7 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
     }),
     dm,
     outbox: gateOutboxPublish(createOutbox(deps, identity), deps.consent),
+    ...(deps.config ? { config: createConfigService(deps.config).handler } : {}),
     ...(deps.common ? { common: createCommonService(deps.common) } : {}),
     ...(deps.uploader ? { upload: createUploadService({ uploader: deps.uploader, uploadInfo: { rails: [{ rail: 'blossom', enabled: true }] } }) } : {}),
   };

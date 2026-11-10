@@ -11,6 +11,7 @@ import { createKernlAccounts } from './applesauce/accounts.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
 import type { ProfileCard, Profiles } from './profiles/profiles.js';
 import { commonActionsFor, createKernlNetwork } from './kernl-network.js';
+import { createAppletConfig } from './applets/applet-config.js';
 import { askUploadConsent, createBlossomUploader } from './files/uploader.js';
 import type { AccountMailboxes } from './relays/mailboxes.js';
 import { createRelayTiers } from './relays/tiers.js';
@@ -151,6 +152,12 @@ function registriesFor(options: KernlOptions, parts: MessagingParts): Pick<Kernl
   };
 }
 
+/** The applet a window runs, keyed by its catalogue id so its settings outlive a version. */
+function appletOf(handles: ReadonlyMap<string, MountedApplet>, windowId: string): { key: string; title: string } | undefined {
+  const summary = handles.get(windowId)?.summary;
+  return summary ? { key: summary.manifest.catalogId, title: summary.title } : undefined;
+}
+
 interface ShellParts {
   readonly handles: ReadonlyMap<string, MountedApplet>;
   readonly subscriptions: Subscription;
@@ -246,6 +253,7 @@ export function createKernl(options: KernlOptions): Kernl {
     bridges,
     messaging,
     profiles,
+    ...(host.presentSettings ? { config: createAppletConfig({ storage: host.storage, appletOf: (windowId) => appletOf(handles, windowId), present: host.presentSettings.bind(host) }) } : {}),
     common: commonActionsFor({ eventStore, pool, tiers, accounts }, { profiles, replaceableLoader, signer }, consent),
     uploader: createBlossomUploader({
       servers: () => files.current(),

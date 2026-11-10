@@ -14,6 +14,7 @@ import type { Profiles } from './profiles/profiles.js';
 import type { EventCacheOpener } from './cache/connect.js';
 import type { AccountMailboxes } from './relays/mailboxes.js';
 import type { AccountFileServers } from './files/file-servers.js';
+import type { SettingsPrompt } from './applets/applet-config.js';
 import type { RelayDirectory } from './relays/directory.js';
 import type { LoadCatalogOptions } from './catalog/fetch.js';
 import type { HandlerDefaults } from './intents/defaults.js';
@@ -233,6 +234,8 @@ export interface KernlHost {
   readonly storage: StorageLike;
   /** Ask the user. Resolve `false` on dismiss. The core never times this out. */
   presentConsent(prompt: ConsentPrompt): void;
+  /** Show an applet's settings form. Without it applets cannot have settings, and the `config` domain is not offered (D-036). */
+  presentSettings?(prompt: SettingsPrompt): void;
   /** Show something the applet or the guard wants the user to know. */
   notify(notice: { readonly title: string; readonly body?: string; readonly windowId?: string; readonly tone: 'info' | 'warning' }): void;
   /** Open a link outside the shell after the link policy allowed it. */
