@@ -177,6 +177,21 @@ Feature: The composed shell
     When the shell saves the account's file servers as "https://mine.test"
     Then the shell's file servers are "https://mine.test/"
 
+  Scenario: an applet granted social actions follows someone only after the person sees the change
+    Given a kernl shell over that host and pool
+    Then the shell offers the "common" domain
+    When the shell logs in with a password account named "alice"
+    And the shell resolves the manifest address
+    And the shell allows "common" for the resolved applet
+    And the shell plans the summary
+    And the shell mounts the plan into a fake frame
+    And the applet sends its hello through the shell
+    And the applet asks "shell.ready" over its port
+    And the applet asks to follow "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d" over its port
+    Then the shell asks the person "Change who you follow" before signing
+    When the person answers no to the follow
+    Then the applet is told its follow failed with "denied:consent"
+
   Scenario: an applet is resolved, planned and mounted
     Given a kernl shell over that host and pool
     When the shell resolves the manifest address

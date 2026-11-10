@@ -82,3 +82,23 @@ When("the shell saves the account's file servers as {string}", async (world: Cor
 Then("the shell's file servers are {string}", (world: CoreWorld, servers: string) => {
   expect(k(world).kernl.files.state()).toMatchObject({ status: 'found', servers: splitList(servers) });
 });
+
+When('the applet asks to follow {string} over its port', async (world: CoreWorld, pubkey: string) => {
+  k(world).channel?.port1.postMessage({ type: 'common.follow', id: 'follow-1', pubkeys: [pubkey] });
+  await vi.waitFor(() => expect(k(world).record.prompts.length).toBeGreaterThan(0), { timeout: 5000 });
+});
+
+Then('the shell asks the person {string} before signing', (world: CoreWorld, title: string) => {
+  expect(k(world).record.prompts.at(-1)?.summary).toMatchObject({ title, severity: 'destructive' });
+});
+
+When('the person answers no to the follow', async (world: CoreWorld) => {
+  k(world).record.prompts.at(-1)?.resolve(false);
+  await settle();
+});
+
+Then('the applet is told its follow failed with {string}', async (world: CoreWorld, error: string) => {
+  await vi.waitFor(() => expect(k(world).received.some((message) => message.type === 'common.follow.result')).toBe(true), { timeout: 3000 });
+  const reply = k(world).received.find((message) => message.type === 'common.follow.result') as { ok?: boolean; error?: string; result?: { ok: boolean; error?: string } };
+  expect(reply.result ?? reply).toMatchObject({ ok: false, error });
+});

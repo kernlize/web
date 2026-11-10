@@ -3,6 +3,7 @@ import { verifyEvent } from 'applesauce-core/helpers';
 import type { AuthHooks } from '@kehto/shell';
 import type { ServiceHandler, ServiceRegistry, Signer } from '@kehto/runtime';
 import {
+  createCommonService,
   createDmService,
   createIdentityService,
   createLinkService,
@@ -13,6 +14,7 @@ import {
   createResourceService,
   createThemeService,
   createUploadService,
+  type CommonServiceOptions,
   type DmService,
   type OutboxRouter,
   type RelayListEntry,
@@ -72,6 +74,8 @@ export interface KernlServiceDeps {
   readonly host: Pick<KernlHost, 'notify' | 'openLink'>;
   readonly bridges: BridgeRegistry;
   readonly messaging: MessagingRegistry;
+  /** Social actions for applets (NAP-COMMON); without them the `common` domain is not offered. */
+  readonly common?: CommonServiceOptions;
   /** Uploads for applets (NAP-UPLOAD); without it the `upload` domain is not offered. */
   readonly uploader?: Uploader;
   /** Names conversation participants for applets; without it they are listed by key alone. */
@@ -268,6 +272,7 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
     }),
     dm,
     outbox: gateOutboxPublish(createOutbox(deps, identity), deps.consent),
+    ...(deps.common ? { common: createCommonService(deps.common) } : {}),
     ...(deps.uploader ? { upload: createUploadService({ uploader: deps.uploader, uploadInfo: { rails: [{ rail: 'blossom', enabled: true }] } }) } : {}),
   };
   return { registry, theme, dm };

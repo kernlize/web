@@ -10,7 +10,7 @@ import type { AppletIdentity, GuardFacade, Kernl, KernlOptions, RelayTiers, Sess
 import { createKernlAccounts } from './applesauce/accounts.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
 import type { ProfileCard, Profiles } from './profiles/profiles.js';
-import { createKernlNetwork } from './kernl-network.js';
+import { commonActionsFor, createKernlNetwork } from './kernl-network.js';
 import { askUploadConsent, createBlossomUploader } from './files/uploader.js';
 import type { AccountMailboxes } from './relays/mailboxes.js';
 import { createRelayTiers } from './relays/tiers.js';
@@ -246,6 +246,7 @@ export function createKernl(options: KernlOptions): Kernl {
     bridges,
     messaging,
     profiles,
+    common: commonActionsFor({ eventStore, pool, tiers, accounts }, { profiles, replaceableLoader, signer }, consent),
     uploader: createBlossomUploader({
       servers: () => files.current(),
       signer,

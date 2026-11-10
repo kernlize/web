@@ -79,6 +79,7 @@ export function createShellAdapter(deps: ShellAdapterDeps): ShellAdapter {
     workerRelay: { getWorkerRelay: () => null },
     // kehto offers the upload domain only when both the service and this backend are present; kernl's uploads are Blossom (D-033).
     upload: { getUploader: () => (deps.services.upload ? UPLOAD_BACKEND : null) },
+    common: { isAvailable: () => deps.services.common !== undefined },
     crypto: { verifyEvent: (event) => Promise.resolve(verifyEvent(event)) },
     link: { isAvailable: () => true },
     intent: { isAvailable: () => true },

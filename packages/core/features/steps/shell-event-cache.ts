@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
-import { lastValueFrom, toArray } from 'rxjs';
+import { from, lastValueFrom, switchMap, toArray } from 'rxjs';
 import { EventMemory, EventStore } from 'applesauce-core';
 import { isFromCache, type NostrEvent } from 'applesauce-core/helpers';
 import { PrivateKeySigner } from 'applesauce-signers';
@@ -83,7 +83,16 @@ Then('closing the connected cache closes it', async (world: CoreWorld) => {
 
 Given('the catalogue cache holds manifests {string}', async (world: CoreWorld, specs: string) => {
   const cached = await manifestsFor(specs);
-  s(world).catalogCache = async () => cached;
+  // The relay is held until the cache has answered, so "the cache first" does not depend on the machine's speed.
+  const pool = scratch(world).pool;
+  const relay = pool.request.bind(pool);
+  let answered: () => void = () => undefined;
+  const cacheAnswered = new Promise<void>((resolve) => (answered = resolve));
+  pool.request = ((...args: Parameters<typeof relay>) => from(cacheAnswered).pipe(switchMap(() => relay(...args)))) as typeof pool.request;
+  s(world).catalogCache = async () => {
+    setTimeout(answered, 0);
+    return cached;
+  };
 });
 
 Given('the catalogue cache fails', (world: CoreWorld) => {
