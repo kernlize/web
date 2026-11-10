@@ -155,7 +155,7 @@ function registriesFor(options: KernlOptions, parts: MessagingParts): Pick<Kernl
 /** The applet a window runs, keyed by its catalogue id so its settings outlive a version. */
 function appletOf(handles: ReadonlyMap<string, MountedApplet>, windowId: string): { key: string; title: string } | undefined {
   const summary = handles.get(windowId)?.summary;
-  return summary ? { key: summary.manifest.catalogId, title: summary.title } : undefined;
+  return summary && { key: summary.manifest.catalogId, title: summary.title };
 }
 
 interface ShellParts {
