@@ -87,7 +87,7 @@ Code, features, step definitions and docs change in the same PR.
 
 ## Releases
 
-Changesets. Add one per package whose shipped output changed; on 0.x a breaking change is a `minor` bump. `publish.yml` opens the Version Packages PR through `pnpm version-packages`, which also rewrites the `| Version |` rows in `docs/packages/` so the docs gate passes; `release.yml` is the only publisher. npm uses `@kernlize/*`; JSR uses `@kernl/*`. Run `pnpm check:packages` and `pnpm check:jsr` before release. See `docs/how-tos/publish-packages.md`.
+Changesets. Add one per package whose shipped output changed; on 0.x a breaking change is a `minor` bump. `publish.yml` opens the Version Packages PR through `pnpm version-packages`, which also rewrites the `| Version |` rows in `docs/packages/` so the docs gate passes; `release.yml` is the only publisher: on every push to `main` it asks npm and JSR for each package's version and publishes whatever is missing, so merging the Version Packages PR is the release (`pnpm check:unpublished` shows what it would publish). npm uses `@kernlize/*`; JSR uses `@kernl/*`. Run `pnpm check:packages` and `pnpm check:jsr` before release. See `docs/how-tos/publish-packages.md`.
 
 ## Private references
 
