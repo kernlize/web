@@ -494,3 +494,17 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Consequences.** Applets that need uploads now run, and their files land where the account's other clients look for them. A file the person allowed is public for good: Blossom has no private uploads, so the prompt says so.
 
 **Reversal cost.** Low. The uploader is one module behind kehto's `Uploader` interface, so a host can pass its own.
+
+## D-034 · Merging the Version Packages PR is the release; the registries say what is missing
+
+**Context.** D-021 made `release.yml` the only publisher, started by a `v*` tag or by hand. Nothing had been published: the Version Packages PR merged twice and the tag never followed, because the step after the merge was a person remembering to run a workflow. Changesets' own action can publish from the versioning workflow, but it decides by the absence of pending changesets, which is true of most pushes to `main`, and it would put the publish credentials and the full validation into the workflow that opens pull requests. npm's trusted publishing cannot carry a package's first version, which no package had yet, and `setup-node` writes an authentication line into `.npmrc` whether or not the secret behind it exists, after which npm does not try OIDC.
+
+**Decision.**
+
+- **A release is whatever `main` carries that a registry does not have.** `release.yml` runs on every push to `main`. Its first job, `scripts/check-unpublished.mjs`, asks npm and JSR for each public package's versions; the rest of the workflow runs when a registry lacks one. Merging the Version Packages PR is what makes a version missing, so merging it is the release. A `v*` tag or a manual run publishes without asking. A registry that cannot be asked fails the job; an outage never reads as "nothing to publish".
+- **The npm job chooses its credential.** It writes `.npmrc` itself: with the `NPM_TOKEN` secret, a token line, for a package's first version; without it, no token, and npm exchanges the job's OIDC token with the trusted publisher. The log says which it used.
+- **A last job asks again.** After both publishers report success, the registries are asked once more; a version still missing fails the run. Both publishers skip versions that exist, so the next push to `main` finishes whatever a failed run left.
+
+**Consequences.** Releasing needs no action beyond merging. Every push to `main` costs two registry lookups, and a push that follows a merge of the version PR costs the full validation again (CI ran it on the PR, but against the branch, not the merge). The first publish of each npm package needs the token secret set once and deleted once the trusted publishers exist; the how-to records the order. `check-unpublished` is also the local answer to "what would a release publish now".
+
+**Reversal cost.** Low. The `push` trigger and the `pending` job are the change; the tag and manual paths remain.
