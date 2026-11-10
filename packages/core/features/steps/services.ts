@@ -243,6 +243,8 @@ Then('the adapter creates no windows, has no worker relay, forwards no hotkeys a
   const a = adapter(world);
   expect(a.windowManager.createWindow({ title: 'x', class: 'y' })).toBeNull();
   expect(a.workerRelay.getWorkerRelay()).toBeNull();
+  // Without an upload service there is no upload backend, so kehto does not offer the domain.
+  expect(a.upload?.getUploader()).toBe(a.services?.upload ? { rails: ['blossom'] } : null);
   expect(a.hotkeys.executeHotkeyFromForward({ key: 'a', code: 'KeyA', ctrlKey: false, altKey: false, shiftKey: false, metaKey: false })).toBeUndefined();
   expect(a.config.getNappUpdateBehavior()).toBe('banner');
   expect(a.auth.getUserPubkey()).toBeNull();

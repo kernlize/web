@@ -1,9 +1,9 @@
-import { expect } from 'vitest';
+import { expect, vi } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import { ReadonlyAccount } from 'applesauce-accounts/accounts';
 import { PrivateKeySigner } from 'applesauce-signers';
 import type { RelayTier } from '@kernlize/core';
-import { k } from './kernl.js';
+import { k, settle } from './kernl.js';
 import { attempt, scratch, splitList, type CoreWorld } from './world.js';
 
 Given('the fake pool serves a profile named {string} for a fresh key', async (world: CoreWorld, name: string) => {
@@ -51,4 +51,34 @@ When("the shell saves the account's inbox and outbox as {string}", async (world:
 Then("the shell's last save was accepted by {string}", (world: CoreWorld, urls: string) => {
   expect(scratch(world).mailboxSave).toMatchObject({ ok: true, refused: [] });
   expect((scratch(world).mailboxSave as { accepted: string[] }).accepted).toEqual(expect.arrayContaining(splitList(urls)));
+});
+
+When('the applet uploads an {int}-byte {string} file over its port', async (world: CoreWorld, size: number, mimeType: string) => {
+  k(world).channel?.port1.postMessage({ type: 'upload.upload', id: 'upload-1', request: { data: new Uint8Array(size).buffer, mimeType } });
+  await vi.waitFor(() => expect(k(world).record.prompts.length).toBeGreaterThan(0), { timeout: 3000 });
+});
+
+Then('the shell asks the person {string} marked {string}, sending it to {string}', (world: CoreWorld, title: string, severity: string, hosts: string) => {
+  const summary = k(world).record.prompts.at(-1)?.summary;
+  expect(summary).toMatchObject({ title, severity });
+  expect(summary?.lines.find((line) => line.label === 'Sent to')?.after).toBe(hosts);
+});
+
+When('the person answers no to the upload', async (world: CoreWorld) => {
+  k(world).record.prompts.at(-1)?.resolve(false);
+  await settle();
+});
+
+Then('the applet is told its upload was {string} with {string}', async (world: CoreWorld, status: string, error: string) => {
+  await vi.waitFor(() => expect(k(world).received.some((message) => message.type === 'upload.upload.result')).toBe(true), { timeout: 3000 });
+  const reply = k(world).received.find((message) => message.type === 'upload.upload.result') as { result?: { status: string; error: string } };
+  expect(reply.result).toMatchObject({ status, error });
+});
+
+When("the shell saves the account's file servers as {string}", async (world: CoreWorld, servers: string) => {
+  await k(world).kernl.files.save(splitList(servers));
+});
+
+Then("the shell's file servers are {string}", (world: CoreWorld, servers: string) => {
+  expect(k(world).kernl.files.state()).toMatchObject({ status: 'found', servers: splitList(servers) });
 });

@@ -2,6 +2,7 @@ import { map, takeUntil, type Observable } from 'rxjs';
 import type { EventStore } from 'applesauce-core';
 import type { RelayPool } from 'applesauce-relay';
 import type { AccountManager } from 'applesauce-accounts';
+import type { ISigner } from 'applesauce-signers';
 import type { AddressPointerLoader } from 'applesauce-loaders/loaders';
 import type { KernlOptions, RelayTiers } from './types.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
@@ -10,6 +11,7 @@ import { connectEventCache, type ConnectedEventCache } from './cache/connect.js'
 import { createProfiles, type Profiles } from './profiles/profiles.js';
 import { createRelayDirectory, type RelayDirectory } from './relays/directory.js';
 import { createAccountMailboxes, type AccountMailboxes } from './relays/mailboxes.js';
+import { createAccountFileServers, type AccountFileServers } from './files/file-servers.js';
 
 /** The parts of the shell that know people and servers: the event cache, the loader over it, profiles, mailboxes and the directory. */
 export interface KernlNetwork {
@@ -18,6 +20,9 @@ export interface KernlNetwork {
   readonly profiles: Profiles;
   readonly directory: RelayDirectory;
   readonly mailboxes: AccountMailboxes;
+  readonly files: AccountFileServers;
+  /** The active account's signer, or none for a read-only or signed-out session. */
+  readonly signer: () => ISigner | undefined;
 }
 
 /** What {@link createKernlNetwork} composes over. */
@@ -32,7 +37,8 @@ export interface KernlNetworkParts {
 
 /**
  * Compose the event cache, the replaceable loader that asks it first, the
- * profile service, the relay directory and the active account's mailboxes.
+ * profile service, the relay directory, and the active account's mailboxes
+ * and file servers.
  * A read-only or signed-out session has no signer for the mailboxes, so a
  * save is refused with `denied:read-only` (D-029, D-030).
  *
@@ -51,14 +57,25 @@ export function createKernlNetwork(options: Pick<KernlOptions, 'eventCache'>, pa
   const replaceableLoader = createReplaceableLoader(eventStore, pool, tiers, eventCache.cacheRequest);
   const lookupRelays = (): string[] => lookupRelaysOf(tiers.get());
   const directory = createRelayDirectory({ pool });
+  const signer = (): ISigner | undefined => (accounts.active && !isReadOnlyAccount(accounts.active) ? accounts.active.signer : undefined);
   const mailboxes = createAccountMailboxes({
     store: eventStore,
     pool,
     pubkey$: accounts.active$.pipe(map((account) => account?.pubkey), takeUntil(parts.destroyed$)),
     lookupRelays,
-    signer: () => (accounts.active && !isReadOnlyAccount(accounts.active) ? accounts.active.signer : undefined),
+    signer,
     directory,
   });
   const profiles = createProfiles({ store: eventStore, load: replaceableLoader, lookupRelays });
-  return { eventCache, replaceableLoader, profiles, directory, mailboxes };
+  const files = createAccountFileServers({
+    store: eventStore,
+    pool,
+    load: replaceableLoader,
+    pubkey$: accounts.active$.pipe(map((account) => account?.pubkey), takeUntil(parts.destroyed$)),
+    pubkey: () => accounts.active?.pubkey,
+    lookupRelays,
+    outboxes: () => tiers.get().outbox,
+    signer,
+  });
+  return { eventCache, replaceableLoader, profiles, directory, mailboxes, files, signer };
 }

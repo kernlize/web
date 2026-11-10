@@ -260,6 +260,11 @@ Feature: The preview kernl
     When the preview kernl saves inbox "" and outbox ""
     Then the preview kernl save was accepted by 0 servers
 
+  Scenario: the preview's uploads go to the default file servers until it saves its own
+    Then the preview kernl file servers are the defaults
+    When the preview kernl saves file servers "https://mine.test/"
+    Then the preview kernl uploads go to "https://mine.test/"
+
   Scenario: the preview's tiers can be replaced at once
     When the preview kernl sets the "outbox" tier to "wss://a.test,wss://a.test"
     Then the preview kernl "outbox" tier is "wss://a.test"

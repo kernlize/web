@@ -463,3 +463,18 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Consequences.** Names appear wherever a key did, from cache at once and from the network as it answers. The store fills from the first relay. The `outbox` tier is no longer edited by hand; it follows the published list.
 
 **Reversal cost.** Low. Each is one module behind an interface the preview also implements.
+
+## D-032 · Applets upload through the shell to the account's own file servers, with Blossom's own client, and the person is asked before each file leaves
+
+**Context.** Sixteen published applets require `upload` (NAP-UPLOAD), and the shell did not offer it. kehto ships the upload service and a reference HTTP uploader that sends a file to one server. Blossom, the file-server protocol most clients use, has a client SDK by its author that uploads to one server, mirrors to the others, checks first whether a server already holds the file, and handles the protocol's rejection and payment answers. BUD-03 gives every account a published list of its file servers (kind 10063).
+
+**Decision.**
+
+- **The wire is kehto's, the transfer is Blossom's.** `createUploadService` answers applets. Behind it, `createBlossomUploader` uses `blossom-client-sdk`'s `multiServerUpload`: the file goes to the first server and is mirrored to the rest. An upload is a success when any server stores it, and the result lists every copy (D-028). When none does it fails with `unavailable:not-accepted:0/<n>`.
+- **The account decides where files go.** `kernl.files` follows the account's kind 10063 list and waits for the lookup to finish before falling back to `DEFAULT_FILE_SERVERS` (blossom.primal.net, nostr.download, blossom.band, which answered an upload preflight when chosen). An applet may not name a server. Settings shows the list and publishes changes to the account's outboxes and the lookup servers.
+- **Every file is asked about.** Before anything is signed or sent, the person sees "Upload a file", marked `public`, with the file's name and type, its size, the servers it goes to, and "Anyone who has its address". The prompt appears once per file. One authorization (kind 24242) is then signed and covers every server. A read-only session is refused with `denied:read-only`, and an applet the shell cannot name is refused without asking.
+- `ConsentSummary.severity` gains `public` for writes that put something where anyone can fetch it.
+
+**Consequences.** Applets that need uploads now run, and their files land where the account's other clients look for them. A file the person allowed is public for good: Blossom has no private uploads, so the prompt says so.
+
+**Reversal cost.** Low. The uploader is one module behind kehto's `Uploader` interface, so a host can pass its own.

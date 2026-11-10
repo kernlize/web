@@ -250,6 +250,9 @@ importers:
       applesauce-sqlite:
         specifier: ^7.0.0
         version: 7.0.0(typescript@5.9.3)
+      blossom-client-sdk:
+        specifier: 5.1.0
+        version: 5.1.0
       nostr-double-ratchet:
         specifier: ^0.0.183
         version: 0.0.183(typescript@5.9.3)
@@ -1628,6 +1631,10 @@ packages:
     resolution: {integrity: sha512-P4/62zrgfH33CneE3Dn4WhJVA22YUU0eR51wKIan4NVRvwsA0YnPTwWGpNbpuacSujmSFLvyzpyuR30+fbq2Ew==}
     engines: {node: '>= 20.19.0'}
 
+  '@noble/hashes@1.8.0':
+    resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
+    engines: {node: ^14.21.3 || >=16}
+
   '@noble/hashes@2.0.1':
     resolution: {integrity: sha512-XlOlEbQcE9fmuXxrVTXCTlG2nlRXa9Rj3rr5Ue/+tX+nmkgbX720YHh0VR3hBF9xDvwnb8D2shVGOwNx+ulArw==}
     engines: {node: '>= 20.19.0'}
@@ -2885,6 +2892,15 @@ packages:
 
   block-iterator@1.1.2:
     resolution: {integrity: sha512-yAHUP44v2K25xLPdrgVTgwtuQctlullzjczu9CoUZom5AP3g4p1R1+aWHjS1GHG9JtcSUVUnbEPiuXiW5YZ24w==}
+
+  blossom-client-sdk@5.1.0:
+    resolution: {integrity: sha512-LINszlSe2ehQ9yzFdBbdFYKja+UR0YP//66e2XZaAUFRwexb3faRMQ2PArliqoSlrWY6g5kkaCCL58NUxEFfNA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      hls.js: ^1.6.16
+    peerDependenciesMeta:
+      hls.js:
+        optional: true
 
   body-parser@2.4.0:
     resolution: {integrity: sha512-Ifk1KcLrxaGt1occQagQNFNNOqRt1LFuehEnHHzB8Z6cRgIxRU1TBaiIsUiCdA+gy5PL7Y1IX31DNKkRmxtXjQ==}
@@ -6851,6 +6867,8 @@ snapshots:
     dependencies:
       '@noble/hashes': 2.4.0
 
+  '@noble/hashes@1.8.0': {}
+
   '@noble/hashes@2.0.1': {}
 
   '@noble/hashes@2.4.0': {}
@@ -8092,6 +8110,10 @@ snapshots:
       readable-stream: 3.6.2
 
   block-iterator@1.1.2: {}
+
+  blossom-client-sdk@5.1.0:
+    dependencies:
+      '@noble/hashes': 1.8.0
 
   body-parser@2.4.0:
     dependencies:

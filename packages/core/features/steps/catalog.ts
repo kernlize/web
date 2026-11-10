@@ -279,7 +279,7 @@ Given('the fake pool streams catalogue manifests {string} seen on {string}, then
         at += 1;
         if (event) observer.next(event);
         else observer.error(new Error('relay closed'));
-      }, 5);
+      }, 25);
       return () => clearInterval(timer);
     })) as typeof pool.request;
 });

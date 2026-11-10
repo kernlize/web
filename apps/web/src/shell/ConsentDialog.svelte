@@ -32,6 +32,7 @@
       <span class="shell-badge">{shortId(summary.applet.hash)}</span>
       {appletTitle} wants to
       {#if summary.severity === 'destructive'}<span class="shell-badge warn">destructive</span>{/if}
+      {#if summary.severity === 'public'}<span class="shell-badge warn">public</span>{/if}
     </p>
     <h2 id="consent-title">{summary.title}</h2>
     <dl id="consent-lines" class="lines">
