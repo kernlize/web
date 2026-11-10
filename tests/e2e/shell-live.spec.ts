@@ -174,7 +174,7 @@ test('text that is not an address is searched for, never looked up', async ({ pa
 });
 
 test('the store lists an applet this shell cannot fully run, says what it needs, and hides it only when asked', async ({ page }) => {
-  const applet = signApplet({ servers: ['https://blobs.test'], requires: ['upload'] });
+  const applet = signApplet({ servers: ['https://blobs.test'], requires: ['mesh'] });
   await fakeNetwork(page, applet, generalRelays('holds'), { 'blobs.test': 'has' });
   await signInFresh(page);
   await page.getByRole('button', { name: 'Open an applet' }).click();
