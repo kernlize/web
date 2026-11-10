@@ -1,5 +1,20 @@
 # @kernlize/core
 
+## 0.7.0
+
+### Minor Changes
+
+- 2fabe01: Add `@kernlize/core/cache`: an event cache behind one adapter contract. `openEventCache` opens the first adapter that works and falls back to memory; `defaultWebCacheAdapters()` is sqlite-wasm over the OPFS SAH pool in a worker, then IndexedDB, then memory. `fromEventDatabase` wraps any applesauce event database, and `attachEventCache` wires a cache to an `EventStore` and its loaders. A damaged sqlite database is wiped, rotated or given up on, never read.
+- 0875fac: Load profiles for the UI: `kernl.profiles` (`createProfiles`) asks the lookup relays and then the author's own write relays, with no timeout, and the session label follows the account's published name. The store streams (`kernl.catalog.stream`, `streamCatalog`), lists cached manifests first, says when nothing has arrived yet (`CATALOG_SETTLE_MS`) and leaves out manifests their publisher deleted. Publishes succeed when any relay accepts (`publishAccepted`; kehto's outbox router is wrapped to accept partial success), profiles, follows and relay lists route to indexers plus the user's own and general servers, and an author without a relay list writes to the shell's. A relay-list consent reads "Change your inbox and outbox". `createKernl` composes `kernl.mailboxes`, `kernl.directory` and the `eventCache` option, the `outbox` tier follows the account's published outboxes, and `RelayTiers` gains `set()`.
+
+  The applet catalogue tier now defaults to `relay.napplet.soy`, `relay.ditto.pub` and `relay.nostr.com`, the catalogues the public napplet stores read, so the store lists every napplet either lists. Manifests from the relays are kept in the event store, so the event cache holds them for the next visit.
+
+  Conversations listed through the `dm` domain name their participants from published profiles (`labelConversations`, `Profiles.settled`), so a messaging applet shows names instead of account ids.
+
+- 9b1006f: Publish outcomes, a relay directory and account mailboxes.
+
+  `summarizePublish` and `describeOutcome` treat a publish any relay accepted as a success and say how many did (`PublishOutcome`). `createRelayDirectory` streams NIP-66 monitor reports from `DEFAULT_MONITOR_RELAYS` and offers `search` and `suggest`, falling back to `DEFAULT_SUGGESTIONS` with no reports. `createAccountMailboxes` streams the active account's NIP-65 list, says it is missing only once every lookup relay finished, and saves a new one to old and new relays and the lookup relays; `mailboxesFromEvent` and `mailboxTags` read and write the list. `toRelayUrl` and `relayUrls` normalise relay URLs. `subscribeWithEose` accepts any pool with `req`.
+
 ## 0.6.0
 
 ### Minor Changes
