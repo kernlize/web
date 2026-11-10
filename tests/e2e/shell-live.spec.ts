@@ -50,10 +50,14 @@ test.describe('with one relay and one blob server down', () => {
     const posting = dialog.getByRole('checkbox', { name: /posting to your network/ });
     await expect(posting).toBeEnabled();
     await expect(posting).not.toBeChecked();
-    // Asked for but not offered by this shell: listed, explained, and impossible to switch on.
+    // Settings are offered now the shell draws their form (D-036); optional, so off until the person says so.
     const settings = dialog.getByRole('checkbox', { name: /its settings/ });
-    await expect(settings).toBeDisabled();
+    await expect(settings).toBeEnabled();
     await expect(settings).not.toBeChecked();
+    // Asked for but not offered by this shell: listed, explained, and impossible to switch on.
+    const tools = dialog.getByRole('checkbox', { name: /remote tools/ });
+    await expect(tools).toBeDisabled();
+    await expect(tools).not.toBeChecked();
     await expect(dialog.getByText('not available in this shell')).toBeVisible();
 
     await posting.check();
