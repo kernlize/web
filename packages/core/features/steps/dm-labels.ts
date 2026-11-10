@@ -19,7 +19,7 @@ function participant(spec: string): { pubkey: string; label?: string } {
 }
 
 Given('a conversation adapter listing a conversation with {string}', (world: CoreWorld, specs: string) => {
-  const conversation = { id: 'c1', kind: 'direct', participants: splitList(specs).map(participant) } as unknown as DmConversation;
+  const conversation: DmConversation = { id: 'c1', kind: 'direct', participants: splitList(specs).map(participant), unread: 0 };
   const adapter: DmAdapter = {
     status: () => ({ available: true }) as never,
     conversations: async () => ({ conversations: [conversation] }) as DmConversationPage,

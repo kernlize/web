@@ -11,6 +11,7 @@ import { createKernlAccounts } from './applesauce/accounts.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
 import type { ProfileCard, Profiles } from './profiles/profiles.js';
 import { createKernlNetwork } from './kernl-network.js';
+import { askUploadConsent, createBlossomUploader } from './files/uploader.js';
 import type { AccountMailboxes } from './relays/mailboxes.js';
 import { createRelayTiers } from './relays/tiers.js';
 import { decodePointer } from './applets/pointer.js';
@@ -150,6 +151,33 @@ function registriesFor(options: KernlOptions, parts: MessagingParts): Pick<Kernl
   };
 }
 
+interface ShellParts {
+  readonly handles: ReadonlyMap<string, MountedApplet>;
+  readonly subscriptions: Subscription;
+  readonly destroyed$: Subject<void>;
+  readonly network: { readonly directory: { stop(): void }; readonly eventCache: { close(): Promise<void> } };
+  readonly intents: { close(): void };
+  readonly dm: { dispose(): void };
+  readonly bridge: ShellBridge;
+  /** Closed only when the shell created it. */
+  readonly messaging?: MessagingRegistry;
+  readonly pool?: RelayPool;
+}
+
+/** Close every applet, then everything the shell opened, the parts it was handed excepted. */
+function tearDown(parts: ShellParts): void {
+  for (const handle of [...parts.handles.values()]) handle.close();
+  parts.subscriptions.unsubscribe();
+  parts.destroyed$.next();
+  parts.network.directory.stop();
+  void parts.network.eventCache.close();
+  parts.intents.close();
+  parts.dm.dispose();
+  parts.bridge.destroy();
+  parts.messaging?.close();
+  parts.pool?.close();
+}
+
 /**
  * Compose the shell: one `EventStore`, one `RelayPool`, one `AccountManager`,
  * the relay tiers, the guard pipeline, the grants layer, the messaging and
@@ -202,7 +230,7 @@ export function createKernl(options: KernlOptions): Kernl {
   });
 
   const identityOf = (windowId: string): AppletIdentity | undefined => handles.get(windowId)?.summary.identity;
-  const { eventCache, replaceableLoader, profiles, directory, mailboxes } = createKernlNetwork(options, { eventStore, pool, tiers, accounts, destroyed$ });
+  const { eventCache, replaceableLoader, profiles, directory, mailboxes, files, signer } = createKernlNetwork(options, { eventStore, pool, tiers, accounts, destroyed$ });
   const lookupBefore = lookupReplaceable(eventStore, {
     loader: replaceableLoader,
     relays: () => [...tiers.get().outbox, ...tiers.get().discovery],
@@ -218,6 +246,11 @@ export function createKernl(options: KernlOptions): Kernl {
     bridges,
     messaging,
     profiles,
+    uploader: createBlossomUploader({
+      servers: () => files.current(),
+      signer,
+      ask: (windowId, details) => askUploadConsent(host, identityOf(windowId), details),
+    }),
     ...(isTheme(options.theme) ? { theme: options.theme } : {}),
     resolveIdentity(windowId) {
       const identity = identityOf(windowId);
@@ -281,6 +314,7 @@ export function createKernl(options: KernlOptions): Kernl {
     },
     profiles,
     mailboxes,
+    files,
     directory,
     intents: intents.intents,
     session$,
@@ -290,18 +324,7 @@ export function createKernl(options: KernlOptions): Kernl {
     ...createSignIn(accounts),
     decodePointer,
     ...lifecycle,
-    destroy() {
-      const open = [...handles.values()];
-      for (const handle of open) handle.close();
-      subscriptions.unsubscribe();
-      destroyed$.next();
-      directory.stop();
-      void eventCache.close();
-      intents.close();
-      services.dm.dispose();
-      bridge.destroy();
-      if (ownsMessaging) messaging.close();
-      if (ownsPool) pool.close();
-    },
+    destroy: () =>
+      tearDown({ handles, subscriptions, destroyed$, network: { directory, eventCache }, intents, dm: services.dm, bridge, ...(ownsMessaging ? { messaging } : {}), ...(ownsPool ? { pool } : {}) }),
   };
 }

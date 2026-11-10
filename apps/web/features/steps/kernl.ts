@@ -3,7 +3,7 @@ import { firstValueFrom, type Observable } from 'rxjs';
 import { Given, Then, When } from 'quickpickle';
 import type { IAccount } from 'applesauce-accounts';
 import { PrivateKeyAccount, ReadonlyAccount } from 'applesauce-accounts/accounts';
-import { BASELINE_DOMAINS } from '@kernlize/core';
+import { BASELINE_DOMAINS, DEFAULT_FILE_SERVERS } from '@kernlize/core';
 import { MemoryStorage } from '../../../../packages/core/features/steps/world.ts';
 import { abbreviate, type AppletHandle, type AppletPointer, type AppletSummary, type ConsentPrompt, type FrameLike, type HandlerPrompt, type KernlHost, type MountPlan, type ShellKernl } from '../../src/shell/contract.ts';
 import { PREVIEW_PUBLISHER, sampleSummary } from '../../src/shell/preview-applet.ts';
@@ -568,4 +568,18 @@ Then('the preview kernl {string} tier is {string}', (world: PreviewWorld, tier: 
 
 Then('the preview kernl refuses to set the {string} tier to {string}', (world: PreviewWorld, tier: 'outbox', urls: string) => {
   expect(() => preview(world).kernl.relays.set(tier, list(urls))).toThrow('invalid:url');
+});
+
+Then('the preview kernl file servers are the defaults', async (world: PreviewWorld) => {
+  expect(preview(world).kernl.files.state()).toEqual({ status: 'missing', servers: DEFAULT_FILE_SERVERS });
+  expect(await preview(world).kernl.files.current()).toEqual(DEFAULT_FILE_SERVERS);
+});
+
+When('the preview kernl saves file servers {string}', async (world: PreviewWorld, servers: string) => {
+  expect(await preview(world).kernl.files.save(list(servers))).toMatchObject({ ok: true });
+});
+
+Then('the preview kernl uploads go to {string}', async (world: PreviewWorld, servers: string) => {
+  expect(await preview(world).kernl.files.current()).toEqual(list(servers));
+  expect(preview(world).kernl.files.state()).toMatchObject({ status: 'found', servers: list(servers) });
 });

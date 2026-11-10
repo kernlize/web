@@ -52,7 +52,8 @@ test('the live settings show every default server without naming the protocol', 
   await expectClean(page, 'live desktop');
   await page.locator('details.account summary').click();
   await page.getByRole('button', { name: 'Settings' }).click();
-  const defaults = Object.values(core.DEFAULT_RELAY_TIERS).flat();
+  // The shell's own server lists, then the file servers uploads use while the account has chosen none (D-033).
+  const defaults = [...Object.values(core.DEFAULT_RELAY_TIERS).flat(), ...core.DEFAULT_FILE_SERVERS];
   const shown = await page.locator('[data-address]').evaluateAll((items) => items.map((item) => item.getAttribute('data-address')));
   expect(shown.sort()).toEqual([...defaults].sort());
   // The applet catalogue's default server has a name that would say what the protocol is, so it is called by its tier.

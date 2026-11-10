@@ -12,11 +12,13 @@ import {
   createRelayPoolService,
   createResourceService,
   createThemeService,
+  createUploadService,
   type DmService,
   type OutboxRouter,
   type RelayListEntry,
   type ResourceFetchInit,
   type ThemeService,
+  type Uploader,
 } from '@kehto/services';
 import type { Theme } from '@napplet/nap/theme/types';
 import type { EventTemplate, NostrEvent } from '@napplet/core';
@@ -70,6 +72,8 @@ export interface KernlServiceDeps {
   readonly host: Pick<KernlHost, 'notify' | 'openLink'>;
   readonly bridges: BridgeRegistry;
   readonly messaging: MessagingRegistry;
+  /** Uploads for applets (NAP-UPLOAD); without it the `upload` domain is not offered. */
+  readonly uploader?: Uploader;
   /** Names conversation participants for applets; without it they are listed by key alone. */
   readonly profiles?: Pick<Profiles, 'settled'>;
   readonly theme?: Theme;
@@ -264,6 +268,7 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
     }),
     dm,
     outbox: gateOutboxPublish(createOutbox(deps, identity), deps.consent),
+    ...(deps.uploader ? { upload: createUploadService({ uploader: deps.uploader, uploadInfo: { rails: [{ rail: 'blossom', enabled: true }] } }) } : {}),
   };
   return { registry, theme, dm };
 }

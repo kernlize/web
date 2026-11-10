@@ -363,3 +363,26 @@ test('a relay list change asks in terms of inbox and outbox', async ({ page }) =
   await expect(dialog.getByText('Outbox added')).toBeVisible();
   await expect(dialog.getByText('(write)')).toHaveCount(0);
 });
+
+test('settings show where uploads go, and the list can be changed and published', async ({ page }) => {
+  await page.goto(`${base}/app/?preview=1`);
+  await page.getByRole('button', { name: 'Try the preview' }).click();
+  await openSettings(page);
+  const section = page.getByRole('region', { name: 'File servers' });
+  await expect(section.getByText('This account has not chosen file servers yet')).toBeVisible();
+  const list = section.getByRole('list', { name: 'File servers' });
+  await expect(list.getByRole('listitem')).toHaveCount(3);
+  await expect(list.getByText('blossom.primal.net (first)')).toBeVisible();
+  // A server whose name says the protocol's name is called by the list's own (D-006).
+  await section.getByRole('button', { name: 'Remove File server 2 from file servers' }).click();
+  const field = section.getByRole('textbox', { name: 'Add a file server' });
+  await field.fill('not a server');
+  await field.press('Enter');
+  await expect(section.getByRole('alert')).toHaveText('Enter a file server address such as blossom.primal.net.');
+  await field.fill('files.example.org');
+  await field.press('Enter');
+  await expect(list.getByText('files.example.org')).toBeVisible();
+  await section.getByRole('button', { name: 'Publish file servers' }).click();
+  await expect(section.getByRole('status').filter({ hasText: 'Saved to' })).toBeVisible();
+  await expect(section.getByText('This account has not chosen file servers yet')).toHaveCount(0);
+});

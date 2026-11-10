@@ -160,6 +160,23 @@ Feature: The composed shell
     And the shell saves the account's inbox and outbox as "wss://own.test"
     Then the shell's last save was accepted by "wss://own.test/"
 
+  Scenario: an applet granted uploads asks the person before a file leaves, and a no cancels it
+    Given a kernl shell over that host and pool
+    Then the shell offers the "upload" domain
+    When the shell logs in with a password account named "alice"
+    And the shell resolves the manifest address
+    And the shell allows "upload" for the resolved applet
+    And the shell plans the summary
+    And the shell mounts the plan into a fake frame
+    And the applet sends its hello through the shell
+    And the applet asks "shell.ready" over its port
+    And the applet uploads an 8-byte "image/png" file over its port
+    Then the shell asks the person "Upload a file" marked "public", sending it to "blossom.primal.net, nostr.download, blossom.band"
+    When the person answers no to the upload
+    Then the applet is told its upload was "cancelled" with "denied:consent"
+    When the shell saves the account's file servers as "https://mine.test"
+    Then the shell's file servers are "https://mine.test/"
+
   Scenario: an applet is resolved, planned and mounted
     Given a kernl shell over that host and pool
     When the shell resolves the manifest address

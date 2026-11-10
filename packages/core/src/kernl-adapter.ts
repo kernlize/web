@@ -29,6 +29,8 @@ export interface ShellAdapterDeps {
   readonly onUnroutedMessage?: (info: UnroutedMessageInfo) => void;
 }
 
+const UPLOAD_BACKEND = Object.freeze({ rails: Object.freeze(['blossom']) });
+
 function isTier(tier: string): tier is RelayTier {
   return TIERS.includes(tier);
 }
@@ -75,6 +77,8 @@ export function createShellAdapter(deps: ShellAdapterDeps): ShellAdapter {
     config: { getNappUpdateBehavior: () => 'banner' },
     hotkeys: { executeHotkeyFromForward: () => undefined },
     workerRelay: { getWorkerRelay: () => null },
+    // kehto offers the upload domain only when both the service and this backend are present; kernl's uploads are Blossom (D-033).
+    upload: { getUploader: () => (deps.services.upload ? UPLOAD_BACKEND : null) },
     crypto: { verifyEvent: (event) => Promise.resolve(verifyEvent(event)) },
     link: { isAvailable: () => true },
     intent: { isAvailable: () => true },

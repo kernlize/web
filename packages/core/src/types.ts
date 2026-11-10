@@ -13,6 +13,7 @@ import type { CatalogEntry } from './catalog/entry.js';
 import type { Profiles } from './profiles/profiles.js';
 import type { EventCacheOpener } from './cache/connect.js';
 import type { AccountMailboxes } from './relays/mailboxes.js';
+import type { AccountFileServers } from './files/file-servers.js';
 import type { RelayDirectory } from './relays/directory.js';
 import type { LoadCatalogOptions } from './catalog/fetch.js';
 import type { HandlerDefaults } from './intents/defaults.js';
@@ -152,7 +153,8 @@ export interface ConsentLine {
 /** A write described as what it changes, not as JSON. */
 export interface ConsentSummary {
   readonly title: string;
-  readonly severity: 'routine' | 'destructive';
+  /** `destructive` replaces or erases part of the record; `public` puts something where anyone can fetch it; both are asked about. */
+  readonly severity: 'routine' | 'destructive' | 'public';
   readonly lines: readonly ConsentLine[];
   readonly applet: AppletIdentity;
   /** The raw event, for an "advanced" disclosure. */
@@ -345,6 +347,8 @@ export interface Kernl {
   readonly profiles: Profiles;
   /** The signed-in account's published inbox and outbox (NIP-65); the `outbox` tier follows its outboxes. */
   readonly mailboxes: AccountMailboxes;
+  /** Where the account's uploads go (BUD-03, kind 10063); the defaults while it has no list. */
+  readonly files: AccountFileServers;
   /** Monitored servers (NIP-66) for completing and suggesting; idle until `start()`. */
   readonly directory: RelayDirectory;
   readonly intents: Intents;
