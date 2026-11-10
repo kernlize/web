@@ -43,7 +43,7 @@ export function createAppletConfig(options: AppletConfigOptions): ConfigServiceO
   return {
     getValues(windowId) {
       const applet = options.appletOf(windowId);
-      return applet ? { ...(read()[applet.key] ?? {}) } : {};
+      return applet ? { ...read()[applet.key] } : {};
     },
     saveValues(windowId, values) {
       const applet = options.appletOf(windowId);
