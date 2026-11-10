@@ -526,3 +526,18 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Consequences.** Social applets run in the shell without holding a key or a relay connection, and a follow-list change can never be made behind the person's back.
 
 **Reversal cost.** Low. `createCommonActions` is one module of hooks; a host can pass its own.
+
+## D-036 · Applet settings are drawn by the shell from the applet's schema, kept per applet, and offered only where a form exists
+
+**Context.** Published applets require `config` (NAP-CONFIG): an applet registers a JSON Schema for its settings and reads the values; the shell is the only writer. kehto ships the service and validates both the schema and every value. NAP-CONFIG says a conformant host supplies the settings UI before it advertises the domain.
+
+**Decision.**
+
+- **The shell draws the form.** `KernlHost.presentSettings` is optional; `createKernl` registers `config` only when the host has it, so a host without a form never offers a domain it cannot honour. The web shell draws strings as text boxes (a list when the schema has `enum`), numbers within `minimum` and `maximum`, booleans as checkboxes, groups by `x-napplet-section`, orders by `x-napplet-order`, and leaves kinds it cannot draw (objects, lists) untouched.
+- **Secrets are masked and never shown again.** An `x-napplet-secret` field is a password box that starts empty; left empty, the saved value is kept.
+- **kehto has the last word.** The form gives plain words for what it can check (needed, a number, a whole number, in range), then `context.commit` validates, saves and sends the values to the applet; a refusal is shown, and nothing is saved.
+- **Values belong to the applet, not the version.** `createAppletConfig` keys them by catalogue id in `kernl:applet-config:v1`, so an update keeps them. They stay on the device; they are not published.
+
+**Consequences.** Applets that require `config` run. The preview runs the same kehto service and core store behind the Notes sample, so the form is exercised end to end without a network.
+
+**Reversal cost.** Low. `createAppletConfig` is one module of hooks and the form is one component; a host can pass its own.
