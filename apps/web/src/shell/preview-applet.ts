@@ -38,7 +38,7 @@ const SPECS: readonly SampleSpec[] = [
     description: 'Write short notes and publish them to your network. Every publish and every deletion is shown to you before it happens.',
     blurb: 'Publishing, deleting and the consent dialog.',
     requires: ['relay', 'identity', 'intent'],
-    optional: ['notify', 'storage'],
+    optional: ['notify', 'storage', 'config'],
     topics: ['writing', 'social'],
     accepts: [],
     extras: [],
@@ -161,6 +161,7 @@ const ACTIONS: readonly Action[] = [
   { id: 'profile', label: 'Update your profile', hint: 'asks you first: it replaces your profile', domain: 'relay' },
   { id: 'delete', label: 'Delete a note', hint: 'asks you first: it cannot be undone', domain: 'relay' },
   { id: 'notify', label: 'Send a notification', hint: 'needs the notifications grant', domain: 'notify' },
+  { id: 'settings', label: 'Open its settings', hint: 'the shell draws the form; only this applet reads it', domain: 'config' },
   { id: 'intent', label: 'Open a profile', hint: 'another applet shows it; the shell asks which', domain: 'intent' },
   { id: 'flood', label: 'Flood the shell', hint: '40 network reads at once; watch the guard', domain: 'relay' },
   { id: 'download', label: 'Download a shared file', hint: 'it joins your downloads, or goes to an app on your device if you chose that' },
@@ -172,6 +173,13 @@ const EXTRA_ACTIONS: readonly Action[] = [
   { id: 'servers', label: 'Change your inbox and outbox', hint: 'asks you first: it replaces your published inbox and outbox', domain: 'relay' },
   { id: 'vanish', label: 'Ask to erase your account', hint: 'asks you first: it cannot be undone', domain: 'relay' },
 ];
+
+/** The shared buttons, less settings for a sample that never asks for them. */
+function actionsFor(sample: string): readonly Action[] {
+  const spec = SPECS.find((candidate) => candidate.dTag === sample);
+  const wantsSettings = spec !== undefined && [...spec.requires, ...spec.optional].includes('config');
+  return ACTIONS.filter((action) => wantsSettings || action.domain !== 'config');
+}
 
 function extraActions(sample: string, domains: readonly string[]): string {
   const ids = SPECS.find((spec) => spec.dTag === sample)?.extras ?? [];
@@ -211,6 +219,7 @@ const handlers = {
   servers: () => send('servers'),
   vanish: () => send('vanish'),
   notify: () => send('notify', { text: 'The preview applet says hello.' }),
+  settings: () => send('settings'),
   intent: () => send('intent', { text: '${'decade00'.repeat(8)}' }),
   flood: () => { for (let i = 0; i < 40; i += 1) send('subscribe', { seq: ++count }); log('Sent 40 network reads at once.'); },
   download: () => send('download', { url: 'magnet:?xt=urn:btih:${'ab'.repeat(20)}&dn=Sample' }),
@@ -286,7 +295,7 @@ function appletMarkup(input: PreviewAppletInput): string {
 <textarea id="note" rows="2" aria-label="Note to publish">Hello from the preview applet.</textarea>
 </section>
 <section class="card">
-<ul class="actions">${ACTIONS.map((action) => actionButton(action, input.domains)).join('')}</ul>
+<ul class="actions">${actionsFor(input.sample).map((action) => actionButton(action, input.domains)).join('')}</ul>
 ${extraActions(input.sample, input.domains)}
 </section>
 <section class="card"><ul id="log" aria-live="polite"></ul></section>

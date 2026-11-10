@@ -17,7 +17,7 @@ Feature: Preview applet
   Scenario: a sample address is found regardless of case and spacing
     When the preview applet looks up the sample at "  PREVIEW:Notes "
     Then the preview applet finds the sample "Notes" with key "notes"
-    And the preview applet sample requires "relay,identity,intent" and optionally uses "notify,storage"
+    And the preview applet sample requires "relay,identity,intent" and optionally uses "notify,storage,config"
 
   Scenario: the second sample has its own needs
     When the preview applet looks up the sample at "preview:pulse"
@@ -52,6 +52,7 @@ Feature: Preview applet
     And the preview applet button "link" is available
     And the preview applet button "notify" is marked not granted
     And the preview applet button "intent" is marked not granted
+    And the preview applet button "settings" is marked not granted
     And the preview applet has no "vanish" button
     And the preview applet document does not contain "More changes that ask you first"
 
@@ -68,9 +69,11 @@ Feature: Preview applet
     And the preview applet button "contacts" is available
     And the preview applet button "servers" is available
     And the preview applet button "vanish" is available
+    And the preview applet has no "settings" button
 
   Scenario: an unknown sample shows only the common buttons
     Given the preview applet is granted "relay" shown as "Network"
     When the preview applet renders sample "stranger" titled "Stranger"
     Then the preview applet button "flood" is available
     And the preview applet has no "contacts" button
+    And the preview applet has no "settings" button

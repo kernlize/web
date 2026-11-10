@@ -386,3 +386,47 @@ test('settings show where uploads go, and the list can be changed and published'
   await expect(section.getByRole('status').filter({ hasText: 'Saved to' })).toBeVisible();
   await expect(section.getByText('This account has not chosen file servers yet')).toHaveCount(0);
 });
+
+test('an applet opens its settings, the shell draws the form from its schema and the applet hears the saved values', async ({ page }) => {
+  await page.goto(`${base}/app/?preview=1`);
+  await page.getByRole('button', { name: 'Try the preview' }).click();
+  await page.getByRole('button', { name: 'Open an applet' }).click();
+  await page.getByRole('listitem').filter({ hasText: 'Notes' }).getByRole('button', { name: 'Open' }).click();
+  await page.getByRole('checkbox', { name: /its settings/ }).check();
+  await page.getByRole('button', { name: 'Run' }).click();
+  const applet = page.frameLocator('iframe[data-window-id]');
+  await expect(applet.getByRole('heading', { name: 'Notes' })).toBeVisible();
+
+  await applet.getByRole('button', { name: 'Open its settings' }).click();
+  const form = page.getByRole('dialog', { name: 'Notes settings' });
+  await expect(form).toBeVisible();
+  await expect(applet.locator('#log li').first()).toContainText('size 15');
+  await expect(form.getByRole('heading', { name: 'Look' })).toBeVisible();
+  await expect(form.getByRole('heading', { name: 'Sync' })).toBeVisible();
+  await expect(form.getByLabel(/Sync token/)).toHaveAttribute('type', 'password');
+
+  await form.getByLabel(/Text size/).fill('30');
+  await form.getByRole('button', { name: 'Save' }).click();
+  await expect(form.getByRole('alert')).toHaveText('Text size is at most 24.');
+
+  await form.getByLabel(/Text size/).fill('20');
+  await form.getByLabel(/Colour tone/).selectOption('bright');
+  await form.getByLabel(/Compact list/).check();
+  await form.getByLabel(/Sync token/).fill('t0ken');
+  await form.getByRole('button', { name: 'Save' }).click();
+  await expect(form).toHaveCount(0);
+  const saved = applet.locator('#log li').first();
+  await expect(saved).toContainText('size 20');
+  await expect(saved).toContainText('tone "bright"');
+  await expect(saved).toContainText('compact true');
+  await expect(saved).toContainText('token set');
+  await expect(saved).not.toContainText('t0ken');
+
+  // Opened again, the form starts from what was saved and never puts the secret back on screen.
+  await applet.getByRole('button', { name: 'Open its settings' }).click();
+  await expect(form.getByLabel(/Text size/)).toHaveValue('20');
+  await expect(form.getByLabel(/Sync token/)).toHaveValue('');
+  await expect(form.getByLabel(/Sync token/)).toHaveAttribute('placeholder', /leave empty to keep it/);
+  await page.keyboard.press('Escape');
+  await expect(form).toHaveCount(0);
+});
