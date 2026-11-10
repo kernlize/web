@@ -13,6 +13,8 @@ Feature: Social actions for applets
     Then the profile of "carol" read by key is named "Carol" and displayed as "Carol C."
     And the profile of "carol" read by shared address is named "Carol" and displayed as "Carol C."
     And the profile of "dave" reads as none
+    Given "erin" published a profile named "Erin" and displayed as ""
+    Then the profile of "erin" read by key is named "Erin" with no display name
     And the profile of "not a key" is refused with "invalid:pubkey"
 
   Scenario: the account's follows are read from its current list
@@ -35,6 +37,9 @@ Feature: Social actions for applets
     When the applet follows "carol"
     Then the action failed with "denied:consent"
     And the account follows "bob"
+    Given the signing gate refuses with a bare reason "no thanks"
+    When the applet follows "carol"
+    Then the action failed with "no thanks"
     Given the signing gate allows
     When the applet follows "not a key"
     Then the action failed with "invalid:pubkey"
@@ -48,6 +53,8 @@ Feature: Social actions for applets
     Then the published reaction has tags "e,p,k" and content "+"
     When the applet reacts ":party:" with emoji "https://emoji.test/party.png" to carol's note
     Then the published reaction has tags "e,p,k,emoji" and content ":party:"
+    When the applet reacts "+" with emoji "https://emoji.test/party.png" to carol's note
+    Then the published reaction has tags "e,p,k" and content "+"
     When the applet reacts "+" to an event the shell has not seen
     Then the published reaction has tags "e" and content "+"
 
@@ -69,3 +76,8 @@ Feature: Social actions for applets
     When the applet follows "carol"
     Then the action failed with "denied:read-only"
     And reading the account's follows fails with "denied:signed-out"
+
+  Scenario: in the shell, a follow-list lookup that fails still lets the person follow, published to the people tier
+    Given the shell's social actions over a pool that accepts and a follow-list lookup that fails
+    When the applet follows "carol" through the shell's social actions
+    Then the shell published a kind 3 list to the people tier

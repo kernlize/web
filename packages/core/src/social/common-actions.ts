@@ -33,11 +33,7 @@ function followed(event: NostrEvent | undefined): string[] {
 }
 
 function toPubkey(value: string): string | undefined {
-  try {
-    return normalizeToPubkey(value) ?? undefined;
-  } catch {
-    return undefined;
-  }
+  return normalizeToPubkey(value) ?? undefined;
 }
 
 async function signed(options: CommonActionsOptions, windowId: string, template: EventTemplate): Promise<{ ok: true; eventId: string; event: NostrEvent } | { ok: false; error: string }> {

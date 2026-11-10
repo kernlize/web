@@ -5,14 +5,17 @@ import { npubEncode } from 'applesauce-core/helpers';
 import { PrivateKeySigner } from 'applesauce-signers';
 import type { CommonServiceOptions } from '@kehto/services';
 import type { NostrEvent } from '@napplet/core';
-import { createCommonActions, toProfileCard } from '@kernlize/core';
+import { commonActionsFor, createCommonActions, createRelayTiers, toProfileCard } from '@kernlize/core';
+import { AccountManager } from 'applesauce-accounts';
+import { PrivateKeyAccount } from 'applesauce-accounts/accounts';
+import { throwError } from 'rxjs';
 import { scratch, splitList, type CoreWorld } from './world.js';
 
 interface CommonScratch {
   actions: CommonServiceOptions;
   store: EventStore;
   people: Map<string, PrivateKeySigner>;
-  gate: { allow: boolean; seen: { windowId: string; kind?: number }[] };
+  gate: { allow: boolean; bare?: string | undefined; seen: { windowId: string; kind?: number }[] };
   accepting: boolean;
   published: NostrEvent[];
   result?: { ok: boolean; error?: string };
@@ -46,6 +49,7 @@ async function build(world: CoreWorld, session: 'signer' | 'read-only' | 'signed
     signer: () => (session === 'signer' ? signer : undefined),
     consent: async (windowId, template) => {
       state.gate.seen.push({ windowId, ...(template.kind === undefined ? {} : { kind: template.kind }) });
+      if (state.gate.bare !== undefined) throw state.gate.bare;
       if (!state.gate.allow) throw new Error('denied:consent');
     },
     publish: async (event) => {
@@ -65,7 +69,8 @@ Given('{string} published a profile named {string} and displayed as {string}', a
   const state = c(world);
   await keyOf(state, who);
   const signer = state.people.get(who) as PrivateKeySigner;
-  state.store.add(await signer.signEvent({ kind: 0, created_at: 1_700_000_000, tags: [], content: JSON.stringify({ name, display_name: display }) }));
+  const profile = display ? { name, display_name: display } : { name };
+  state.store.add(await signer.signEvent({ kind: 0, created_at: 1_700_000_000, tags: [], content: JSON.stringify(profile) }));
 });
 
 Then('the profile of {string} read by key is named {string} and displayed as {string}', async (world: CoreWorld, who: string, name: string, display: string) => {
@@ -114,6 +119,16 @@ Given('the signing gate refuses', (world: CoreWorld) => {
 
 Given('the signing gate allows', (world: CoreWorld) => {
   c(world).gate.allow = true;
+  c(world).gate.bare = undefined;
+});
+
+Given('the signing gate refuses with a bare reason {string}', (world: CoreWorld, reason: string) => {
+  c(world).gate.bare = reason;
+});
+
+Then('the profile of {string} read by key is named {string} with no display name', async (world: CoreWorld, who: string, name: string) => {
+  const pubkey = await keyOf(c(world), who);
+  expect(await c(world).actions.getProfile?.(pubkey, ctx)).toEqual({ ok: true, pubkey, profile: { name } });
 });
 
 Given('no relay accepts', (world: CoreWorld) => {
@@ -188,4 +203,35 @@ Then('the published report has tags {string} and content {string}', (world: Core
 Then('the published report has tags {string}', (world: CoreWorld, tags: string) => {
   const report = c(world).published.at(-1) as NostrEvent;
   expect(report.tags.map((tag) => [tag[0], tag[2]].filter(Boolean).join(':'))).toEqual(splitList(tags));
+});
+
+Given("the shell's social actions over a pool that accepts and a follow-list lookup that fails", async (world: CoreWorld) => {
+  const state = c(world);
+  const accounts = new AccountManager();
+  const signer = new PrivateKeySigner();
+  const account = PrivateKeyAccount.fromKey(signer.key);
+  accounts.addAccount(account);
+  accounts.setActive(account);
+  const sent: { relays: string[]; event: NostrEvent }[] = [];
+  const pool = { publish: async (relays: string[], event: NostrEvent) => (sent.push({ relays, event }), relays.map((from) => ({ ok: true, from }))) };
+  const tiers = createRelayTiers(scratch(world).storage);
+  scratch(world).shellSent = sent;
+  scratch(world).shellTiers = tiers;
+  state.actions = commonActionsFor(
+    { eventStore: state.store, pool: pool as never, tiers, accounts },
+    { profiles: { settled: async (pubkey) => toProfileCard(pubkey, undefined) }, replaceableLoader: (() => throwError(() => new Error('relays down'))) as never, signer: () => signer },
+    async () => undefined,
+  );
+});
+
+When("the applet follows {string} through the shell's social actions", async (world: CoreWorld, who: string) => {
+  c(world).result = await c(world).actions.follow?.([await keyOf(c(world), who)], ctx);
+});
+
+Then('the shell published a kind 3 list to the people tier', (world: CoreWorld) => {
+  expect(c(world).result).toMatchObject({ ok: true });
+  const [sent] = scratch(world).shellSent as { relays: string[]; event: NostrEvent }[];
+  const config = (scratch(world).shellTiers as ReturnType<typeof createRelayTiers>).get();
+  expect(sent?.event.kind).toBe(3);
+  expect(sent?.relays).toEqual([...new Set([...config.discovery, ...config.outbox, ...config.super])]);
 });
