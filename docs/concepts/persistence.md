@@ -1,6 +1,6 @@
 # Persistence
 
-kernl keeps the user's choices in the browser they made them in. There is no kernl server and no kernl account. The one exception is the user's own: with **Keep these choices with your account** on, the applets they chose for each kind of request are published to their account's relays ([The store and intents](./store-and-intents.md#the-users-preferred-handlers)). This page lists every key kernl writes, what each holds, and what is deliberately never written.
+kernl keeps the user's choices in the browser they made them in. There is no kernl server and no kernl account. The one exception is the user's own: with **Keep these choices with your account** on, the applets they chose for each kind of request are published to their account's relays ([The store and intents](./store-and-intents.md#the-user-s-preferred-handlers)). This page lists every key kernl writes, what each holds, and what is deliberately never written.
 
 ## Where values go
 

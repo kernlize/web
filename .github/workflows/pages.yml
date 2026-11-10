@@ -41,6 +41,7 @@ jobs:
       - run: pnpm site:build
       - run: pnpm check:vocabulary
       - run: pnpm check:agent-ready
+      - run: pnpm check:links
       - name: Check deploy credentials
         id: bunny
         env:
@@ -59,6 +60,14 @@ jobs:
           site: ${{ vars.BUNNY_SITE || 'kernl' }}
           directory: .pages
           api_key: ${{ secrets.BUNNYNET_API_KEY }}
+      # D-032: ask the deployed host for every path the artifact links to. A red run here means the site is
+      # live with a link the host does not serve; roll back with `bunny sites deployments publish --previous --force`.
+      # The second attempt covers an edge that has not picked up the new deploy yet.
+      - name: Check links on the live site
+        if: steps.deploy.outcome == 'success'
+        run: |
+          live="${SITE_URL%/}${SITE_BASE}"
+          pnpm check:links --live "$live" || { sleep 30; pnpm check:links --live "$live"; }
       - name: Report the live URL
         if: steps.deploy.outcome == 'success'
         run: echo "::notice::Deployed ${{ steps.deploy.outputs.deploy-id }} to ${{ steps.deploy.outputs.url }} (unchanged=${{ steps.deploy.outputs.unchanged }})"

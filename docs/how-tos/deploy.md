@@ -63,12 +63,15 @@ This runs, in order: `pnpm build` (packages), `pnpm docs:check` (TypeDoc, VitePr
 │   ├── index.html        VitePress
 │   ├── llms.txt          docs index
 │   ├── llms-full.txt
+│   ├── <page>.html       each page, and again at <page>/index.html
 │   ├── **/*.md           Markdown twins
 │   └── api/              TypeDoc
 └── .nojekyll
 ```
 
 `build-pages.mjs` fails if any input is missing, so a half-built artifact is never produced. `PAGES_OUT_DIR` overrides the output directory.
+
+VitePress links to `/docs/<page>` and writes `<page>.html`. bunny.net serves a file, or a directory's `index.html` with or without the trailing slash, and never guesses an extension, so `build-pages.mjs` also writes every docs page as `<page>/index.html` with its Markdown twin beside it ([D-032](../decisions.md#d-032)). Both `/docs/<page>` and `/docs/<page>.html` answer.
 
 ## Preview the artifact
 
@@ -84,7 +87,19 @@ PAGES_PREVIEW_PATH=/web/ pnpm site:preview
 # → http://127.0.0.1:4178/web/
 ```
 
-The server resolves directory URLs to `index.html` and VitePress clean URLs to their `.html` file, answers `Accept: text/markdown` with the page's Markdown twin (`Vary: Accept`), serves `.md` as `text/markdown` and `.txt` as `text/plain`, and refuses paths outside the artifact.
+The server resolves a path exactly as production does, through `scripts/pages-host.mjs`: a file, or a directory's `index.html`, and otherwise 404. It guesses no extension, so a link that works in the preview works at kernl.run. On top of that it answers `Accept: text/markdown` with the page's Markdown twin (`Vary: Accept`), serves `.md` as `text/markdown` and `.txt` as `text/plain`, and refuses paths outside the artifact.
+
+## Check the links
+
+```bash
+pnpm check:links                              # every internal link and fragment, against .pages/
+pnpm check:links --external                   # and request every outbound link
+pnpm check:links --live https://kernl.run/    # and ask a deployed site for every internal path
+```
+
+`scripts/check-links.mjs` reads every HTML page, Markdown twin, `llms.txt` and sitemap in the artifact and resolves each internal link with the production rules, so a link to a path the host would answer with 404 fails, as does a `#fragment` the target page does not define. An outbound link fails only when its target is gone (404, 410, or a domain that no longer resolves); a rate limit, a bot wall or a timeout is listed as unverified and does not fail the run. `--live` requests every internal path from a deployed origin and fails on anything but 200, which catches a host that resolves differently from `pages-host.mjs`.
+
+CI runs `pnpm check:links --external` on every pull request. The publish workflow runs `pnpm check:links` before the deploy and `pnpm check:links --live` after it.
 
 ## Publish workflow
 
@@ -100,10 +115,12 @@ steps:
   - run: pnpm site:build
   - run: pnpm check:vocabulary
   - run: pnpm check:agent-ready
+  - run: pnpm check:links
   - name: Deploy to bunny.net   # BunnyWay/actions/deploy-site, needs BUNNYNET_API_KEY
+  - name: Check links on the live site   # pnpm check:links --live
 ```
 
-`pnpm site:build` includes the docs gate, so a deployment with a missing package page, a missing Markdown twin or a broken TypeDoc module does not happen. `pnpm check:vocabulary` and `pnpm check:agent-ready` run in the same workflow against `.pages/`. Without the `BUNNYNET_API_KEY` secret the workflow builds, audits and stops with a notice. Deploys are never cancelled in flight, since that would leave a half-written deploy directory.
+`pnpm site:build` includes the docs gate, so a deployment with a missing package page, a missing Markdown twin or a broken TypeDoc module does not happen. `pnpm check:vocabulary`, `pnpm check:agent-ready` and `pnpm check:links` run in the same workflow against `.pages/`, and after the deploy the link check runs once more against the live site. If that last step fails, the deploy is live with a link the host does not serve; roll back as above. Without the `BUNNYNET_API_KEY` secret the workflow builds, audits and stops with a notice. Deploys are never cancelled in flight, since that would leave a half-written deploy directory.
 
 ## TypeDoc source links
 

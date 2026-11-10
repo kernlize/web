@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { cpSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import { writeCleanUrlCopies } from './pages-host.mjs';
 
 const repoRoot = resolve(new URL('..', import.meta.url).pathname);
 const outputRoot = resolve(repoRoot, process.env.PAGES_OUT_DIR || '.pages');
@@ -25,6 +26,8 @@ for (const input of inputs) ensureInput(input);
 rmSync(outputRoot, { recursive: true, force: true });
 mkdirSync(outputRoot, { recursive: true });
 for (const { source, target } of inputs) cpSync(source, target, { recursive: true });
+// D-032: VitePress links to `/docs/<page>`; TypeDoc links carry `.html` and need no copy.
+const cleanUrls = writeCleanUrlCopies(join(outputRoot, 'docs'), [join(outputRoot, 'docs', 'api')]);
 writeFileSync(join(outputRoot, '.nojekyll'), '');
 
-console.log(`[build-pages] OK - wrote ${rel(outputRoot)}/ (site at /, docs at /docs/, API at /docs/api/)`);
+console.log(`[build-pages] OK - wrote ${rel(outputRoot)}/ (site at /, docs at /docs/, API at /docs/api/, ${cleanUrls} clean docs URLs)`);

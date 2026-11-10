@@ -32,6 +32,9 @@ jobs:
       - run: node scripts/build-pages.mjs
       - run: pnpm check:vocabulary
       - run: pnpm check:agent-ready
+      # D-032: every internal link must resolve under the production host's rules; an outbound link fails only when its target is gone.
+      - name: Link gate
+        run: pnpm check:links --external
       - run: pnpm slop
 
   jsr:
