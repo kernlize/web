@@ -1,5 +1,11 @@
 # @kernlize/core
 
+## 0.10.0
+
+### Minor Changes
+
+- 3315271: Applets can have settings (NAP-CONFIG). `createAppletConfig` keeps each applet's values by catalogue id, so an update keeps them, and opens the host's settings form through the new optional `KernlHost.presentSettings`. The shell offers the `config` domain only when the host provides that form.
+
 ## 0.9.0
 
 ### Minor Changes
