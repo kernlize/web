@@ -3,11 +3,13 @@ import type { ConsentQueue } from './consent-queue.svelte';
 import type { HandlerQueue } from './handler-queue.svelte';
 import type { NoticeStore } from './notice-store.svelte';
 import type { ReplyQueue } from './reply-queue.svelte';
+import type { SettingsQueue } from './settings-queue.svelte';
 import type { WindowStore } from './window-store.svelte';
 
 interface HostDeps {
   readonly storage: StorageLike;
   readonly consent: ConsentQueue;
+  readonly settings: Pick<SettingsQueue, 'show'>;
   readonly notices: NoticeStore;
   readonly windows: WindowStore;
   readonly handlers: Pick<HandlerQueue, 'ask'>;
@@ -48,11 +50,12 @@ const REVOKE_REASONS: Readonly<Record<string, string>> = {
 /** Plain words for a revocation reason; reasons the shell does not know pass through. */
 const revokeReason = (reason: string): string => REVOKE_REASONS[reason] ?? reason;
 
-/** The UI's side of the contract: dialogs, the handler chooser, the reply question, toasts, link confirmation, opening and focusing windows. */
+/** The UI's side of the contract: dialogs, applet settings, the handler chooser, the reply question, toasts, link confirmation, opening and focusing windows. */
 export function createHost(deps: HostDeps): KernlHost {
   return {
     storage: deps.storage,
     presentConsent: (prompt) => deps.consent.enqueue(prompt),
+    presentSettings: (prompt) => deps.settings.show(prompt),
     notify: (notice) => void deps.notices.push(notice),
     openLink(url) {
       if (!window.confirm(`Leave kernl and open this link?\n\n${url}`)) return;

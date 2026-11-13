@@ -39,7 +39,7 @@ export function signApplet(options: AppletOptions): SignedApplet {
       ['x', hash],
       ['title', 'Feed applet'],
       ...(options.requires ?? ['identity', 'outbox']).map((domain) => ['R', domain]),
-      ...(options.optional ?? ['config', 'theme']).map((domain) => ['O', domain]),
+      ...(options.optional ?? ['config', 'theme', 'cvm']).map((domain) => ['O', domain]),
       ...options.servers.map((server) => ['server', server]),
     ],
   }, secret);

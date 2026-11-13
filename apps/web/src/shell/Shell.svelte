@@ -4,6 +4,7 @@
   import { onMount } from 'svelte';
   import './shell.css';
   import { boot } from './boot';
+  import AppletSettings from './AppletSettings.svelte';
   import ConsentDialog from './ConsentDialog.svelte';
   import { ConsentQueue } from './consent-queue.svelte';
   import type { Booted, Session } from './contract';
@@ -17,6 +18,7 @@
   import ReplyChooser from './ReplyChooser.svelte';
   import { shellTheme } from './shell-theme';
   import { ReplyQueue } from './reply-queue.svelte';
+  import { SettingsQueue } from './settings-queue.svelte';
   import SignIn from './SignIn.svelte';
   import { WindowStore } from './window-store.svelte';
   import { createShellWindowManager } from './windows';
@@ -28,8 +30,9 @@
   const guardLog = new GuardLog();
   const handlers = new HandlerQueue();
   const replies = new ReplyQueue();
+  const settings = new SettingsQueue();
   const opener: AppletOpener = {};
-  const host = createHost({ storage, consent, notices, windows, handlers, replies, opener });
+  const host = createHost({ storage, consent, settings, notices, windows, handlers, replies, opener });
 
   let booted = $state.raw<Booted | null>(null);
   let session = $state.raw<Session | null>(null);
@@ -79,6 +82,7 @@
     if (event.key === 'Escape') {
       if (consent.current) consent.answer(false);
       else if (replies.current) replies.answer(undefined);
+      else if (settings.current) settings.close();
       else if (handlers.current) handlers.answer(undefined);
       else if (desktop?.closeTopOverlay()) root?.focus();
       else return;
@@ -93,6 +97,7 @@
     for (const win of [...windows.windows]) windows.close(win.id);
     while (handlers.current) handlers.answer(undefined);
     while (replies.current) replies.answer(undefined);
+    while (settings.current) settings.close();
     await booted?.kernl.logout();
   }
 </script>
@@ -115,6 +120,12 @@
   {#if booted && session && replies.current}
     {#key replies.current}
       <ReplyChooser prompt={replies.current} onanswer={(answer) => replies.answer(answer)} />
+    {/key}
+  {/if}
+
+  {#if booted && session && settings.current}
+    {#key settings.current}
+      <AppletSettings prompt={settings.current} onclose={() => settings.close()} />
     {/key}
   {/if}
 

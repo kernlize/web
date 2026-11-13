@@ -8,3 +8,5 @@ import './site-motion.ts';
 import './preview-builtin.ts';
 import './messages.ts';
 import './mailboxes.ts';
+import './settings.ts';
+import './preview-settings.ts';

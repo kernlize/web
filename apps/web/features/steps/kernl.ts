@@ -5,7 +5,7 @@ import type { IAccount } from 'applesauce-accounts';
 import { PrivateKeyAccount, ReadonlyAccount } from 'applesauce-accounts/accounts';
 import { BASELINE_DOMAINS, DEFAULT_FILE_SERVERS } from '@kernlize/core';
 import { MemoryStorage } from '../../../../packages/core/features/steps/world.ts';
-import { abbreviate, type AppletHandle, type AppletPointer, type AppletSummary, type ConsentPrompt, type FrameLike, type HandlerPrompt, type KernlHost, type MountPlan, type ShellKernl } from '../../src/shell/contract.ts';
+import { abbreviate, type AppletHandle, type AppletPointer, type AppletSummary, type ConsentPrompt, type FrameLike, type HandlerPrompt, type KernlHost, type MountPlan, type SettingsPrompt, type ShellKernl } from '../../src/shell/contract.ts';
 import { PREVIEW_PUBLISHER, sampleSummary } from '../../src/shell/preview-applet.ts';
 import { PREVIEW_CORRESPONDENT } from '../../src/shell/preview-messaging.ts';
 import { createShellDownloads } from '../../src/shell/downloads.ts';
@@ -22,9 +22,10 @@ interface PreviewFrame extends FrameLike {
   removed: boolean;
 }
 
-interface PreviewScratch {
+export interface PreviewScratch {
   readonly kernl: ShellKernl;
   readonly prompts: ConsentPrompt[];
+  readonly settings: SettingsPrompt[];
   readonly notices: unknown[];
   readonly links: string[];
   readonly revoked: Array<{ windowId: string; reason: string }>;
@@ -44,11 +45,11 @@ interface PreviewScratch {
   error?: Error;
 }
 
-interface PreviewWorld {
+export interface PreviewWorld {
   previewKernl?: PreviewScratch;
 }
 
-function preview(world: PreviewWorld): PreviewScratch {
+export function preview(world: PreviewWorld): PreviewScratch {
   if (!world.previewKernl) throw new Error('create a preview kernl first');
   return world.previewKernl;
 }
@@ -102,7 +103,7 @@ function current<T>(stream: Observable<T>): T | undefined {
 
 const list = (value: string): string[] => value.split(',').map((item) => item.trim()).filter(Boolean);
 
-function frameOf(scratch: PreviewScratch, name: string): PreviewFrame {
+export function frameOf(scratch: PreviewScratch, name: string): PreviewFrame {
   const frame = scratch.frames.get(name);
   if (!frame) throw new Error(`no frame ${name}`);
   return frame;
@@ -114,7 +115,7 @@ function handleOf(scratch: PreviewScratch, name: string): AppletHandle {
   return handle;
 }
 
-function post(scratch: PreviewScratch, name: string, data: unknown): void {
+export function post(scratch: PreviewScratch, name: string, data: unknown): void {
   scratch.kernl.handleWindowMessage({ source: frameOf(scratch, name).contentWindow, data } as MessageEvent);
 }
 
@@ -130,8 +131,9 @@ async function openFromDesktop(world: PreviewWorld, address: string): Promise<st
   return handleOf(scratch, frameName).windowId;
 }
 
-function previewKernl(world: PreviewWorld, inKernl: boolean): void {
+function previewKernl(world: PreviewWorld, inKernl: boolean, showsSettings = true): void {
   const prompts: ConsentPrompt[] = [];
+  const settings: SettingsPrompt[] = [];
   const notices: unknown[] = [];
   const links: string[] = [];
   const revoked: Array<{ windowId: string; reason: string }> = [];
@@ -141,6 +143,7 @@ function previewKernl(world: PreviewWorld, inKernl: boolean): void {
       prompts.push(prompt);
       prompt.resolve(scratch.answer);
     },
+    ...(showsSettings ? { presentSettings: (prompt: SettingsPrompt) => void settings.push(prompt) } : {}),
     notify: (notice) => void notices.push(notice),
     openLink: (url) => void links.push(url),
     getVisibility: () => ({ visible: true, focused: true }),
@@ -157,6 +160,7 @@ function previewKernl(world: PreviewWorld, inKernl: boolean): void {
   const scratch: PreviewScratch = {
     kernl: createPreviewKernl(host, torrent, { intentRetry: { intervalMs: 2, attempts: 20 } }),
     prompts,
+    settings,
     notices,
     links,
     revoked,
@@ -172,6 +176,8 @@ function previewKernl(world: PreviewWorld, inKernl: boolean): void {
 }
 
 Given('a preview kernl', (world: PreviewWorld) => previewKernl(world, false));
+
+Given('a preview kernl whose host shows no settings', (world: PreviewWorld) => previewKernl(world, false, false));
 
 Given('a preview kernl that downloads in kernl', (world: PreviewWorld) => previewKernl(world, true));
 

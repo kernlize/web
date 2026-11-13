@@ -39,3 +39,4 @@ import './kernl-network.js';
 import './dm-labels.js';
 import './file-uploads.js';
 import './common-actions.js';
+import './applet-config.js';

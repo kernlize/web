@@ -32,6 +32,7 @@ export type {
   RelayTier,
   RelayTiers,
   Session,
+  SettingsPrompt,
   StorageLike,
 } from '@kernlize/core';
 

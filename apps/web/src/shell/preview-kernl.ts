@@ -43,6 +43,7 @@ import { abbreviate, shortId } from './contract';
 import { domainLabel } from './domains';
 import { PREVIEW_CATALOG, PREVIEW_PUBLISHER, renderPreviewApplet, sampleSummary, sealPreviewDocument } from './preview-applet';
 import { createPreviewBuiltins } from './preview-builtin';
+import { createPreviewConfig, type PreviewConfig } from './preview-config';
 import { PORT_DOMAINS, createPreviewPorts, type PortLike, type PreviewPorts } from './preview-port';
 import { createPreviewIntents, type PreviewIntentDeps, type PreviewIntents } from './preview-intents';
 import { createPreviewMessaging, PREVIEW_CORRESPONDENT, PREVIEW_LEGACY_CORRESPONDENT } from './preview-messaging';
@@ -101,6 +102,7 @@ const ENVELOPES: Readonly<Record<string, { type: string; kind?: number }>> = {
   subscribe: { type: 'relay.subscribe' },
   link: { type: 'link.open' },
   intent: { type: 'intent.invoke' },
+  settings: { type: 'config.openSettings' },
 };
 
 /** What a host can change about the preview. */
@@ -185,7 +187,7 @@ interface Actions {
 }
 
 /** What the preview applet may ask for, gated by the grants in its mount plan. */
-function createActions(host: KernlHost, bridges: BridgeRegistry, pubkeyOf: () => string, intents: PreviewIntents): Actions {
+function createActions(host: KernlHost, bridges: BridgeRegistry, pubkeyOf: () => string, intents: PreviewIntents, config: PreviewConfig | undefined): Actions {
   const reply = (entry: Mounted, ok: boolean, text: string): void => {
     entry.frame.contentWindow?.postMessage({ kernlPreview: 'result', ok, text }, '*');
   };
@@ -263,6 +265,9 @@ function createActions(host: KernlHost, bridges: BridgeRegistry, pubkeyOf: () =>
           void intents.invoke(request).then((result) => reply(entry, result.ok, result.text));
         }
         return;
+      case 'settings':
+        if (needs('config')) config?.open(entry.plan.windowId, (words) => reply(entry, true, words));
+        return;
       case 'link':
         if (message.url?.startsWith('https://')) host.openLink(message.url);
         return;
@@ -278,7 +283,7 @@ function createActions(host: KernlHost, bridges: BridgeRegistry, pubkeyOf: () =>
 }
 
 /** Mount order: sandbox, register, srcdoc. Closing or revoking removes the frame and forgets the window in the guard. */
-function createMounter(host: KernlHost, guard: PreviewGuard, mounted: Map<string, Mounted>): (plan: MountPlan, frame: FrameLike) => AppletHandle {
+function createMounter(host: KernlHost, guard: PreviewGuard, mounted: Map<string, Mounted>, config: PreviewConfig | undefined): (plan: MountPlan, frame: FrameLike) => AppletHandle {
   return (plan, frame) => {
     const status$ = new BehaviorSubject<AppletStatus>('mounting');
     const teardown = (status: AppletStatus): void => {
@@ -287,6 +292,7 @@ function createMounter(host: KernlHost, guard: PreviewGuard, mounted: Map<string
       mounted.delete(plan.windowId);
       guard.ingress().forget(plan.windowId);
       guard.gate().forget(plan.windowId);
+      config?.forget(plan.windowId);
       frame.remove();
     };
     const handle: AppletHandle = {
@@ -378,11 +384,16 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
   const session$ = new BehaviorSubject<Session | null>(null);
   const profiles = createPreviewProfiles({ [PREVIEW_OWNER]: 'Preview account', [PREVIEW_CORRESPONDENT]: 'Ada', [PREVIEW_LEGACY_CORRESPONDENT]: 'Grace', [PREVIEW_PUBLISHER]: 'kernl samples' });
   const mounted = new Map<string, Mounted>();
+  const config = createPreviewConfig(host, (windowId) => {
+    const summary = mounted.get(windowId)?.plan.summary;
+    return summary && { key: summary.manifest.catalogId, title: summary.title };
+  });
   let windowCount = 0;
 
   const environmentFor = (summary: AppletSummary): readonly string[] => {
     const granted = grants.get(summary.identity)?.domains ?? [];
-    return [...new Set([...baselineDomains(), ...granted])];
+    // Settings only where the host can show their form, as the live shell offers them (D-036).
+    return [...new Set([...baselineDomains(), ...granted])].filter((domain) => config !== undefined || domain !== 'config');
   };
 
   const intents = createPreviewIntents({
@@ -399,8 +410,8 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
     retry: intentRetry,
   });
   const pubkey = (): string => session$.value?.pubkey ?? PREVIEW_OWNER;
-  const { perform } = createActions(host, bridges, pubkey, intents);
-  const mount = createMounter(host, guard, mounted);
+  const { perform } = createActions(host, bridges, pubkey, intents, config);
+  const mount = createMounter(host, guard, mounted, config);
   const ports = createPreviewPorts({ messaging, profiles, pubkey: () => PREVIEW_OWNER, notify: (notice) => host.notify(notice), ...(theme ? { theme: { initialTheme: theme } } : {}) });
 
   return {

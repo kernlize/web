@@ -13,6 +13,7 @@ export const AVAILABLE_DOMAINS: readonly string[] = [
   'resource',
   'dm',
   'notify',
+  'config',
   'media',
   'upload',
   'intent',

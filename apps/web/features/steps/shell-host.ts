@@ -18,6 +18,7 @@ interface FakeWindow {
 interface HostScratch {
   readonly host: KernlHost;
   readonly queued: ConsentPrompt[];
+  readonly settings: unknown[];
   readonly notices: unknown[];
   readonly windows: Map<string, FakeWindow>;
   readonly opened: unknown[][];
@@ -93,6 +94,7 @@ Then('the shell host keeps {string} as {string} for the page only', (world: Host
 
 Given('the shell host with window {string} titled {string}', (world: HostWorld, windowId: string, title: string) => {
   const queued: ConsentPrompt[] = [];
+  const settings: unknown[] = [];
   const notices: unknown[] = [];
   const windows = new Map<string, FakeWindow>([[windowId, { title }]]);
   const opened: unknown[][] = [];
@@ -106,6 +108,7 @@ Given('the shell host with window {string} titled {string}', (world: HostWorld, 
     opener,
     storage: { getItem: () => null, setItem: () => undefined, removeItem: () => undefined },
     consent: { enqueue: (prompt: ConsentPrompt) => void queued.push(prompt) },
+    settings: { show: (prompt: unknown) => void settings.push(prompt) },
     notices: { push: (notice: unknown) => notices.push(notice) },
     windows: {
       get: (id: string) => {
@@ -120,7 +123,7 @@ Given('the shell host with window {string} titled {string}', (world: HostWorld, 
       },
     },
   });
-  const scratch: HostScratch = { host: createHost(deps), queued, notices, windows, opened, confirmations, confirm: false, asked, focused, opener };
+  const scratch: HostScratch = { host: createHost(deps), queued, settings, notices, windows, opened, confirmations, confirm: false, asked, focused, opener };
   vi.stubGlobal('window', {
     confirm: (message: string) => {
       confirmations.push(message);
@@ -190,4 +193,11 @@ Then('the shell host puts the reply question to the reply dialog', async (world:
   const prompt = fake<Parameters<NonNullable<KernlHost['chooseReply']>>[0]>({ peer: { pubkey: 'ab'.repeat(32) }, theirs: provider, mine: provider });
   expect(await scratch.host.chooseReply?.(prompt)).toEqual({ use: 'theirs', remember: 'conversation' });
   expect(scratch.asked).toEqual([prompt]);
+});
+
+Then('the shell host shows an applet\'s settings in the settings form', (world: HostWorld) => {
+  const scratch = hostOf(world);
+  const prompt = fake<Parameters<NonNullable<KernlHost['presentSettings']>>[0]>({ title: 'Notes', context: { schema: {}, values: {}, commit: (values: unknown) => values } });
+  scratch.host.presentSettings?.(prompt);
+  expect(scratch.settings).toEqual([prompt]);
 });

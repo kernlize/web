@@ -14,6 +14,10 @@ Feature: The shell host
     Given the shell host with window "w1" titled "Notes"
     Then the shell host forwards consent, notices and visibility for window "w1"
 
+  Scenario: an applet's settings open in the settings form
+    Given the shell host with window "w1" titled "Notes"
+    Then the shell host shows an applet's settings in the settings form
+
   Scenario: requests between applets reach the chooser, the desktop and the window manager
     Given the shell host with window "w1" titled "Notes"
     Then the shell host asks the chooser, opens applets through the desktop once it can, and brings windows forward
