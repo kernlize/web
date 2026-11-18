@@ -150,19 +150,29 @@ test('an applet is found on the general relays when its own relays hang up', asy
   await expect(page.getByRole('dialog').getByRole('heading', { name: 'Feed applet' })).toBeVisible({ timeout: 20_000 });
 });
 
-test('no relay reachable is said as a connection problem, never as a mystery', async ({ page }) => {
+test('relays that are down are said as nothing to connect to, on this side, never as a mystery (D-039)', async ({ page }) => {
   test.setTimeout(60_000);
   const warnings: string[] = [];
   page.on('console', (message) => {
     if (message.type() === 'warning') warnings.push(message.text());
   });
   const applet = signApplet({ servers: ['https://blobs.test'] });
+  // Hosts the fake network does not name are down: the socket closes before it opens, so no relay connects.
   await fakeNetwork(page, applet, {}, { 'blobs.test': 'has' });
   await signInFresh(page);
   await lookUp(page, applet.address(['wss://dead.test', 'wss://gone.test']));
-  await expect(page.getByRole('alert')).toHaveText('None of the servers that list applets could be reached. Check your connection and try again.', { timeout: 30_000 });
+  await expect(page.getByRole('alert')).toHaveText(/^The shell could not connect to any server\./, { timeout: 30_000 });
   // The shell had words for this, so nothing was left in the console as unexpected.
   expect(warnings.filter((text) => text.includes('unexpected reason'))).toEqual([]);
+});
+
+test('relays that hold the connection and say nothing are said as not answering in time (D-039)', async ({ page }) => {
+  test.setTimeout(60_000);
+  const applet = signApplet({ servers: ['https://blobs.test'] });
+  await fakeNetwork(page, applet, { 'dead.test': 'silent', 'gone.test': 'silent' }, { 'blobs.test': 'has' });
+  await signInFresh(page);
+  await lookUp(page, applet.address(['wss://dead.test', 'wss://gone.test']));
+  await expect(page.getByRole('alert')).toHaveText('The servers that list applets did not answer in time. Try again in a moment.', { timeout: 40_000 });
 });
 
 test('text that is not an address is searched for, never looked up', async ({ page }) => {

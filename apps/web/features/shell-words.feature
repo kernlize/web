@@ -85,7 +85,8 @@ Feature: Shell words
   Scenario: every reason an applet cannot be opened has plain words
     Then the shell explains the open failure "invalid:pointer" as "That does not look like an applet address."
     And the shell explains the open failure "unavailable:manifest" as "No applet was found at that address. Check it and try again."
-    And the shell explains the open failure "unavailable:network" as "None of the servers that list applets could be reached. Check your connection and try again."
+    And the shell explains the open failure "unavailable:network" as "The servers that list applets did not answer in time. Try again in a moment."
+    And the shell explains the open failure "unavailable:unreachable" as "The shell could not connect to any server. You may be offline, your network may block them, or the browser may have too many connections open: closing other tabs can help."
     And the shell explains the open failure "unavailable:blob" as "The applet was found, but its file could not be downloaded right now. Try again later."
     And the shell explains the open failure "invalid:domain" as "This shell cannot provide something that was switched on for this applet. Look it up again."
     And the shell explains the open failure "invalid:blob-hash-mismatch" as "This applet did not pass the shell's checks, so it was not opened."
