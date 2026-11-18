@@ -291,6 +291,29 @@ Feature: The composed shell
     When the applet asks "identity.getPublicKey" over its port
     Then the applet received a "identity.getPublicKey.result"
 
+  Scenario: taking back a domain a running applet was started with stops it, and granting more does not
+    Given a kernl shell over that host and pool
+    And the shell is signed in
+    And a mounted applet granted "identity" that has said hello
+    When the user also grants the mounted applet "notify"
+    Then the host was told of no revocation
+    When the user takes back "identity" from the mounted applet
+    Then the host was told the window was revoked for "grant-narrowed"
+    And the mounted frame was removed
+    When the applet asks "storage.keys" over its port
+    Then the applet received no "storage.keys.result"
+
+  Scenario: blocking a running applet stops it, and a change to another applet does not
+    Given a kernl shell over that host and pool
+    And a mounted applet granted "identity" that has said hello
+    When the user blocks another applet
+    Then the host was told of no revocation
+    When the user blocks the mounted applet
+    Then the host was told the window was revoked for "blocked"
+    And the mounted frame was removed
+    When the applet asks "storage.keys" over its port
+    Then the applet received no "storage.keys.result"
+
   Scenario: a read-only account is still an account a granted applet can be shown
     Given a kernl shell over that host and pool
     When the shell logs in with a read-only account

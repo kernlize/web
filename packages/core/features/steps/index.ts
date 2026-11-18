@@ -15,6 +15,7 @@ import './guard-pipeline.js';
 import './services.js';
 import './messaging-backends.js';
 import './kernl.js';
+import './grant-narrowing.js';
 import './quarantine.js';
 import './runtime-guard.js';
 import './ratchet-backend.js';
