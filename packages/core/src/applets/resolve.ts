@@ -100,6 +100,23 @@ function settleManifestRequest(timing: ManifestTiming): OperatorFunction<{ type:
 interface Asked {
   readonly newest?: NostrEvent;
   readonly answered: boolean;
+  /** False when no relay of the round ever opened a connection. */
+  readonly opened: boolean;
+}
+
+type ConnectionState = { readonly connected$: { subscribe(next: (connected: boolean) => void): { unsubscribe(): void } } };
+
+/**
+ * Watch whether any of these relays opens a connection while a round runs, as
+ * kehto's reference host does. `connected$` replays the current state, so a
+ * relay already connected counts. A pool that cannot say is taken to connect.
+ */
+function watchOpened(pool: ApplesaucePool, relays: readonly string[]): { opened(): boolean; stop(): void } {
+  const relayOf = (pool as { relay?: (url: string) => ConnectionState }).relay;
+  if (typeof relayOf !== 'function') return { opened: () => true, stop: () => undefined };
+  let opened = false;
+  const watching = relays.map((url) => relayOf.call(pool, url).connected$.subscribe((connected) => void (opened ||= connected)));
+  return { opened: () => opened, stop: () => watching.forEach((watch) => watch.unsubscribe()) };
 }
 
 /**
@@ -111,6 +128,7 @@ interface Asked {
  * ten seconds. A relay that ran out its clock is not redialled: it already waited.
  */
 async function askRelays(pool: ApplesaucePool, relays: string[], filter: NostrFilter, waits: ManifestTiming): Promise<Asked> {
+  const watch = watchOpened(pool, relays);
   const request = pool.request(relays, asFilters([filter]), {
     complete: settleManifestRequest(waits),
     timeout: waits.timeoutMs,
@@ -119,10 +137,13 @@ async function askRelays(pool: ApplesaucePool, relays: string[], filter: NostrFi
   try {
     const events = await lastValueFrom(request.pipe(toArray()), { defaultValue: [] });
     const newest = events.reduce<NostrEvent | undefined>((best, event) => (best && best.created_at >= event.created_at ? best : event), undefined);
-    return newest ? { newest, answered: true } : { answered: true };
+    // An empty answer from relays that never connected is not an answer; Firefox ends offline requests that way.
+    return newest ? { newest, answered: true, opened: true } : { answered: watch.opened(), opened: watch.opened() };
   } catch {
     // Every relay failed, or none answered in time: the network could not say, which is not "no such applet".
-    return { answered: false };
+    return { answered: false, opened: watch.opened() };
+  } finally {
+    watch.stop();
   }
 }
 
@@ -146,7 +167,8 @@ async function askRelays(pool: ApplesaucePool, relays: string[], filter: NostrFi
  * @param timing - Overrides for {@link MANIFEST_TIMING}, applied to each round.
  * @returns The manifest event, unverified.
  * @throws `unavailable:manifest` when a relay answered and none had it, or
- * there was no relay to ask; `unavailable:network` when no relay answered.
+ * there was no relay to ask; `unavailable:unreachable` when every relay in every
+ * round failed to open a connection; `unavailable:network` when no relay answered in time.
  * @example
  * ```ts
  * const event = await fetchManifestEvent(pool, tiers, decodePointer('naddr1…'));
@@ -159,12 +181,16 @@ export async function fetchManifestEvent(pool: ApplesaucePool, tiers: RelayTiers
   const waits = { ...MANIFEST_TIMING, ...timing };
   const filter = filterFor(pointer);
   let answered = rounds.length === 0;
+  let opened = rounds.length === 0;
   for (const relays of rounds) {
     const asked = await askRelays(pool, relays, filter, waits);
     if (asked.newest) return asked.newest;
     answered ||= asked.answered;
+    opened ||= asked.opened;
   }
-  throw new Error(answered ? 'unavailable:manifest' : 'unavailable:network');
+  // No relay opening a connection is usually the person's side: offline, a blocking network, or a browser out of sockets.
+  if (answered) throw new Error('unavailable:manifest');
+  throw new Error(opened ? 'unavailable:network' : 'unavailable:unreachable');
 }
 
 /**
