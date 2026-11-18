@@ -6,7 +6,7 @@ kernl is a first draft. This page says what runs, what is a contract without an 
 
 | Area | Package | State |
 | --- | --- | --- |
-| Guard | `@kernlize/guard` | Three profiles (`createGuardConfig`, `applyNappletRules`), envelope classification, ingress flood control with quarantine, visibility gate, focus-aware firewall over `@kehto/firewall`'s `evaluate()`, the fixed zero-network CSP, an insertion lock on top of kehto's nested-context lock ([D-014](./decisions.md#d-014)), eleven mitigation descriptions for the UI. Pure, fully specified in `packages/guard/features/`. |
+| Guard | `@kernlize/guard` | Three profiles (`createGuardConfig`, `applyNappletRules`), envelope classification, ingress flood control with quarantine, visibility gate, focus-aware firewall over `@kehto/rate-limit/legacy`'s `evaluate()`, the fixed zero-network CSP, an insertion lock on top of kehto's nested-context lock ([D-014](./decisions.md#d-014)), eleven mitigation descriptions for the UI. Pure, fully specified in `packages/guard/features/`. |
 | Messaging | `@kernlize/messaging` | `MessagingProvider`, `MessagingBackend`, `MessagingRegistry` with saved-preference restore, the composite backend with `provider:innerId` namespacing, `describeProvider` rows, a complete in-memory backend (`createMemoryBackend`) used by the preview and the tests, and three providers (`private`, `legacy`, `ratchet`) built with `defineProvider` from backends the shell injects. The network backends for `private` and `legacy` are in `@kernlize/core` (`createPrivateMessagesBackend`, `createLegacyMessagesBackend`) and are wired in the live shell ([below](#messaging-providers-in-the-live-shell)). |
 | Bridges | `@kernlize/bridges` | `Locator` parsing for the web schemes, `magnet:`, `nzb:`, `slsk:` and `mailto:`, the `Bridge` contract, the registry with its `authorize` hook and outcome events, a complete HTTP bridge with SSRF policy, the four backend-driven bridges up to their backend interface, `createHandoffBackends`, which serves all four by opening the locator in an app on the user's device, `createWebTorrentBackend`, which downloads magnet links inside the shell page over WebRTC, `createBridgeResourceResolver` for kehto's resource service, and `describeBridge` rows. |
 | Composition | `@kernlize/core` | `createKernl` over one applesauce `EventStore`, `RelayPool` and `AccountManager`, with kehto's real `createShellBridge` exercised end to end in `kernl.feature`: an applet is decoded, resolved, planned and mounted, binds its port through the guarded `handleWindowMessage`, completes `shell.ready`, is answered by the theme, identity and resource services, and is quarantined and revoked when it floods. Relay tiers, the applesauce adapters, the guard pipeline and runtime firewall rules, grants over `bridge.runtime.aclState`, consent summaries, the default registries and the layouts each have their own feature file. |
@@ -49,16 +49,16 @@ The [Roadmap](./roadmap.md) orders this list.
 
 kernl composes kehto rather than forking it ([D-001](./decisions.md#d-001)). The four seams kernl filed against `kehto/web` ([#397](https://github.com/kehto/web/issues/397), [#398](https://github.com/kehto/web/issues/398), [#399](https://github.com/kehto/web/issues/399), [#400](https://github.com/kehto/web/issues/400)) are closed in `@kehto/shell` 0.32.0, `@kehto/runtime` 0.28.0 and `@kehto/firewall` 0.7.0, and kernl uses them ([D-020](./decisions.md#d-020)):
 
-1. **Firewall hooks through `ShellAdapter` (#397).** kernl passes `getFocusContext` (only `focused`), `onFirewallEvent`, which feeds the guard log without the applet's message, and `firewallPersistence`, which keeps the runtime firewall's configuration under `kernl:firewall:v1` in the host storage.
+1. **Firewall hooks through `ShellAdapter` (#397).** kernl passes `getFocusContext` (only `focused`), `onFirewallEvent`, which feeds the guard log without the applet's message, and `legacyFirewall`, the runtime firewall kernl constructs over `kernl:firewall:v1` in the host storage ([D-037](./decisions.md#d-037)).
 2. **ACL default policy (#398).** The adapter sets `aclDefaultPolicy: 'restrictive'`. `KernlGrants.ensure` grants the baseline and the user's domains and revokes only what an applet's stored entry holds beyond them.
 3. **A hook that can hold or drop port traffic (#399).** `filterNappletMessage` runs kernl's guard pipeline for every port envelope. What the guard will not let through is dropped, with no reply to the applet. A hidden window's requests are held and released with `releaseDeferred` when it is visible. See [Guard](./concepts/guard.md#where-enforcement-happens).
 4. **Unfocused multiplier and burst guard setters (#400).** On boot and on every profile change kernl sets the profile's `unfocusedMultiplier` and `burstGuard` on the runtime firewall and reinstalls the rates of open windows.
 
 kernl's own layers stay in front of kehto where kehto cannot see what they see: envelope size for downloads and queries, window visibility, a separate deletion budget, and flood quarantine. The focus-aware firewall overlaps the runtime now and stays so that kernl's own decisions remain a complete source of guard events ([D-020](./decisions.md#d-020)).
 
-One change upstream is pending. [kehto/web#336](https://github.com/kehto/web/pull/336) makes kehto's firewall a shared approval authority and moves rate limiting into a separate runtime budget. On a host that configures it, the multiplier and burst setters, `onFirewallEvent` and `firewallPersistence` are ignored, and `getFocusContext` is read for `focused` only. kernl keeps every use of those in one module, `packages/core/src/guard/runtime-rules.ts`, and will move it to `permissions.setRateLimit` and `onRateLimit` when #336 is released. `aclDefaultPolicy`, `filterNappletMessage` and `releaseDeferred` are unchanged by #336.
+[kehto/web#336](https://github.com/kehto/web/pull/336) has shipped. It makes kehto's firewall a shared approval authority, configured through `permissions`, and moves rate limiting into the optional `@kehto/rate-limit`. kernl does not configure `permissions` yet: it constructs the legacy runtime firewall from `@kehto/rate-limit/legacy` and passes it as `legacyFirewall`, which kehto keeps only through its next minor release. Every use sits in `packages/core/src/guard/runtime-rules.ts`. Until the move, each runtime and service logs one `FW-*-LEGACY-*` warning ([D-037](./decisions.md#d-037)).
 
-One gap is new with intents. kehto's ACL (`@kehto/acl` 0.20.3, and `main`) maps `intent.deliver` to no recipient capability, so the runtime's recipient-checked `sendToEligibleNapplet` refuses every delivery. kernl delivers over the target's bound port with `originRegistry.postToNapplet`, as kehto's reference host Paja does, after checking the target's live session holds `intent:read` ([D-026](./decisions.md#d-026)). It is to be raised upstream.
+The intent gap is closed. `@kehto/acl` 0.20.6 maps `intent.deliver` to `intent:read`, so kernl delivers through the runtime's `sendToEligibleNapplet` ([D-037](./decisions.md#d-037)).
 
 A fifth observation, not a gap kernl needs closed: the transport internals `createNip5dTransport` and `createShellReadyState` are not exported, so kernl uses `createShellBridge` unchanged.
 
@@ -75,15 +75,15 @@ One mitigation goes beyond kehto: `@kehto/shell` 0.30.0 ships `experimental.nest
 
 | Dependency | Range |
 | --- | --- |
-| `@kehto/acl` | `^0.20.3` |
-| `@kehto/firewall` | `^0.7.0` |
-| `@kehto/runtime` | `^0.28.0` |
-| `@kehto/shell` | `^0.32.0` |
-| `@kehto/services` | `^0.30.1` |
+| `@kehto/acl` | `^0.20.6` |
+| `@kehto/rate-limit` | `^0.2.0` |
+| `@kehto/runtime` | `^0.30.1` |
+| `@kehto/shell` | `^0.35.0` |
+| `@kehto/services` | `^0.34.0` |
 | `@kehto/nip` | `^0.8.0` |
 | `@kehto/wm` | `^0.0.2` |
-| `applesauce-*` | `^7.0.x` |
-| `@napplet/core` | `>=0.38.0 <0.39.0` (`@kernlize/core`); `>=0.37.0 <0.39.0` (`@kernlize/guard`, `@kernlize/messaging`) |
-| `@napplet/nap` | `>=0.37.0 <0.38.0` |
+| `applesauce-*` | `^7.1.x` (`applesauce-loaders` `^7.2.0`) |
+| `@napplet/core` | `>=0.41.0 <0.42.0` (`@kernlize/core`); `>=0.37.0 <0.42.0` (`@kernlize/guard`, `@kernlize/messaging`) |
+| `@napplet/nap` | `>=0.37.0 <0.41.0` |
 
 The protocol itself is a draft. NIP-5D is [nostr-protocol/nips PR #2303](https://github.com/nostr-protocol/nips/pull/2303) and the NAP documents live at [napplet/naps](https://github.com/napplet/naps). kernl keeps no local copy of either; see [Spec conformance](./policies/spec-conformance.md).

@@ -1,14 +1,18 @@
 import { expect, vi } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import type { NappletRevocationReason } from '@kehto/shell';
+import type { FirewallStateContainer } from '@kehto/rate-limit/legacy';
 import { k, settle } from './kernl.js';
 import { scratch, type CoreWorld } from './world.js';
 
 /** The fake bridges answer any address under this prefix. */
 const FILES = 'https://files.example/';
 
-function firewall(world: CoreWorld) {
-  return k(world).kernl.bridge.runtime.firewallState;
+/** The firewall the runtime itself evaluates, which must be the one kernl configures. */
+function firewall(world: CoreWorld): FirewallStateContainer {
+  const legacy = k(world).kernl.bridge.runtime.legacyFirewall;
+  expect(legacy).toBeDefined();
+  return legacy as FirewallStateContainer;
 }
 
 function policyOf(world: CoreWorld, napplet: string): string {

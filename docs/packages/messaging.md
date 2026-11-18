@@ -13,7 +13,7 @@ This package ships no backend that sends anything over a network; the only backe
 | Version | `0.4.0` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts` |
 | Dependencies | none |
-| Peer dependencies | `@napplet/core >=0.37.0 <0.39.0` |
+| Peer dependencies | `@napplet/core >=0.37.0 <0.42.0` |
 | Side effects | none |
 
 ## Install

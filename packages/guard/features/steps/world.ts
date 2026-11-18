@@ -12,7 +12,7 @@ import type {
   VisibilityGate,
   WindowVisibility,
 } from '@kernlize/guard';
-import type { EvaluateResult, FirewallConfig } from '@kehto/firewall';
+import type { EvaluateResult, FirewallConfig } from '@kehto/rate-limit/legacy';
 
 /** Scenario state. quickpickle hands every step the same world object. */
 export interface GuardScratch {

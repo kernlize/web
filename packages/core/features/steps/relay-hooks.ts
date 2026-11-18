@@ -4,6 +4,7 @@ import type { NostrEvent, NostrFilter } from '@napplet/core';
 import type { RelayPoolHooks } from '@kehto/shell';
 import {
   createAppletRelayBackend,
+  createAppletRelayService,
   createDmRelayPool,
   createOutboxRelayPool,
   createRelayPoolHooks,
@@ -240,6 +241,30 @@ When('the applet relay backend subscribes to kinds {string} hinted to {string}',
 
 When('the applet relay backend publishes a kind {int} event', async (world: CoreWorld, kind: number) => {
   await createAppletRelayBackend(scratch(world).pool, tiers(world)).publish(await signEvent({ kind }));
+});
+
+function relayPlan(world: CoreWorld, message: Record<string, unknown>) {
+  return createAppletRelayService(scratch(world).pool, tiers(world)).planRelayOperation('w1', message as never);
+}
+
+Then('the applet relay service plans a kind {int} publish onto the {string} tier', (world: CoreWorld, kind: number, tier: string) => {
+  expect(relayPlan(world, { type: 'relay.publish', id: 'p', event: { kind } })).toEqual({ operation: 'publish', relayUrls: tierRelays(world, tier), localOnly: false });
+});
+
+Then('the applet relay service plans a kind {int} publish hinted to {string} onto that relay only', (world: CoreWorld, kind: number, relay: string) => {
+  expect(relayPlan(world, { type: 'relay.publish', id: 'p', event: { kind }, relay }).relayUrls).toEqual([relay]);
+});
+
+Then('the applet relay service plans a publish with no kind and a kind {int} subscription as kehto does', (world: CoreWorld, kind: number) => {
+  expect(relayPlan(world, { type: 'relay.publish', id: 'p', event: {} }).relayUrls).toEqual(selectRelayTier(tiers(world), []));
+  expect(relayPlan(world, { type: 'relay.subscribe', id: 's', filters: [{ kinds: [kind] }] })).toMatchObject({ operation: 'subscribe', relayUrls: selectRelayTier(tiers(world), [{ kinds: [kind] }]) });
+});
+
+When('the applet relay service is handed a kind {int} publish directly', async (world: CoreWorld, kind: number) => {
+  const event = await signEvent({ kind });
+  const replies: unknown[] = [];
+  createAppletRelayService(scratch(world).pool, tiers(world)).handleMessage('w1', { type: 'relay.publish', id: 'p', event } as never, (reply) => void replies.push(reply));
+  await expect.poll(() => replies).toEqual([expect.objectContaining({ type: 'relay.publish.result', id: 'p', ok: true })]);
 });
 
 Then('the applet relay backend is available', (world: CoreWorld) => {

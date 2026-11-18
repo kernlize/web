@@ -16,11 +16,11 @@
     "test:frames": "node tests/harness/frames.mjs"
   },
   "dependencies": {
-    "@napplet/sdk": "^0.24.4"
+    "@napplet/sdk": "^0.34.1"
   },
   "devDependencies": {
-    "@napplet/conformance-cli": "^0.2.15",
-    "@napplet/vite-plugin": "^0.11.2",
+    "@napplet/conformance-cli": "^0.7.1",
+    "@napplet/vite-plugin": "^0.17.0",
     "typescript": "^5.9.3",
     "vite": "^6.4.2"
   },

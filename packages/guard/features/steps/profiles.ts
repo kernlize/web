@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { Then, When } from 'quickpickle';
-import { setPolicy } from '@kehto/firewall';
+import { setPolicy } from '@kehto/rate-limit/legacy';
 import { applyNappletRules, createGuardConfig, GUARD_PROFILES, type GuardLimits, type GuardProfile, type OpClass } from '@kernlize/guard';
 import { scratch, splitList, type GuardWorld } from './world.js';
 

@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
-import { setGlobalRate, setPolicy, type NappletPolicy } from '@kehto/firewall';
+import { setGlobalRate, setPolicy, type NappletPolicy } from '@kehto/rate-limit/legacy';
 import {
   createFocusFirewall,
   createGuardConfig,

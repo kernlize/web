@@ -1,4 +1,4 @@
-import type { FirewallConfig, EvaluateResult } from '@kehto/firewall';
+import type { FirewallConfig, EvaluateResult } from '@kehto/rate-limit/legacy';
 
 /**
  * How much an applet is allowed to do before the guard intervenes.

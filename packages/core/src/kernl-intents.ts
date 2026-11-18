@@ -1,7 +1,6 @@
 import { Subscription } from 'rxjs';
 import type { AccountManager, IAccount } from 'applesauce-accounts';
 import type { ServiceHandler, ServiceRuntimeContext } from '@kehto/runtime';
-import { originRegistry } from '@kehto/shell';
 import { createIntentService } from '@kehto/services';
 import type { EventTemplate, NostrEvent } from '@napplet/core';
 import type { Intents, KernlHost, RelayTiers } from './types.js';
@@ -101,10 +100,9 @@ export function createKernlIntents(deps: KernlIntentDeps): KernlIntents {
     findWindow: (catalogId) => [...handles.values()].find((handle) => handle.summary.manifest.catalogId === catalogId)?.windowId,
     openApplet: async (address) => host.openApplet?.(address),
     ...(host.focusApplet ? { focus: host.focusApplet.bind(host) } : {}),
-    // kehto's ACL gives `intent.deliver` no recipient capability, so the runtime's recipient-checked
-    // send refuses it. Like kehto's own Paja host, the delivery goes over the target's bound port,
-    // and only to a live session that holds the receiving grant (DECISIONS.md D-026).
-    send: (windowId, message) => context?.hasCapability(windowId, 'intent:read') === true && originRegistry.postToNapplet(windowId, message),
+    // The runtime's recipient gate maps `intent.deliver` to `intent:read` since @kehto/acl 0.20.6,
+    // so delivery goes through it to a live, unblocked, granted target (DECISIONS.md D-037).
+    send: (windowId, message) => context?.sendToEligibleNapplet(windowId, message) === true,
     ...(deps.retry ? { retry: deps.retry } : {}),
   });
 

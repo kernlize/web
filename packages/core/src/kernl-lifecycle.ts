@@ -8,7 +8,7 @@ import { fetchManifestEvent, resolveApplet, type PublishedPointer, type Resolved
 import { planMount } from './applets/plan.js';
 import { mountApplet, type MountedApplet } from './applets/mount.js';
 import type { GuardPipeline, WindowResolution } from './guard/pipeline.js';
-import { applyRuntimeFirewallRules } from './guard/runtime-rules.js';
+import { applyRuntimeFirewallRules, type RuntimeFirewallState } from './guard/runtime-rules.js';
 import type { KernlGrants } from './grants/grants.js';
 import type { InstalledApplets } from './intents/installed.js';
 
@@ -19,6 +19,8 @@ export interface LifecycleContext {
   readonly adapter: ShellAdapter;
   readonly bridge: ShellBridge;
   readonly pipeline: GuardPipeline;
+  /** The runtime firewall kernl constructed; mounting installs the applet's rates in it. */
+  readonly firewall: RuntimeFirewallState;
   readonly grants: KernlGrants;
   /** Every planned applet is installed, so others can hand it work. */
   readonly installed: InstalledApplets;
@@ -119,7 +121,7 @@ export function createAppletLifecycle(context: LifecycleContext): AppletLifecycl
       return planMount({ summary, indexHtml, adapter: context.adapter, guardProfile: pipeline.config.profile, windowId: `applet-${windowCounter}` });
     },
     mount(plan: MountPlan, frame: FrameLike): AppletHandle {
-      applyRuntimeFirewallRules(bridge.runtime.firewallState, pipeline.config, plan.summary.identity.dTag);
+      applyRuntimeFirewallRules(context.firewall, pipeline.config, plan.summary.identity.dTag);
       const handle = mountApplet(plan, frame, {
         bridge,
         originRegistry,

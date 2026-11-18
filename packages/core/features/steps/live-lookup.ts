@@ -6,8 +6,8 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import { RelayPool } from 'applesauce-relay';
 import { naddrEncode } from 'applesauce-core/helpers';
 import type { NostrEvent, NostrFilter } from '@napplet/core';
-import { createKernl, createRelayTiers, fetchManifestEvent, type AppletSummary, type Kernl, type ManifestTiming } from '@kernlize/core';
-import { MemoryStorage, attempt, scratch, signManifest, splitList, type CoreWorld, type ManifestVector } from './world.js';
+import { createKernl, createRelayTiers, fetchManifestEvent, publishAccepted, subscribeWithEose, type AppletSummary, type Kernl, type ManifestTiming } from '@kernlize/core';
+import { MemoryStorage, attempt, scratch, signEvent, signManifest, splitList, type CoreWorld, type ManifestVector } from './world.js';
 
 /** A relay on a loopback port: it answers a REQ with what it holds, after a delay, or never. */
 interface LocalRelay {
@@ -66,6 +66,8 @@ function serve(socket: WebSocket, options: LocalRelayOptions): void {
   if (options.hangUp) socket.close(1011, 'down');
   socket.on('message', (raw) => {
     const [verb, subId, ...filters] = JSON.parse(String(raw)) as [string, string, ...NostrFilter[]];
+    // A publish is accepted at once; `subId` is the event here.
+    if (verb === 'EVENT') return void socket.send(JSON.stringify(['OK', (subId as unknown as NostrEvent).id, true, '']));
     if (verb !== 'REQ') return;
     options.onRequest?.();
     if (options.silent) return;
@@ -328,3 +330,32 @@ Then('the looked-up manifest is the signed one', (world: CoreWorld) => {
 Then('the lookup took under {int} ms', (world: CoreWorld, limit: number) => {
   expect(live(world).elapsedMs).toBeLessThan(limit);
 });
+
+/** How long one call over the live shell's own pool took, in milliseconds. */
+async function timed(work: () => Promise<unknown>): Promise<number> {
+  const started = Date.now();
+  await work();
+  return Date.now() - started;
+}
+
+When('the live shell publishes a note to {string}', async (world: CoreWorld, relays: string) => {
+  const { kernl } = live(world);
+  const event = await signEvent({ kind: 1, content: 'hello' });
+  scratch(world).elapsed = await timed(() => publishAccepted(kernl.pool, urls(world, relays), event));
+});
+
+When('the live shell subscribes on {string} until every relay has answered', async (world: CoreWorld, relays: string) => {
+  const { kernl } = live(world);
+  scratch(world).elapsed = await timed(() => new Promise<void>((done) => {
+    const handle = subscribeWithEose(kernl.pool, urls(world, relays), [{ kinds: [1] }], (item) => {
+      if (item !== 'EOSE') return;
+      handle.unsubscribe();
+      done();
+    });
+  }));
+});
+
+Then('it settled within {int} ms', (world: CoreWorld, bound: number) => {
+  expect(scratch(world).elapsed as number).toBeLessThan(bound);
+});
+

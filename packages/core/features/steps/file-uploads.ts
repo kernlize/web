@@ -220,6 +220,8 @@ When('an applet uploads a {int}-byte {string} file', (world: CoreWorld, size: nu
 
 When('an applet uploads {int} raw bytes without a type', (world: CoreWorld, size: number) => upload(world, new Uint8Array(size).buffer));
 
+When('an applet uploads {int} raw bytes typed {string}', (world: CoreWorld, size: number, type: string) => upload(world, new Uint8Array(size).buffer, { mimeType: type }));
+
 Then('the upload was {string} with {string}', (world: CoreWorld, status: string, error: string) => {
   expect(u(world).result).toMatchObject({ ok: false, status, error, rail: 'blossom' });
 });

@@ -1,4 +1,4 @@
-import { createState, evaluate, type EvaluateResult, type FirewallState, type Observation } from '@kehto/firewall';
+import { createState, evaluate, type EvaluateResult, type FirewallState, type Observation } from '@kehto/rate-limit/legacy';
 import { classifyEnvelope } from './classify.js';
 import { applyNappletRules } from './profiles.js';
 import type { FocusFirewall, GuardConfig, GuardEnvelope, GuardEvent, OpClass, WindowVisibility } from './types.js';

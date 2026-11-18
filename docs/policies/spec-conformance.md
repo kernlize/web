@@ -8,7 +8,7 @@ kernl conforms to specifications it does not own. This page says which ones, wha
 | --- | --- | --- |
 | Shell–applet protocol | NIP-5D, [nostr-protocol/nips PR #2303](https://github.com/nostr-protocol/nips/pull/2303) | none |
 | NAP domains (`relay`, `outbox`, `dm`, `resource`, …) | [napplet/naps](https://github.com/napplet/naps) | none |
-| Wire types and dispatch | [`@napplet/core`](https://www.npmjs.com/package/@napplet/core), pinned `>=0.37.0 <0.38.0` | the installed package |
+| Wire types and dispatch | [`@napplet/core`](https://www.npmjs.com/package/@napplet/core), pinned `>=0.41.0 <0.42.0` | the installed package |
 | Shell composition | kehto source, `@kehto/*` at the pinned ranges | the installed packages |
 | Event layer | applesauce v7, [applesauce.build](https://applesauce.build) | the installed packages |
 | Messaging protocols | NIP-17, NIP-04, the nostr double-ratchet draft, as named in each provider's `specification` | none |
@@ -19,7 +19,7 @@ kernl keeps no local copy of a specification text. A copy drifts; a link does no
 
 When kernl needs something a specification or an upstream package does not provide, the order is:
 
-1. **Compose it from what exists.** Most of kernl is this: the guard composes `@kehto/firewall`'s `evaluate()` and kehto's `filterNappletMessage`, the restrictive posture composes `aclDefaultPolicy`, `resolveEnvironment` and `aclState.grant`.
+1. **Compose it from what exists.** Most of kernl is this: the guard composes `@kehto/rate-limit/legacy`'s `evaluate()` and kehto's `filterNappletMessage`, the restrictive posture composes `aclDefaultPolicy`, `resolveEnvironment` and `aclState.grant`.
 2. **Propose it upstream.** An issue or pull request on `kehto/web`, `napplet/naps` or `nostr-protocol/nips`, as appropriate. The first four kehto gaps kernl found, filed as kehto/web #397–#400, are released and in use ([D-020](../decisions.md#d-020)); what is still open is in [Alpha status](../alpha-status.md#upstream-gaps).
 3. **Implement it locally with a recorded gap.** Only when 1 is impossible and 2 is pending. The local implementation sits behind an interface, cites the upstream issue, and is removed when upstream lands.
 

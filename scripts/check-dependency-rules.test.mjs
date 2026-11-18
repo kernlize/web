@@ -48,7 +48,7 @@ test('findNostrToolsImports flags direct and subpath imports in any package src'
     'core/package.json': manifest('@kernlize/core'),
     'core/src/index.ts': "import { finalizeEvent } from 'nostr-tools';\nimport { npubEncode } from 'nostr-tools/nip19';\n",
     'guard/package.json': manifest('@kernlize/guard'),
-    'guard/src/index.ts': "import { evaluate } from '@kehto/firewall';\n",
+    'guard/src/index.ts': "import { evaluate } from '@kehto/rate-limit/legacy';\n",
     'guard/src/types.d.ts': "import type { X } from 'nostr-tools';\n",
   });
   expect(findNostrToolsImports(root)).toEqual([
@@ -57,10 +57,10 @@ test('findNostrToolsImports flags direct and subpath imports in any package src'
   ]);
 });
 
-test('findKehtoImports allows guard → @kehto/firewall and nothing else in leaf packages', () => {
+test('findKehtoImports allows guard → @kehto/rate-limit and nothing else in leaf packages', () => {
   const root = packages({
     'guard/package.json': manifest('@kernlize/guard'),
-    'guard/src/index.ts': "import type { FirewallConfig } from '@kehto/firewall';\nimport { grant } from '@kehto/acl';\n",
+    'guard/src/index.ts': "import type { FirewallConfig } from '@kehto/rate-limit/legacy';\nimport { grant } from '@kehto/acl';\n",
     'messaging/package.json': manifest('@kernlize/messaging'),
     'messaging/src/index.ts': "import { createDmService } from '@kehto/services';\n",
     'bridges/package.json': manifest('@kernlize/bridges'),
@@ -69,8 +69,8 @@ test('findKehtoImports allows guard → @kehto/firewall and nothing else in leaf
     'core/src/index.ts': "import { createShellBridge } from '@kehto/shell';\n",
   });
   expect(findKehtoImports(root)).toEqual([
-    'guard/src/index.ts imports @kehto/acl; only @kernlize/core composes kehto (guard may import @kehto/firewall)',
-    'messaging/src/index.ts imports @kehto/services; only @kernlize/core composes kehto (guard may import @kehto/firewall)',
+    'guard/src/index.ts imports @kehto/acl; only @kernlize/core composes kehto (guard may import @kehto/rate-limit)',
+    'messaging/src/index.ts imports @kehto/services; only @kernlize/core composes kehto (guard may import @kehto/rate-limit)',
   ]);
 });
 
@@ -89,8 +89,8 @@ test('findFrameworkDependencies flags frameworks in every dependency field', () 
 
 test('checkDependencyRules passes a clean workspace and handles a missing directory', () => {
   const root = packages({
-    'guard/package.json': manifest('@kernlize/guard', { dependencies: { '@kehto/firewall': '^0.6.3' } }),
-    'guard/src/index.ts': "import { evaluate } from '@kehto/firewall';\nexport const PACKAGE_NAME = '@kernlize/guard';\n",
+    'guard/package.json': manifest('@kernlize/guard', { dependencies: { '@kehto/rate-limit': '^0.2.0' } }),
+    'guard/src/index.ts': "import { evaluate } from '@kehto/rate-limit/legacy';\nexport const PACKAGE_NAME = '@kernlize/guard';\n",
     'core/package.json': manifest('@kernlize/core'),
     'core/src/index.ts': "import { EventStore } from 'applesauce-core';\nimport { createShellBridge } from '@kehto/shell';\n",
   });

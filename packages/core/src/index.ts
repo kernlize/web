@@ -57,6 +57,7 @@ export {
 } from './relays/mailboxes.js';
 
 export {
+  SHELL_RELAY_OPTIONS,
   createRelayPoolHooks,
   createRelayPoolLike,
   selectRelayTier,
@@ -64,7 +65,7 @@ export {
   type ApplesaucePool,
   type EoseSubscription,
 } from './applesauce/relay-hooks.js';
-export { createAppletRelayBackend, createDmRelayPool, createOutboxRelayPool, publishAccepted, type OutboxRelayPoolLike } from './applesauce/relay-backend.js';
+export { createAppletRelayBackend, createAppletRelayService, createDmRelayPool, createOutboxRelayPool, publishAccepted, type OutboxRelayPoolLike } from './applesauce/relay-backend.js';
 export { createAuthHooks, isReadOnlyAccount, wrapAccountSigner } from './applesauce/auth-hooks.js';
 export {
   createIdentityProviders,

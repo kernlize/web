@@ -83,6 +83,8 @@ Feature: Uploading files
     Given an uploader over "https://one.test/" where the person says "yes"
     When an applet uploads 4 raw bytes without a type
     Then the person was asked about "application/octet-stream", "4 bytes" going to "one.test"
+    When an applet uploads 4 raw bytes typed "image/png"
+    Then the person was asked about "image/png", "4 bytes" going to "one.test"
     Given the uploader has no signer
     When an applet uploads a 10-byte "text/plain" file
     Then the upload was "failed" with "denied:read-only"

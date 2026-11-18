@@ -126,6 +126,13 @@ Feature: Relay adapters over the one applesauce pool
     Then the fake pool received a "publish" for the "people" tier
     And the applet relay backend is available
 
+  Scenario: the applet relay service plans a publish by its kind and publishes only there
+    Then the applet relay service plans a kind 0 publish onto the "people" tier
+    And the applet relay service plans a kind 1 publish hinted to "wss://hint.example" onto that relay only
+    And the applet relay service plans a publish with no kind and a kind 0 subscription as kehto does
+    When the applet relay service is handed a kind 0 publish directly
+    Then the fake pool received a "publish" for the "people" tier
+
   Scenario: the messaging relay pool reads, writes and queries through the same pool
     Given the fake pool serves 2 events
     When the messaging relay pool subscribes to kinds "1059" without hints
