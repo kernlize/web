@@ -21,12 +21,11 @@ export default defineConfig({
       nappletType: 'messages',
       artifactMode: 'single-file',
       // The one job cannot be done without direct messages. Identity, theme,
-      // notify, storage and keys are optional integrations with fallbacks in
-      // src/; this plugin version has no option to declare optional domains.
+      // notify, storage and keys are integrations with fallbacks in src/.
       requires: ['dm'],
-      // The role this applet fills and the convention it answers. This plugin
-      // version names the convention slot `naps`.
-      archetypes: [{ slug: 'dm', naps: ['napplet:dm/open'] }],
+      optional: ['identity', 'theme', 'notify', 'storage', 'keys'],
+      // The role this applet fills and the convention it answers.
+      archetypes: [{ slug: 'dm', convention: 'napplet:dm/open' }],
     }),
   ],
 });
