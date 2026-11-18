@@ -1,13 +1,14 @@
-import type { FirewallEvent, FirewallPersistence, FirewallStateContainer } from '@kehto/runtime';
-import type { NappletRules, RateLimit } from '@kehto/firewall';
+import type { FirewallEvent } from '@kehto/runtime';
+import { createFirewallState, type FirewallStateContainer, type NappletRules, type RateLimit } from '@kehto/rate-limit/legacy';
 import { applyNappletRules, type GuardConfig, type GuardEvent, type OpClass } from '@kernlize/guard';
 import type { StorageLike } from '../types.js';
 
 /*
  * Every call kernl makes into the runtime firewall's own configuration lives in
- * this module. kehto/web#336 replaces these seams on hosts that configure
- * permissions (`permissions.setRateLimit`, `onRateLimit`), so moving there is a
- * change to this file only (D-020).
+ * this module. Runtime 0.30 no longer builds a firewall: kernl constructs the
+ * legacy one from `@kehto/rate-limit/legacy` and hands it over as
+ * `legacyFirewall`, keeping the reference to configure it. Moving to
+ * `permissions.rateLimiter` and `onRateLimit` is a change to this file (D-037).
  */
 
 /**
@@ -98,13 +99,13 @@ export type RuntimeFirewallState = Pick<FirewallStateContainer, 'setRateLimit' |
  * burst check, and the user's choices to deny or block live in the grants
  * layer, not here.
  *
- * @param firewallState - `bridge.runtime.firewallState`.
+ * @param firewallState - The `legacyFirewall` from {@link createRuntimeFirewallHooks}.
  * @param config - Current guard configuration.
  * @param napplet - Applet identity (dTag).
  * @returns Nothing; the firewall state is mutated and persisted.
  * @example
  * ```ts
- * applyRuntimeFirewallRules(bridge.runtime.firewallState, guardConfig, summary.identity.dTag);
+ * applyRuntimeFirewallRules(hooks.legacyFirewall, guardConfig, summary.identity.dTag);
  * ```
  */
 export function applyRuntimeFirewallRules(firewallState: RuntimeFirewallState, config: GuardConfig, napplet: string): void {
@@ -119,13 +120,13 @@ export function applyRuntimeFirewallRules(firewallState: RuntimeFirewallState, c
  * multiplier, which the runtime applies with the focus kernl reports through
  * `getFocusContext`, and the startup burst guard.
  *
- * @param firewallState - `bridge.runtime.firewallState`.
+ * @param firewallState - The `legacyFirewall` from {@link createRuntimeFirewallHooks}.
  * @param config - The guard configuration of the profile now in force.
  * @returns Nothing; the firewall state is mutated and persisted.
  * @example
  * ```ts
- * applyRuntimeFirewallProfile(bridge.runtime.firewallState, createGuardConfig('balanced'));
- * bridge.runtime.firewallState.getConfig().unfocusedMultiplier; // 0.5
+ * applyRuntimeFirewallProfile(hooks.legacyFirewall, createGuardConfig('balanced'));
+ * hooks.legacyFirewall.getConfig().unfocusedMultiplier; // 0.5
  * ```
  */
 export function applyRuntimeFirewallProfile(firewallState: RuntimeFirewallState, config: GuardConfig): void {
@@ -163,7 +164,8 @@ export function toGuardEvent(event: FirewallEvent, at: number): GuardEvent {
 
 /** The runtime firewall hooks kernl hands to `createShellAdapter`. */
 export interface RuntimeFirewallHooks {
-  readonly firewallPersistence: FirewallPersistence;
+  /** The firewall the runtime evaluates; also what {@link applyRuntimeFirewallRules} configures. */
+  readonly legacyFirewall: FirewallStateContainer;
   readonly onFirewallEvent: (event: FirewallEvent) => void;
 }
 
@@ -177,27 +179,29 @@ export interface RuntimeFirewallHooksOptions {
 }
 
 /**
- * The runtime firewall's persistence and event sink, through kernl's host
- * storage and guard event stream. These report what the runtime itself
+ * The runtime firewall, persisted in kernl's host storage, and its event
+ * sink into the guard event stream. These report what the runtime itself
  * refused, which is the startup burst and anything over budget when held
  * envelopes are released; what kernl drops before the runtime sees it is
  * reported by kernl's own guard layers.
  *
  * @param options - Host storage, the guard event sink and a clock.
- * @returns `firewallPersistence` and `onFirewallEvent` for the `ShellAdapter`.
+ * @returns `legacyFirewall` and `onFirewallEvent` for the `ShellAdapter`.
  * @example
  * ```ts
  * const hooks = createRuntimeFirewallHooks({ storage: localStorage, onEvent: (event) => log.push(event) });
  * const adapter: ShellAdapter = { ...rest, ...hooks };
+ * applyRuntimeFirewallProfile(hooks.legacyFirewall, createGuardConfig('strict'));
  * ```
  */
 export function createRuntimeFirewallHooks(options: RuntimeFirewallHooksOptions): RuntimeFirewallHooks {
   const now = options.now ?? Date.now;
+  const legacyFirewall = createFirewallState({
+    persist: (data) => options.storage.setItem(RUNTIME_FIREWALL_STORAGE_KEY, data),
+    load: () => options.storage.getItem(RUNTIME_FIREWALL_STORAGE_KEY),
+  });
   return {
-    firewallPersistence: {
-      persist: (data) => options.storage.setItem(RUNTIME_FIREWALL_STORAGE_KEY, data),
-      load: () => options.storage.getItem(RUNTIME_FIREWALL_STORAGE_KEY),
-    },
+    legacyFirewall,
     onFirewallEvent: (event) => options.onEvent(toGuardEvent(event, now())),
   };
 }

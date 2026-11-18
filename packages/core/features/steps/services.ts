@@ -285,12 +285,12 @@ Then('the adapter has no network suggestions', (world: CoreWorld) => {
   expect(adapter(world).relayConfig.getNip66Suggestions()).toBeNull();
 });
 
-Then('the adapter keeps a restrictive ACL and asks the shell about focus and every port message', (world: CoreWorld) => {
+Then('the adapter keeps a restrictive ACL, hands the runtime a firewall and asks the shell about focus and every port message', (world: CoreWorld) => {
   const shell = adapter(world);
   expect(shell.aclDefaultPolicy).toBe('restrictive');
   expect([shell.getFocusContext?.('focused'), shell.getFocusContext?.('other')]).toEqual([{ focused: true }, { focused: false }]);
   expect([shell.filterNappletMessage?.('hidden', { type: 'relay.subscribe' }), shell.filterNappletMessage?.('w1', { type: 'relay.subscribe' })]).toEqual(['defer', 'dispatch']);
-  expect(shell.firewallPersistence?.load()).toBeNull();
+  expect(shell.legacyFirewall?.evaluate).toBeTypeOf('function');
 });
 
 Then('the adapter forwards unrouted messages when asked to', (world: CoreWorld) => {

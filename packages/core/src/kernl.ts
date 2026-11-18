@@ -19,7 +19,7 @@ import { decodePointer } from './applets/pointer.js';
 import { defaultFetchBlob, openDefaultArtifactCache } from './applets/resolve.js';
 import type { MountedApplet } from './applets/mount.js';
 import { createGuardPipeline, type GuardPipeline } from './guard/pipeline.js';
-import { applyRuntimeFirewallProfile, applyRuntimeFirewallRules, createRuntimeFirewallHooks } from './guard/runtime-rules.js';
+import { applyRuntimeFirewallProfile, applyRuntimeFirewallRules, createRuntimeFirewallHooks, type RuntimeFirewallState } from './guard/runtime-rules.js';
 import { createEnvironmentResolver, createGrants, type KernlGrants } from './grants/grants.js';
 import { createConsentHandler, createSigningConsent, lookupReplaceable } from './consent/handler.js';
 import { abbreviate } from './consent/describe-change.js';
@@ -55,6 +55,7 @@ export function toSession(account: IAccount, card?: ProfileCard): Session {
 
 interface ShellState {
   readonly pipeline: GuardPipeline;
+  readonly firewall: RuntimeFirewallState;
   readonly bridge: ShellBridge;
   readonly handles: ReadonlyMap<string, MountedApplet>;
   readonly accounts: AccountManager;
@@ -65,11 +66,11 @@ interface ShellState {
 }
 
 /** Keep the runtime firewall on the guard's profile and the session on the active account. */
-function followShellState({ pipeline, bridge, handles, accounts, session$, profiles, mailboxes, tiers }: ShellState): Subscription {
+function followShellState({ pipeline, firewall, bridge, handles, accounts, session$, profiles, mailboxes, tiers }: ShellState): Subscription {
   const subscriptions = new Subscription();
   subscriptions.add(pipeline.profile$.subscribe(() => {
-    applyRuntimeFirewallProfile(bridge.runtime.firewallState, pipeline.config);
-    for (const handle of handles.values()) applyRuntimeFirewallRules(bridge.runtime.firewallState, pipeline.config, handle.summary.identity.dTag);
+    applyRuntimeFirewallProfile(firewall, pipeline.config);
+    for (const handle of handles.values()) applyRuntimeFirewallRules(firewall, pipeline.config, handle.summary.identity.dTag);
   }));
   subscriptions.add(accounts.active$.subscribe((account) => bridge.publishIdentityChanged(account?.pubkey ?? '')));
   // The session's label follows the account's published name once it arrives.
@@ -269,6 +270,11 @@ export function createKernl(options: KernlOptions): Kernl {
 
   const intents = createKernlIntents({ host, pool, tiers, accounts, handles, ...(options.intentRetry ? { retry: options.intentRetry } : {}) });
   services.registry.intent = intents.handler;
+  const runtimeFirewall = createRuntimeFirewallHooks({
+    storage: host.storage,
+    onEvent: (event) => guardEvents$.next(event),
+    ...(host.now ? { now: host.now.bind(host) } : {}),
+  });
   const adapter: ShellAdapter = createShellAdapter({
     pool,
     tiers,
@@ -279,17 +285,13 @@ export function createKernl(options: KernlOptions): Kernl {
     onNappletRevoked: ({ windowId, reason }) => handles.get(windowId)?.revoked(reason),
     filterNappletMessage: (windowId, message) => pipeline.observe(windowId, identityOf(windowId)?.dTag ?? 'unknown', message),
     getFocusContext: (windowId) => ({ focused: pipeline.getVisibility(windowId).focused }),
-    runtimeFirewall: createRuntimeFirewallHooks({
-      storage: host.storage,
-      onEvent: (event) => guardEvents$.next(event),
-      ...(host.now ? { now: host.now.bind(host) } : {}),
-    }),
+    runtimeFirewall,
   });
   const bridge = createShellBridge(adapter);
   grants = createGrants({ acl: bridge.runtime.aclState, storage: host.storage, availableDomains: () => buildShellCapabilities(adapter).domains });
   bridge.registerConsentHandler(createConsentHandler(host, lookupBefore, identityOf));
 
-  subscriptions.add(followShellState({ pipeline, bridge, handles, accounts, session$, profiles, mailboxes, tiers }));
+  subscriptions.add(followShellState({ pipeline, firewall: runtimeFirewall.legacyFirewall, bridge, handles, accounts, session$, profiles, mailboxes, tiers }));
 
   const lifecycle = createAppletLifecycle({
     pool,
@@ -297,6 +299,7 @@ export function createKernl(options: KernlOptions): Kernl {
     adapter,
     bridge,
     pipeline,
+    firewall: runtimeFirewall.legacyFirewall,
     grants,
     installed: intents.installed,
     host,
