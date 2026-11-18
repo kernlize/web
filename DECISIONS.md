@@ -567,3 +567,20 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Consequences.** Each runtime logs `FW-RUNTIME-LEGACY-GATE-001` once, and each service its `FW-*-LEGACY-001` warning, until `permissions` is configured. A publish whose plan is empty is refused rather than sent nowhere. A refused relay is now dialled twice in total per round, by applesauce, rather than in two rounds by kernl.
 
 **Reversal cost.** Low. The firewall calls stay in `runtime-rules.ts`; the relay planner and stable signers are one function each.
+
+## D-038 · Narrowing a running applet's grant stops its window
+
+**Context.** A window keeps the environment it was started with: `shell.init` is sent once, and kehto never sends it again. Taking a domain back changed the ACL at once, so kehto refused the next request that needed it, but the applet went on believing it held the domain. Blocking an applet left its window running under the ACL's denials until the user closed it. kehto's reference host stops a napplet whose grant is revoked and starts it again through admission.
+
+**Decision.**
+
+- When a grant record changes, every open window of that identity whose grant no longer covers a domain it was started with is stopped. So is every window of a blocked identity. `grantNarrowingReason` decides; `mount` subscribes to `grants.changes$` per window and unsubscribes when the window ends.
+- A stop is a revocation, as a quarantine is: the frame is removed, kehto's binding is revoked with `bridge.revokeNapplet`, and the host hears `grant-narrowed` or `blocked`, which the shell words as "You took back something it was using. Open it again to run it with what it may use now." and "You blocked it."
+- Granting more never stops a window. The applet sees the new domain the next time it opens.
+- The window is not reopened for the user. Opening it again is their choice, and it means a new frame, a new handshake and a fresh guard state, as for every revocation.
+- The preview applies the same rule to its own windows.
+
+**Consequences.** Turning a switch off in the grants panel for a running applet closes it, with a notice that says why. A window can no longer run on an environment broader than its grant.
+
+**Reversal cost.** Low. One subscription in `mount` and one function.
+

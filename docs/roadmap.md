@@ -49,7 +49,6 @@ The window manager contracts come from `@kehto/wm`. A narrow-viewport layout wit
 ## 6. Guard
 
 - Per-applet guard profiles: today the profile is shell-wide and resets to `strict` on boot ([D-003](./decisions.md#d-003)). Next: an override per applet identity, remembered locally.
-- Re-narrow a live applet's advertised environment when a domain is revoked; today the ACL denies at once but `shell.init` only changes on the next open.
 - Bridge consent per host: wire `createDefaultBridges({ authorize })` to a host prompt so a granted `resource` request still asks before reaching a new origin.
 - Persist per-applet profile overrides and grants through a user-chosen sync, so loosening an applet once does not have to be repeated per device.
 
