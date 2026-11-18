@@ -214,6 +214,19 @@ Feature: The preview kernl
     Then the preview kernl applet in frame "a" is "closed"
     And the preview kernl host heard 0 revocations
 
+  Scenario: narrowing a running applet's grant stops it, as the shell does
+    Given the preview kernl user granted "relay" to "notes"
+    And the preview kernl mounts "notes" in frame "a"
+    And the preview kernl mounts "pulse" in frame "b"
+    When the preview kernl user granted "identity" to "notes"
+    Then the preview kernl host heard 0 revocations
+    When the preview kernl user takes back "relay" from "notes"
+    Then the preview kernl applet in frame "a" is "revoked"
+    And the preview kernl host heard frame "a" revoked for "grant-narrowed"
+    When the preview kernl user blocked "pulse"
+    Then the preview kernl host heard frame "b" revoked for "blocked"
+    And the preview kernl lists 0 applets
+
   Scenario: destroying the preview closes every applet
     Given the preview kernl mounts "notes" in frame "a"
     And the preview kernl mounts "pulse" in frame "b"

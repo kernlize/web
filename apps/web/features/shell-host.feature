@@ -36,10 +36,12 @@ Feature: The shell host
     Then the shell host warns "<title>" because "<words>" for window "<window>"
 
     Examples:
-      | window | reason     | title                  | words                                                    |
-      | w1     | quarantine | Notes was stopped      | The guard stopped it because it kept flooding the shell. |
-      | w1     | host       | Notes was stopped      | The shell closed it.                                     |
-      | w9     | expired    | An applet was stopped  | expired                                                  |
+      | window | reason         | title                 | words                                                                                   |
+      | w1     | quarantine     | Notes was stopped     | The guard stopped it because it kept flooding the shell.                                |
+      | w1     | host           | Notes was stopped     | The shell closed it.                                                                    |
+      | w1     | grant-narrowed | Notes was stopped     | You took back something it was using. Open it again to run it with what it may use now. |
+      | w1     | blocked        | Notes was stopped     | You blocked it.                                                                         |
+      | w9     | expired        | An applet was stopped | expired                                                                                 |
 
   Scenario: the window itself records why it stopped
     Given the shell host with window "w1" titled "Notes"

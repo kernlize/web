@@ -18,7 +18,7 @@ The binding is revoked, the port closed and the iframe removed when the shell ob
 | `invalid-hello` | A `hello` without exactly one transferred port. |
 | `second-load` | The frame loaded a second document, by navigation or reload. |
 | `port-closed` | The port closed or a message failed to deserialise. |
-| `host` | The shell revoked the binding itself: the user closed the window (`handle.close()`), or the guard quarantined it, in which case `host.onRevoked` is told `quarantine`. |
+| `host` | The shell revoked the binding itself: the user closed the window (`handle.close()`); the guard quarantined it, in which case `host.onRevoked` is told `quarantine`; or the user narrowed the applet's grant below what the window was started with, in which case it is told `grant-narrowed`, or `blocked` for a block ([D-038](../decisions.md#d-038)). |
 
 A revoked window's identity can never be re-bound to the same iframe. Opening the applet again means a new frame, a new handshake and a fresh guard state. Grants, however, outlive the frame: they are keyed by identity, not by window.
 

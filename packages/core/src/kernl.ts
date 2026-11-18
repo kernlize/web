@@ -175,7 +175,7 @@ interface ShellParts {
 
 /** Close every applet, then everything the shell opened, the parts it was handed excepted. */
 function tearDown(parts: ShellParts): void {
-  for (const handle of [...parts.handles.values()]) handle.close();
+  for (const handle of parts.handles.values()) handle.close();
   parts.subscriptions.unsubscribe();
   parts.destroyed$.next();
   parts.network.directory.stop();

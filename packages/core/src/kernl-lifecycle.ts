@@ -1,7 +1,7 @@
 import type { Subscription } from 'rxjs';
 import { originRegistry, type ShellAdapter, type ShellBridge } from '@kehto/shell';
 import type { NappletArtifactCache } from '@kehto/nip/5d';
-import type { AppletHandle, AppletIdentity, AppletPointer, AppletSummary, BuiltinApplet, FrameLike, Kernl, KernlHost, MountPlan, RelayTiers } from './types.js';
+import type { AppletHandle, AppletIdentity, AppletPointer, AppletSummary, BuiltinApplet, FrameLike, GrantRecord, Kernl, KernlHost, MountPlan, RelayTiers } from './types.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { resolveBuiltin } from './applets/builtin.js';
 import { fetchManifestEvent, resolveApplet, type PublishedPointer, type ResolvedApplet } from './applets/resolve.js';
@@ -32,6 +32,34 @@ export interface LifecycleContext {
   readonly fetchBlob: (sha256: string, servers: readonly string[]) => Promise<Uint8Array>;
   /** Applets the host ships with itself. */
   readonly builtins: readonly BuiltinApplet[];
+}
+
+/**
+ * Why a grant change stops a running window, or nothing when it does not.
+ *
+ * A window keeps the environment it was started with, and `shell.init` is not
+ * sent again, so a window whose grant no longer covers a domain it was started
+ * with would go on advertising it. Granting more never stops a window; the
+ * applet sees the new domain the next time it opens.
+ *
+ * @param plan - The running window's plan; its environment is what it was started with.
+ * @param record - The grant record that just changed.
+ * @param baseline - Domains every applet holds, from `grants.baselineDomains()`.
+ * @returns `blocked`, `grant-narrowed`, or `undefined` when the window may keep running.
+ * @example
+ * ```ts
+ * grants.changes$.subscribe((record) => {
+ *   const reason = grantNarrowingReason(plan, record, grants.baselineDomains());
+ *   if (reason) handle.revoked(reason);
+ * });
+ * ```
+ */
+export function grantNarrowingReason(plan: MountPlan, record: GrantRecord, baseline: readonly string[]): 'blocked' | 'grant-narrowed' | undefined {
+  const { identity } = plan.summary;
+  if (record.identity.dTag !== identity.dTag || record.identity.hash !== identity.hash) return undefined;
+  if (record.blocked) return 'blocked';
+  const allowed = new Set([...baseline, ...record.domains]);
+  return plan.environment.capabilities.domains.some((domain) => !allowed.has(domain)) ? 'grant-narrowed' : undefined;
 }
 
 /** The applet half of {@link Kernl}. */
@@ -129,8 +157,18 @@ export function createAppletLifecycle(context: LifecycleContext): AppletLifecycl
         onRevoked: (windowId, reason) => context.host.onRevoked(windowId, reason),
       });
       handles.set(plan.windowId, handle);
+      const narrowed = context.grants.changes$.subscribe((record) => {
+        const reason = grantNarrowingReason(plan, record, context.grants.baselineDomains());
+        if (!reason) return;
+        handle.revoked(reason);
+        // As for a quarantine: removing the frame does not end kehto's session, so the binding is revoked too.
+        bridge.revokeNapplet(plan.windowId, 'host');
+      });
+      context.subscriptions.add(narrowed);
       context.subscriptions.add(handle.status$.subscribe((status) => {
-        if (status === 'closed' || status === 'revoked') handles.delete(plan.windowId);
+        if (status !== 'closed' && status !== 'revoked') return;
+        handles.delete(plan.windowId);
+        narrowed.unsubscribe();
       }));
       return handle;
     },
