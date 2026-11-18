@@ -25,10 +25,10 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@kehto/firewall": "^0.7.0"
+    "@kehto/rate-limit": "^0.2.0"
   },
   "peerDependencies": {
-    "@napplet/core": ">=0.37.0 <0.39.0"
+    "@napplet/core": ">=0.37.0 <0.42.0"
   },
   "devDependencies": {
     "quickpickle": "^1.11.2",

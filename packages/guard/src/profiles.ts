@@ -5,7 +5,7 @@ import {
   setRateLimit,
   type FirewallConfig,
   type RateLimit,
-} from '@kehto/firewall';
+} from '@kehto/rate-limit/legacy';
 import type { GuardConfig, GuardLimits, GuardProfile, OpClass } from './types.js';
 
 const KIB = 1024;
