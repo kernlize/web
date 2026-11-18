@@ -40,7 +40,8 @@ pnpm site:dev
 
 - "That does not look like an applet address." (`invalid:pointer`): the text holds no address. A link with the address in it is fine; a link to a page about the applet is not.
 - "No applet was found at that address." (`unavailable:manifest`): the servers answered and none has it, including the general servers the shell falls back to. Add the server that does under **Settings**, in the applet catalogue tier, or use an address that names it.
-- "None of the servers that list applets could be reached." (`unavailable:network`): none of the servers the address names, the applet catalogue or the general servers answered; the shell gives each group ten seconds. Check the connection, a VPN or a content blocker that stops secure socket connections, then look it up again.
+- "The shell could not connect to any server." (`unavailable:unreachable`): not one of the servers the address names, the applet catalogue or the general servers opened a connection, each after one retry. That is almost always on this side: the device is offline, a network, VPN or content blocker stops secure socket connections, or the browser has run out of connections because many tabs hold them open. Close other tabs or check the connection, then look it up again ([D-039](../decisions.md#d-039)).
+- "The servers that list applets did not answer in time." (`unavailable:network`): some server opened a connection but none answered; the shell gives each group ten seconds. Try again in a moment.
 - "The applet was found, but its file could not be downloaded right now." (`unavailable:blob`): the servers named by the applet did not return its file.
 - "Could not open the applet. Try again, or try another address.": the shell had no reason for the failure, which is a defect. The browser console has a line starting `kernl: an applet could not be opened for an unexpected reason` with the underlying error; include it in the report.
 
