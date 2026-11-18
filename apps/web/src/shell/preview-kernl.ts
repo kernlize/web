@@ -24,7 +24,8 @@ import {
   type VisibilityGate,
   type WindowVisibility,
 } from '@kernlize/guard';
-import { BehaviorSubject, of, Subject } from 'rxjs';
+import { grantNarrowingReason } from '@kernlize/core';
+import { BehaviorSubject, of, Subject, type Subscription } from 'rxjs';
 import type {
   AppletHandle,
   AppletPointer,
@@ -33,6 +34,7 @@ import type {
   BuiltinApplet,
   ConsentSummary,
   FrameLike,
+  Grants,
   GuardFacade,
   KernlHost,
   MountPlan,
@@ -320,6 +322,16 @@ function createMounter(host: KernlHost, guard: PreviewGuard, mounted: Map<string
   };
 }
 
+/** A running window keeps the environment it started with, so narrowing its grant stops it, as in the shell (D-038). */
+function stopNarrowed(grants: Grants, mounted: ReadonlyMap<string, Mounted>): Subscription {
+  return grants.changes$.subscribe((record) => {
+    for (const entry of mounted.values()) {
+      const reason = grantNarrowingReason(entry.plan, record, grants.baselineDomains());
+      if (reason) entry.revoke(reason);
+    }
+  });
+}
+
 function sessionOf(account: IAccount): Session {
   const name = (account.metadata as { name?: string } | undefined)?.name;
   return { accountId: account.id, pubkey: account.pubkey, label: name ?? abbreviate(account.pubkey), readOnly: account.type === 'readonly' };
@@ -412,6 +424,7 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
   const pubkey = (): string => session$.value?.pubkey ?? PREVIEW_OWNER;
   const { perform } = createActions(host, bridges, pubkey, intents, config);
   const mount = createMounter(host, guard, mounted, config);
+  const narrowing = stopNarrowed(grants, mounted);
   const ports = createPreviewPorts({ messaging, profiles, pubkey: () => PREVIEW_OWNER, notify: (notice) => host.notify(notice), ...(theme ? { theme: { initialTheme: theme } } : {}) });
 
   return {
@@ -495,6 +508,7 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
       else perform(entry, event.data);
     },
     destroy() {
+      narrowing.unsubscribe();
       for (const entry of mounted.values()) entry.handle.close();
       ports.close();
       messaging.close();

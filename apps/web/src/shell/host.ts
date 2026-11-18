@@ -45,6 +45,8 @@ export function pickStorage(): StorageLike {
 const REVOKE_REASONS: Readonly<Record<string, string>> = {
   quarantine: 'The guard stopped it because it kept flooding the shell.',
   host: 'The shell closed it.',
+  'grant-narrowed': 'You took back something it was using. Open it again to run it with what it may use now.',
+  blocked: 'You blocked it.',
 };
 
 /** Plain words for a revocation reason; reasons the shell does not know pass through. */

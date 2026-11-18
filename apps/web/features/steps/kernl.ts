@@ -306,6 +306,10 @@ Given('the preview kernl user granted {string} to {string}', (world: PreviewWorl
   for (const domain of list(domains)) grants.allowDomain(sample(name).identity, domain);
 });
 
+When('the preview kernl user takes back {string} from {string}', (world: PreviewWorld, domain: string, name: string) => {
+  preview(world).kernl.grants.revokeDomain(sample(name).identity, domain);
+});
+
 Given('the preview kernl user blocked {string}', (world: PreviewWorld, name: string) => {
   preview(world).kernl.grants.block(sample(name).identity);
 });

@@ -52,7 +52,7 @@
 <Overlay title="Grants for {win.plan.summary.title}" {onclose}>
   <p class="shell-muted lead">
     <span class="shell-badge">{shortId(identity.hash)}</span>
-    Grants are tied to this exact applet code. Changes apply to the running window at once.
+    Grants are tied to this exact applet code. Taking one back, or blocking the applet, stops the running window; one you add arrives the next time it opens.
   </p>
   <ul class="shell-list domains">
     {#each kernl.grants.availableDomains() as domain (domain)}
