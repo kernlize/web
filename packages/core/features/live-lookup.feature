@@ -75,6 +75,12 @@ Feature: Looking an applet up over real connections
     Then the shell refused with "unavailable:network"
     And the lookup took under 2000 ms
 
+  Scenario: a relay that holds the connection and says nothing is a network problem, not unreachable
+    Given a local relay "mute" that never answers
+    When the manifest is looked up over real connections from "mute" timing out after 400 ms
+    Then the shell refused with "unavailable:network"
+    And the lookup took under 2000 ms
+
   Scenario: the newest release wins across relays
     Given a local relay "stale" that holds an older release of the manifest
     And a local relay "catalogue" that holds the manifest
@@ -86,11 +92,11 @@ Feature: Looking an applet up over real connections
     When the manifest is looked up over real connections from "general"
     Then the shell refused with "unavailable:manifest"
 
-  Scenario: every relay being down is a network problem, not a missing applet
+  Scenario: no relay accepting a connection is told apart from a missing applet and from silent relays
     Given a relay address "dead" where nothing listens
     And a relay address "gone" where nothing listens
     When the manifest is looked up over real connections from "dead,gone"
-    Then the shell refused with "unavailable:network"
+    Then the shell refused with "unavailable:unreachable"
 
   Scenario: an applet the catalogue does not hold is found on the general relays
     Given a local relay "catalogue" that holds nothing
@@ -137,10 +143,10 @@ Feature: Looking an applet up over real connections
     When the manifest is looked up over real connections from "busy" falling back to "general" retrying after 50 ms
     Then the looked-up manifest is the signed one
 
-  Scenario: a relay that keeps refusing is asked twice and then called a network problem
+  Scenario: a relay that keeps refusing is asked twice and then called unreachable
     Given a local relay "busy" that holds the manifest and refuses its first 5 connections
     When the manifest is looked up over real connections from "busy" retrying after 50 ms
-    Then the shell refused with "unavailable:network"
+    Then the shell refused with "unavailable:unreachable"
     And the local relay "busy" was dialled 2 times
 
   Scenario: an address with no usable relay at all has nowhere to look

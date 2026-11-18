@@ -16,7 +16,8 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 | --- | --- | --- | --- |
 | `invalid:pointer` | `@kernlize/core` | `decodePointer`, `resolveBuiltin` | The input is not, and does not contain, an `naddr`, `nevent`, `note`, 64-hex event id, coordinate or `kernl:<id>`; or it names a built-in applet the host does not ship. |
 | `unavailable:manifest` | `@kernlize/core` | `fetchManifestEvent`, so `Kernl.resolve` | A relay answered, in the hints, the `apps` tier or the `super` tier, and none returned the manifest event; or there was no usable relay to ask. |
-| `unavailable:network` | `@kernlize/core` | `fetchManifestEvent`, so `Kernl.resolve` | No relay answered in either round: every one failed, or none answered within `MANIFEST_TIMING.timeoutMs`. The applet may well exist. |
+| `unavailable:unreachable` | `@kernlize/core` | `fetchManifestEvent`, so `Kernl.resolve` | No relay in any round opened a connection, after its one redial. Usually the person's side: offline, a blocking network, or a browser out of connections ([D-039](../decisions.md#d-039)). The applet may well exist. |
+| `unavailable:network` | `@kernlize/core` | `fetchManifestEvent`, so `Kernl.resolve` | No relay answered in either round, though at least one opened a connection. The applet may well exist. |
 | `unavailable:blob` | `@kernlize/core` | `defaultFetchBlob`, `resolveApplet` | No server returned the artifact bytes. kehto's `blob-unavailable` maps here. |
 | `invalid:invalid-signature`, `invalid:invalid-manifest`, `invalid:aggregate-mismatch`, `invalid:blob-hash-mismatch`, `invalid:missing-index` | `@kernlize/core` | `resolveApplet` | Verification failed. The part after `invalid:` is kehto's `NappletResolutionErrorCode`. Nothing runs. |
 | `invalid:artifact-hash` | `@kernlize/core` | `resolveBuiltin`, so `Kernl.resolve` of a `kernl:<id>` address | The bytes an applet shipped with the host loaded are not the bytes the host pinned. |

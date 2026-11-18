@@ -584,3 +584,17 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 
 **Reversal cost.** Low. One subscription in `mount` and one function.
 
+## D-039 · No relay accepting a connection is told apart from relays that stay silent
+
+**Context.** A lookup in which no relay answered was always `unavailable:network`, worded "None of the servers that list applets could be reached." That covers two different situations. In one, no relay opened a connection at all. kehto's reference host, Paja, found that this is usually the person's side: they are offline, a network or content blocker stops secure sockets, or the browser has run out of WebSocket connections because many tabs hold them. In the other, relays took the connection and said nothing in time, which is the relays' side. The person needs to do different things in each case.
+
+**Decision.**
+
+- `fetchManifestEvent` watches each asked relay's `connected$` while a round runs, as Paja watches each relay's connection outcome. It throws `unavailable:unreachable` when no relay of any round opened a connection, after applesauce's one redial (D-037), and `unavailable:network` when some relay opened one but none answered. `unavailable:manifest` is unchanged, except that an empty answer from relays that never connected is not an answer: Firefox ends an offline request that way, which used to read as "no applet at that address".
+- Why not the error alone: in a browser, relays the shell dialled before the lookup sit in applesauce's redial backoff and time out instead of failing, so a timeout says nothing about whether anything connected. Tested in Chromium and Firefox against routed relays that are down and relays that hold the connection silently.
+- The launcher says "The shell could not connect to any server. You may be offline, your network may block them, or the browser may have too many connections open: closing other tabs can help." for the first, and "The servers that list applets did not answer in time. Try again in a moment." for the second. Neither names the protocol (D-006).
+
+**Consequences.** A host that matched `unavailable:network` for every network failure must also match `unavailable:unreachable`. The `unavailable:` prefix still covers both.
+
+**Reversal cost.** Low. One flag in the lookup and one sentence in the launcher.
+
