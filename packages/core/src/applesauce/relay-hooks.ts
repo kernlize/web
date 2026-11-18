@@ -1,4 +1,4 @@
-import type { RelayPool } from 'applesauce-relay';
+import type { RelayPool, RelayPoolOptions } from 'applesauce-relay';
 import { normalizeRelayUrl, type Filter } from 'applesauce-core/helpers';
 import type { NappletMessageTarget, RelayPoolHooks, RelayPoolLike } from '@kehto/shell';
 import type { NostrEvent, NostrFilter } from '@napplet/core';
@@ -7,6 +7,27 @@ import type { RelayTiers } from '../types.js';
 
 /** The slice of applesauce's `RelayPool` kernl adapts. Narrow so tests can supply a fake. */
 export type ApplesaucePool = Pick<RelayPool, 'req' | 'request' | 'publish'>;
+
+/**
+ * How the shell's own pool redials a relay that refused the connection.
+ *
+ * applesauce-relay 7.1 redials refused connections three times by default,
+ * pausing one, two and three seconds, and a publish waits for every relay it
+ * was sent to, so one dead relay in a tier held a publish for about six
+ * seconds. One redial after a second keeps the case it exists for: a busy
+ * public relay answers a websocket upgrade with 502 or 503 for a moment and
+ * accepts the next one (D-025, D-037). Subscriptions keep applesauce's
+ * default, because a live subscription should come back after a drop.
+ *
+ * @example
+ * ```ts
+ * const pool = new RelayPool(SHELL_RELAY_OPTIONS);
+ * ```
+ */
+export const SHELL_RELAY_OPTIONS: RelayPoolOptions = Object.freeze({
+  publishRetry: Object.freeze({ count: 1, delay: 1_000 }),
+  requestReconnect: Object.freeze({ count: 1, delay: 1_000 }),
+});
 
 /** Replaceable kinds that live on the discovery tier. */
 const DISCOVERY_KINDS: ReadonlySet<number> = new Set([0, 3, 10002]);

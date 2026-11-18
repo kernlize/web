@@ -146,3 +146,18 @@ Feature: Looking an applet up over real connections
   Scenario: an address with no usable relay at all has nowhere to look
     When the manifest is looked up over real connections from "not a relay"
     Then the shell refused with "unavailable:manifest"
+
+  Scenario: a relay that is down redials once, so a publish elsewhere is not held for long
+    Given a relay address "dead" where nothing listens
+    And a local relay "up" that holds nothing
+    And a live kernl shell whose apps tier is "up"
+    When the live shell publishes a note to "dead,up"
+    Then it settled within 3000 ms
+
+  Scenario: a relay that is down redials once, so a subscription's end of stored events is not held for long
+    Given a relay address "dead" where nothing listens
+    And a local relay "up" that holds nothing
+    And a live kernl shell whose apps tier is "up"
+    When the live shell subscribes on "dead,up" until every relay has answered
+    Then it settled within 3000 ms
+

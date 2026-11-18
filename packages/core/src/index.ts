@@ -57,6 +57,7 @@ export {
 } from './relays/mailboxes.js';
 
 export {
+  SHELL_RELAY_OPTIONS,
   createRelayPoolHooks,
   createRelayPoolLike,
   selectRelayTier,

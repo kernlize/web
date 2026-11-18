@@ -15,6 +15,7 @@ import { createAppletConfig } from './applets/applet-config.js';
 import { askUploadConsent, createBlossomUploader } from './files/uploader.js';
 import type { AccountMailboxes } from './relays/mailboxes.js';
 import { createRelayTiers } from './relays/tiers.js';
+import { SHELL_RELAY_OPTIONS } from './applesauce/relay-hooks.js';
 import { decodePointer } from './applets/pointer.js';
 import { defaultFetchBlob, openDefaultArtifactCache } from './applets/resolve.js';
 import type { MountedApplet } from './applets/mount.js';
@@ -213,7 +214,7 @@ export function createKernl(options: KernlOptions): Kernl {
   const ownsPool = !options.pool;
   const ownsMessaging = !options.messaging;
   const eventStore = options.eventStore ?? new EventStore();
-  const pool = options.pool ?? new RelayPool();
+  const pool = options.pool ?? new RelayPool(SHELL_RELAY_OPTIONS);
   const accounts = options.accounts ?? createKernlAccounts(host.storage);
   const tiers = createRelayTiers(host.storage, options.relays ?? {});
   const { messaging, bridges } = registriesFor(options, { eventStore, pool, tiers, accounts });
