@@ -1,5 +1,25 @@
 # @kernlize/core
 
+## 0.10.0
+
+### Minor Changes
+
+- 3315271: Applets can have settings (NAP-CONFIG). `createAppletConfig` keeps each applet's values by catalogue id, so an update keeps them, and opens the host's settings form through the new optional `KernlHost.presentSettings`. The shell offers the `config` domain only when the host provides that form.
+- 4fa61e5: Move to `@kehto/shell` 0.35, `@kehto/services` 0.34, `@kehto/runtime` 0.30, `@kehto/acl` 0.20.6, `@napplet/core` 0.41, `@napplet/nap` 0.40 and applesauce 7.1 (D-037).
+
+  - **core:** `createRuntimeFirewallHooks` now constructs the runtime firewall from `@kehto/rate-limit/legacy` and returns it as `legacyFirewall` in place of `firewallPersistence`, because the runtime no longer builds one. The stored configuration under `kernl:firewall:v1` keeps its format. New `createAppletRelayService` plans relay publishes by event kind for kehto's planned relay contract. Signers are kept stable per account and window so the identity and relay services deliver their replies. Intents are delivered through the runtime's recipient gate. The shell's pool is built with the new `SHELL_RELAY_OPTIONS`, one redial after a second for publishes and requests, because applesauce-relay 7.1 otherwise holds a publish to a dead relay for about six seconds. A manifest lookup lets applesauce-relay redial a refused relay once instead of repeating the round. The `@napplet/core` peer range is now `>=0.41.0 <0.42.0` and `@napplet/nap` `>=0.37.0 <0.41.0`.
+  - **guard:** the temporal engine moved from `@kehto/firewall` to `@kehto/rate-limit/legacy`; the guard depends on `@kehto/rate-limit` and its `GuardConfig.firewall` and `FocusFirewall.observe` types come from there. The `@napplet/core` peer range widens to `<0.42.0`.
+  - **messaging:** the `@napplet/core` peer range widens to `<0.42.0`.
+
+- 1f689aa: `fetchManifestEvent`, and so `Kernl.resolve`, now throws `unavailable:unreachable` when no relay opened a connection, and keeps `unavailable:network` for relays that connected and did not answer in time (D-039). An empty answer from relays that never connected no longer reads as `unavailable:manifest`. Hosts matching only `unavailable:network` should also match the new reason.
+- 5b5e74f: Narrowing a running applet's grant now stops its window (D-038). When a domain the window was started with is taken back, or the applet is blocked, the frame is removed, kehto's binding is revoked, and `host.onRevoked` hears `grant-narrowed` or `blocked`. Granting more stops nothing. New export `grantNarrowingReason`.
+
+### Patch Changes
+
+- Updated dependencies [4fa61e5]
+  - @kernlize/guard@0.2.0
+  - @kernlize/messaging@0.4.1
+
 ## 0.9.0
 
 ### Minor Changes
