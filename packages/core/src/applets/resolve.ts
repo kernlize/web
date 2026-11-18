@@ -39,8 +39,8 @@ function filterFor(pointer: PublishedPointer): NostrFilter {
  * release can still answer. `patienceMs` runs from the first relay that
  * answers with nothing, so a slower relay that does hold the applet is not cut
  * off. `timeoutMs` bounds a round of asking when no relay answers at all; a
- * lookup is at most two rounds. `retryDelayMs` is the pause before a round
- * whose relays all refused at once is asked a second time.
+ * lookup is at most two rounds. `retryDelayMs` is the pause before a relay
+ * that refused the connection is dialled once more.
  */
 export interface ManifestTiming {
   readonly settleMs: number;
@@ -100,34 +100,30 @@ function settleManifestRequest(timing: ManifestTiming): OperatorFunction<{ type:
 interface Asked {
   readonly newest?: NostrEvent;
   readonly answered: boolean;
-  /** True when every relay refused outright, as opposed to the round running out its clock in silence. */
-  readonly refused?: boolean;
 }
 
-async function askOnce(pool: ApplesaucePool, relays: string[], filter: NostrFilter, waits: ManifestTiming): Promise<Asked> {
-  const request = pool.request(relays, asFilters([filter]), { complete: settleManifestRequest(waits), timeout: waits.timeoutMs });
+/**
+ * Ask the relays once, letting each refused connection be dialled one more
+ * time after `retryDelayMs`. Busy public relays answer a websocket upgrade with
+ * 502 or 503 for a moment and accept the next one. applesauce-relay 7.1
+ * redials refused connections itself, three times with a growing pause by
+ * default; one redial keeps a dead address from holding the lookup for most of
+ * ten seconds. A relay that ran out its clock is not redialled: it already waited.
+ */
+async function askRelays(pool: ApplesaucePool, relays: string[], filter: NostrFilter, waits: ManifestTiming): Promise<Asked> {
+  const request = pool.request(relays, asFilters([filter]), {
+    complete: settleManifestRequest(waits),
+    timeout: waits.timeoutMs,
+    reconnect: { count: 1, delay: waits.retryDelayMs },
+  });
   try {
     const events = await lastValueFrom(request.pipe(toArray()), { defaultValue: [] });
     const newest = events.reduce<NostrEvent | undefined>((best, event) => (best && best.created_at >= event.created_at ? best : event), undefined);
     return newest ? { newest, answered: true } : { answered: true };
-  } catch (error) {
+  } catch {
     // Every relay failed, or none answered in time: the network could not say, which is not "no such applet".
-    return { answered: false, refused: (error as Error).name !== 'TimeoutError' };
+    return { answered: false };
   }
-}
-
-/**
- * One round: ask the relays, and ask once more when every one of them refused
- * the connection. Busy public relays answer a websocket upgrade with 502 or
- * 503 for a moment and accept the next one, and applesauce-relay 7 fails a
- * relay on its first refused connection whatever `reconnect` says. A round
- * that ran out its clock is not asked again: it already waited.
- */
-async function askRelays(pool: ApplesaucePool, relays: string[], filter: NostrFilter, waits: ManifestTiming): Promise<Asked> {
-  const first = await askOnce(pool, relays, filter, waits);
-  if (!first.refused) return first;
-  await new Promise((resolve) => setTimeout(resolve, waits.retryDelayMs));
-  return askOnce(pool, relays, filter, waits);
 }
 
 /**
@@ -141,8 +137,8 @@ async function askRelays(pool: ApplesaucePool, relays: string[], filter: NostrFi
  * relay had a bad minute. For addresses, the newest event wins, since a named
  * applet is an addressable event that its author replaces on every release. A
  * relay that is down, silent or hangs up does not fail the lookup while
- * another one answers, a round whose relays all refused at once is asked a
- * second time, and hints that are not relay URLs are ignored.
+ * another one answers, a relay that refused the connection is dialled once
+ * more, and hints that are not relay URLs are ignored.
  *
  * @param pool - The shared applesauce pool.
  * @param tiers - Relay tiers; `apps` is asked first, `super` as the fallback.
