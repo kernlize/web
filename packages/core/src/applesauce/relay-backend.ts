@@ -1,6 +1,7 @@
 import { lastValueFrom, toArray } from 'rxjs';
-import type { DmRelayPool, RelayPoolServiceOptions } from '@kehto/services';
-import type { NostrEvent, NostrFilter } from '@napplet/core';
+import { createRelayPoolService, type DmRelayPool, type RelayPoolServiceOptions } from '@kehto/services';
+import type { RelayOperationPlan, RelayPlanningServiceHandler } from '@kehto/runtime';
+import type { NappletMessage, NostrEvent, NostrFilter } from '@napplet/core';
 import type { RelayTiers } from '../types.js';
 import { asFilters, selectRelayTier, subscribeWithEose, type ApplesaucePool } from './relay-hooks.js';
 
@@ -61,8 +62,58 @@ export function createAppletRelayBackend(pool: ApplesaucePool, tiers: RelayTiers
     async publish(event) {
       await publishAccepted(pool, selectRelayTier(tiers, [{ kinds: [event.kind] }]), event);
     },
+    async publishToRelays(relayUrls, event) {
+      await publishAccepted(pool, [...relayUrls], event);
+    },
     selectRelayTier: (filters) => selectRelayTier(tiers, filters),
     isAvailable: () => true,
+  };
+}
+
+/** A direct `handleMessage` call has no approval to lose, so its signal never aborts. */
+const UNCANCELLED = new AbortController().signal;
+
+function kindOf(message: NappletMessage): number | undefined {
+  const kind = (message as { event?: { kind?: unknown } }).event?.kind;
+  return typeof kind === 'number' ? kind : undefined;
+}
+
+/**
+ * kehto's relay service over the shared pool, with publishes planned by the
+ * event's kind.
+ *
+ * kehto plans every relay operation before it runs and then publishes only to
+ * the planned relays (`publishToRelays`), but its publish plan cannot see the
+ * event. kernl's plan does, so a profile update is planned onto discovery
+ * relays and the user's own, and a note onto the outbox plus the super tier,
+ * as before. An applet's explicit relay hint is planned as kehto plans it.
+ *
+ * @param pool - The shared applesauce pool.
+ * @param tiers - Relay tiers used to route publishes and unhinted subscriptions.
+ * @returns The `relay` service handler.
+ * @example
+ * ```ts
+ * registry.relay = createAppletRelayService(pool, tiers);
+ * registry.relay.planRelayOperation('w1', { type: 'relay.publish', id: '1', event: { kind: 0 } }).relayUrls;
+ * ```
+ */
+export function createAppletRelayService(pool: ApplesaucePool, tiers: RelayTiers): RelayPlanningServiceHandler {
+  const inner = createRelayPoolService(createAppletRelayBackend(pool, tiers));
+  function planRelayOperation(windowId: string, message: NappletMessage): RelayOperationPlan {
+    const plan = inner.planRelayOperation(windowId, message);
+    const kind = kindOf(message);
+    const relay = (message as { relay?: unknown }).relay;
+    const hinted = typeof relay === 'string' && relay.length > 0;
+    if (plan.operation === 'subscribe' || plan.operation === 'query' || hinted || kind === undefined) return plan;
+    const relayUrls = Object.freeze([...new Set(selectRelayTier(tiers, [{ kinds: [kind] }]))]);
+    return Object.freeze({ operation: plan.operation, relayUrls, localOnly: relayUrls.length === 0 });
+  }
+  return {
+    ...inner,
+    planRelayOperation,
+    handleMessage(windowId, message, send) {
+      inner.executeRelayOperation(windowId, message, planRelayOperation(windowId, message), UNCANCELLED, send);
+    },
   };
 }
 

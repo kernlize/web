@@ -66,20 +66,31 @@ export function wrapAccountSigner(account: IAccount): Signer {
  * ```
  */
 export function createAuthHooks(accounts: AccountManager, consent: SigningConsent): AuthHooks {
+  // kehto's services compare the signer object at reply time with the one a
+  // request started under, and drop the reply when it changed. One signer per
+  // account and window keeps that comparison meaning "the account changed".
+  const signers = new WeakMap<IAccount, Map<string | undefined, Signer>>();
+  function build(account: IAccount, windowId: string | undefined): Signer {
+    const signer = wrapAccountSigner(account);
+    if (windowId === undefined) return signer;
+    return {
+      ...signer,
+      async signEvent(template) {
+        await consent(windowId, template);
+        return account.signEvent(template);
+      },
+    } satisfies Signer;
+  }
   return {
     getUserPubkey: () => accounts.active?.pubkey ?? null,
     getSigner(windowId?: string) {
       const account = accounts.active;
       if (!account || isReadOnlyAccount(account)) return null;
-      const signer = wrapAccountSigner(account);
-      if (windowId === undefined) return signer;
-      return {
-        ...signer,
-        async signEvent(template) {
-          await consent(windowId, template);
-          return account.signEvent(template);
-        },
-      } satisfies Signer;
+      const byWindow = signers.get(account) ?? new Map<string | undefined, Signer>();
+      signers.set(account, byWindow);
+      const signer = byWindow.get(windowId) ?? build(account, windowId);
+      byWindow.set(windowId, signer);
+      return signer;
     },
   };
 }

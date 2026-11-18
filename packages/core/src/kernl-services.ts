@@ -11,7 +11,6 @@ import {
   createNotifyService,
   createOutboxService,
   createRelayPoolOutboxRouter,
-  createRelayPoolService,
   createResourceService,
   createThemeService,
   createUploadService,
@@ -30,7 +29,7 @@ import { createBridgeResourceResolver, type BridgeContext, type BridgeRegistry, 
 import type { MessagingRegistry } from '@kernlize/messaging';
 import type { KernlHost, RelayTiers } from './types.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
-import { createAppletRelayBackend, createOutboxRelayPool } from './applesauce/relay-backend.js';
+import { createAppletRelayService, createOutboxRelayPool } from './applesauce/relay-backend.js';
 import { createIdentityProviders, type IdentityProviders, type RelayPermissions } from './applesauce/identity-providers.js';
 import type { SigningConsent, SigningTemplate } from './consent/handler.js';
 import { labelConversations } from './messaging/label-conversations.js';
@@ -166,11 +165,18 @@ export function resourceInitFor(deps: Pick<KernlServiceDeps, 'resolveIdentity'>,
  * else: an applet the user granted "your account" learns who is signed in, and
  * every write still finds no `signEvent` and is refused.
  */
-function identitySigner(auth: KernlServiceDeps['auth']): Signer | null {
-  const signer = auth.getSigner();
-  if (signer) return signer;
-  const pubkey = auth.getUserPubkey?.() ?? null;
-  return pubkey === null ? null : { getPublicKey: () => pubkey };
+function createIdentitySigner(auth: KernlServiceDeps['auth']): () => Signer | null {
+  // The identity service drops a reply when the signer object changed under
+  // it, so a read-only account keeps one view for as long as it is signed in.
+  let view: { readonly pubkey: string; readonly signer: Signer } | undefined;
+  return () => {
+    const signer = auth.getSigner();
+    if (signer) return signer;
+    const pubkey = auth.getUserPubkey?.() ?? null;
+    if (pubkey === null) return null;
+    if (view?.pubkey !== pubkey) view = { pubkey, signer: { getPublicKey: () => pubkey } };
+    return view.signer;
+  };
 }
 
 function createOutbox(deps: KernlServiceDeps, identity: IdentityProviders) {
@@ -257,8 +263,8 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
   const resolve = createBridgeResourceResolver(deps.bridges);
 
   const registry: ServiceRegistry = {
-    relay: createRelayPoolService(createAppletRelayBackend(deps.pool, deps.tiers)),
-    identity: createIdentityService({ getSigner: () => identitySigner(deps.auth), ...identity }),
+    relay: createAppletRelayService(deps.pool, deps.tiers),
+    identity: createIdentityService({ getSigner: createIdentitySigner(deps.auth), ...identity }),
     theme: theme.handler,
     notify: createNotifyService({
       present: ({ windowId, message }) => deps.host.notify({ title: message.title, windowId, tone: 'info', ...(message.body ? { body: message.body } : {}) }),
@@ -272,7 +278,6 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
     }),
     resource: createResourceService({
       fetch: (url, init) => resolve(url, resourceInitFor(deps, init)),
-      resolveIdentity: deps.resolveIdentity,
     }),
     dm,
     outbox: gateOutboxPublish(createOutbox(deps, identity), deps.consent),
