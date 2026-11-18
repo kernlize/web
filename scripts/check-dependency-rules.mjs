@@ -4,7 +4,7 @@ import { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export const FRAMEWORKS = ['svelte', 'react', 'vue', 'preact', 'solid-js', 'lit'];
-export const KEHTO_ALLOWANCES = { guard: ['@kehto/firewall'] };
+export const KEHTO_ALLOWANCES = { guard: ['@kehto/rate-limit'] };
 const LEAF_PACKAGES = ['guard', 'messaging', 'bridges'];
 const DEPENDENCY_FIELDS = ['dependencies', 'peerDependencies', 'optionalDependencies', 'devDependencies'];
 
@@ -70,7 +70,7 @@ export function findAppNostrToolsImports(appSrcDir) {
 }
 
 /**
- * Find `@kehto/*` imports in the leaf packages, allowing only `guard → @kehto/firewall`.
+ * Find `@kehto/*` imports in the leaf packages, allowing only `guard → @kehto/rate-limit`.
  * @param {string} packagesDir Absolute path of the packages directory.
  * @returns {string[]} One violation per offending import.
  * @example
@@ -82,7 +82,7 @@ export function findKehtoImports(packagesDir) {
     const allowed = new Set(KEHTO_ALLOWANCES[slug] ?? []);
     for (const file of sourceFiles(join(packagesDir, slug, 'src'))) {
       const offending = importSpecifiers(readFileSync(file, 'utf8')).filter((spec) => spec.startsWith('@kehto/') && !allowed.has(packageOf(spec)));
-      for (const spec of offending) violations.push(`${relative(packagesDir, file)} imports ${spec}; only @kernlize/core composes kehto (guard may import @kehto/firewall)`);
+      for (const spec of offending) violations.push(`${relative(packagesDir, file)} imports ${spec}; only @kernlize/core composes kehto (guard may import @kehto/rate-limit)`);
     }
   }
   return violations;

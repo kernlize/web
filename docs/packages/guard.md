@@ -8,8 +8,8 @@ Ingress flood control, visibility gating, focus-aware firewall, CSP profile and 
 | JSR | `@kernl/guard` |
 | Version | `0.1.1` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts` |
-| Dependencies | `@kehto/firewall ^0.7.0` |
-| Peer dependencies | `@napplet/core >=0.37.0 <0.39.0` |
+| Dependencies | `@kehto/rate-limit ^0.2.0` |
+| Peer dependencies | `@napplet/core >=0.37.0 <0.42.0` |
 | Side effects | none |
 
 ## Install
@@ -30,7 +30,7 @@ Neither registry has a release yet, so both commands fail. During the alpha the 
 
 ## Purpose
 
-The guard is the set of protections between an applet and the user. kehto's `@kehto/firewall` supplies a pure `evaluate()` engine; this package gives its opaque operation classes meaning, adds the layers kehto's `ShellAdapter` cannot yet host (ingress flood control, the visibility gate, focus supplied by the shell's window manager), fixes the CSP, adds an insertion lock on top of kehto's nested-context lock ([D-014](../decisions.md#d-014)), and describes every mitigation for the UI. The concepts and the numbers are in [Guard](../concepts/guard.md).
+The guard is the set of protections between an applet and the user. kehto's `@kehto/rate-limit/legacy` supplies a pure `evaluate()` engine (it moved there from `@kehto/firewall` unchanged, [D-037](../decisions.md#d-037)); this package gives its opaque operation classes meaning, adds the layers kehto's `ShellAdapter` cannot yet host (ingress flood control, the visibility gate, focus supplied by the shell's window manager), fixes the CSP, adds an insertion lock on top of kehto's nested-context lock ([D-014](../decisions.md#d-014)), and describes every mitigation for the UI. The concepts and the numbers are in [Guard](../concepts/guard.md).
 
 ## Exports
 

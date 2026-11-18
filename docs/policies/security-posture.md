@@ -41,7 +41,7 @@ The rules the shell keeps when it runs untrusted code next to the user's identit
 
 21. **`nostr-tools` is never imported by kernl source.** It is a direct peer dependency of `@kernlize/core`, because kehto and applesauce require it, but no file under `packages/*/src` imports it.
 22. **Published packages have zero framework dependencies.** `svelte`, `react`, `vue`, `preact`, `solid-js` and `lit` are forbidden in every `packages/*/package.json`.
-23. **Leaf packages do not import `@kehto/*`**, except `@kernlize/guard`, which imports `@kehto/firewall`. Only `@kernlize/core` composes kehto.
+23. **Leaf packages do not import `@kehto/*`**, except `@kernlize/guard`, which imports `@kehto/rate-limit`. Only `@kernlize/core` composes kehto.
 
 Rules 21 to 23 are enforced by `scripts/check-dependency-rules.mjs` (`pnpm check:deps`). Rules 1 to 20 are scenarios in `packages/*/features/` (the root `features/support/` only wires their step definitions into vitest), and the mount rules are additionally exercised in the browser by the Playwright suite.
 

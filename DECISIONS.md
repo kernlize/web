@@ -286,6 +286,8 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 
 **Reversal cost.** Low. The decisions sit behind `GuardPipeline.observe` and `createShellAdapter`; the runtime firewall calls sit in one module.
 
+**Superseded in part by D-037.** #336 shipped. kernl now constructs the runtime firewall from `@kehto/rate-limit/legacy` and passes it as `legacyFirewall`; `firewallPersistence` is gone, and the move to `permissions` is still to come.
+
 ## D-021 · Registry scopes are explicit; package versions have one authority
 
 **Context.** npm belongs to `@kernlize`, while JSR belongs to `@kernl`. A shared name cannot address both registries directly.
@@ -363,6 +365,8 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 
 **Reversal cost.** Low. The clocks are one constant and one optional argument; removing the completion rule restores the library default, and the fallback is one entry in a list of rounds.
 
+**Superseded in part by D-037.** applesauce-relay 7.1 redials a refused connection itself. kernl asks it for one redial after `retryDelayMs` instead of repeating the round.
+
 ## D-026 · The shell has a store, and applets hand work to each other through intents
 
 **Context.** The launcher offered two hard-coded sample applets and a field for pasting an address, so finding an applet meant being handed its address. Applets advertise what they are for in their signed manifests: `t` tags for topics, `R`/`O` for the domains they need and can use, and `z`/`i` for the roles and requests they take (NAP-INTENT). kehto ships NAP-INTENT as `createIntentService`, `createCatalogIntentResolver` and `manifestToIntentCatalogEntry`, and a shell offers the `intent` domain by answering `ShellAdapter.intent.isAvailable()`. A user's preferred handlers can be published as kind 31129 ("Napplet Handler Preferences"), which an applet such as an intent-preferences manager can also write. kehto's ACL (0.20.3, also on `main`) maps `intent.deliver` to no recipient capability, so the runtime's recipient-checked `sendToEligibleNapplet` refuses every delivery; kehto's own reference host, Paja, posts the delivery on the target's bound port with `originRegistry.postToNapplet`.
@@ -380,6 +384,8 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Consequences.** A store lists other people's titles and descriptions as they wrote them. Its icons load from the manifest's first server, a display accelerator and never identity. Delivery depends on `originRegistry.postToNapplet` until kehto maps `intent.deliver` to `intent:read`; the gap is to be raised upstream. The preferences' private entries are not decrypted, and kehto's `getDefaultHandler` takes only the archetype, so a convention-specific choice can only rank the chooser.
 
 **Reversal cost.** Low. The store and router are additive; the delivery send is one function in `kernl-intents.ts`.
+
+**Superseded in part by D-037.** `@kehto/acl` 0.20.6 maps `intent.deliver` to `intent:read`, so delivery goes through the runtime's `sendToEligibleNapplet` instead of the bound port.
 
 ## D-027 · Messages are an applet; the user orders the providers, and the shell asks before a reply leaves another way
 
@@ -541,3 +547,23 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Consequences.** Applets that require `config` run. The preview runs the same kehto service and core store behind the Notes sample, so the form is exercised end to end without a network.
 
 **Reversal cost.** Low. `createAppletConfig` is one module of hooks and the form is one component; a host can pass its own.
+
+## D-037 · Upstream 2026-11: the legacy rate gate as a stopgap, and kehto's new service contracts met where they stand
+
+**Context.** kehto/web#336 shipped in `@kehto/runtime` 0.29–0.30, `@kehto/shell` 0.33–0.35, `@kehto/services` 0.31–0.34 and `@kehto/firewall` 0.8–0.10, with `@napplet/core` 0.41 and `@napplet/nap` 0.40. The runtime no longer builds a firewall or exposes `firewallState`, and `firewallPersistence` is gone. The temporal engine moved to the optional `@kehto/rate-limit`; its old per-applet, per-class API is the explicit `@kehto/rate-limit/legacy` subpath, which a host without `permissions` passes as `legacyFirewall`. kehto marks that runtime gate as retained only through its next minor release. Every service gained a scoped approval path through `RuntimeAdapter.permissions`; without it, each warns once (`FW-*-LEGACY-001`) and runs its host-only path, which was checked in the services and runtime source, not assumed. Three services changed what they need from the host. `@kehto/acl` 0.20.6 maps `intent.deliver` to `intent:read`. applesauce-relay 7.1 redials a refused connection itself.
+
+**Decision.**
+
+- **The runtime firewall is kernl's to construct.** `createRuntimeFirewallHooks` calls the legacy `createFirewallState` over `kernl:firewall:v1` (the stored format is unchanged) and returns it as `legacyFirewall` with `onFirewallEvent`. kernl keeps that reference and configures it, as D-020 describes; it does not read it back from the runtime. `permissions` is not configured yet: that is the separate move below.
+- **`@kernlize/guard` composes `@kehto/rate-limit/legacy`.** The engine it ran under `@kehto/firewall` moved there unchanged, so the guard's one kehto dependency is now `@kehto/rate-limit`, and `check:deps` allows that instead.
+- **Signers are stable objects.** The identity and relay services compare the signer at reply time with the one a request started under, and drop the reply when it changed. `createAuthHooks` keeps one signer per account and window, and the identity view of a read-only account is kept for as long as that account is signed in. A different account is still a different object, so a reply that outlives an account switch is still dropped.
+- **Relay publishes are planned by kind and sent only where planned.** The relay service plans destinations before it runs and publishes only through `publishToRelays`, but its publish plan cannot see the event. `createAppletRelayService` wraps it and plans a publish onto the tier for the event's kind (D-028's routing), keeping an applet's relay hint as kehto plans it; `publishToRelays` publishes to exactly those relays.
+- **Intents go through the runtime's recipient gate.** `createIntentDelivery` sends with `sendToEligibleNapplet`, which delivers to a live, unblocked target holding `intent:read`. kernl no longer posts to the bound port (D-026's workaround). kehto's receiver drops a delivery with an empty sender; kernl's sender is always the asking window's verified catalogue id.
+- **applesauce-relay redials, once.** A manifest lookup passes `reconnect: { count: 1, delay: retryDelayMs }`, and kernl's own repeat of a refused round is gone (D-025). applesauce's default is three redials with a growing pause, which would hold a dead address for most of ten seconds.
+- **The resource service takes no `resolveIdentity`.** It was removed upstream; kernl still resolves the requester itself from the source window kehto passes to `fetch`.
+
+**Next: `permissions`.** Moving to `permissions.rateLimiter` and `onRateLimit` replaces the legacy gate before kehto drops it. It brings the scoped approval authority with it, so it needs a permission principal per applet, an admission step, and a decision on how kehto's approvals meet kernl's consent and restrictive ACL (a ceiling under `permissions`). It is one change, recorded on its own.
+
+**Consequences.** Each runtime logs `FW-RUNTIME-LEGACY-GATE-001` once, and each service its `FW-*-LEGACY-001` warning, until `permissions` is configured. A publish whose plan is empty is refused rather than sent nowhere. A refused relay is now dialled twice in total per round, by applesauce, rather than in two rounds by kernl.
+
+**Reversal cost.** Low. The firewall calls stay in `runtime-rules.ts`; the relay planner and stable signers are one function each.

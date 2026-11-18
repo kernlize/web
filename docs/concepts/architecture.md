@@ -31,10 +31,10 @@ kehto is the runtime authority for how a NIP-5D shell composes. kernl uses these
 
 | kehto package | What kernl takes from it |
 | --- | --- |
-| `@kehto/shell` | `createShellBridge`, `buildShellCapabilities`, `resolveShellEnvironment`, `prepareNappletSrcdoc`, `denyNappletControllerAccess`, `renderNappletFramePolicyMeta`, `originRegistry`, the `ShellAdapter` hooks (including `filterNappletMessage`, `getFocusContext`, `onFirewallEvent`, `firewallPersistence` and `aclDefaultPolicy`), `ShellBridge.releaseDeferred` and the revocation model. |
-| `@kehto/runtime` | The protocol engine behind the bridge: dispatch, the ACL gate (`bridge.runtime.aclState`), the runtime firewall (`bridge.runtime.firewallState`, with `setUnfocusedMultiplier` and `setBurstGuard`), the `ServiceRegistry` and `ConsentRequest`. |
+| `@kehto/shell` | `createShellBridge`, `buildShellCapabilities`, `resolveShellEnvironment`, `prepareNappletSrcdoc`, `denyNappletControllerAccess`, `renderNappletFramePolicyMeta`, `originRegistry`, the `ShellAdapter` hooks (including `filterNappletMessage`, `getFocusContext`, `onFirewallEvent`, `legacyFirewall` and `aclDefaultPolicy`), `ShellBridge.releaseDeferred` and the revocation model. |
+| `@kehto/runtime` | The protocol engine behind the bridge: dispatch, the ACL gate (`bridge.runtime.aclState`), the legacy rate gate it evaluates when kernl passes `legacyFirewall`, the `ServiceRegistry` and `ConsentRequest`. |
 | `@kehto/acl` | The grant store the runtime enforces, keyed by `dTag:hash`. kernl reaches it only through `bridge.runtime.aclState`. |
-| `@kehto/firewall` | The pure `evaluate()` engine `@kernlize/guard` runs, and the `NappletRules` and `RateLimit` types `runtimeFirewallRules` translates into. |
+| `@kehto/rate-limit` | From its `/legacy` subpath: the pure `evaluate()` engine `@kernlize/guard` runs, `createFirewallState` for the runtime firewall kernl constructs (with `setUnfocusedMultiplier` and `setBurstGuard`), and the `NappletRules` and `RateLimit` types `runtimeFirewallRules` translates into ([D-037](../decisions.md#d-037)). |
 | `@kehto/services` | `createRelayPoolService`, `createIdentityService`, `createThemeService`, `createNotifyService`, `createLinkService`, `createResourceService`, `createDmService`, `createOutboxService` and `createRelayPoolOutboxRouter`. |
 | `@kehto/nip` | `resolveNapplet`, `openNappletArtifactCache` and `NAPPLET_KINDS` from `@kehto/nip/5d`. |
 | `@kehto/wm` | `LayoutStrategy`, `WindowState`, `Rect` and `WindowPlacement`, which the layouts implement. |
@@ -57,7 +57,7 @@ Every relay connection, event store, signer, account and loader goes through app
 
 | Package | Depends on | Purpose |
 | --- | --- | --- |
-| [`@kernlize/guard`](../packages/guard.md) | `@kehto/firewall` | Flood control, visibility gate, focus-aware firewall, CSP profile, mitigation descriptions. Pure: no DOM, no timers, time is injected. |
+| [`@kernlize/guard`](../packages/guard.md) | `@kehto/rate-limit` | Flood control, visibility gate, focus-aware firewall, CSP profile, mitigation descriptions. Pure: no DOM, no timers, time is injected. |
 | [`@kernlize/messaging`](../packages/messaging.md) | `@napplet/core` (types) | The provider contract and the composite backend. Structurally identical to kehto's `DmAdapter` so a composite can be handed to `createDmService` without translation, while the package stays free of a kehto dependency. |
 | [`@kernlize/bridges`](../packages/bridges.md) | nothing | Locator parsing, the `Bridge` contract, the registry with its `authorize` hook, the HTTP bridge. |
 | [`@kernlize/core`](../packages/core.md) | all of the above, kehto, applesauce | Composition: adapters, the applet lifecycle, the guard pipeline and runtime firewall rules, grants, consent summaries, layouts, the namespaced store. Browser-agnostic; the DOM is reached through `KernlHost` and `FrameLike`. |
@@ -74,7 +74,7 @@ An applet reaches the shell through the NAP domains in `window.napplet`. `create
 | `storage` | kehto runtime | the ACL state quota (`grants.setStateQuota`) | baseline; rate `storage:write` |
 | `identity` | `createIdentityService` | the active signer through `createAuthHooks`; profile, follows, mutes and relays from `createIdentityProviders` | grant (`identity:read`), "your account" in the shell |
 | `theme` | `createThemeService` | `KernlOptions.theme` when `isTheme` accepts it | baseline |
-| `relay` | `createRelayPoolService` | `createAppletRelayBackend` over the one pool, routed by `selectRelayTier` | grant; rates `relay:subscribe`, `relay:publish`; subscribe envelope cap |
+| `relay` | `createRelayPoolService`, wrapped by `createAppletRelayService` | `createAppletRelayBackend` over the one pool; publishes planned by kind with `selectRelayTier` and sent only to the plan | grant; rates `relay:subscribe`, `relay:publish`; subscribe envelope cap |
 | `outbox` | `createOutboxService` | `createRelayPoolOutboxRouter` over `createOutboxRelayPool`, relay lists from `createIdentityProviders`, signing through the active signer (`denied:read-only` without one) | grant; rates `outbox:subscribe`, `outbox:publish`; consent for destructive kinds |
 | `resource` | `createResourceService` | `createBridgeResourceResolver(bridges)` with the requesting applet named through `resourceInitFor` | grant; rate `resource:bytes`, resource envelope cap, hidden resource allowance, SSRF policy |
 | `dm` | `createDmService` | `messaging.composite()` | grant; rate `dm:send`; provider availability |
