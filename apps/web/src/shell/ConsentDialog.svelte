@@ -33,6 +33,7 @@
       {appletTitle} wants to
       {#if summary.severity === 'destructive'}<span class="shell-badge warn">destructive</span>{/if}
       {#if summary.severity === 'public'}<span class="shell-badge warn">public</span>{/if}
+      {#if summary.severity === 'direct'}<span class="shell-badge warn">direct</span>{/if}
     </p>
     <h2 id="consent-title">{summary.title}</h2>
     <dl id="consent-lines" class="lines">
