@@ -54,11 +54,11 @@ test.describe('with one relay and one blob server down', () => {
     const settings = dialog.getByRole('checkbox', { name: /its settings/ });
     await expect(settings).toBeEnabled();
     await expect(settings).not.toBeChecked();
-    // Asked for but not offered by this shell: listed, explained, and impossible to switch on.
+    // Remote tools are offered now (D-041); optional, so off until the person says so.
     const tools = dialog.getByRole('checkbox', { name: /remote tools/ });
-    await expect(tools).toBeDisabled();
+    await expect(tools).toBeEnabled();
     await expect(tools).not.toBeChecked();
-    await expect(dialog.getByText('not available in this shell')).toBeVisible();
+    await expect(dialog.getByText('not available in this shell')).toHaveCount(0);
 
     await posting.check();
     await dialog.getByRole('button', { name: 'Run' }).click();
