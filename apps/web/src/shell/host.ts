@@ -42,6 +42,22 @@ export function pickStorage(): StorageLike {
   }
 }
 
+/**
+ * A view of `storage` whose keys all carry `prefix`. The offline preview keeps its state under its
+ * own prefix, so the applets a person ran or kept in the live shell never show up in the preview,
+ * which cannot open them, and what they try in the preview never follows them into the live shell.
+ */
+export function scopedStorage(storage: StorageLike, prefix: string): StorageLike {
+  return {
+    getItem: (key) => storage.getItem(prefix + key),
+    setItem: (key, value) => storage.setItem(prefix + key, value),
+    removeItem: (key) => storage.removeItem(prefix + key),
+  };
+}
+
+/** The prefix the offline preview keeps its state under. */
+export const PREVIEW_STORAGE_PREFIX = 'preview:';
+
 const REVOKE_REASONS: Readonly<Record<string, string>> = {
   quarantine: 'The guard stopped it because it kept flooding the shell.',
   host: 'The shell closed it.',

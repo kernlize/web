@@ -213,3 +213,20 @@ test('looking around needs no sign-in: a throwaway identity sees the real store 
   await expect(page.getByRole('heading', { name: 'Who is at the keyboard?' })).toBeVisible();
   await expect(page.getByRole('heading', { name: /Remembered/ })).toHaveCount(0);
 });
+
+test('what the live shell ran is not listed in the offline preview, which could not open it', async ({ page }) => {
+  const applet = signApplet({ servers: ['https://blobs.test'] });
+  await fakeNetwork(page, applet, generalRelays('holds'), { 'blobs.test': 'has' });
+  await page.goto(`${base}/app/`);
+  await page.getByRole('button', { name: 'Just look around' }).click();
+  await page.getByRole('button', { name: 'Open an applet' }).click();
+  await page.getByRole('button', { name: 'Open Feed applet' }).click({ timeout: 15_000 });
+  await page.getByRole('button', { name: 'Run' }).click();
+  await expect(page.locator('section.window')).toHaveAttribute('data-status', 'running');
+  await page.goto(`${base}/app/?preview=1`);
+  await page.getByRole('button', { name: 'Try the preview' }).click();
+  await page.getByRole('button', { name: 'Open an applet' }).click();
+  await expect(page.getByRole('tab', { name: 'Recent' })).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Yours' }).click();
+  await expect(page.getByText('Feed applet')).toHaveCount(0);
+});
