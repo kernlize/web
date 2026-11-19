@@ -66,7 +66,7 @@ The three leaf packages have zero framework dependencies and import nothing from
 
 ## Where each NAP domain is served from
 
-An applet reaches the shell through the NAP domains in `window.napplet`. `createKernlServices` (`kernl-services.ts`) registers eight kehto services; `shell`, `inc`, `storage`, `keys` and `media` are routed by kehto's runtime itself. What one applet sees is `buildShellCapabilities(adapter).domains` narrowed by `createEnvironmentResolver(grants)`.
+An applet reaches the shell through the NAP domains in `window.napplet`. `createKernlServices` (`kernl-services.ts`) registers kehto's services, plus `config`, `common` and `upload` when the shell has what they need; `shell`, `inc`, `storage`, `keys` and `media` are routed by kehto's runtime itself. What one applet sees is `buildShellCapabilities(adapter).domains` narrowed by `createEnvironmentResolver(grants)`.
 
 | NAP domain | Served by | kernl supplies | Guarded by |
 | --- | --- | --- | --- |
@@ -81,9 +81,13 @@ An applet reaches the shell through the NAP domains in `window.napplet`. `create
 | `notify` | `createNotifyService` | `host.notify` with tone `info` | grant |
 | `link` | `createLinkService` | `host.openLink` after `LINK_PROTOCOLS` (`https:`, `mailto:`) allowed it | grant |
 | `intent` | `createIntentService` with kernl's router (`createKernlIntents`) | the installed set, the user's defaults and published preferences, `host.chooseHandler`, `host.openApplet`; delivery over the target's bound port | grant (`intent:read`, `intent:write`); rate `intent:invoke`; see [The store and intents](./store-and-intents.md) |
+| `cvm` | `createRemoteToolsService`: one kehto tool service and transport per window | the window's own key from `createWindowIdentities`; relays the applet names, else `remoteTools.relays`, else the `super` tier ([D-041](../decisions.md#d-041)) | grant (`cvm:call`), "remote tools" in the shell |
+| `config` | `createConfigService` | `createAppletConfig` over `host.presentSettings`; offered only when the host has it ([D-036](../decisions.md#d-036)) | grant (`config:read`) |
+| `common` | `createCommonService` | `commonActionsFor`: profiles, follows through the signing gate, reactions and reports ([D-035](../decisions.md#d-035)) | grant |
+| `upload` | `createUploadService` | `createBlossomUploader` over the account's file servers, asking once per file ([D-033](../decisions.md#d-033)) | grant (`upload:write`); consent per file |
 | `keys`, `media` | kehto runtime | nothing: hotkeys are not forwarded and no media hook is wired | grant |
 
-So the shell offers fourteen domains: the baseline `shell`, `inc`, `theme` and `storage`, and `identity`, `relay`, `outbox`, `resource`, `dm`, `notify`, `link`, `intent`, `keys` and `media` behind a grant. Domains kernl does not serve (`config`, `cvm`, `upload`, `fs`, `llm`, `cache`) have a row in `DOMAIN_CAPABILITIES` so a grant can be expressed, but the shell does not offer them and `grants.allowDomain` refuses them with `invalid:domain`. [Identity and grants](./identity-and-grants.md) explains how the set is narrowed.
+So the shell offers the baseline `shell`, `inc`, `theme` and `storage`, and `identity`, `relay`, `outbox`, `resource`, `cvm`, `upload`, `common`, `dm`, `notify`, `link`, `intent`, `keys` and `media` behind a grant, with `config` too when the host draws settings forms. Domains kernl does not serve (`fs`, `llm`, `cache`) have a row in `DOMAIN_CAPABILITIES` so a grant can be expressed, but the shell does not offer them and `grants.allowDomain` refuses them with `invalid:domain`. [Identity and grants](./identity-and-grants.md) explains how the set is narrowed.
 
 ## The mount path
 

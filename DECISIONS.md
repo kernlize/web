@@ -608,3 +608,20 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Consequences.** An upstream chase can ship the same day. A compromised kehto or napplet release would reach kernl's JSR check without the delay; that risk sits with the same maintainer who publishes them. Adding another first-party scope means adding it to the list.
 
 **Reversal cost.** Low. One line in the prepare script.
+
+## D-041 · Remote tools are called under a key of the applet's window, never the account's
+
+**Context.** Applets ask for `cvm`: calling tools on remote servers, with requests and answers sealed between the client and the server. kehto ships the service and a transport that takes a relay pool and a client key. Paja, kehto's reference host, offers it with a temporary key for each window. The shell did not offer it, so the grant was listed as "not available in this shell".
+
+**Decision.**
+
+- **A key per window.** `createWindowIdentities` makes an applesauce `PrivateKeySigner` for a window the first time it calls a tool. kehto's transport takes the key bytes, which are read from that signer; kernl stores them nowhere and overwrites them with zeros when the window closes, its grant changes, or the service is unregistered. The account signs nothing, so the server cannot tie a call to the person, and two applets cannot be tied to each other. Upstream gap: the transport takes raw key bytes rather than a signer.
+- **A transport per window.** kehto's service forwards a server's pushed messages to every window with a session on that server. With one shared transport, one applet would receive what a server sent another. `createRemoteToolsService` gives every window its own service and transport.
+- **The grant is the gate.** `cvm` maps to `cvm:call`, which the ACL checks on every message; an applet without the grant reaches no server. A call is not asked about one at a time: it does not sign as the person, change their public record, or publish anything anyone else can read.
+- **Relays.** A server or search the applet names with relays is reached there, as the `relay` domain honours an applet's hint; otherwise `KernlOptions.remoteTools.relays`, else the `super` tier. A request succeeds when any relay accepts it (D-028).
+- **Families** come only from the host (`remoteTools.registry`), pinned to verified schemas; none by default. kernl has no screen to discover and save them yet.
+- **No payment.** kehto's transport does not pay, so nothing an applet asks can spend.
+
+**Consequences.** Applets that call remote tools run. A relay the applet names learns the person's network address, as it already does under the `relay` grant. Refusing named relays would not stop that, since the `relay` grant allows it, and would leave servers on their own relays unreachable; the person's safety is kept by the grant, which they give, see and take back, so the developer's ability to reach such a server does not cost it. A tool server sees a new caller for every window, so it cannot keep a session across reloads unless the applet gives it something to recognise.
+
+**Reversal cost.** Low. One service module and one key holder, both behind kehto's interfaces.
