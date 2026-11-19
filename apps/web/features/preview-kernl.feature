@@ -264,6 +264,10 @@ Feature: The preview kernl
     Then the preview kernl names the correspondent "Ada", the publisher "kernl samples" and its own account "Preview account"
     And the preview kernl names key "ABCDEF0123456789abcdef0123456789abcdef0123456789abcdef0123456789" by its short form
 
+  Scenario: the preview finds a person from any form of their identity, and asks nobody
+    Then the preview kernl finds the same person from hex, the short shareable form and the form that names a server
+    And the preview kernl refuses "somebody" as a person with "invalid:person"
+
   Scenario: the preview account has no inbox or outbox until it saves one, and every server accepts it
     Then the preview kernl mailboxes are missing, suggesting 3 inboxes and 3 outboxes
     And the preview kernl directory suggests 3 lookup servers and completes nothing for "nos"

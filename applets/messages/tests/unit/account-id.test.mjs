@@ -42,7 +42,23 @@ test('shortens an id to its head and tail', () => {
 test('validates an open request from another applet as untrusted input', () => {
   assert.equal(parseOpenRequest({ pubkey: HEX }), HEX);
   assert.equal(parseOpenRequest({ pubkey: HEX.toUpperCase() }), HEX);
-  for (const payload of [null, undefined, HEX, 7, [], {}, { pubkey: 7 }, { pubkey: BECH32 }, { pubkey: HEX.slice(2) }, { pubkey: `${HEX} ` }]) {
+  for (const payload of [null, undefined, HEX, 7, [], {}, { pubkey: 7 }, { pubkey: HEX.slice(2) }, { pubkey: 'alice' }]) {
     assert.equal(parseOpenRequest(payload), null);
   }
+});
+
+// The same key with one server, and with none, in the form that carries servers.
+const WITH_SERVER = 'nprofile1qyxhwumn8ghj7u3w0qhxxmmdqqsrhuxx8l9ex335q7he0f09aej04zpazpl0ne2cgukyawd24mayt8ge3tmru';
+const NO_SERVER = 'nprofile1qqsrhuxx8l9ex335q7he0f09aej04zpazpl0ne2cgukyawd24mayt8g2lcy6q';
+const { parseRecipient } = loadSource('account-id.ts');
+
+test('reads the form that carries servers, and keeps it for the shell to look there', () => {
+  assert.deepEqual(parseRecipient(WITH_SERVER), { pubkey: HEX, address: WITH_SERVER });
+  assert.deepEqual(parseRecipient(`nostr:${WITH_SERVER.toUpperCase()}`), { pubkey: HEX, address: WITH_SERVER });
+  assert.equal(parseAccountId(WITH_SERVER), HEX);
+  assert.deepEqual(parseRecipient(NO_SERVER), { pubkey: HEX });
+  assert.deepEqual(parseRecipient(BECH32), { pubkey: HEX });
+  assert.equal(parseRecipient(`${NO_SERVER.slice(0, -1)}7`), null);
+  assert.deepEqual(parseOpenRequest({ pubkey: BECH32 }), HEX);
+  assert.deepEqual(parseOpenRequest({ pubkey: WITH_SERVER }), HEX);
 });

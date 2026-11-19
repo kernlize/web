@@ -546,6 +546,10 @@ Signatures are abbreviated; the generated reference has the full ones.
 | --- | --- | --- |
 | `createKernlAccounts` | `(storage: StorageLike) => AccountManager` | A `KernlAccountManager` with common types registered and persistence wired. |
 | `KernlAccountManager` | class extends `AccountManager` | `addAccount` throws `denied:plaintext-key-persistence` for plaintext-key types. |
+| `parsePerson` | `(input: string) => PersonPointer \| undefined` | Reads hex, `npub` or `nprofile` (with or without `nostr:`) into a key and the servers named with it. Anything else is not a person ([D-045](../decisions.md#d-045)). |
+| `createPeople` | `(options: PeopleOptions) => People` | `parse`, and `locate(input)`, which first asks the servers an `nprofile` names for the person's profile, server list and inboxes; throws `invalid:person`. Exposed as `kernl.people`. |
+| `locateRecipients` | `(adapter: DmAdapter, people) => DmAdapter` | Reads every recipient of a send through `people.locate`; `invalid:recipient` when one is not an identity. |
+| `PERSON_HINT_TIMEOUT_MS` | `8000` | Outer bound on waiting for hinted servers. |
 | `createThrowawayIdentity` | `(name?: string) => ThrowawayIdentity` | A fresh key held in memory, for trying the shell. Signs like any identity; never persisted ([D-044](../decisions.md#d-044)). |
 | `ThrowawayIdentity` | class extends `BaseAccount` | `toJSON` throws `denied:plaintext-key-persistence`, so persistence skips it. |
 | `THROWAWAY_IDENTITY_TYPE` | `'throwaway'` | Its account type. |

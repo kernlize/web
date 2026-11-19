@@ -14,7 +14,7 @@ async function openMessages(page: Page): Promise<void> {
   await page.routeWebSocket(/.*/, (socket) => socket.close());
   await page.goto('/app/');
   await page.getByRole('listitem').filter({ hasText: 'Read-only' }).getByRole('button', { name: 'Choose' }).click();
-  await page.getByRole('textbox', { name: 'Account id' }).fill(ACCOUNT);
+  await page.getByRole('textbox', { name: 'Identity' }).fill(ACCOUNT);
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.locator('[data-phase="desktop"]')).toBeVisible();
   await page.getByRole('button', { name: /^Messages/ }).first().click();

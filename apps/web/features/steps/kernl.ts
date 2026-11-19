@@ -605,3 +605,18 @@ Then('the preview kernl meeting servers are {string}', (world: PreviewWorld, ser
 Then('a search for tools in the preview is refused with {string}', async (world: PreviewWorld, error: string) => {
   await expect(preview(world).kernl.multiplayer.discover('12'.repeat(32))).rejects.toThrow(error);
 });
+
+// The pair NIP-19 publishes as its worked example, and the same key in the form that names a server.
+const PERSON_HEX = '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d';
+const PERSON_SHORT = 'npub180cvv07tjdrrgpa0j7j7tmnyl2yr6yr7l8j4s3evf6u64th6gkwsyjh6w6';
+const PERSON_WITH_SERVER = 'nprofile1qyxhwumn8ghj7u3w0qhxxmmdqqsrhuxx8l9ex335q7he0f09aej04zpazpl0ne2cgukyawd24mayt8ge3tmru';
+
+Then('the preview kernl finds the same person from hex, the short shareable form and the form that names a server', async (world: PreviewWorld) => {
+  const { people } = preview(world).kernl;
+  for (const form of [PERSON_HEX, PERSON_SHORT, PERSON_WITH_SERVER]) expect(await people.locate(form)).toBe(PERSON_HEX);
+  expect(people.parse(PERSON_WITH_SERVER)?.relays).toEqual(['wss://r.x.com']);
+});
+
+Then('the preview kernl refuses {string} as a person with {string}', async (world: PreviewWorld, text: string, reason: string) => {
+  await expect(preview(world).kernl.people.locate(text)).rejects.toThrow(reason);
+});

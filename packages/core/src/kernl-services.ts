@@ -36,6 +36,8 @@ import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { createAppletRelayService, createOutboxRelayPool } from './applesauce/relay-backend.js';
 import { createIdentityProviders, type IdentityProviders, type RelayPermissions } from './applesauce/identity-providers.js';
 import type { SigningConsent, SigningTemplate } from './consent/handler.js';
+import { locateRecipients } from './people/locate-recipients.js';
+import type { People } from './people/person.js';
 import { labelConversations } from './messaging/label-conversations.js';
 import type { Profiles } from './profiles/profiles.js';
 
@@ -87,6 +89,8 @@ export interface KernlServiceDeps {
   readonly uploader?: Uploader;
   /** Names conversation participants for applets; without it they are listed by key alone. */
   readonly profiles?: Pick<Profiles, 'settled'>;
+  /** Reads the people an applet names in any form of their identity; without it only hex is taken. */
+  readonly people?: Pick<People, 'locate'>;
   readonly theme?: Theme;
   /** Maps a live window to its verified identity, or null. */
   readonly resolveIdentity: (windowId: string) => { dTag: string; aggregateHash: string } | null;
@@ -276,8 +280,8 @@ function gateOutboxPublish(outbox: ServiceHandler, consent: SigningConsent): Ser
 export function createKernlServices(deps: KernlServiceDeps): KernlServices {
   const identity = deps.identity ?? createIdentityProviders(deps.eventStore, deps.pool, deps.tiers);
   const theme = createThemeService(deps.theme ? { initialTheme: deps.theme } : {});
-  const composite = deps.messaging.composite();
-  const dm = createDmService({ adapter: deps.profiles ? labelConversations(composite, deps.profiles) : composite });
+  const located = deps.people ? locateRecipients(deps.messaging.composite(), deps.people) : deps.messaging.composite();
+  const dm = createDmService({ adapter: deps.profiles ? labelConversations(located, deps.profiles) : located });
   const resolve = createBridgeResourceResolver(deps.bridges);
   const identities = deps.identities ?? createWindowIdentities();
   const direct = deps.directConnections;

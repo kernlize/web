@@ -1,5 +1,5 @@
 import type { EventStore } from 'applesauce-core';
-import { getProfileContent, normalizeToPubkey, unixNow } from 'applesauce-core/helpers';
+import { getProfileContent, unixNow } from 'applesauce-core/helpers';
 import type { CommonServiceOptions } from '@kehto/services';
 import type { EventTemplate, NostrEvent } from '@napplet/core';
 import type { ISigner } from 'applesauce-signers';
@@ -14,6 +14,8 @@ const REPORT = 1984;
 export interface CommonActionsOptions {
   readonly store: EventStore;
   readonly profiles: Pick<Profiles, 'settled'>;
+  /** Reads a person from any form of their identity, asking the servers it names first; `invalid:person` otherwise. */
+  readonly locate: (input: string) => Promise<string>;
   /** The signed-in account's key, or none. */
   readonly pubkey: () => string | undefined;
   /** The account's signer, or none for a read-only session. */
@@ -32,9 +34,7 @@ function followed(event: NostrEvent | undefined): string[] {
   return (event?.tags ?? []).filter((tag) => tag[0] === 'p' && typeof tag[1] === 'string').map((tag) => tag[1] as string);
 }
 
-function toPubkey(value: string): string | undefined {
-  return normalizeToPubkey(value) ?? undefined;
-}
+const located = (options: CommonActionsOptions, value: string): Promise<string | undefined> => options.locate(value).catch(() => undefined);
 
 async function signed(options: CommonActionsOptions, windowId: string, template: EventTemplate): Promise<{ ok: true; eventId: string; event: NostrEvent } | { ok: false; error: string }> {
   const signer = options.signer();
@@ -54,7 +54,7 @@ async function signed(options: CommonActionsOptions, windowId: string, template:
 async function changeFollows(options: CommonActionsOptions, windowId: string, pubkeys: string[], add: boolean) {
   const self = options.pubkey();
   if (!self) return { ok: false, error: 'denied:read-only' };
-  const targets = pubkeys.map(toPubkey);
+  const targets = await Promise.all(pubkeys.map((key) => located(options, key)));
   if (targets.some((key) => key === undefined)) return { ok: false, error: 'invalid:pubkey' };
   await options.loadFollows(self);
   const previous = options.store.getReplaceable(FOLLOWS, self);
@@ -84,7 +84,7 @@ async function changeFollows(options: CommonActionsOptions, windowId: string, pu
 export function createCommonActions(options: CommonActionsOptions): CommonServiceOptions {
   return {
     async getProfile(target) {
-      const pubkey = toPubkey(target);
+      const pubkey = await located(options, target);
       if (!pubkey) return { ok: false, pubkey: '', error: 'invalid:pubkey' };
       const card = await options.profiles.settled(pubkey);
       const event = options.store.getReplaceable(0, pubkey);

@@ -43,6 +43,7 @@ import type {
 } from './contract';
 import { abbreviate, shortId } from './contract';
 import { domainLabel } from './domains';
+import { createPreviewPeople } from './preview-people';
 import { PREVIEW_CATALOG, PREVIEW_PUBLISHER, renderPreviewApplet, sampleSummary, sealPreviewDocument } from './preview-applet';
 import { createPreviewBuiltins } from './preview-builtin';
 import { createPreviewConfig, type PreviewConfig } from './preview-config';
@@ -436,6 +437,7 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
     bridges,
     catalog: { load: async () => PREVIEW_CATALOG, stream: () => of(PREVIEW_CATALOG) },
     profiles,
+    people: createPreviewPeople(),
     ...createPreviewAccountServices(host.storage),
     intents: intents.intents,
     session$,

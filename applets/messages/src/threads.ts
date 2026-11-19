@@ -3,6 +3,8 @@ import { shortAccountId } from './account-id.js';
 export interface Peer {
   pubkey: string;
   label?: string;
+  /** The form the person pasted, when it says where to find them; sent to the shell in place of the key. */
+  address?: string;
 }
 
 /** The part of a shell conversation summary this applet reads. */

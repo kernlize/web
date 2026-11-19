@@ -27,7 +27,7 @@ async function signInReadOnly(page: Page, path = '/app/'): Promise<void> {
   await page.goto(path);
   await expect(page.getByRole('heading', { name: 'Who is at the keyboard?' })).toBeVisible();
   await page.getByRole('listitem').filter({ hasText: 'Read-only' }).getByRole('button', { name: 'Choose' }).click();
-  await page.getByRole('textbox', { name: 'Account id' }).fill(ACCOUNT);
+  await page.getByRole('textbox', { name: 'Identity' }).fill(ACCOUNT);
   await expectClean(page, 'read-only sign-in, filled');
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.locator('[data-phase="desktop"]')).toBeVisible();
