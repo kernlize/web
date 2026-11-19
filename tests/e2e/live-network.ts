@@ -13,6 +13,8 @@ export const APPLET_HTML = '<!doctype html><html><head><meta charset="utf-8"><ti
 
 export interface SignedApplet {
   readonly event: VerifiedEvent;
+  /** The artifact the blob servers hand out. */
+  readonly html: string;
   readonly hash: string;
   readonly pubkey: string;
   /** The applet's address, with the given relay hints. */
@@ -23,13 +25,16 @@ export interface AppletOptions {
   readonly servers: readonly string[];
   readonly requires?: readonly string[];
   readonly optional?: readonly string[];
+  /** The artifact; {@link APPLET_HTML} by default. */
+  readonly html?: string;
 }
 
-/** Sign a named applet manifest whose artifact is {@link APPLET_HTML}. */
+/** Sign a named applet manifest whose artifact is `options.html`, {@link APPLET_HTML} by default. */
 export function signApplet(options: AppletOptions): SignedApplet {
   const secret = generateSecretKey();
   const pubkey = getPublicKey(secret);
-  const hash = createHash('sha256').update(APPLET_HTML).digest('hex');
+  const html = options.html ?? APPLET_HTML;
+  const hash = createHash('sha256').update(html).digest('hex');
   const event = finalizeEvent({
     kind: 35129,
     created_at: 1_790_000_000,
@@ -43,7 +48,7 @@ export function signApplet(options: AppletOptions): SignedApplet {
       ...options.servers.map((server) => ['server', server]),
     ],
   }, secret);
-  return { event, hash, pubkey, address: (relays) => nip19.naddrEncode({ kind: 35129, pubkey, identifier: 'feed', relays: [...relays] }) };
+  return { event, html, hash, pubkey, address: (relays) => nip19.naddrEncode({ kind: 35129, pubkey, identifier: 'feed', relays: [...relays] }) };
 }
 
 /** What a relay in the fake network does with a request. */
@@ -114,7 +119,7 @@ export async function fakeNetwork(page: Page, applet: SignedApplet, relays: Read
       if (state === 'down') return route.abort('connectionrefused');
       const wanted = route.request().url().endsWith(`/${applet.hash}`);
       return route.fulfill(wanted
-        ? { status: 200, contentType: 'application/octet-stream', headers: { 'access-control-allow-origin': '*' }, body: APPLET_HTML }
+        ? { status: 200, contentType: 'application/octet-stream', headers: { 'access-control-allow-origin': '*' }, body: applet.html }
         : { status: 404, headers: { 'access-control-allow-origin': '*' }, body: '' });
     });
   }

@@ -20,6 +20,7 @@ import {
   wrapAccountSigner,
   type KernlServices,
   type RelayTiers,
+  type RemoteToolsSettings,
 } from '@kernlize/core';
 import { allowAllSigning, scratch, signEvent, splitList, type CoreWorld } from './world.js';
 
@@ -54,7 +55,7 @@ function fakeBridges(calls: ServicesScratch['bridgeCalls']): BridgeRegistry {
   };
 }
 
-async function build(world: CoreWorld, options: { signer?: boolean; theme?: Record<string, unknown> } = {}): Promise<void> {
+async function build(world: CoreWorld, options: { signer?: boolean; theme?: Record<string, unknown>; remoteTools?: RemoteToolsSettings } = {}): Promise<void> {
   const s = scratch(world);
   const signer = new PrivateKeySigner();
   const pubkey = await signer.getPublicKey();
@@ -78,6 +79,7 @@ async function build(world: CoreWorld, options: { signer?: boolean; theme?: Reco
     bridges,
     messaging,
     ...(isTheme(theme) ? { theme } : {}),
+    ...(options.remoteTools ? { remoteTools: options.remoteTools } : {}),
     resolveIdentity: (windowId) => (windowId === 'w1' ? IDENTITY : null),
   });
   s.services = { services, sent: [], notices, links, bridgeCalls, pubkey, bridges, signer } satisfies ServicesScratch;
@@ -89,6 +91,10 @@ async function settle(): Promise<void> {
 
 Given('kernl services with a signing account and a fake bridge registry', async (world: CoreWorld) => {
   await build(world);
+});
+
+Given('kernl services whose remote tools look on {string} with no families', async (world: CoreWorld, relays: string) => {
+  await build(world, { remoteTools: { relays: splitList(relays), registry: [] } });
 });
 
 Given('kernl services with the theme {string}', async (world: CoreWorld, theme: string) => {

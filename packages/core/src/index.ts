@@ -210,6 +210,8 @@ export { askUploadConsent, createBlossomUploader, describeUpload, sizeWords, typ
 export { createAppletConfig, type AppletConfigOptions, type SettingsPrompt } from './applets/applet-config.js';
 export { createCommonActions, type CommonActionsOptions } from './social/common-actions.js';
 export { commonActionsFor, createKernlNetwork, type KernlNetwork, type KernlNetworkParts } from './kernl-network.js';
+export { createCvmRelayPool, createRemoteToolsService, type RemoteToolsOptions } from './multiplayer/remote-tools.js';
+export { createWindowIdentities, type WindowIdentities } from './multiplayer/window-identities.js';
 export { LINK_PROTOCOLS, createKernlServices, isTheme, resourceInitFor, type KernlServiceDeps, type KernlServices } from './kernl-services.js';
 export { createShellAdapter, type ShellAdapterDeps } from './kernl-adapter.js';
 export { createAppletLifecycle, grantNarrowingReason, resolveWindow, type AppletLifecycle, type LifecycleContext } from './kernl-lifecycle.js';

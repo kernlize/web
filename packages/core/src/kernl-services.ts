@@ -27,7 +27,9 @@ import type { Theme } from '@napplet/nap/theme/types';
 import type { EventTemplate, NostrEvent } from '@napplet/core';
 import { createBridgeResourceResolver, type BridgeContext, type BridgeRegistry, type ResourceResolveInit } from '@kernlize/bridges';
 import type { MessagingRegistry } from '@kernlize/messaging';
-import type { KernlHost, RelayTiers } from './types.js';
+import type { KernlHost, RelayTiers, RemoteToolsSettings } from './types.js';
+import { createRemoteToolsService } from './multiplayer/remote-tools.js';
+import { createWindowIdentities, type WindowIdentities } from './multiplayer/window-identities.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { createAppletRelayService, createOutboxRelayPool } from './applesauce/relay-backend.js';
 import { createIdentityProviders, type IdentityProviders, type RelayPermissions } from './applesauce/identity-providers.js';
@@ -88,6 +90,10 @@ export interface KernlServiceDeps {
   readonly resolveIdentity: (windowId: string) => { dTag: string; aggregateHash: string } | null;
   /** Identity lookups; defaults to the applesauce-backed providers. */
   readonly identity?: IdentityProviders;
+  /** Keys for the work a window does under its own name; a fresh set by default (D-041). */
+  readonly identities?: WindowIdentities;
+  /** Where remote tools are looked for and which families the host vouches for. */
+  readonly remoteTools?: RemoteToolsSettings | undefined;
 }
 
 /** The registered services plus the handles the shell keeps calling. */
@@ -241,11 +247,12 @@ function gateOutboxPublish(outbox: ServiceHandler, consent: SigningConsent): Ser
 /**
  * Register kehto's reference services over the shell's applesauce layer.
  *
- * `relay`, `identity`, `theme`, `notify`, `link`, `resource`, `dm` and `outbox`
- * are wired; every network path goes through the one pool, every resource
- * fetch through the bridge registry's SSRF policy, links open only over
- * `https:` and `mailto:`, notifications surface through the host, and outbox
- * publishes pass the consent gate before they are signed.
+ * `relay`, `identity`, `theme`, `notify`, `link`, `resource`, `dm`, `outbox`
+ * and `cvm` are wired; every network path goes through the one pool, every
+ * resource fetch through the bridge registry's SSRF policy, links open only
+ * over `https:` and `mailto:`, notifications surface through the host, outbox
+ * publishes pass the consent gate before they are signed, and remote tools are
+ * called under each window's own key.
  *
  * @param deps - Pool, tiers, store, auth, consent gate, host, registries and identity resolver.
  * @returns The service registry and the theme and dm handles.
@@ -281,6 +288,12 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
     }),
     dm,
     outbox: gateOutboxPublish(createOutbox(deps, identity), deps.consent),
+    cvm: createRemoteToolsService({
+      pool: deps.pool,
+      relays: () => deps.remoteTools?.relays ?? deps.tiers.get().super,
+      identities: deps.identities ?? createWindowIdentities(),
+      ...(deps.remoteTools?.registry ? { registry: deps.remoteTools.registry } : {}),
+    }),
     ...(deps.config ? { config: createConfigService(deps.config).handler } : {}),
     ...(deps.common ? { common: createCommonService(deps.common) } : {}),
     ...(deps.uploader ? { upload: createUploadService({ uploader: deps.uploader, uploadInfo: { rails: [{ rail: 'blossom', enabled: true }] } }) } : {}),

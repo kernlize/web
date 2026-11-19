@@ -6,13 +6,15 @@ import type { ISigner } from 'applesauce-signers';
 import type { MessagingRegistry } from '@kernlize/messaging';
 import { buildShellCapabilities, createShellBridge, type ShellAdapter, type ShellBridge } from '@kehto/shell';
 import { createGuardConfig, describeMitigations, type GuardEvent } from '@kernlize/guard';
-import type { AppletIdentity, GuardFacade, Kernl, KernlOptions, RelayTiers, Session } from './types.js';
+import type { AccountFileServers } from './files/file-servers.js';
+import type { AppletIdentity, GuardFacade, Kernl, KernlHost, KernlOptions, RelayTiers, Session } from './types.js';
 import { createKernlAccounts } from './applesauce/accounts.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
 import type { ProfileCard, Profiles } from './profiles/profiles.js';
 import { commonActionsFor, createKernlNetwork } from './kernl-network.js';
 import { createAppletConfig } from './applets/applet-config.js';
-import { askUploadConsent, createBlossomUploader } from './files/uploader.js';
+import { askUploadConsent, createBlossomUploader, type BlossomUploaderOptions } from './files/uploader.js';
+import type { Uploader } from '@kehto/services';
 import type { AccountMailboxes } from './relays/mailboxes.js';
 import { createRelayTiers } from './relays/tiers.js';
 import { SHELL_RELAY_OPTIONS } from './applesauce/relay-hooks.js';
@@ -32,6 +34,7 @@ import { createRatchetMessagesBackend } from './messaging/ratchet-backend.js';
 import { createGroupMessagesBackend } from './messaging/group-backend.js';
 import { createDefaultBridges } from './bridges/default-registry.js';
 import { createKernlServices, isTheme } from './kernl-services.js';
+import { createWindowIdentities } from './multiplayer/window-identities.js';
 import { createShellAdapter } from './kernl-adapter.js';
 import { createAppletLifecycle } from './kernl-lifecycle.js';
 import { createKernlIntents } from './kernl-intents.js';
@@ -154,6 +157,15 @@ function registriesFor(options: KernlOptions, parts: MessagingParts): Pick<Kernl
   };
 }
 
+/** Uploads to the account's file servers, asking the person about each file in the name of the applet that sent it (D-033). */
+function uploaderFor(host: KernlHost, files: AccountFileServers, signer: BlossomUploaderOptions['signer'], identityOf: (windowId: string) => AppletIdentity | undefined): Uploader {
+  return createBlossomUploader({
+    servers: () => files.current(),
+    signer,
+    ask: (windowId, details) => askUploadConsent(host, identityOf(windowId), details),
+  });
+}
+
 /** The applet a window runs, keyed by its catalogue id so its settings outlive a version. */
 function appletOf(handles: ReadonlyMap<string, MountedApplet>, windowId: string): { key: string; title: string } | undefined {
   const summary = handles.get(windowId)?.summary;
@@ -257,12 +269,10 @@ export function createKernl(options: KernlOptions): Kernl {
     profiles,
     ...(host.presentSettings ? { config: createAppletConfig({ storage: host.storage, appletOf: (windowId) => appletOf(handles, windowId), present: host.presentSettings.bind(host) }) } : {}),
     common: commonActionsFor({ eventStore, pool, tiers, accounts }, { profiles, replaceableLoader, signer }, consent),
-    uploader: createBlossomUploader({
-      servers: () => files.current(),
-      signer,
-      ask: (windowId, details) => askUploadConsent(host, identityOf(windowId), details),
-    }),
+    uploader: uploaderFor(host, files, signer, identityOf),
     ...(isTheme(options.theme) ? { theme: options.theme } : {}),
+    identities: createWindowIdentities(),
+    remoteTools: options.remoteTools,
     resolveIdentity(windowId) {
       const identity = identityOf(windowId);
       return identity ? { dTag: identity.dTag, aggregateHash: identity.hash } : null;
