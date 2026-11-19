@@ -82,7 +82,7 @@ Damage met while the cache is in use goes through the same steps. Calls that mee
 ## What is never persisted
 
 - **Plaintext private keys.** `KernlAccountManager.addAccount` refuses the account types whose serialised form carries a raw secret (`PLAINTEXT_KEY_ACCOUNT_TYPES`: `nsec` and `seed-words`) with `denied:plaintext-key-persistence`, and restore drops any such entry it finds in storage. The only stored form of a local key is applesauce's `PasswordAccount`, whose `ncryptsec` is NIP-49 encrypted with the user's password. The password itself is never stored.
-- **The preview account.** "Try the preview" creates a throwaway key account in a plain `AccountManager` that is not connected to storage, so it disappears on reload.
+- **A throwaway identity.** "Just look around" in the live shell and "Try the preview" in the preview sign in with `createThrowawayIdentity()`. `ThrowawayIdentity` refuses to serialise, so the account manager skips it when it persists; it disappears on reload, and the shell removes it on sign-out ([D-044](../decisions.md#d-044)).
 - **The guard profile.** `GuardFacade.setProfile` changes the profile for the running shell only. Every boot starts `strict` ([D-003](../decisions.md#d-003)).
 - **Open windows.** The window manager persists only the layout. Applets are not reopened on reload; the recent list is how the user gets back to them.
 

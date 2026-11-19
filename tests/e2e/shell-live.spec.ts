@@ -200,3 +200,16 @@ test('the store lists an applet this shell cannot fully run, says what it needs,
   await expect(listed).toHaveCount(0);
   await expect(page.getByText('1 applet needs something this shell does not offer, hidden')).toBeVisible();
 });
+
+test('looking around needs no sign-in: a throwaway identity sees the real store and is gone on reload (D-044)', async ({ page }) => {
+  const applet = signApplet({ servers: ['https://blobs.test'] });
+  await fakeNetwork(page, applet, generalRelays('holds'), { 'blobs.test': 'has' });
+  await page.goto(`${base}/app/`);
+  await page.getByRole('button', { name: 'Just look around' }).click();
+  await page.getByRole('button', { name: 'Open an applet' }).click();
+  await expect(page.getByRole('list', { name: 'Applets' }).getByRole('listitem').filter({ hasText: 'Feed applet' })).toBeVisible({ timeout: 15_000 });
+  expect(await page.evaluate(() => JSON.stringify({ ...localStorage }))).not.toContain('throwaway');
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Who is at the keyboard?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Remembered/ })).toHaveCount(0);
+});

@@ -113,6 +113,7 @@
   {:else if results.length === 0}
     <p class="shell-muted" role="status">{convention ? 'No listed applet can do this yet.' : 'No applets match.'}{finished ? '' : ' More may still arrive.'}</p>
   {:else}
+    <p class="shell-muted small tally">{results.length} {results.length === 1 ? 'applet' : 'applets'}{finished ? '' : ' so far'}</p>
     <ul class="shell-list results" aria-label="Applets">
       {#each results.slice(0, shown) as entry (entry.catalogId)}
         {@const missing = missingDomains(entry, available)}

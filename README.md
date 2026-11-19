@@ -86,7 +86,7 @@ scripts               build, audit and guard scripts
 
 ## Run it
 
-No install: [open the preview](https://kernl.run/app/?preview=1). It runs the shell in your browser, offline, with the live shell's consent and guard behaviour, a store of preview applets and a throwaway account.
+No install: [open the shell](https://kernl.run/app/) and choose **Just look around**. It signs you in with a throwaway identity, with every published applet in the store. The [offline preview](https://kernl.run/app/?preview=1) runs the same shell with no network and three sample applets.
 
 From source, for maintainers only during the alpha, because the repository is private (Node 22 or newer, pnpm 10 via `corepack enable`):
 

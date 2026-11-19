@@ -7,6 +7,7 @@
   import AppletSettings from './AppletSettings.svelte';
   import ConsentDialog from './ConsentDialog.svelte';
   import { ConsentQueue } from './consent-queue.svelte';
+  import { THROWAWAY_IDENTITY_TYPE } from '@kernlize/core';
   import type { Booted, Session } from './contract';
   import Desktop from './Desktop.svelte';
   import { GuardLog } from './guard-log.svelte';
@@ -99,6 +100,8 @@
     while (replies.current) replies.answer(undefined);
     while (settings.current) settings.close();
     await booted?.kernl.logout();
+    // A throwaway identity is not offered again: its key goes with the session (D-044).
+    for (const account of booted?.kernl.accounts.accounts ?? []) if (account.type === THROWAWAY_IDENTITY_TYPE) booted?.kernl.accounts.removeAccount(account);
   }
 </script>
 

@@ -1,7 +1,8 @@
 <script lang="ts">
   import PersonName from './PersonName.svelte';
   import type { IAccount } from 'applesauce-accounts';
-  import { ExtensionAccount, NostrConnectAccount, PasswordAccount, PrivateKeyAccount, ReadonlyAccount } from 'applesauce-accounts/accounts';
+  import { ExtensionAccount, NostrConnectAccount, PasswordAccount, ReadonlyAccount } from 'applesauce-accounts/accounts';
+  import { createThrowawayIdentity, THROWAWAY_IDENTITY_TYPE } from '@kernlize/core';
   import { NostrConnectSigner, PasswordSigner } from 'applesauce-signers';
   import { NEVER } from 'rxjs';
   import type { BootMode, ShellKernl } from './contract';
@@ -32,7 +33,7 @@
   let pairing: AbortController | null = null;
 
   const hasExtension = typeof window !== 'undefined' && 'nostr' in window;
-  const kinds: Readonly<Record<string, string>> = { extension: 'browser extension', 'nostr-connect': 'remote signer', ncryptsec: 'local account', readonly: 'read-only', nsec: 'preview' };
+  const kinds: Readonly<Record<string, string>> = { extension: 'browser extension', 'nostr-connect': 'remote signer', ncryptsec: 'local account', readonly: 'read-only' };
   const labelOf = (account: IAccount): string => (account.metadata as { name?: string } | undefined)?.name ?? abbreviate(account.pubkey);
 
   function explain(reason: unknown): string {
@@ -122,12 +123,8 @@
       await adopt(new PasswordAccount(await signer.getPublicKey(), signer));
     });
 
-  const tryPreview = (): Promise<void> =>
-    attempt(async () => {
-      const account = PrivateKeyAccount.generateNew<{ name: string }>();
-      account.metadata = { name: 'Preview account' };
-      await adopt(account);
-    });
+  /** A key that is never written down: gone on reload, and never offered again once signed out (D-044). */
+  const tryIt = (): Promise<void> => attempt(() => adopt(createThrowawayIdentity(mode === 'preview' ? 'Preview account' : 'Just looking')));
 
   function pick(next: Method): void {
     method = next;
@@ -143,7 +140,7 @@
     error = null;
   }
 
-  const remembered = $derived(accounts.value.filter((account) => account.type !== 'nsec'));
+  const remembered = $derived(accounts.value.filter((account) => account.type !== THROWAWAY_IDENTITY_TYPE));
 </script>
 
 <section class="signin" aria-labelledby="signin-title">
@@ -152,12 +149,15 @@
     <h2 id="signin-title">Who is at the keyboard?</h2>
     <p class="shell-muted lede">Your account stays with you. Applets only ever see what you grant, for as long as you grant it.</p>
 
-    {#if mode === 'preview'}
-      <div class="preview">
-        <button type="button" class="shell-button primary" onclick={tryPreview} disabled={busy}>Try the preview</button>
-        <p class="shell-muted">A throwaway account that lives only in this tab. Nothing leaves your browser.</p>
-      </div>
-    {/if}
+    <div class="preview">
+      {#if mode === 'preview'}
+        <button type="button" class="shell-button primary" onclick={tryIt} disabled={busy}>Try the preview</button>
+        <p class="shell-muted">A throwaway identity that lives only in this tab. Nothing leaves your browser.</p>
+      {:else}
+        <button type="button" class="shell-button primary" onclick={tryIt} disabled={busy}>Just look around</button>
+        <p class="shell-muted">A throwaway identity, gone when you close or reload this tab. The store and its applets are the real ones.</p>
+      {/if}
+    </div>
 
     {#if remembered.length}
       <section class="shell-section">

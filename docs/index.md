@@ -24,7 +24,7 @@ kernl does not fork kehto ([D-001](./decisions.md#d-001)). When kehto lacks a ho
 
 ## Three doors
 
-**Use the shell.** Try the hosted preview at [kernl.run/app/?preview=1](https://kernl.run/app/?preview=1), which needs no install and no account, or open the live shell, sign in with a browser extension or a remote signer, and open an applet by its address. Start with [Run the shell](./tutorials/run-the-shell.md), then read [Grant and revoke](./how-tos/grant-and-revoke.md) to understand what the shell asks you and why.
+**Use the shell.** Open [kernl.run/app/](https://kernl.run/app/) and choose **Just look around** for a throwaway identity and the whole store, with no install, or sign in with a browser extension or a remote signer. Start with [Run the shell](./tutorials/run-the-shell.md), then read [Grant and revoke](./how-tos/grant-and-revoke.md) to understand what the shell asks you and why.
 
 **Build an applet for it.** Applets are ordinary NIP-5D napplets; kernl adds nothing to the wire format. What kernl changes is the posture: fewer domains advertised until granted, including the user's account, rate limits, no frames of the applet's own, closer watch while hidden or unfocused, and quarantine for floods. [Write an applet](./tutorials/write-an-applet.md) builds, tests, publishes and opens one; [Applets under kernl](./concepts/applets-under-kernl.md) tells you what to expect and how to test against it.
 

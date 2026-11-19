@@ -77,6 +77,7 @@ export {
   type RelayPermissions,
 } from './applesauce/identity-providers.js';
 export { KernlAccountManager, PLAINTEXT_KEY_ACCOUNT_TYPES, createKernlAccounts } from './applesauce/accounts.js';
+export { THROWAWAY_IDENTITY_TYPE, ThrowawayIdentity, createThrowawayIdentity } from './applesauce/throwaway.js';
 
 export { decodePointer } from './applets/pointer.js';
 export { BUILTIN_PUBLISHER, builtinAddress, resolveBuiltin } from './applets/builtin.js';
