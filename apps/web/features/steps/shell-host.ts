@@ -1,7 +1,7 @@
 import { expect, vi } from 'vitest';
 import { After, Given, Then, When } from 'quickpickle';
 import type { ConsentPrompt, KernlHost, StorageLike } from '../../src/shell/contract.ts';
-import { createHost, pickStorage, type AppletOpener } from '../../src/shell/host.ts';
+import { createHost, pickStorage, PREVIEW_STORAGE_PREFIX, scopedStorage, type AppletOpener } from '../../src/shell/host.ts';
 
 type HostDeps = Parameters<typeof createHost>[0];
 
@@ -200,4 +200,28 @@ Then('the shell host shows an applet\'s settings in the settings form', (world: 
   const prompt = fake<Parameters<NonNullable<KernlHost['presentSettings']>>[0]>({ title: 'Notes', context: { schema: {}, values: {}, commit: (values: unknown) => values } });
   scratch.host.presentSettings?.(prompt);
   expect(scratch.settings).toEqual([prompt]);
+});
+
+interface ScopedWorld extends HostWorld {
+  scoped?: { held: Map<string, string>; preview: StorageLike };
+}
+
+Given('a store that holds {string} as {string}', (world: ScopedWorld, key: string, value: string) => {
+  const held = new Map([[key, value]]);
+  const store: StorageLike = { getItem: (name) => held.get(name) ?? null, setItem: (name, next) => void held.set(name, next), removeItem: (name) => void held.delete(name) };
+  world.scoped = { held, preview: scopedStorage(store, PREVIEW_STORAGE_PREFIX) };
+});
+
+When('the preview writes {string} as {string} through its own view of that store', (world: ScopedWorld, key: string, value: string) => {
+  world.scoped?.preview.setItem(key, value);
+});
+
+Then('the store holds {string} as {string} and {string} as {string}', (world: ScopedWorld, first: string, firstValue: string, second: string, secondValue: string) => {
+  expect(Object.fromEntries(world.scoped?.held ?? [])).toEqual({ [first]: firstValue, [second]: secondValue });
+});
+
+Then('the preview reads {string} as {string}, and nothing once it removes it', (world: ScopedWorld, key: string, value: string) => {
+  expect(world.scoped?.preview.getItem(key)).toBe(value);
+  world.scoped?.preview.removeItem(key);
+  expect(world.scoped?.preview.getItem(key)).toBeNull();
 });

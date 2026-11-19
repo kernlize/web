@@ -10,6 +10,12 @@ Feature: The shell host
     Given the shell host storage is refused by the browser
     Then the shell host keeps "theme" as "dark" for the page only
 
+  Scenario: the offline preview keeps its state apart from the live shell's
+    Given a store that holds "kernl:recent:v1" as "live applets"
+    When the preview writes "kernl:recent:v1" as "samples" through its own view of that store
+    Then the store holds "kernl:recent:v1" as "live applets" and "preview:kernl:recent:v1" as "samples"
+    And the preview reads "kernl:recent:v1" as "samples", and nothing once it removes it
+
   Scenario: consent, notices and visibility go to the UI stores
     Given the shell host with window "w1" titled "Notes"
     Then the shell host forwards consent, notices and visibility for window "w1"

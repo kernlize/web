@@ -13,7 +13,7 @@
   import { GuardLog } from './guard-log.svelte';
   import HandlerChooser from './HandlerChooser.svelte';
   import { HandlerQueue } from './handler-queue.svelte';
-  import { createHost, pickStorage, type AppletOpener } from './host';
+  import { createHost, pickStorage, PREVIEW_STORAGE_PREFIX, scopedStorage, type AppletOpener } from './host';
   import Notices from './Notices.svelte';
   import { NoticeStore } from './notice-store.svelte';
   import ReplyChooser from './ReplyChooser.svelte';
@@ -24,7 +24,8 @@
   import { WindowStore } from './window-store.svelte';
   import { createShellWindowManager } from './windows';
 
-  const storage = pickStorage();
+  // The offline preview keeps its own state: it cannot open what the live shell ran, and must not list it.
+  const storage = new URLSearchParams(location.search).get('preview') === '1' ? scopedStorage(pickStorage(), PREVIEW_STORAGE_PREFIX) : pickStorage();
   const notices = new NoticeStore();
   const consent = new ConsentQueue();
   const windows = new WindowStore(createShellWindowManager(storage));

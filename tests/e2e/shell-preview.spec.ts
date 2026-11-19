@@ -226,14 +226,14 @@ test('a minimised window leaves the arrangement and comes back from the dock', a
 
 test('the chosen layout is remembered, and a choice stored by an earlier build still reads', async ({ page }) => {
   await page.goto(`${base}/app/?preview=1`);
-  await page.evaluate(() => localStorage.setItem('kernl:layout:v1', 'tiled'));
+  await page.evaluate(() => localStorage.setItem('preview:kernl:layout:v1', 'tiled'));
   await page.reload();
   await page.getByRole('button', { name: 'Try the preview' }).click();
   const control = page.getByRole('button', { name: /^Layout:/ });
   await expect(control).toHaveAccessibleName('Layout: tiled. Switch to columns');
   await control.click();
   await expect(control).toHaveAccessibleName('Layout: columns. Switch to main and stack');
-  expect(await page.evaluate(() => localStorage.getItem('kernl:layout:v1'))).toBe('columns');
+  expect(await page.evaluate(() => localStorage.getItem('preview:kernl:layout:v1'))).toBe('columns');
   await page.reload();
   await page.getByRole('button', { name: 'Try the preview' }).click();
   await expect(page.getByRole('button', { name: /^Layout:/ })).toHaveAccessibleName('Layout: columns. Switch to main and stack');

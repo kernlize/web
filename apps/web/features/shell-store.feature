@@ -46,7 +46,7 @@ Feature: The applet store's words and filters
     And accepting "" reads ""
 
   Scenario: a failure the store knows is shown in its words, and nothing is logged
-    Then opening fails with "unavailable:preview-offline" and the store says "The preview runs offline. Pick one of the applets in the store." without a warning
+    Then opening fails with "unavailable:preview-offline" and the store says "This is the offline preview, which only opens its own sample applets. Open the full shell to run this one." without a warning
 
   Scenario: a failure the store has no words for is said generically and left in the console
     Then opening fails with "Relay sockets exploded" and the store says "Could not open the applet. Try again, or try another address." with a warning
