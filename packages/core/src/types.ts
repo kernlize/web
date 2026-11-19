@@ -4,6 +4,7 @@ import type { RelayPool } from 'applesauce-relay';
 import type { AccountManager, IAccount } from 'applesauce-accounts';
 import type { ShellBridge, ShellEnvironment } from '@kehto/shell';
 import type { Capability } from '@kehto/runtime';
+import type { CvmRegistryFamily } from '@kehto/services';
 import type { NappletArtifactCache, NappletManifest } from '@kehto/nip/5d';
 import type { NostrEvent } from '@napplet/core';
 import type { GuardConfig, GuardEvent, GuardProfile, MitigationDescription, WindowVisibility } from '@kernlize/guard';
@@ -303,6 +304,16 @@ export interface KernlOptions {
   readonly builtins?: readonly BuiltinApplet[];
   /** How intent delivery waits for a target to come up; `DELIVERY_RETRY` by default. */
   readonly intentRetry?: { readonly intervalMs: number; readonly attempts: number };
+  /** Where applets' remote tools are looked for, and which tool families the host vouches for (D-041). */
+  readonly remoteTools?: RemoteToolsSettings;
+}
+
+/** The host's settings for remote tools. */
+export interface RemoteToolsSettings {
+  /** Relays a tool server is looked for on when the applet names none; the general (`super`) tier by default. */
+  readonly relays?: readonly string[];
+  /** Tool families pinned to verified schemas, for applets that ask by family; none by default. */
+  readonly registry?: readonly CvmRegistryFamily[];
 }
 
 /** The applet store's catalogue. */

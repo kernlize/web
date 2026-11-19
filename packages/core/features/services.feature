@@ -11,7 +11,16 @@ Feature: Shell services and adapter
     And kernl services with a signing account and a fake bridge registry
 
   Scenario: the registry covers the domains kernl serves
-    Then the service registry has "relay,identity,theme,notify,link,resource,dm,outbox"
+    Then the service registry has "relay,identity,theme,notify,link,resource,dm,outbox,cvm"
+
+  Scenario: remote tools look for servers on the general relays when the host names none
+    When service "cvm" handles '{"type":"cvm.discover","id":"d1"}' from window "w1"
+    Then the fake pool received a "req" for the "super" tier
+
+  Scenario: remote tools look where the host says, with the families it vouches for
+    Given kernl services whose remote tools look on "wss://tools.example" with no families
+    When service "cvm" handles '{"type":"cvm.discover","id":"d1"}' from window "w1"
+    Then the fake pool received a "req" for "wss://tools.example"
 
   Scenario: notifications surface through the host
     When service "notify" handles '{"type":"notify.send","id":"n1","title":"Hello","body":"World"}' from window "w1"
