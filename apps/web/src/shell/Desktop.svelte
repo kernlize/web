@@ -15,7 +15,7 @@
   import StatusBar from './StatusBar.svelte';
   import { UnreadMessages } from './unread-messages.svelte';
   import WindowLayer from './WindowLayer.svelte';
-  import type { WindowStore } from './window-store.svelte';
+  import { panelWindowId, type WindowStore } from './window-store.svelte';
 
   interface Props {
     booted: Booted;
@@ -32,9 +32,13 @@
   const { booted, session, storage, windows, guardLog, opener, onproblem, onsignout }: Props = $props();
   const kernl = $derived(booted.kernl);
 
-  type Overlay = { kind: 'launcher'; address?: string } | { kind: 'grants'; windowId: string } | { kind: 'guard' } | { kind: 'settings' } | { kind: 'downloads' };
+  type Overlay = { kind: 'grants'; windowId: string } | { kind: 'guard' } | { kind: 'settings' } | { kind: 'downloads' };
 
   let overlay = $state.raw<Overlay | null>(null);
+  /** The store is a window like any other (D-048); it is opened at an address when one was shared. */
+  const LAUNCHER = 'launcher';
+  let launcherAddress = $state('');
+  let launcherOpened = $state(0);
   const unread = new UnreadMessages();
   // Messages are read only once the user has asked for them: watching from sign-in would have a signer asked to open mail nobody looked for.
   let asked = $state(false);
@@ -45,24 +49,31 @@
   const grantsWindow = $derived(overlay?.kind === 'grants' ? windows.get(overlay.windowId) : undefined);
 
   export function openLauncher(address?: string): void {
-    windows.blur();
-    overlay = address === undefined ? { kind: 'launcher' } : { kind: 'launcher', address };
+    overlay = null;
+    launcherAddress = address ?? '';
+    launcherOpened += 1;
+    windows.openPanel(LAUNCHER, 'Applets');
   }
 
   /** Close the top-most overlay; false when nothing was open. */
   export function closeTopOverlay(): boolean {
-    if (!overlay) return false;
-    overlay = null;
+    if (overlay) {
+      overlay = null;
+      return true;
+    }
+    if (!windows.hasPanel(LAUNCHER)) return false;
+    windows.close(panelWindowId(LAUNCHER));
     return true;
   }
 
-  function open(kind: Exclude<Overlay, { kind: 'launcher' | 'grants' }>['kind']): void {
+  function open(kind: Exclude<Overlay, { kind: 'grants' }>['kind']): void {
     windows.blur();
     overlay = { kind };
   }
 
   function openPlan(plan: MountPlan): void {
     overlay = null;
+    windows.close(panelWindowId(LAUNCHER));
     windows.open(plan);
   }
 
@@ -139,18 +150,22 @@
 
   <div class="desk" bind:this={desk} role="presentation">
     <div class="wallpaper" onpointerdown={() => windows.blur()}></div>
-    <WindowLayer {windows} ongrants={(windowId) => (overlay = { kind: 'grants', windowId })} />
+    <WindowLayer {windows} ongrants={(windowId) => (overlay = { kind: 'grants', windowId })}>
+      {#snippet panel()}
+        {#key launcherOpened}
+          <Launcher {kernl} mode={booted.mode} {storage} initialAddress={launcherAddress} onopen={openPlan} />
+        {/key}
+      {/snippet}
+    </WindowLayer>
     <IframeLayer {kernl} {windows} />
 
-    {#if windows.windows.length === 0}
+    {#if windows.listed.length === 0}
       <div class="empty">
         <p class="shell-muted">No applets open.{' '}<span class="with-keyboard">Press <kbd>Alt</kbd> + <kbd>/</kbd> or use the button above.</span><span class="touch">Use the button above.</span></p>
       </div>
     {/if}
 
-    {#if overlay?.kind === 'launcher'}
-      <Launcher {kernl} mode={booted.mode} {storage} initialAddress={overlay.address} onclose={() => (overlay = null)} onopen={openPlan} />
-    {:else if overlay?.kind === 'grants' && grantsWindow}
+    {#if overlay?.kind === 'grants' && grantsWindow}
       <GrantsPanel {kernl} win={grantsWindow} {guardLog} onclose={() => (overlay = null)} />
     {:else if overlay?.kind === 'guard'}
       <GuardPanel {kernl} {guardLog} {windows} onclose={() => (overlay = null)} />

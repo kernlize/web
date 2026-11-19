@@ -54,7 +54,7 @@ test('the person trusts tools from a shared reference, and an applet runs one by
   await page.getByRole('button', { name: 'Open an applet' }).click();
   await page.getByRole('searchbox', { name: 'Find an applet' }).fill(applet.address(['wss://catalogue.test']));
   await page.getByRole('button', { name: 'Look up' }).click();
-  const dialog = page.getByRole('dialog');
+  const dialog = page.getByRole('region', { name: 'Applets window' });
   await dialog.getByRole('checkbox', { name: /remote tools/ }).check();
   await dialog.getByRole('button', { name: 'Run' }).click();
   await expect(page.frameLocator('iframe[data-window-id]').locator('#out')).toHaveText('score 0.87', { timeout: 20_000 });

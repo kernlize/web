@@ -713,3 +713,17 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Consequences.** A library error that says "account" is shown as the generic refusal, like one that names the protocol.
 
 **Reversal cost.** Low. Copy and three patterns.
+
+## D-048 · The store is a window
+
+**Context.** The store opened as a modal sheet over the desktop. With a few hundred applets it was taller than the screen; the sheet's height was a percentage of a grid track with no definite size, so it grew past the desktop and was cut off, and the scrollbar the person saw moved nothing. A sheet also cannot sit beside the applet the person is choosing a companion for, and it ignores the layout the person picked.
+
+**Decision.**
+
+- **The store is a window like any other.** `WindowStore` keeps shell-drawn windows next to applet windows and hands both to the one `WindowManager`, which places, focuses, stacks, tiles and minimises them without knowing what is inside. The chrome is one component, `WindowFrame`, used for both. The store's body scrolls inside its window.
+- **Nothing about applets changes.** A shell-drawn window has no frame and no handle, so the guard's visibility gate has nothing to hear about. Opening an applet from the store still closes the store, and Escape still closes it.
+- **The remaining sheets** (grants, guard, settings, downloads) stay sheets for now; their sizing is fixed the same way, with one track the size of the desktop so a tall sheet scrolls inside itself.
+
+**Consequences.** The store can be tiled next to applets, moved, resized and minimised to the bar. Browser tests find it as the "Applets window" region, not a dialog.
+
+**Reversal cost.** Low. One store method and one snippet.

@@ -22,8 +22,8 @@
   let compact = $state(false);
   let menuOpen = $state(false);
   let accountOpen = $state(false);
-  const minimised = $derived(windows.windows.filter((win) => win.minimised));
-  const windowCount = $derived(`${windows.windows.length} ${windows.windows.length === 1 ? 'window' : 'windows'}`);
+  const minimised = $derived(windows.listed.filter((win) => win.minimised));
+  const windowCount = $derived(`${windows.listed.length} ${windows.listed.length === 1 ? 'window' : 'windows'}`);
 
   $effect(() => {
     const query = matchMedia(COMPACT_QUERY);
@@ -56,7 +56,7 @@
   {#if minimised.length}
     <ul class="dock" aria-label="Minimised windows">
       {#each minimised as win (win.id)}
-        <li><button type="button" class="shell-button quiet" onclick={() => choose(() => windows.focus(win.id))}>{win.plan.summary.title}</button></li>
+        <li><button type="button" class="shell-button quiet" onclick={() => choose(() => windows.focus(win.id))}>{win.title}</button></li>
       {/each}
     </ul>
   {/if}

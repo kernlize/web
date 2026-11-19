@@ -21,7 +21,7 @@ async function open(page: import('@playwright/test').Page, grant: boolean) {
   await page.getByRole('button', { name: 'Open an applet' }).click();
   await page.getByRole('searchbox', { name: 'Find an applet' }).fill(applet.address(['wss://catalogue.test']));
   await page.getByRole('button', { name: 'Look up' }).click();
-  const dialog = page.getByRole('dialog');
+  const dialog = page.getByRole('region', { name: 'Applets window' });
   await expect(dialog.getByRole('heading', { name: 'Feed applet' })).toBeVisible();
   if (grant) await dialog.getByRole('checkbox', { name: /remote tools/ }).check();
   await dialog.getByRole('button', { name: 'Run' }).click();

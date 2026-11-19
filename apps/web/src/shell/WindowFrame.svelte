@@ -1,0 +1,237 @@
+<script lang="ts">
+  import type { Snippet } from 'svelte';
+  import type { ManagedWindow, Rect } from '@kernlize/core/wm';
+  import type { WindowStore } from './window-store.svelte';
+  import { TITLE_BAR_HEIGHT } from './windows';
+
+  interface Props {
+    win: ManagedWindow;
+    windows: WindowStore;
+    title: string;
+    /** What the window says it is doing, shown in the title bar and as `data-status`. */
+    status?: string;
+    /** The applet inside was stopped: the window can be closed, not resized. */
+    revoked?: boolean;
+    /** The shell draws the body itself and it scrolls; an applet's body is covered by its frame. */
+    scrolls?: boolean;
+    /** Before the title: an applet's identity badge. */
+    lead?: Snippet;
+    /** Buttons before Minimise and Close. */
+    actions?: Snippet;
+    children?: Snippet;
+  }
+
+  const { win, windows, title, status, revoked = false, scrolls = false, lead, actions, children }: Props = $props();
+  const rect = $derived(win.rect);
+  const floating = $derived(windows.freeform);
+
+  type Mode = 'move' | 'resize';
+
+  function track(event: PointerEvent, mode: Mode): void {
+    if (!floating || event.button !== 0) return;
+    const target = event.currentTarget as HTMLElement;
+    const start: Rect = { ...win.rect };
+    const origin = { x: event.clientX, y: event.clientY };
+    target.setPointerCapture(event.pointerId);
+    windows.dragging = true;
+    const onMove = (move: PointerEvent): void => {
+      const dx = move.clientX - origin.x;
+      const dy = move.clientY - origin.y;
+      windows.move(win.id, mode === 'move' ? { ...start, x: start.x + dx, y: start.y + dy } : { ...start, w: start.w + dx, h: start.h + dy });
+    };
+    const onUp = (): void => {
+      target.removeEventListener('pointermove', onMove);
+      target.removeEventListener('pointerup', onUp);
+      target.removeEventListener('pointercancel', onUp);
+      windows.dragging = false;
+    };
+    target.addEventListener('pointermove', onMove);
+    target.addEventListener('pointerup', onUp);
+    target.addEventListener('pointercancel', onUp);
+  }
+
+  function onTitleKeydown(event: KeyboardEvent): void {
+    if (!floating) return;
+    const step = event.shiftKey ? 40 : 10;
+    const moves: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
+    const delta = moves[event.key];
+    if (!delta) return;
+    event.preventDefault();
+    windows.move(win.id, { ...win.rect, x: win.rect.x + delta[0], y: win.rect.y + delta[1] });
+  }
+</script>
+
+<section
+  class="window"
+  class:focused={win.focused}
+  class:hidden={win.minimised}
+  class:revoked
+  class:compact={windows.compact}
+  aria-label="{title} window"
+  data-window-id={win.id}
+  data-status={status}
+  style:left="{rect.x}px"
+  style:top="{rect.y}px"
+  style:width="{rect.w}px"
+  style:height="{rect.h}px"
+  style:z-index={win.z * 2}
+  onpointerdowncapture={() => windows.focus(win.id)}
+>
+  <div
+    class="title-bar"
+    style:height="{TITLE_BAR_HEIGHT}px"
+    role="toolbar"
+    aria-label="{title} window controls"
+    tabindex="-1"
+    onpointerdown={(event) => (event.target as HTMLElement).closest('button') === null && track(event, 'move')}
+    onkeydown={onTitleKeydown}
+  >
+    {@render lead?.()}
+    <span class="title">{title}</span>
+    {#if status}<span class="status shell-muted">{status}</span>{/if}
+    <div class="buttons" class:alone={!status}>
+      {@render actions?.()}
+      <button type="button" class="shell-button quiet" onclick={() => windows.minimise(win.id)} aria-label="Minimise {title}">Minimise</button>
+      <button type="button" class="shell-button quiet" onclick={() => windows.close(win.id)} aria-label="Close {title}">Close</button>
+    </div>
+  </div>
+  <div class="body" class:scrolls>
+    {@render children?.()}
+  </div>
+  {#if floating && !revoked}
+    <button type="button" class="resize" aria-label="Resize {title}" onpointerdown={(event) => track(event, 'resize')}></button>
+  {/if}
+</section>
+
+<style>
+  .window {
+    position: absolute;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    background: var(--bg-raised);
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    pointer-events: auto;
+    overflow: visible;
+  }
+
+  .window.focused {
+    border-color: var(--accent);
+    box-shadow: 0 16px 44px rgba(0, 0, 0, 0.4);
+  }
+
+  .window.compact {
+    border-radius: 0;
+    border-width: 0;
+    box-shadow: none;
+  }
+
+  .window.compact .title-bar {
+    border-radius: 0;
+    cursor: default;
+  }
+
+  .window.compact :global(.shell-badge),
+  .window.compact .status {
+    display: none;
+  }
+
+  .window.compact .buttons {
+    margin-left: auto;
+  }
+
+  .window.hidden {
+    display: none;
+  }
+
+  .title-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0 0.5rem 0 0.75rem;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg);
+    border-radius: 10px 10px 0 0;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+  }
+
+  .title-bar:active {
+    cursor: grabbing;
+  }
+
+  .title {
+    min-width: 0;
+    font-weight: 600;
+    font-size: 0.92rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .status {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    margin-left: auto;
+  }
+
+  .buttons {
+    display: flex;
+    gap: 0.1rem;
+  }
+
+  .buttons :global(.shell-button) {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.72rem;
+  }
+
+  .body {
+    position: relative;
+    display: grid;
+    place-items: center;
+    border-radius: 0 0 10px 10px;
+    background: var(--bg-raised);
+  }
+
+  .buttons.alone {
+    margin-left: auto;
+  }
+
+  .body.scrolls {
+    display: block;
+    overflow: auto;
+    min-height: 0;
+    padding: 1rem 1.25rem 1.25rem;
+    overscroll-behavior: contain;
+  }
+
+  .window.revoked .body {
+    background: var(--bg-sunken);
+  }
+
+  .resize {
+    position: absolute;
+    right: -2px;
+    bottom: -2px;
+    width: 18px;
+    height: 18px;
+    border: 0;
+    background: transparent;
+    cursor: nwse-resize;
+    touch-action: none;
+    z-index: 1;
+  }
+
+  .resize::after {
+    content: '';
+    position: absolute;
+    right: 5px;
+    bottom: 5px;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid var(--line-strong);
+    border-bottom: 2px solid var(--line-strong);
+  }
+</style>

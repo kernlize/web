@@ -23,7 +23,7 @@ The manager holds no DOM. The shell draws from the state it publishes and calls 
 | `open(id)` | An applet was planned and is about to be mounted. | Add the window, in front and focused. |
 | `attach(id, target)` | Once, when the applet's frame is mounted. `target` is the applet's handle. | Report the window's visibility to `target` now, and again after every change. See [the rule](#the-one-rule). |
 | `focus(id)` | A pointer went down in the window, its frame took focus, or its dock entry was chosen. | Give it the person's attention and show it if it was minimised. |
-| `blur()` | The person turned to the shell: the desktop, a panel, the launcher. | No window is focused. |
+| `blur()` | The person turned to the shell: the desktop or a panel over it. | No window is focused. |
 | `minimise(id)`, `close(id)` | The window's buttons. | Hide it, or forget it and stop reporting to it. |
 | `move(id, rect)` | A drag, a resize or an arrow key on the title bar, only while `state.freeform` is true. | Move it, or ignore the call. |
 | `stop(id)` | The core stopped the applet, for example after a quarantine. The frame is already gone. | Keep the window so the person can read why and close it; give it no focus and report to it no more. |
