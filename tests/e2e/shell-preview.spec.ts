@@ -329,7 +329,7 @@ test('settings show a new account suggested inbox and outbox servers, and say ho
   await page.getByRole('button', { name: 'Try the preview' }).click();
   await openSettings(page);
   await expect(page.getByRole('heading', { name: 'Inbox and outbox' })).toBeVisible();
-  await expect(page.getByText('This account has not said where it can be reached yet.')).toBeVisible();
+  await expect(page.getByText('This identity has not said where it can be reached yet.')).toBeVisible();
   const inbox = page.getByRole('list', { name: 'Inbox servers' });
   await expect(inbox.getByRole('listitem')).toHaveCount(3);
   await inbox.getByRole('button', { name: 'Remove nos.lol from Inbox' }).click();
@@ -346,7 +346,7 @@ test('settings show a new account suggested inbox and outbox servers, and say ho
   await expect(page.getByRole('alert')).toHaveText('Enter a server address such as nos.lol.');
   await page.getByRole('button', { name: 'Publish this list' }).click();
   await expect(page.getByText('Saved to all 4 servers')).toBeVisible();
-  await expect(page.getByText('This account has not said where it can be reached yet.')).toHaveCount(0);
+  await expect(page.getByText('This identity has not said where it can be reached yet.')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Publish this list' })).toBeDisabled();
   // The shell's own lists say what each is for, and the outbox is no longer a separate local list.
   await expect(page.getByRole('heading', { name: 'People lookup' })).toBeVisible();
@@ -369,7 +369,7 @@ test('settings show where uploads go, and the list can be changed and published'
   await page.getByRole('button', { name: 'Try the preview' }).click();
   await openSettings(page);
   const section = page.getByRole('region', { name: 'File servers' });
-  await expect(section.getByText('This account has not chosen file servers yet')).toBeVisible();
+  await expect(section.getByText('This identity has not chosen file servers yet')).toBeVisible();
   const list = section.getByRole('list', { name: 'File servers' });
   await expect(list.getByRole('listitem')).toHaveCount(3);
   await expect(list.getByText('blossom.primal.net (first)')).toBeVisible();
@@ -384,7 +384,7 @@ test('settings show where uploads go, and the list can be changed and published'
   await expect(list.getByText('files.example.org')).toBeVisible();
   await section.getByRole('button', { name: 'Publish file servers' }).click();
   await expect(section.getByRole('status').filter({ hasText: 'Saved to' })).toBeVisible();
-  await expect(section.getByText('This account has not chosen file servers yet')).toHaveCount(0);
+  await expect(section.getByText('This identity has not chosen file servers yet')).toHaveCount(0);
 });
 
 test('an applet opens its settings, the shell draws the form from its schema and the applet hears the saved values', async ({ page }) => {
