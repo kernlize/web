@@ -20,6 +20,7 @@ const LABELS: Readonly<Record<string, string>> = {
   fs: 'your files',
   llm: 'language models',
   cvm: 'remote tools',
+  webrtc: 'direct connections',
   count: 'counting',
   lists: 'your lists',
   common: 'social actions',

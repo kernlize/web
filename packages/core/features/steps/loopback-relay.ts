@@ -10,8 +10,10 @@ import type { NostrEvent, NostrFilter } from '@napplet/core';
  */
 export interface LoopbackRelay {
   readonly url: string;
-  /** Every event published to it, in arrival order. */
+  /** Every event published to it, in arrival order, refused ones included. */
   readonly published: NostrEvent[];
+  /** While true, every publish is answered `OK false` and kept nowhere. */
+  refusing: boolean;
   /** Store an event as if it had been published, and deliver it to open subscriptions. */
   store(event: NostrEvent): void;
   /** Called for every event a client publishes. */
@@ -77,8 +79,9 @@ export function startLoopbackRelay(): Promise<LoopbackRelay> {
       const [verb, first, ...rest] = JSON.parse(String(raw)) as [string, unknown, ...NostrFilter[]];
       if (verb === 'EVENT') {
         const event = first as NostrEvent;
-        socket.send(JSON.stringify(['OK', event.id, true, '']));
         published.push(event);
+        socket.send(JSON.stringify(['OK', event.id, !relay.refusing, relay.refusing ? 'blocked: not now' : '']));
+        if (relay.refusing) return;
         store(event);
         for (const listener of listeners) listener(event);
         return;
@@ -94,23 +97,26 @@ export function startLoopbackRelay(): Promise<LoopbackRelay> {
       subs.set(subId, rest);
     });
   };
+  const http = createServer();
+  const sockets = new WebSocketServer({ noServer: true });
+  const relay: LoopbackRelay = {
+    url: '',
+    published,
+    refusing: false,
+    store,
+    onPublish: (listener) => void listeners.push(listener),
+    close: () => new Promise<void>((done) => {
+      for (const client of sockets.clients) client.terminate();
+      http.closeAllConnections();
+      http.close(() => done());
+    }),
+  };
   return new Promise((resolve) => {
-    const http = createServer();
-    const sockets = new WebSocketServer({ noServer: true });
     http.on('upgrade', (request, socket, head) => sockets.handleUpgrade(request, socket, head, serve));
     http.listen(0, '127.0.0.1', () => {
       const { port } = http.address() as AddressInfo;
-      resolve({
-        url: `ws://127.0.0.1:${port}`,
-        published,
-        store,
-        onPublish: (listener) => void listeners.push(listener),
-        close: () => new Promise<void>((done) => {
-          for (const client of sockets.clients) client.terminate();
-          http.closeAllConnections();
-          http.close(() => done());
-        }),
-      });
+      Object.assign(relay, { url: `ws://127.0.0.1:${port}` });
+      resolve(relay);
     });
   });
 }

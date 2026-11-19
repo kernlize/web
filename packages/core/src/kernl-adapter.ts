@@ -80,6 +80,8 @@ export function createShellAdapter(deps: ShellAdapterDeps): ShellAdapter {
     // kehto offers the upload domain only when both the service and this backend are present; kernl's uploads are Blossom (D-033).
     upload: { getUploader: () => (deps.services.upload ? UPLOAD_BACKEND : null) },
     common: { isAvailable: () => deps.services.common !== undefined },
+    // kehto offers direct connections only when this says so; kernl registers the service only where the page can make peer connections (D-042).
+    webrtc: { isAvailable: () => deps.services.webrtc !== undefined },
     crypto: { verifyEvent: (event) => Promise.resolve(verifyEvent(event)) },
     link: { isAvailable: () => true },
     intent: { isAvailable: () => true },

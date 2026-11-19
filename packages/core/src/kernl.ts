@@ -7,7 +7,7 @@ import type { MessagingRegistry } from '@kernlize/messaging';
 import { buildShellCapabilities, createShellBridge, type ShellAdapter, type ShellBridge } from '@kehto/shell';
 import { createGuardConfig, describeMitigations, type GuardEvent } from '@kernlize/guard';
 import type { AccountFileServers } from './files/file-servers.js';
-import type { AppletIdentity, GuardFacade, Kernl, KernlHost, KernlOptions, RelayTiers, Session } from './types.js';
+import type { AppletIdentity, AppletSummary, Grants, GuardFacade, Kernl, KernlHost, KernlOptions, RelayTiers, Session } from './types.js';
 import { createKernlAccounts } from './applesauce/accounts.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
 import type { ProfileCard, Profiles } from './profiles/profiles.js';
@@ -33,7 +33,7 @@ import { createLegacyMessagesBackend } from './messaging/legacy-backend.js';
 import { createRatchetMessagesBackend } from './messaging/ratchet-backend.js';
 import { createGroupMessagesBackend } from './messaging/group-backend.js';
 import { createDefaultBridges } from './bridges/default-registry.js';
-import { createKernlServices, isTheme } from './kernl-services.js';
+import { createKernlServices, isTheme, type DirectConnectionsDeps } from './kernl-services.js';
 import { createWindowIdentities } from './multiplayer/window-identities.js';
 import { createShellAdapter } from './kernl-adapter.js';
 import { createAppletLifecycle } from './kernl-lifecycle.js';
@@ -166,6 +166,27 @@ function uploaderFor(host: KernlHost, files: AccountFileServers, signer: Blossom
   });
 }
 
+/**
+ * Direct connections, when this page can make peer connections. A session is
+ * open to an applet the person granted `webrtc` and did not block, and each one
+ * is put to the person through the host's consent prompt (D-042).
+ */
+function directConnectionsFor(options: KernlOptions, appletOf: (windowId: string) => AppletSummary | undefined, grants: () => Grants): DirectConnectionsDeps | undefined {
+  const { createPeer, ...settings } = options.directConnections ?? {};
+  if (!createPeer && typeof RTCPeerConnection !== 'function') return undefined;
+  return {
+    settings,
+    ...(createPeer ? { createPeer } : {}),
+    appletOf,
+    isGranted(windowId) {
+      const identity = appletOf(windowId)?.identity;
+      const record = identity && grants().get(identity);
+      return !!record && !record.blocked && record.domains.includes('webrtc');
+    },
+    ask: (summary) => new Promise((resolve) => options.host.presentConsent({ summary, resolve })),
+  };
+}
+
 /** The applet a window runs, keyed by its catalogue id so its settings outlive a version. */
 function appletOf(handles: ReadonlyMap<string, MountedApplet>, windowId: string): { key: string; title: string } | undefined {
   const summary = handles.get(windowId)?.summary;
@@ -273,6 +294,7 @@ export function createKernl(options: KernlOptions): Kernl {
     ...(isTheme(options.theme) ? { theme: options.theme } : {}),
     identities: createWindowIdentities(),
     remoteTools: options.remoteTools,
+    directConnections: directConnectionsFor(options, (windowId) => handles.get(windowId)?.summary, () => grants),
     resolveIdentity(windowId) {
       const identity = identityOf(windowId);
       return identity ? { dTag: identity.dTag, aggregateHash: identity.hash } : null;

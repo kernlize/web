@@ -27,7 +27,8 @@ import type { Theme } from '@napplet/nap/theme/types';
 import type { EventTemplate, NostrEvent } from '@napplet/core';
 import { createBridgeResourceResolver, type BridgeContext, type BridgeRegistry, type ResourceResolveInit } from '@kernlize/bridges';
 import type { MessagingRegistry } from '@kernlize/messaging';
-import type { KernlHost, RelayTiers, RemoteToolsSettings } from './types.js';
+import type { DirectConnectionsSettings, KernlHost, RelayTiers, RemoteToolsSettings } from './types.js';
+import { createDirectConnectionsService, type DirectConnectionsOptions } from './multiplayer/direct-connections.js';
 import { createRemoteToolsService } from './multiplayer/remote-tools.js';
 import { createWindowIdentities, type WindowIdentities } from './multiplayer/window-identities.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
@@ -94,6 +95,13 @@ export interface KernlServiceDeps {
   readonly identities?: WindowIdentities;
   /** Where remote tools are looked for and which families the host vouches for. */
   readonly remoteTools?: RemoteToolsSettings | undefined;
+  /** Direct connections; without them the `webrtc` domain is not offered (D-042). */
+  readonly directConnections?: DirectConnectionsDeps | undefined;
+}
+
+/** What the `webrtc` service needs beyond the pool and the window identities. */
+export interface DirectConnectionsDeps extends Pick<DirectConnectionsOptions, 'createPeer' | 'appletOf' | 'isGranted' | 'ask'> {
+  readonly settings: Omit<DirectConnectionsSettings, 'createPeer'>;
 }
 
 /** The registered services plus the handles the shell keeps calling. */
@@ -268,6 +276,8 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
   const composite = deps.messaging.composite();
   const dm = createDmService({ adapter: deps.profiles ? labelConversations(composite, deps.profiles) : composite });
   const resolve = createBridgeResourceResolver(deps.bridges);
+  const identities = deps.identities ?? createWindowIdentities();
+  const direct = deps.directConnections;
 
   const registry: ServiceRegistry = {
     relay: createAppletRelayService(deps.pool, deps.tiers),
@@ -291,9 +301,18 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
     cvm: createRemoteToolsService({
       pool: deps.pool,
       relays: () => deps.remoteTools?.relays ?? deps.tiers.get().super,
-      identities: deps.identities ?? createWindowIdentities(),
+      identities,
       ...(deps.remoteTools?.registry ? { registry: deps.remoteTools.registry } : {}),
     }),
+    ...(direct ? {
+      webrtc: createDirectConnectionsService({
+        ...direct,
+        pool: deps.pool,
+        relays: () => direct.settings.relays ?? deps.tiers.get().super,
+        identities,
+        iceServers: direct.settings.iceServers ?? [],
+      }),
+    } : {}),
     ...(deps.config ? { config: createConfigService(deps.config).handler } : {}),
     ...(deps.common ? { common: createCommonService(deps.common) } : {}),
     ...(deps.uploader ? { upload: createUploadService({ uploader: deps.uploader, uploadInfo: { rails: [{ rail: 'blossom', enabled: true }] } }) } : {}),

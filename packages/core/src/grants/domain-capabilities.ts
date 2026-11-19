@@ -31,6 +31,8 @@ export const DOMAIN_CAPABILITIES: Readonly<Record<string, readonly Capability[]>
   fs: ['fs:read', 'fs:write'],
   llm: ['llm:generate'],
   cache: ['cache:read', 'cache:write'],
+  // kehto's ACL has no capability for direct connections; the service checks the grant itself (D-042).
+  webrtc: [],
 });
 
 /**

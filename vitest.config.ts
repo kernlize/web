@@ -20,6 +20,8 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    // Scenarios that connect real peers over loopback take several seconds; every step still has its own five.
+    testTimeout: 30_000,
     include: ['packages/*/features/**/*.feature', 'packages/*/src/**/*.test.ts', 'features/**/*.feature', 'apps/web/features/**/*.feature', 'apps/web/src/shell/**/*.test.ts', 'scripts/**/*.test.mjs'],
     setupFiles: ['./features/support/steps.ts'],
     coverage: {
