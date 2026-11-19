@@ -131,13 +131,11 @@ Then(/^the hinted servers were asked (\d+) times?$/, (world: CoreWorld, times: s
 
 Given('a messaging adapter that reads its recipients through the finder', (world: CoreWorld) => {
   const state = s(world);
-  const inner = {
-    send: async (request: { recipients: readonly string[]; content: string }) => {
-      state.sent.push({ recipients: request.recipients, content: request.content });
-      return { id: 'sent' };
-    },
-  } as unknown as DmAdapter;
-  state.adapter = locateRecipients(inner, state.finder as People);
+  const send = async (request: { recipients: readonly string[]; content: string }): Promise<never> => {
+    state.sent.push({ recipients: request.recipients, content: request.content });
+    return { id: 'sent' } as never;
+  };
+  state.adapter = locateRecipients({ send } as never, state.finder as People);
 });
 
 When('an applet sends {string} to ada by her npub and by an nprofile naming {string}', async (world: CoreWorld, content: string, relay: string) => {

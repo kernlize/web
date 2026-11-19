@@ -298,10 +298,7 @@ export function createKernl(options: KernlOptions): Kernl {
 
   const identityOf = (windowId: string): AppletIdentity | undefined => handles.get(windowId)?.summary.identity;
   const { eventCache, replaceableLoader, profiles, people, directory, mailboxes, files, signer } = createKernlNetwork(options, { eventStore, pool, tiers, accounts, destroyed$ });
-  const lookupBefore = lookupReplaceable(eventStore, {
-    loader: replaceableLoader,
-    relays: () => [...tiers.get().outbox, ...tiers.get().discovery],
-  });
+  const lookupBefore = lookupReplaceable(eventStore, { loader: replaceableLoader, relays: () => [...tiers.get().outbox, ...tiers.get().discovery] });
   const consent = createSigningConsent({ host, lookupBefore, resolveApplet: identityOf, pubkey: () => accounts.active?.pubkey });
   const meeting = meetingFor(options, { pool, tiers, appletOf: (windowId) => handles.get(windowId)?.summary, grants: () => grants });
   const services = createKernlServices({
