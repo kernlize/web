@@ -33,7 +33,7 @@ test.describe('applets published on the public network', () => {
       await page.getByRole('searchbox', { name: 'Find an applet' }).fill(applet.address);
       await page.getByRole('button', { name: 'Look up' }).click();
 
-      const dialog = page.getByRole('dialog');
+      const dialog = page.getByRole('region', { name: 'Applets window' });
       await expect(dialog.getByRole('heading', { name: applet.title })).toBeVisible({ timeout: 30_000 });
       await dialog.getByRole('checkbox', { name: applet.needs }).check();
       await dialog.getByRole('button', { name: 'Run' }).click();

@@ -33,14 +33,17 @@
     background: color-mix(in srgb, var(--bg-sunken) 55%, transparent);
     backdrop-filter: blur(3px);
     display: grid;
+    /* One track the size of the backdrop, so a tall panel scrolls inside itself and is never cut off. */
+    grid-template: minmax(0, 1fr) / minmax(0, 1fr);
     place-items: start center;
     padding: 4.5rem 1rem 1rem;
-    overflow: auto;
+    overflow: hidden;
   }
 
   .panel {
     width: min(100%, 34rem);
-    max-height: calc(100% - 1rem);
+    max-height: 100%;
+    min-height: 0;
     display: grid;
     grid-template-rows: auto 1fr;
     grid-template-columns: minmax(0, 1fr);

@@ -4,7 +4,6 @@
   import AppletReview from './AppletReview.svelte';
   import InstalledApplets from './InstalledApplets.svelte';
   import { explainOpenFailure } from './launcher-reasons';
-  import Overlay from './Overlay.svelte';
   import { forgetRecent, readRecent, rememberRecent, type RecentApplet } from './recent';
   import StoreBrowser from './StoreBrowser.svelte';
 
@@ -13,11 +12,10 @@
     mode: BootMode;
     storage: StorageLike;
     initialAddress?: string;
-    onclose: () => void;
     onopen: (plan: MountPlan) => void;
   }
 
-  const { kernl, mode, storage, initialAddress = '', onclose, onopen }: Props = $props();
+  const { kernl, mode, storage, initialAddress = '', onopen }: Props = $props();
 
   type Tab = 'store' | 'installed' | 'recent';
 
@@ -54,7 +52,7 @@
   });
 </script>
 
-<Overlay title="Applets" wide {onclose}>
+<div class="launcher">
   {#if summary}
     {#key summary}
       <AppletReview {kernl} {summary} action="Run" onback={() => (summary = null)} onconfirm={run} />
@@ -91,7 +89,7 @@
       </ul>
     {/if}
   {/if}
-</Overlay>
+</div>
 
 <style>
   .tabs {

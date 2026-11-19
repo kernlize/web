@@ -12,6 +12,29 @@ export interface ShellWindow extends ManagedWindow {
   readonly revoked?: string;
 }
 
+/** A window the shell draws itself, such as the store: placed, focused and stacked by the manager like any other. */
+export interface PanelWindow extends ManagedWindow {
+  /** Which of the shell's own surfaces it shows. */
+  readonly panel: string;
+  readonly title: string;
+}
+
+/** What the bar lists for a window, whatever is inside it. */
+export interface ListedWindow {
+  readonly id: string;
+  readonly title: string;
+  readonly minimised: boolean;
+}
+
+interface Panel {
+  readonly id: string;
+  readonly panel: string;
+  readonly title: string;
+}
+
+/** The id the manager knows a shell-drawn window by. */
+export const panelWindowId = (panel: string): string => `panel:${panel}`;
+
 interface Applet {
   readonly id: string;
   readonly plan: MountPlan;
@@ -31,10 +54,15 @@ export class WindowStore {
   dragging = $state(false);
   #state: WindowManagerState;
   #applets = $state.raw<readonly Applet[]>([]);
+  #panels = $state.raw<readonly Panel[]>([]);
   readonly #handles = new Map<string, AppletHandle>();
 
   /** Every window in opening order. The order never changes while a window lives: a reordered iframe node would reload its applet. */
   readonly windows: readonly ShellWindow[];
+  /** The windows the shell draws itself, in opening order. */
+  readonly panels: readonly PanelWindow[];
+  /** Every window, applet or not, as the bar names it. */
+  readonly listed: readonly ListedWindow[];
   readonly layout: LayoutChoice;
   /** The layout the bar's control switches to next. */
   readonly nextLayout: LayoutChoice;
@@ -53,6 +81,13 @@ export class WindowStore {
         return applet ? [{ ...placed, ...applet }] : [];
       }),
     );
+    this.panels = $derived(
+      this.#state.windows.flatMap((placed) => {
+        const panel = this.#panels.find((item) => item.id === placed.id);
+        return panel ? [{ ...placed, ...panel }] : [];
+      }),
+    );
+    this.listed = $derived([...this.windows.map((win) => ({ id: win.id, title: win.plan.summary.title, minimised: win.minimised })), ...this.panels.map(({ id, title, minimised }) => ({ id, title, minimised }))]);
     this.layout = $derived(this.#state.layout);
     this.nextLayout = $derived(layoutAfter(manager.layouts(), this.#state.layout.id) ?? this.#state.layout);
     this.canSwitchLayout = $derived(this.nextLayout.id !== this.layout.id);
@@ -79,6 +114,19 @@ export class WindowStore {
   open(plan: MountPlan): void {
     this.#applets = [...this.#applets, { id: plan.windowId, plan, status: 'mounting' }];
     this.manager.open(plan.windowId);
+  }
+
+  /** Open one of the shell's own surfaces as a window, or bring it forward when it is already open. */
+  openPanel(panel: string, title: string): void {
+    const id = panelWindowId(panel);
+    if (this.#panels.some((item) => item.id === id)) return this.manager.focus(id);
+    this.#panels = [...this.#panels, { id, panel, title }];
+    this.manager.open(id);
+  }
+
+  /** Whether one of the shell's own surfaces is open as a window. */
+  hasPanel(panel: string): boolean {
+    return this.#panels.some((item) => item.id === panelWindowId(panel));
   }
 
   /** Called by the iframe layer when the frame element exists. Mounts once per window, however often it is called. */
@@ -112,6 +160,7 @@ export class WindowStore {
     this.#handles.get(id)?.close();
     this.#handles.delete(id);
     this.#applets = this.#applets.filter((item) => item.id !== id);
+    this.#panels = this.#panels.filter((item) => item.id !== id);
     this.manager.close(id);
   }
 

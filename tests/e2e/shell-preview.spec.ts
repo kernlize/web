@@ -10,7 +10,7 @@ test('the preview shell signs in, runs a sample applet, shows the guard and open
 
   await page.getByRole('button', { name: 'Open an applet' }).click();
   await page.getByRole('listitem').filter({ hasText: 'Notes' }).getByRole('button', { name: 'Open' }).click();
-  await expect(page.getByRole('dialog').getByRole('heading', { name: 'Notes' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Applets window' }).getByRole('heading', { name: 'Notes' })).toBeVisible();
 
   // Your account is a grant, not baseline, in both modes; Notes requires it, so it starts switched on.
   const account = page.getByRole('checkbox', { name: /your identity/ });

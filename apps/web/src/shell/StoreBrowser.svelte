@@ -146,6 +146,11 @@
 </div>
 
 <style>
+  /* The site caps a list item at a reading measure; a card fills the window it is in. */
+  .results > li {
+    max-width: none;
+  }
+
   .store {
     display: grid;
     gap: 0.9rem;

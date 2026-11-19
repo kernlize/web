@@ -38,7 +38,7 @@ test.describe('with one relay and one blob server down', () => {
     // Pasted the way addresses are shared: inside a link, hinting a dead relay, a relay without it and one with it.
     await lookUp(page, `https://applets.example/n/${applet.address(['wss://dead.test', 'wss://general.test', 'wss://catalogue.test'])}?ref=share`);
 
-    const dialog = page.getByRole('dialog');
+    const dialog = page.getByRole('region', { name: 'Applets window' });
     await expect(dialog.getByRole('heading', { name: 'Feed applet' })).toBeVisible();
     expect(network.dialled).toEqual(expect.arrayContaining(['dead.test', 'general.test', 'catalogue.test']));
     expect(network.blobRequests).toEqual([`https://down.blobs.test/${applet.hash}`, `https://blobs.test/${applet.hash}`]);
@@ -73,8 +73,8 @@ test.describe('with one relay and one blob server down', () => {
     // A second look-up of a running applet, from the recent list, still resolves.
     await page.getByRole('button', { name: 'Open an applet' }).click();
     await page.getByRole('tab', { name: 'Recent' }).click();
-    await page.getByRole('dialog').getByRole('listitem').filter({ hasText: 'Feed applet' }).getByRole('button', { name: 'Open' }).click();
-    await expect(page.getByRole('dialog').getByRole('checkbox', { name: /posting to your network/ })).toBeChecked();
+    await page.getByRole('region', { name: 'Applets window' }).getByRole('listitem').filter({ hasText: 'Feed applet' }).getByRole('button', { name: 'Open' }).click();
+    await expect(page.getByRole('region', { name: 'Applets window' }).getByRole('checkbox', { name: /posting to your network/ })).toBeChecked();
   });
 
   test('an applet whose file no server will give is found but not opened', async ({ page }) => {
@@ -96,7 +96,7 @@ test('an account held by a signing extension looks an applet up and runs it', as
   expect(extension.calls.getPublicKey).toBeGreaterThan(0);
 
   await lookUp(page, applet.address(['wss://catalogue.test']));
-  const dialog = page.getByRole('dialog');
+  const dialog = page.getByRole('region', { name: 'Applets window' });
   await expect(dialog.getByRole('heading', { name: 'Feed applet' })).toBeVisible();
   await dialog.getByRole('checkbox', { name: /posting to your network/ }).check();
   await dialog.getByRole('button', { name: 'Run' }).click();
@@ -112,7 +112,7 @@ test('a relay that never answers does not stop an applet another relay has', asy
   await fakeNetwork(page, applet, { 'silent.test': 'silent', 'catalogue.test': 'holds' }, { 'blobs.test': 'has' });
   await signInFresh(page);
   await lookUp(page, applet.address(['wss://silent.test', 'wss://catalogue.test']));
-  await expect(page.getByRole('dialog').getByRole('heading', { name: 'Feed applet' })).toBeVisible({ timeout: 8000 });
+  await expect(page.getByRole('region', { name: 'Applets window' }).getByRole('heading', { name: 'Feed applet' })).toBeVisible({ timeout: 8000 });
 });
 
 test('relays that answer without the applet say there is none at that address', async ({ page }) => {
@@ -132,7 +132,7 @@ test('an applet its own relays do not have is found on the general relays', asyn
   const network = await fakeNetwork(page, applet, { 'catalogue.test': 'empty', 'relay.napplet.soy': 'empty', 'relay.ditto.pub': 'empty', 'relay.nostr.com': 'empty', ...generalRelays('empty'), 'nos.lol': 'holds' }, { 'blobs.test': 'has' });
   await signInFresh(page);
   await lookUp(page, applet.address(['wss://catalogue.test']));
-  await expect(page.getByRole('dialog').getByRole('heading', { name: 'Feed applet' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Applets window' }).getByRole('heading', { name: 'Feed applet' })).toBeVisible();
   // The general relays are asked for the applet only after the address's own relays came up empty.
   // The store lists the general relays' applets as soon as it opens, so connection order says nothing,
   // and a lookup sent over a socket the store already opened is not always seen by the fake relay.
@@ -147,7 +147,7 @@ test('an applet is found on the general relays when its own relays hang up', asy
   await fakeNetwork(page, applet, { ...generalRelays('down'), 'relay.primal.net': 'holds' }, { 'blobs.test': 'has' });
   await signInFresh(page);
   await lookUp(page, applet.address(['wss://dead.test', 'wss://gone.test']));
-  await expect(page.getByRole('dialog').getByRole('heading', { name: 'Feed applet' })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('region', { name: 'Applets window' }).getByRole('heading', { name: 'Feed applet' })).toBeVisible({ timeout: 20_000 });
 });
 
 test('relays that are down are said as nothing to connect to, on this side, never as a mystery (D-039)', async ({ page }) => {

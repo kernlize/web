@@ -32,7 +32,7 @@ test('the store searches loosely, filters by topic and still opens a pasted addr
 
   await page.getByRole('searchbox', { name: 'Find an applet' }).fill('preview:pulse');
   await page.getByRole('button', { name: 'Look up' }).click();
-  await expect(page.getByRole('dialog').getByRole('heading', { name: 'Pulse' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Applets window' }).getByRole('heading', { name: 'Pulse' })).toBeVisible();
 });
 
 test('an applet asks for a profile, the user picks a handler from the store, and it receives the request', async ({ page }) => {
@@ -69,4 +69,36 @@ test('an applet asks for a profile, the user picks a handler from the store, and
   await page.getByRole('button', { name: 'Open an applet' }).click();
   await page.getByRole('tab', { name: 'Yours' }).click();
   await expect(page.getByRole('combobox', { name: 'Profiles' })).toHaveValue(/profiles$/);
+});
+
+test('the store is a window like any other: inside the desktop, scrolled to its last applet, moved, minimised and brought back', async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 520 });
+  await page.goto(`${base}/app/?preview=1`);
+  await page.getByRole('button', { name: 'Try the preview' }).click();
+  await page.getByRole('button', { name: 'Open an applet' }).click();
+  const store = page.getByRole('region', { name: 'Applets window' });
+  await expect(store.getByRole('list', { name: 'Applets' }).getByRole('listitem')).toHaveCount(3);
+  const desk = (await page.locator('.desk').boundingBox())!;
+  const box = (await store.boundingBox())!;
+  expect(box.x).toBeGreaterThanOrEqual(desk.x);
+  expect(box.y).toBeGreaterThanOrEqual(desk.y);
+  expect(box.x + box.width).toBeLessThanOrEqual(desk.x + desk.width);
+  expect(box.y + box.height).toBeLessThanOrEqual(desk.y + desk.height + 1);
+  // More than fits: the window's own body scrolls, and the last applet comes into view inside it.
+  const last = store.getByRole('list', { name: 'Applets' }).getByRole('listitem').last();
+  await last.scrollIntoViewIfNeeded();
+  const lastBox = (await last.boundingBox())!;
+  expect(lastBox.y + lastBox.height).toBeLessThanOrEqual(box.y + box.height + 1);
+  expect(lastBox.x).toBeGreaterThanOrEqual(box.x);
+
+  await store.getByRole('toolbar', { name: 'Applets window controls' }).focus();
+  await page.keyboard.press('ArrowRight');
+  expect((await store.boundingBox())!.x).toBeGreaterThan(box.x);
+
+  await store.getByRole('button', { name: 'Minimise Applets' }).click();
+  await expect(store).toBeHidden();
+  await page.getByRole('list', { name: 'Minimised windows' }).getByRole('button', { name: 'Applets' }).click();
+  await expect(store).toBeVisible();
+  await store.getByRole('button', { name: 'Close Applets' }).click();
+  await expect(store).toHaveCount(0);
 });
