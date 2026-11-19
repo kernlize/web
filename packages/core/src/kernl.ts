@@ -297,7 +297,7 @@ export function createKernl(options: KernlOptions): Kernl {
   });
 
   const identityOf = (windowId: string): AppletIdentity | undefined => handles.get(windowId)?.summary.identity;
-  const { eventCache, replaceableLoader, profiles, directory, mailboxes, files, signer } = createKernlNetwork(options, { eventStore, pool, tiers, accounts, destroyed$ });
+  const { eventCache, replaceableLoader, profiles, people, directory, mailboxes, files, signer } = createKernlNetwork(options, { eventStore, pool, tiers, accounts, destroyed$ });
   const lookupBefore = lookupReplaceable(eventStore, {
     loader: replaceableLoader,
     relays: () => [...tiers.get().outbox, ...tiers.get().discovery],
@@ -314,8 +314,9 @@ export function createKernl(options: KernlOptions): Kernl {
     bridges,
     messaging,
     profiles,
+    people,
     ...(host.presentSettings ? { config: createAppletConfig({ storage: host.storage, appletOf: (windowId) => appletOf(handles, windowId), present: host.presentSettings.bind(host) }) } : {}),
-    common: commonActionsFor({ eventStore, pool, tiers, accounts }, { profiles, replaceableLoader, signer }, consent),
+    common: commonActionsFor({ eventStore, pool, tiers, accounts }, { profiles, people, replaceableLoader, signer }, consent),
     uploader: uploaderFor(host, files, signer, identityOf),
     ...(isTheme(options.theme) ? { theme: options.theme } : {}),
     ...meeting.deps,
@@ -382,6 +383,7 @@ export function createKernl(options: KernlOptions): Kernl {
       stream: (streamOptions) => streamCatalog(pool, tiers, { cache: eventCache.cacheRequest, store: eventStore, ...streamOptions }),
     },
     profiles,
+    people,
     mailboxes,
     files,
     multiplayer: meeting.multiplayer,

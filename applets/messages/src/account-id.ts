@@ -3,6 +3,10 @@ const BECH32_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
 const BECH32_GENERATORS = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
 const CHECKSUM_LENGTH = 6;
 const ACCOUNT_PREFIX = 'npub';
+const PROFILE_PREFIX = 'nprofile';
+const TLV_KEY = 0;
+const TLV_SERVER = 1;
+const KEY_BYTES = 32;
 const URI_SCHEME = 'nostr:';
 
 export interface Bech32Payload {
@@ -65,15 +69,45 @@ export function isHexAccountId(value: string): boolean {
   return HEX_ID.test(value);
 }
 
-/** Read what a person typed or pasted into the canonical hex account id. */
-export function parseAccountId(input: string): string | null {
+/** Someone to write to: who they are and, when what was pasted says where to find them, that text. */
+export interface Recipient {
+  pubkey: string;
+  /** The pasted form that names servers; handed to the shell on a send, so it can look there. */
+  address?: string;
+}
+
+/** The key inside the form that carries servers alongside it, and whether it names any. */
+function readProfile(bytes: Uint8Array): { key: Uint8Array; servers: boolean } | null {
+  let key: Uint8Array | null = null;
+  let servers = false;
+  for (let at = 0; at + 2 <= bytes.length; ) {
+    const type = bytes[at] as number;
+    const end = at + 2 + (bytes[at + 1] as number);
+    if (end > bytes.length) return null;
+    if (type === TLV_KEY) key = bytes.slice(at + 2, end);
+    if (type === TLV_SERVER) servers = true;
+    at = end;
+  }
+  return key?.length === KEY_BYTES ? { key, servers } : null;
+}
+
+/** Read what a person typed or pasted: 64 hex characters, or either shareable form of an identity. */
+export function parseRecipient(input: string): Recipient | null {
   let text = input.trim();
   if (text.toLowerCase().startsWith(URI_SCHEME)) text = text.slice(URI_SCHEME.length);
   const lower = text.toLowerCase();
-  if (isHexAccountId(lower)) return lower;
+  if (isHexAccountId(lower)) return { pubkey: lower };
   const decoded = decodeBech32(text);
-  if (!decoded || decoded.prefix !== ACCOUNT_PREFIX || decoded.bytes.length !== 32) return null;
-  return toHex(decoded.bytes);
+  if (decoded?.prefix === ACCOUNT_PREFIX && decoded.bytes.length === KEY_BYTES) return { pubkey: toHex(decoded.bytes) };
+  if (decoded?.prefix !== PROFILE_PREFIX) return null;
+  const profile = readProfile(decoded.bytes);
+  if (!profile) return null;
+  return profile.servers ? { pubkey: toHex(profile.key), address: lower } : { pubkey: toHex(profile.key) };
+}
+
+/** Read what a person typed or pasted into the canonical hex id. */
+export function parseAccountId(input: string): string | null {
+  return parseRecipient(input)?.pubkey ?? null;
 }
 
 /** Shorten an account id for display: `abcd1234…wxyz`. */
@@ -83,13 +117,12 @@ export function shortAccountId(hex: string): string {
 
 /**
  * Read the account id out of a "open a conversation" request from another
- * applet. The payload is untrusted, so anything but an object carrying a
- * 64-hex `pubkey` is refused.
+ * applet. The payload is untrusted, so anything but an object carrying an
+ * identity as its `pubkey`, in any form a person could paste, is refused.
  */
 export function parseOpenRequest(payload: unknown): string | null {
   if (typeof payload !== 'object' || payload === null) return null;
   const candidate = (payload as { pubkey?: unknown }).pubkey;
   if (typeof candidate !== 'string') return null;
-  const lower = candidate.toLowerCase();
-  return isHexAccountId(lower) ? lower : null;
+  return parseAccountId(candidate);
 }

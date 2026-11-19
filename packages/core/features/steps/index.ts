@@ -30,6 +30,7 @@ import './crypto-fallback.js';
 import './live-lookup.js';
 import './builtin.js';
 import './profiles.js';
+import './people.js';
 import './publish-outcome.js';
 import './relay-directory.js';
 import './mailboxes.js';

@@ -6,6 +6,7 @@ import type { ISigner } from 'applesauce-signers';
 import type { AddressPointerLoader } from 'applesauce-loaders/loaders';
 import type { KernlOptions, RelayTiers } from './types.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
+import { createPeople, type People } from './people/person.js';
 import { createReplaceableLoader, lookupRelaysOf } from './applesauce/identity-providers.js';
 import { connectEventCache, type ConnectedEventCache } from './cache/connect.js';
 import { createProfiles, type Profiles } from './profiles/profiles.js';
@@ -23,6 +24,7 @@ export interface KernlNetwork {
   readonly eventCache: ConnectedEventCache;
   readonly replaceableLoader: AddressPointerLoader;
   readonly profiles: Profiles;
+  readonly people: People;
   readonly directory: RelayDirectory;
   readonly mailboxes: AccountMailboxes;
   readonly files: AccountFileServers;
@@ -72,6 +74,7 @@ export function createKernlNetwork(options: Pick<KernlOptions, 'eventCache'>, pa
     directory,
   });
   const profiles = createProfiles({ store: eventStore, load: replaceableLoader, lookupRelays });
+  const people = createPeople({ store: eventStore, pool });
   const files = createAccountFileServers({
     store: eventStore,
     pool,
@@ -82,7 +85,7 @@ export function createKernlNetwork(options: Pick<KernlOptions, 'eventCache'>, pa
     outboxes: () => tiers.get().outbox,
     signer,
   });
-  return { eventCache, replaceableLoader, profiles, directory, mailboxes, files, signer };
+  return { eventCache, replaceableLoader, profiles, people, directory, mailboxes, files, signer };
 }
 
 /**
@@ -100,11 +103,12 @@ export function createKernlNetwork(options: Pick<KernlOptions, 'eventCache'>, pa
  * createKernlServices({ ..., common: commonActionsFor(parts, network, consent) });
  * ```
  */
-export function commonActionsFor(parts: Omit<KernlNetworkParts, 'destroyed$'>, network: Pick<KernlNetwork, 'profiles' | 'replaceableLoader' | 'signer'>, consent: SigningConsent): CommonServiceOptions {
+export function commonActionsFor(parts: Omit<KernlNetworkParts, 'destroyed$'>, network: Pick<KernlNetwork, 'profiles' | 'people' | 'replaceableLoader' | 'signer'>, consent: SigningConsent): CommonServiceOptions {
   const { eventStore, pool, tiers, accounts } = parts;
   return createCommonActions({
     store: eventStore,
     profiles: network.profiles,
+    locate: network.people.locate,
     pubkey: () => accounts.active?.pubkey,
     signer: network.signer,
     consent,

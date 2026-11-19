@@ -221,6 +221,8 @@ export { LINK_PROTOCOLS, createKernlServices, isTheme, resourceInitFor, type Dir
 export { createShellAdapter, type ShellAdapterDeps } from './kernl-adapter.js';
 export { createAppletLifecycle, grantNarrowingReason, resolveWindow, type AppletLifecycle, type LifecycleContext } from './kernl-lifecycle.js';
 export { createKernl, toSession } from './kernl.js';
+export { PERSON_HINT_TIMEOUT_MS, createPeople, parsePerson, type People, type PeopleOptions, type PersonPointer } from './people/person.js';
+export { locateRecipients } from './people/locate-recipients.js';
 export { createProfiles, toProfileCard, type ProfileCard, type ProfileLoader, type ProfilePointer, type Profiles, type ProfilesOptions } from './profiles/profiles.js';
 export { addressOf, newestEntries, toCatalogEntry, type CatalogEntry } from './catalog/entry.js';
 export { CATALOG_EMIT_MS, CATALOG_LIMIT, CATALOG_SETTLE_MS, CATALOG_TIMEOUT_MS, catalogRelays, loadCatalog, streamCatalog, type LoadCatalogOptions } from './catalog/fetch.js';

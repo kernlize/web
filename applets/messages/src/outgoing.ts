@@ -13,7 +13,7 @@ export function sendRequest(thread: Thread, pending: PendingSend): DmSendRequest
   }
   // No conversation id on purpose: the shell decides how a direct message travels.
   return {
-    recipients: thread.peers.map((peer) => peer.pubkey),
+    recipients: thread.peers.map((peer) => peer.address ?? peer.pubkey),
     content: pending.content,
     clientMessageId: pending.clientId,
   };

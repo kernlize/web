@@ -5,10 +5,10 @@ import { npubEncode } from 'applesauce-core/helpers';
 import { PrivateKeySigner } from 'applesauce-signers';
 import type { CommonServiceOptions } from '@kehto/services';
 import type { NostrEvent } from '@napplet/core';
-import { commonActionsFor, createCommonActions, createRelayTiers, toProfileCard } from '@kernlize/core';
+import { commonActionsFor, createCommonActions, createPeople, createRelayTiers, toProfileCard } from '@kernlize/core';
 import { AccountManager } from 'applesauce-accounts';
 import { PrivateKeyAccount } from 'applesauce-accounts/accounts';
-import { throwError } from 'rxjs';
+import { EMPTY, throwError } from 'rxjs';
 import { scratch, splitList, type CoreWorld } from './world.js';
 
 interface CommonScratch {
@@ -58,6 +58,7 @@ async function build(world: CoreWorld, session: 'signer' | 'read-only' | 'signed
       return 1;
     },
     loadFollows: async () => undefined,
+    locate: createPeople({ store: state.store, pool: { request: () => EMPTY } as never }).locate,
   });
 }
 
@@ -219,7 +220,7 @@ Given("the shell's social actions over a pool that accepts and a follow-list loo
   scratch(world).shellTiers = tiers;
   state.actions = commonActionsFor(
     { eventStore: state.store, pool: pool as never, tiers, accounts },
-    { profiles: { settled: async (pubkey) => toProfileCard(pubkey, undefined) }, replaceableLoader: (() => throwError(() => new Error('relays down'))) as never, signer: () => signer },
+    { profiles: { settled: async (pubkey) => toProfileCard(pubkey, undefined) }, people: createPeople({ store: state.store, pool: pool as never }), replaceableLoader: (() => throwError(() => new Error('relays down'))) as never, signer: () => signer },
     async () => undefined,
   );
 });

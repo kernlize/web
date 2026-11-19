@@ -38,6 +38,7 @@
 
   function explain(reason: unknown): string {
     const message = reason instanceof Error ? reason.message : String(reason);
+    if (message === 'invalid:person') return 'That is not an identity. Paste one as it was shared with you, or as 64 letters and digits.';
     const network = /pool|subscription|publish|relay|connect|timeout/i.test(message);
     if (network && mode === 'preview') return 'This needs the network. The preview runs offline.';
     if (network) return 'The signer did not answer. Check that it is open, then try again.';
@@ -111,7 +112,7 @@
       await adopt(new NostrConnectAccount(await signer.getPublicKey(), signer));
     });
 
-  const useReadonly = (): Promise<void> => attempt(() => adopt(ReadonlyAccount.fromPubkey(readonlyId.trim())));
+  const useReadonly = (): Promise<void> => attempt(async () => adopt(ReadonlyAccount.fromPubkey(await kernl.people.locate(readonlyId))));
 
   const create = (): Promise<void> =>
     attempt(async () => {
@@ -228,7 +229,7 @@
         {:else if method === 'readonly'}
           <h3>Read-only</h3>
           <form onsubmit={(event) => (event.preventDefault(), useReadonly())}>
-            <label class="shell-field"><span>Account id</span><input class="shell-input mono" type="text" bind:value={readonlyId} autocomplete="off" spellcheck="false" /></label>
+            <label class="shell-field"><span>Identity</span><input class="shell-input mono" type="text" bind:value={readonlyId} autocomplete="off" spellcheck="false" placeholder="Paste any form of it" /></label>
             <div class="shell-actions"><button type="submit" class="shell-button primary" disabled={busy || !readonlyId.trim()}>Continue</button><button type="button" class="shell-button quiet" onclick={cancel}>Back</button></div>
           </form>
         {:else if method === 'create'}

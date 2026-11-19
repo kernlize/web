@@ -1,6 +1,7 @@
 import { createDmService, createIdentityService, createNotifyService, createThemeService } from '@kehto/services';
 import type { MessagingRegistry } from '@kernlize/messaging';
-import { labelConversations, type Profiles } from '@kernlize/core';
+import { labelConversations, locateRecipients, type Profiles } from '@kernlize/core';
+import { createPreviewPeople } from './preview-people';
 import type { KernlHost } from './contract';
 
 /** The domains the preview can put behind an applet's port. Anything else is left out of its environment. */
@@ -53,7 +54,7 @@ const isEnvelope = (data: unknown): data is Envelope => typeof data === 'object'
  */
 export function createPreviewPorts(deps: PreviewPortDeps): PreviewPorts {
   // The same naming the live shell's dm service does, from the preview's people.
-  const dm = createDmService({ adapter: labelConversations(deps.messaging.composite(), deps.profiles) });
+  const dm = createDmService({ adapter: labelConversations(locateRecipients(deps.messaging.composite(), createPreviewPeople()), deps.profiles) });
   const services: Readonly<Record<string, Handler>> = {
     dm,
     identity: createIdentityService({ getSigner: () => ({ getPublicKey: () => deps.pubkey() }) }),

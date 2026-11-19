@@ -14,6 +14,7 @@ import type { MessagingBackend, MessagingRegistry, ReplyAnswer, ReplyPrompt } fr
 import type { BridgeRegistry, TorrentBackend } from '@kernlize/bridges';
 import type { CatalogEntry } from './catalog/entry.js';
 import type { Profiles } from './profiles/profiles.js';
+import type { People } from './people/person.js';
 import type { EventCacheOpener } from './cache/connect.js';
 import type { AccountMailboxes } from './relays/mailboxes.js';
 import type { AccountFileServers } from './files/file-servers.js';
@@ -389,6 +390,8 @@ export interface Kernl {
   readonly catalog: AppletCatalog;
   /** People's names and pictures, loaded from their profiles on demand. */
   readonly profiles: Profiles;
+  /** Finds a person from hex, `npub` or `nprofile`, asking the servers an `nprofile` names. */
+  readonly people: People;
   /** The signed-in account's published inbox and outbox (NIP-65); the `outbox` tier follows its outboxes. */
   readonly mailboxes: AccountMailboxes;
   /** Where the account's uploads go (BUD-03, kind 10063); the defaults while it has no list. */

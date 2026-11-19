@@ -1,6 +1,6 @@
 import { NOTIFY_DOMAIN, type DmMessage, type Subscription } from '@napplet/sdk';
 import { resolveAccount } from './account.js';
-import { parseAccountId } from './account-id.js';
+import { parseRecipient } from './account-id.js';
 import { runtimeHasDomain } from './domain-availability.js';
 import { snippet } from './format.js';
 import { readHistory } from './history.js';
@@ -118,14 +118,14 @@ export class MessagesApp {
   }
 
   /** Open the thread with one person, creating an empty one if needed. */
-  openDirect(pubkey: string): void {
+  openDirect(pubkey: string, address?: string): void {
     if (this.phase !== 'ready') {
       this.queuedOpen = pubkey;
       return;
     }
     const key = directKey([pubkey]);
     if (!this.entries.has(key)) {
-      const thread: Thread = { key, kind: 'direct', conversationIds: [], peers: [{ pubkey }], updatedAt: Date.now() };
+      const thread: Thread = { key, kind: 'direct', conversationIds: [], peers: [address ? { pubkey, address } : { pubkey }], updatedAt: Date.now() };
       this.entries.set(key, { thread, messages: [], pending: [], history: 'ready' });
     }
     this.open(key);
@@ -325,9 +325,9 @@ export class MessagesApp {
   }
 
   private startWith(input: string): string | null {
-    const pubkey = parseAccountId(input);
-    if (!pubkey) return sendFailureText('invalid:recipient');
-    this.openDirect(pubkey);
+    const recipient = parseRecipient(input);
+    if (!recipient) return sendFailureText('invalid:recipient');
+    this.openDirect(recipient.pubkey, recipient.address);
     return null;
   }
 

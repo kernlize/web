@@ -673,3 +673,17 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Consequences.** Trying kernl reaches the network, which the card says. Nothing done with a throwaway identity can be recovered.
 
 **Reversal cost.** Low. One account type and one button.
+
+## D-045 · A person is found from any form of their identity
+
+**Context.** Read-only sign-in took only 64 hex characters, the Messages applet took hex or an `npub`, and messaging refused anything but hex. An `nprofile`, which is what most clients hand out when a person is shared, was refused everywhere, and the servers it names were never used.
+
+**Decision.**
+
+- **One reader.** `parsePerson` reads hex, `npub` and `nprofile`, with or without the `nostr:` scheme, in any case. Nothing else is a person: an `nsec`, a note or an applet address is refused even though a key can be derived from it.
+- **The hint is used.** `createPeople(...).locate(input)` asks the servers an `nprofile` names for the person's profile, server list and message inboxes (kinds 0, 10002, 10050) and puts what they hold in the shell's event store, where every later lookup reads first. Once per person and set of servers. A hinted server that fails or is silent changes nothing; the wait has an outer bound only.
+- **Everywhere a person is named.** `kernl.people` is used by read-only sign-in; `locateRecipients` reads every recipient an applet names on a send; the social actions read their targets the same way. The shipped Messages applet reads all three forms and hands the shell the form that names servers.
+
+**Consequences.** A shared identity works wherever it is pasted. A server named in an `nprofile` learns that this device asked about that person, as any server asked for a profile does.
+
+**Reversal cost.** Low. One module and three call sites.
