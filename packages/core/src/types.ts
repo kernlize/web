@@ -5,6 +5,8 @@ import type { AccountManager, IAccount } from 'applesauce-accounts';
 import type { ShellBridge, ShellEnvironment } from '@kehto/shell';
 import type { Capability } from '@kehto/runtime';
 import type { CvmRegistryFamily } from '@kehto/services';
+import type { MultiplayerSettings } from './multiplayer/settings.js';
+import type { ToolFamilyCandidate } from './multiplayer/tool-discovery.js';
 import type { NappletArtifactCache, NappletManifest } from '@kehto/nip/5d';
 import type { NostrEvent } from '@napplet/core';
 import type { GuardConfig, GuardEvent, GuardProfile, MitigationDescription, WindowVisibility } from '@kernlize/guard';
@@ -330,6 +332,12 @@ export interface DirectConnectionsSettings {
   readonly createPeer?: (configuration: RTCConfiguration) => RTCPeerConnection;
 }
 
+/** The person's settings for meeting people and calling remote tools, kept on this device, and the search for tool families. */
+export interface KernlMultiplayer extends MultiplayerSettings {
+  /** Find tool families from an announcement reference, a schema hash or a website, over the servers in use (D-043). */
+  discover(input: string): Promise<readonly ToolFamilyCandidate[]>;
+}
+
 /** The host's settings for remote tools. */
 export interface RemoteToolsSettings {
   /** Relays a tool server is looked for on when the applet names none; the general (`super`) tier by default. */
@@ -385,6 +393,8 @@ export interface Kernl {
   readonly mailboxes: AccountMailboxes;
   /** Where the account's uploads go (BUD-03, kind 10063); the defaults while it has no list. */
   readonly files: AccountFileServers;
+  /** The person's servers, helpers and trusted tool families for meeting people and calling remote tools (D-043). */
+  readonly multiplayer: KernlMultiplayer;
   /** Monitored servers (NIP-66) for completing and suggesting; idle until `start()`. */
   readonly directory: RelayDirectory;
   readonly intents: Intents;

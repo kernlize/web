@@ -49,7 +49,7 @@ import { createPreviewConfig, type PreviewConfig } from './preview-config';
 import { PORT_DOMAINS, createPreviewPorts, type PortLike, type PreviewPorts } from './preview-port';
 import { createPreviewIntents, type PreviewIntentDeps, type PreviewIntents } from './preview-intents';
 import { createPreviewMessaging, PREVIEW_CORRESPONDENT, PREVIEW_LEGACY_CORRESPONDENT } from './preview-messaging';
-import { createPreviewDirectory, createPreviewFileServers, createPreviewMailboxes } from './preview-mailboxes';
+import { createPreviewAccountServices } from './preview-mailboxes';
 import { createPreviewProfiles } from './preview-profiles';
 import type { ShellTheme } from './shell-theme';
 import { baselineDomains, createPreviewGrants, createPreviewRelays, loadBaselineDomains } from './preview-state';
@@ -436,9 +436,7 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
     bridges,
     catalog: { load: async () => PREVIEW_CATALOG, stream: () => of(PREVIEW_CATALOG) },
     profiles,
-    mailboxes: createPreviewMailboxes(),
-    files: createPreviewFileServers(),
-    directory: createPreviewDirectory(),
+    ...createPreviewAccountServices(host.storage),
     intents: intents.intents,
     session$,
     get session() {

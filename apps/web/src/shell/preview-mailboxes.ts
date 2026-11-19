@@ -1,5 +1,6 @@
 import { BehaviorSubject, EMPTY } from 'rxjs';
-import { createRelayDirectory, DEFAULT_FILE_SERVERS, DEFAULT_SUGGESTIONS, type AccountFileServers, type AccountMailboxes, type FileServerState, type MailboxState, type RelayDirectory } from '@kernlize/core';
+import type { ShellKernl } from './contract';
+import { createMultiplayerSettings, createRelayDirectory, DEFAULT_FILE_SERVERS, DEFAULT_SUGGESTIONS, type AccountFileServers, type AccountMailboxes, type FileServerState, type KernlMultiplayer, type MailboxState, type RelayDirectory, type StorageLike } from '@kernlize/core';
 
 /** The preview's directory hears from no monitor, so it suggests from kernl's built-in list and completes nothing. */
 export function createPreviewDirectory(): RelayDirectory {
@@ -38,4 +39,20 @@ export function createPreviewFileServers(): AccountFileServers {
       return { accepted: ['preview'], refused: [], ok: true };
     },
   };
+}
+
+/**
+ * The preview's own settings for meeting people and remote tools: kept in its storage like the real
+ * shell's, but it reaches no network, so a search for tools says so instead of finding any.
+ */
+export function createPreviewMultiplayer(storage: StorageLike): KernlMultiplayer {
+  return {
+    ...createMultiplayerSettings(storage),
+    discover: () => Promise.reject(new Error('unavailable:preview')),
+  };
+}
+
+/** The preview account's servers, file servers, meeting settings and directory, together. */
+export function createPreviewAccountServices(storage: StorageLike): Pick<ShellKernl, 'mailboxes' | 'files' | 'multiplayer' | 'directory'> {
+  return { mailboxes: createPreviewMailboxes(), files: createPreviewFileServers(), multiplayer: createPreviewMultiplayer(storage), directory: createPreviewDirectory() };
 }

@@ -7,7 +7,9 @@ import type { MessagingRegistry } from '@kernlize/messaging';
 import { buildShellCapabilities, createShellBridge, type ShellAdapter, type ShellBridge } from '@kehto/shell';
 import { createGuardConfig, describeMitigations, type GuardEvent } from '@kernlize/guard';
 import type { AccountFileServers } from './files/file-servers.js';
-import type { AppletIdentity, AppletSummary, Grants, GuardFacade, Kernl, KernlHost, KernlOptions, RelayTiers, Session } from './types.js';
+import type { AppletIdentity, AppletSummary, Grants, GuardFacade, Kernl, KernlHost, KernlMultiplayer, KernlOptions, RelayTiers, Session } from './types.js';
+import { createMultiplayerSettings } from './multiplayer/settings.js';
+import { discoverToolFamilies } from './multiplayer/tool-discovery.js';
 import { createKernlAccounts } from './applesauce/accounts.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
 import type { ProfileCard, Profiles } from './profiles/profiles.js';
@@ -33,8 +35,9 @@ import { createLegacyMessagesBackend } from './messaging/legacy-backend.js';
 import { createRatchetMessagesBackend } from './messaging/ratchet-backend.js';
 import { createGroupMessagesBackend } from './messaging/group-backend.js';
 import { createDefaultBridges } from './bridges/default-registry.js';
-import { createKernlServices, isTheme, type DirectConnectionsDeps } from './kernl-services.js';
+import { createKernlServices, isTheme, type DirectConnectionsDeps, type KernlServiceDeps } from './kernl-services.js';
 import { createWindowIdentities } from './multiplayer/window-identities.js';
+import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { createShellAdapter } from './kernl-adapter.js';
 import { createAppletLifecycle } from './kernl-lifecycle.js';
 import { createKernlIntents } from './kernl-intents.js';
@@ -154,6 +157,28 @@ function registriesFor(options: KernlOptions, parts: MessagingParts): Pick<Kernl
     messaging: options.messaging ?? createAccountMessaging(options, parts),
     // host.openLink asks before leaving kernl, so every hand-off is confirmed by the user (D-010).
     bridges: options.bridges ?? createDefaultBridges({ handoff: (uri) => host.openLink(uri), ...(options.torrent ? { torrent: options.torrent } : {}) }),
+  };
+}
+
+interface MeetingParts {
+  readonly pool: ApplesaucePool;
+  readonly tiers: RelayTiers;
+  readonly appletOf: (windowId: string) => AppletSummary | undefined;
+  readonly grants: () => Grants;
+}
+
+/**
+ * Remote tools and direct connections: the window keys they share, the host's settings, and the
+ * person's own, with a search for tool families over the servers they chose, else the host's, else
+ * the general ones (D-041, D-042, D-043).
+ */
+function meetingFor(options: KernlOptions, parts: MeetingParts): { deps: Pick<KernlServiceDeps, 'identities' | 'remoteTools' | 'directConnections' | 'multiplayer'>; multiplayer: KernlMultiplayer } {
+  const settings = createMultiplayerSettings(options.host.storage);
+  const relays = (): readonly string[] => settings.state().servers ?? options.remoteTools?.relays ?? parts.tiers.get().super;
+  const multiplayer = { ...settings, discover: (input: string) => discoverToolFamilies(input, { pool: parts.pool, relays: relays(), fetch: globalThis.fetch.bind(globalThis) }) };
+  return {
+    deps: { identities: createWindowIdentities(), remoteTools: options.remoteTools, directConnections: directConnectionsFor(options, parts.appletOf, parts.grants), multiplayer },
+    multiplayer,
   };
 }
 
@@ -278,6 +303,7 @@ export function createKernl(options: KernlOptions): Kernl {
     relays: () => [...tiers.get().outbox, ...tiers.get().discovery],
   });
   const consent = createSigningConsent({ host, lookupBefore, resolveApplet: identityOf, pubkey: () => accounts.active?.pubkey });
+  const meeting = meetingFor(options, { pool, tiers, appletOf: (windowId) => handles.get(windowId)?.summary, grants: () => grants });
   const services = createKernlServices({
     pool,
     tiers,
@@ -292,9 +318,7 @@ export function createKernl(options: KernlOptions): Kernl {
     common: commonActionsFor({ eventStore, pool, tiers, accounts }, { profiles, replaceableLoader, signer }, consent),
     uploader: uploaderFor(host, files, signer, identityOf),
     ...(isTheme(options.theme) ? { theme: options.theme } : {}),
-    identities: createWindowIdentities(),
-    remoteTools: options.remoteTools,
-    directConnections: directConnectionsFor(options, (windowId) => handles.get(windowId)?.summary, () => grants),
+    ...meeting.deps,
     resolveIdentity(windowId) {
       const identity = identityOf(windowId);
       return identity ? { dTag: identity.dTag, aggregateHash: identity.hash } : null;
@@ -360,6 +384,7 @@ export function createKernl(options: KernlOptions): Kernl {
     profiles,
     mailboxes,
     files,
+    multiplayer: meeting.multiplayer,
     directory,
     intents: intents.intents,
     session$,

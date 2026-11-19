@@ -6,6 +6,7 @@
   import type { DownloadMode, ShellDownloads } from './downloads';
   import { toggleTheme } from '../lib/theme';
   import FileServerSettings from './FileServerSettings.svelte';
+  import MeetingSettings from './MeetingSettings.svelte';
   import MailboxSettings from './MailboxSettings.svelte';
   import MessagingSettings from './MessagingSettings.svelte';
   import { observe } from './observe.svelte';
@@ -58,6 +59,7 @@
 <Overlay title="Settings" {onclose} wide>
   <MailboxSettings {kernl} {mode} />
   <FileServerSettings {kernl} />
+  <MeetingSettings {kernl} />
   <section class="shell-section">
     <h3>How the shell finds things</h3>
     <p class="shell-muted small">Servers the shell itself asks, on your behalf; applets never connect to anything. Your own posts go to your outbox first.</p>

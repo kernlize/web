@@ -1,5 +1,5 @@
 import type { Page, WebSocketRoute } from '@playwright/test';
-import { nip44 } from 'nostr-tools';
+import { nip19, nip44 } from 'nostr-tools';
 import { finalizeEvent, generateSecretKey, getPublicKey, verifyEvent, type NostrEvent } from 'nostr-tools/pure';
 
 /**
@@ -28,6 +28,8 @@ function matches(filter: Filter, event: NostrEvent): boolean {
 
 export interface ToolServer {
   readonly pubkey: string;
+  /** A shareable reference to the tool list, hinting the relay it is on. */
+  readonly reference: string;
   /** The keys requests were signed by. */
   readonly callers: Set<string>;
   /** Every event the shell published to the relay. */
@@ -50,10 +52,12 @@ const now = (): number => Math.floor(Date.now() / 1000);
  */
 export async function installToolServer(page: Page, url: string, tool: { readonly name: string; readonly tool: string; readonly answer: string }): Promise<ToolServer> {
   const secret = generateSecretKey();
-  const server: ToolServer = { pubkey: getPublicKey(secret), callers: new Set(), published: [] };
+  const listed = [{ name: tool.tool, inputSchema: { type: 'object' } }];
+  const toolList = finalizeEvent({ kind: 11317, created_at: now(), tags: [], content: JSON.stringify({ tools: listed }) }, secret);
+  const server: ToolServer = { pubkey: getPublicKey(secret), reference: nip19.neventEncode({ id: toolList.id, relays: [url] }), callers: new Set(), published: [] };
   const stored: NostrEvent[] = [
     finalizeEvent({ kind: 11316, created_at: now(), tags: [['name', tool.name], ['about', 'Trust scores']], content: '{}' }, secret),
-    finalizeEvent({ kind: 11317, created_at: now(), tags: [['i', '0'.repeat(64), tool.tool]], content: '{}' }, secret),
+    toolList,
   ];
   const sockets = new Map<WebSocketRoute, Map<string, Filter[]>>();
   const store = (event: NostrEvent): void => {
@@ -74,7 +78,8 @@ export async function installToolServer(page: Page, url: string, tool: { readonl
     if (request.id === undefined) return;
     const result = request.method === 'initialize'
       ? { protocolVersion: '2025-11-25', capabilities: { tools: {} }, serverInfo: { name: 'fixture', version: '1' } }
-      : request.method === 'tools/call' && request.params?.name === tool.tool ? { content: [{ type: 'text', text: tool.answer }] } : undefined;
+      : request.method === 'tools/list' ? { tools: listed }
+        : request.method === 'tools/call' && request.params?.name === tool.tool ? { content: [{ type: 'text', text: tool.answer }] } : undefined;
     store(seal(inner.pubkey, result ? { jsonrpc: '2.0', id: request.id, result } : { jsonrpc: '2.0', id: request.id, error: { code: -32601, message: 'method not found' } }));
   };
   await page.routeWebSocket(url, (socket) => {
@@ -119,6 +124,32 @@ export function toolCallingApplet(relay: string, tool: string): string {
   try {
     const [server] = await window.napplet.cvm.discover({ relays: [${JSON.stringify(relay)}] });
     const result = await window.napplet.cvm.callTool(server, ${JSON.stringify(tool)}, {}, { initialize: true });
+    out.textContent = 'score ' + result.content[0].text;
+  } catch (error) {
+    out.textContent = 'failed: ' + error.message;
+  }
+})();
+</script></body></html>`;
+}
+
+/**
+ * An applet that asks the shell for the tool family `family` and runs `tool` through it, writing what
+ * happened into `#out`.
+ *
+ * @param family - The name the person gave the tools.
+ * @param tool - The tool it runs.
+ * @returns The applet's HTML.
+ * @example
+ * ```ts
+ * signApplet({ servers, optional: ['cvm'], html: familyCallingApplet('trust', 'trust_score') });
+ * ```
+ */
+export function familyCallingApplet(family: string, tool: string): string {
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Scores</title></head><body><h1>Scores</h1><p id="out">waiting</p><script>
+(async () => {
+  const out = document.getElementById('out');
+  try {
+    const result = await window.napplet.cvm.registry.call({ family: ${JSON.stringify(family)} }, ${JSON.stringify(tool)}, {});
     out.textContent = 'score ' + result.content[0].text;
   } catch (error) {
     out.textContent = 'failed: ' + error.message;

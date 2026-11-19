@@ -210,8 +210,10 @@ export { askUploadConsent, createBlossomUploader, describeUpload, sizeWords, typ
 export { createAppletConfig, type AppletConfigOptions, type SettingsPrompt } from './applets/applet-config.js';
 export { createCommonActions, type CommonActionsOptions } from './social/common-actions.js';
 export { commonActionsFor, createKernlNetwork, type KernlNetwork, type KernlNetworkParts } from './kernl-network.js';
-export { createCvmRelayPool, createRemoteToolsService, type RemoteToolsOptions } from './multiplayer/remote-tools.js';
+export { createCvmRelayPool, createRemoteToolsService, mergeFamilies, type RemoteToolsOptions } from './multiplayer/remote-tools.js';
 export { createWindowIdentities, type WindowIdentities } from './multiplayer/window-identities.js';
+export { createMultiplayerSettings, validFamily, type MultiplayerSettings, type MultiplayerState } from './multiplayer/settings.js';
+export { discoverToolFamilies, TOOL_DISCOVERY_TIMEOUT_MS, type ToolDiscoveryOptions, type ToolFamilyCandidate } from './multiplayer/tool-discovery.js';
 export { createDirectConnectionsService, describeDirectConnection, directNamespace, type DirectConnectionsOptions } from './multiplayer/direct-connections.js';
 export { createDirectSignaling, DIRECT_MAX_PAYLOAD_BYTES, DIRECT_SIGNAL_KIND, DIRECT_SIGNALING_PROFILE, type DirectSignalingOptions, type SignalRelay, type SignalSigner } from './multiplayer/direct-signaling.js';
 export { LINK_PROTOCOLS, createKernlServices, isTheme, resourceInitFor, type DirectConnectionsDeps, type KernlServiceDeps, type KernlServices } from './kernl-services.js';
