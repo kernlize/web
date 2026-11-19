@@ -65,6 +65,9 @@ mkdirSync(output);
 writeJson(join(output, 'deno.json'), {
   workspace: packages.map(({ slug }) => `./${slug}`),
   compilerOptions: { lib: ['es2022', 'dom', 'dom.iterable'], strict: true },
+  // kehto and napplet are this project's own upstream: a release may use theirs on the day it ships.
+  // Every other dependency keeps Deno's default 24-hour minimum age.
+  minimumDependencyAge: { exclude: ['npm:@kehto/*', 'npm:@napplet/*'] },
 });
 for (const { slug, manifest } of packages) {
   if (manifest.name !== `@kernlize/${slug}`) throw new Error(`Unexpected npm name: ${manifest.name}`);

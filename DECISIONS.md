@@ -598,3 +598,13 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 
 **Reversal cost.** Low. One flag in the lookup and one sentence in the launcher.
 
+
+## D-040 · JSR releases take kehto and napplet releases on the day they ship
+
+**Context.** Deno refuses an npm version younger than 24 hours by default, to slow down a compromised third-party release. kernl's JSR workspace pins kehto and napplet from npm, and kernl's maintainer also maintains both. After an upstream release, `check:jsr` and the release's `validate` job failed for a day on code that was fine, and the Version Packages PR could not ship.
+
+**Decision.** `scripts/prepare-jsr.mjs` writes `"minimumDependencyAge": { "exclude": ["npm:@kehto/*", "npm:@napplet/*"] }` into the generated `.jsr/deno.json`. Every other dependency keeps Deno's default age. The age is not set to `0`.
+
+**Consequences.** An upstream chase can ship the same day. A compromised kehto or napplet release would reach kernl's JSR check without the delay; that risk sits with the same maintainer who publishes them. Adding another first-party scope means adding it to the list.
+
+**Reversal cost.** Low. One line in the prepare script.

@@ -34,7 +34,7 @@ pnpm check:jsr
 
 `check:packages` packs the actual npm artifacts, checks their files and dependency names, then installs, imports and type-checks all four in a temporary consumer outside the workspace. Installation scripts are disabled for that consumer.
 
-`prepare:jsr` rebuilds the ignored `.jsr/` workspace from the manifests. It copies TypeScript sources, README and license, excludes tests, resolves relative imports to `.ts`, maps internal packages to `jsr:@kernl/*` at their current versions, and pins external npm dependencies (including peers) to the versions installed from `pnpm-lock.yaml`. JSR has no peer dependency mechanism; this keeps its release on the versions checked in the workspace. `check:jsr` runs Deno's publish dry-run, including type checks and fast-type validation. No generated JSR version needs a separate bump.
+`prepare:jsr` rebuilds the ignored `.jsr/` workspace from the manifests. It copies TypeScript sources, README and license, excludes tests, resolves relative imports to `.ts`, maps internal packages to `jsr:@kernl/*` at their current versions, and pins external npm dependencies (including peers) to the versions installed from `pnpm-lock.yaml`. JSR has no peer dependency mechanism; this keeps its release on the versions checked in the workspace. It also exempts `npm:@kehto/*` and `npm:@napplet/*` from Deno's 24-hour minimum dependency age, so a release can use the project's own upstream on the day it ships; other dependencies keep the default. `check:jsr` runs Deno's publish dry-run, including type checks and fast-type validation. No generated JSR version needs a separate bump.
 
 ## Publish and retry
 

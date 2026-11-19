@@ -61,3 +61,15 @@ Then('JSR sources exclude tests and resolve relative TypeScript imports', () => 
   };
   for (const slug of slugs) check(join(root, '.jsr', slug, 'src'));
 });
+Then("every kehto and napplet dependency is exempt from Deno's minimum dependency age", () => {
+  const { minimumDependencyAge } = json(join(root, '.jsr/deno.json'));
+  expect(minimumDependencyAge.exclude).toEqual(['npm:@kehto/*', 'npm:@napplet/*']);
+  const own = slugs.flatMap((slug) => Object.values<string>(json(join(root, '.jsr', slug, 'deno.json')).imports))
+    .filter((target) => /^npm:@(kehto|napplet)\//.test(target));
+  expect(own.length).toBeGreaterThan(0);
+  for (const target of own) expect(minimumDependencyAge.exclude.some((rule: string) => target.startsWith(rule.slice(0, -1)))).toBe(true);
+});
+Then("every other dependency keeps Deno's default minimum dependency age", () => {
+  const { minimumDependencyAge } = json(join(root, '.jsr/deno.json'));
+  expect(Object.keys(minimumDependencyAge)).toEqual(['exclude']);
+});
