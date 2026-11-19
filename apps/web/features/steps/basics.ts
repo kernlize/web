@@ -5,6 +5,7 @@ import { abbreviate, DEFAULT_WINDOW_SIZE, LAYOUT_KEY, publisherWords, RECENT_KEY
 import { choiceNote, domainChoices, domainLabel, formatBytes, type DomainChoice } from '../../src/shell/domains.ts';
 import { openFailure } from '../../src/shell/launcher-reasons.ts';
 import { serverAddress, serverLabel, serverName } from '../../src/shell/servers.ts';
+import { helperFrom, toolSearchWords } from '../../src/shell/meeting-words.ts';
 import { namesProtocol } from '../../src/shell/vocabulary.ts';
 import { messagingError, unavailableWhy } from '../../src/shell/messaging-reasons.ts';
 import { eventDetails, type EventDetail } from '../../src/shell/event-details.ts';
@@ -270,4 +271,16 @@ Then('the shell has no theme', (world: ThemeWorld) => {
 
 Then('an applet at {string} published by {string} is said to be {string}', (_world: unknown, address: string, publisher: string, words: string) => {
   expect(publisherWords({ address, publisher })).toBe(words);
+});
+
+Then('the shell explains the tool search refusal {string} as {string}', (_world: WordsWorld, reason: string, text: string) => {
+  expect(toolSearchWords(new Error(reason))).toBe(text);
+});
+
+Then('the shell explains a tool search that threw something other than an error as {string}', (_world: WordsWorld, text: string) => {
+  expect(toolSearchWords('nope')).toBe(text);
+});
+
+Then('the shell stores the helper {string} named {string} with {string} as {string}', (_world: WordsWorld, address: string, username: string, credential: string, json: string) => {
+  expect(helperFrom(address, username, credential)).toEqual(JSON.parse(json));
 });

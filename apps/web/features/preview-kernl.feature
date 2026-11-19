@@ -278,6 +278,11 @@ Feature: The preview kernl
     When the preview kernl saves file servers "https://mine.test/"
     Then the preview kernl uploads go to "https://mine.test/"
 
+  Scenario: the preview keeps the person's meeting servers but finds no tools, because it reaches no network
+    When the preview kernl chooses the meeting servers "wss://meet.test"
+    Then the preview kernl meeting servers are "wss://meet.test"
+    And a search for tools in the preview is refused with "unavailable:preview"
+
   Scenario: the preview's tiers can be replaced at once
     When the preview kernl sets the "outbox" tier to "wss://a.test,wss://a.test"
     Then the preview kernl "outbox" tier is "wss://a.test"

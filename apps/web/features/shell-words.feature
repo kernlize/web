@@ -181,6 +181,19 @@ Feature: Shell words
     Then the shell stores the typed server "  relay.damus.io " as "wss://relay.damus.io"
     And the shell stores the typed server "ws://localhost:7777" as "ws://localhost:7777"
 
+  Scenario: a search for tools that finds nothing to trust says why, in words
+    Then the shell explains the tool search refusal "invalid:tool-reference" as "Enter a reference to tools someone shared, a 64-character tool fingerprint, or a website address."
+    And the shell explains the tool search refusal "unavailable:no-tools" as "No tools were found for that."
+    And the shell explains the tool search refusal "invalid:tool-inventory" as "The tools found do not match what they say they are, so they are not offered."
+    And the shell explains the tool search refusal "unavailable:website" as "That website does not say which tool server it runs."
+    And the shell explains the tool search refusal "unavailable:preview" as "The preview reaches no network, so it cannot look for tools."
+    And the shell explains the tool search refusal "mystery" as "The search did not work. Try again."
+    And the shell explains a tool search that threw something other than an error as "The search did not work. Try again."
+
+  Scenario: a typed connection helper keeps a name and password only when they were given
+    Then the shell stores the helper " turn:turn.test:3478 " named "ann" with "secret" as '{"urls":["turn:turn.test:3478"],"username":"ann","credential":"secret"}'
+    And the shell stores the helper "stun:stun.test" named " " with "" as '{"urls":["stun:stun.test"]}'
+
   Scenario: messaging reasons never reach a person raw
     Then the shell explains the unavailable reason "sign-in-required" as "Sign in to use this provider."
     And the shell explains the unavailable reason "signer-cannot-encrypt" as "The account you signed in with cannot lock and unlock messages this way. Sign in with one that can."

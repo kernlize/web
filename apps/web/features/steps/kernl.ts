@@ -593,3 +593,15 @@ Then('the preview kernl uploads go to {string}', async (world: PreviewWorld, ser
   expect(await preview(world).kernl.files.current()).toEqual(list(servers));
   expect(preview(world).kernl.files.state()).toMatchObject({ status: 'found', servers: list(servers) });
 });
+
+When('the preview kernl chooses the meeting servers {string}', (world: PreviewWorld, servers: string) => {
+  preview(world).kernl.multiplayer.setServers(list(servers));
+});
+
+Then('the preview kernl meeting servers are {string}', (world: PreviewWorld, servers: string) => {
+  expect(preview(world).kernl.multiplayer.state().servers).toEqual(list(servers));
+});
+
+Then('a search for tools in the preview is refused with {string}', async (world: PreviewWorld, error: string) => {
+  await expect(preview(world).kernl.multiplayer.discover('12'.repeat(32))).rejects.toThrow(error);
+});
