@@ -102,7 +102,7 @@ function join(world: CoreWorld, name: string, applet: string | undefined, pagePe
       pool,
       relays: () => [state.relay.url],
       identities,
-      iceServers: ice,
+      iceServers: () => ice,
       ...(pagePeers ? {} : { createPeer: (configuration) => new NodePeer(configuration) }),
       appletOf: () => (applet ? summaryFor(applet) : undefined),
       isGranted: () => who.granted,

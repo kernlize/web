@@ -13,8 +13,8 @@ export interface DirectConnectionsOptions {
   /** Where people in a room find each other; read when a window first opens a session. */
   readonly relays: () => readonly string[];
   readonly identities: WindowIdentities;
-  /** STUN and TURN servers the host runs or trusts; none by default. */
-  readonly iceServers: readonly DirectIceServer[];
+  /** STUN and TURN servers that help connections through; read when a window first opens a session. */
+  readonly iceServers: () => readonly DirectIceServer[];
   /** Makes a peer connection; the page's `RTCPeerConnection` by default. */
   readonly createPeer?: (configuration: RTCConfiguration) => RTCPeerConnection;
   /** The verified applet a window runs, or undefined. */
@@ -135,13 +135,14 @@ export function createDirectConnectionsService(options: DirectConnectionsOptions
     if (!entry) {
       const lifetime = new AbortController();
       const applet = options.appletOf(windowId);
-      const configuration: RTCConfiguration = { iceServers: options.iceServers.map((server) => ({ ...server, urls: [...server.urls] })) };
+      const helpers = options.iceServers();
+      const configuration: RTCConfiguration = { iceServers: helpers.map((server) => ({ ...server, urls: [...server.urls] })) };
       const service = createWebrtcService(createDirectSignaling({
         signer: options.identities.signer(windowId),
         namespace: applet ? directNamespace(applet) : '',
         relays: [...options.relays()],
         relay: signalRelayOver(options.pool),
-        iceEndpoints: options.iceServers.flatMap((server) => server.urls),
+        iceEndpoints: helpers.flatMap((server) => server.urls),
         createPeer: () => createPeer(configuration),
       }));
       service.onRegistered?.({ ...runtime, authorizeOperation: authorize(lifetime.signal) } as ServiceRuntimeContext);

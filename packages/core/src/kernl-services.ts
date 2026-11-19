@@ -29,8 +29,9 @@ import { createBridgeResourceResolver, type BridgeContext, type BridgeRegistry, 
 import type { MessagingRegistry } from '@kernlize/messaging';
 import type { DirectConnectionsSettings, KernlHost, RelayTiers, RemoteToolsSettings } from './types.js';
 import { createDirectConnectionsService, type DirectConnectionsOptions } from './multiplayer/direct-connections.js';
-import { createRemoteToolsService } from './multiplayer/remote-tools.js';
+import { createRemoteToolsService, mergeFamilies } from './multiplayer/remote-tools.js';
 import { createWindowIdentities, type WindowIdentities } from './multiplayer/window-identities.js';
+import type { MultiplayerSettings } from './multiplayer/settings.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { createAppletRelayService, createOutboxRelayPool } from './applesauce/relay-backend.js';
 import { createIdentityProviders, type IdentityProviders, type RelayPermissions } from './applesauce/identity-providers.js';
@@ -97,6 +98,8 @@ export interface KernlServiceDeps {
   readonly remoteTools?: RemoteToolsSettings | undefined;
   /** Direct connections; without them the `webrtc` domain is not offered (D-042). */
   readonly directConnections?: DirectConnectionsDeps | undefined;
+  /** The person's own choices, which come before the host's (D-043). */
+  readonly multiplayer?: Pick<MultiplayerSettings, 'state'>;
 }
 
 /** What the `webrtc` service needs beyond the pool and the window identities. */
@@ -278,6 +281,7 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
   const resolve = createBridgeResourceResolver(deps.bridges);
   const identities = deps.identities ?? createWindowIdentities();
   const direct = deps.directConnections;
+  const chosen = () => deps.multiplayer?.state();
 
   const registry: ServiceRegistry = {
     relay: createAppletRelayService(deps.pool, deps.tiers),
@@ -300,17 +304,17 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
     outbox: gateOutboxPublish(createOutbox(deps, identity), deps.consent),
     cvm: createRemoteToolsService({
       pool: deps.pool,
-      relays: () => deps.remoteTools?.relays ?? deps.tiers.get().super,
+      relays: () => chosen()?.servers ?? deps.remoteTools?.relays ?? deps.tiers.get().super,
       identities,
-      ...(deps.remoteTools?.registry ? { registry: deps.remoteTools.registry } : {}),
+      registry: () => mergeFamilies(deps.remoteTools?.registry ?? [], chosen()?.families ?? []),
     }),
     ...(direct ? {
       webrtc: createDirectConnectionsService({
         ...direct,
         pool: deps.pool,
-        relays: () => direct.settings.relays ?? deps.tiers.get().super,
+        relays: () => chosen()?.servers ?? direct.settings.relays ?? deps.tiers.get().super,
         identities,
-        iceServers: direct.settings.iceServers ?? [],
+        iceServers: () => chosen()?.helpers ?? direct.settings.iceServers ?? [],
       }),
     } : {}),
     ...(deps.config ? { config: createConfigService(deps.config).handler } : {}),

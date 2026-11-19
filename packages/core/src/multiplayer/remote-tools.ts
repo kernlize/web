@@ -12,8 +12,27 @@ export interface RemoteToolsOptions {
   /** Where a tool server is looked for when the applet names no relay for it; read when a window first calls one. */
   readonly relays: () => readonly string[];
   readonly identities: WindowIdentities;
-  /** Tool families the host vouches for, pinned to verified schemas; none by default. */
-  readonly registry?: readonly CvmRegistryFamily[];
+  /** Tool families the host and the person vouch for, pinned to verified schemas; read when a window first calls one. */
+  readonly registry?: () => readonly CvmRegistryFamily[];
+}
+
+/**
+ * The host's tool families and the person's together. The person's family
+ * takes the place of the host's with the same label and provider, so what
+ * they chose is what an applet asking by that label reaches (D-043).
+ *
+ * @param host - Families from `KernlOptions.remoteTools.registry`.
+ * @param own - Families the person trusts.
+ * @returns The families the tool service offers.
+ * @example
+ * ```ts
+ * mergeFamilies(options.remoteTools?.registry ?? [], kernl.multiplayer.state().families);
+ * ```
+ */
+export function mergeFamilies(host: readonly CvmRegistryFamily[], own: readonly CvmRegistryFamily[]): CvmRegistryFamily[] {
+  const key = (family: CvmRegistryFamily): string => `${family.family}:${family.server.pubkey}`;
+  const chosen = new Set(own.map(key));
+  return [...host.filter((family) => !chosen.has(key(family))), ...own];
 }
 
 /**
@@ -69,7 +88,7 @@ export function createRemoteToolsService(options: RemoteToolsOptions): ServiceHa
         defaultRelays: [...options.relays()],
         clientSecretKey: options.identities.signer(windowId).key,
       });
-      service = createCvmService({ transport, ...(options.registry ? { registry: options.registry } : {}) });
+      service = createCvmService({ transport, ...(options.registry ? { registry: options.registry() } : {}) });
       if (runtime) service.onRegistered?.(runtime);
       windows.set(windowId, service);
     }
