@@ -101,6 +101,10 @@ The rest of the shell knows the manager only through the `WindowManager` interfa
 
 An embedding host that renders its own windows can use the same pieces: any `LayoutStrategy`, the registry, or the whole manager. `createKernl` itself holds no layout and no window manager.
 
+## Windows the shell draws itself
+
+Not every window holds an applet. The store is one: `WindowStore.openPanel('launcher', 'Applets')` asks the same `WindowManager` to `open` an id of its own (`panel:launcher`), so the store is placed, focused, stacked, tiled, moved, resized and minimised exactly like an applet's window, and it is listed in the bar with them. The shell draws its body in the window chrome, where it scrolls; there is no frame, no handle is attached, and the guard is told nothing about it, because nothing in it is an applet. A window manager you write needs no change for this: it is handed an id and never asked what is inside ([D-048](../decisions.md#d-048)).
+
 ## Related
 
 - [Change the shell's layout](../how-tos/change-the-shells-layout.md)
@@ -108,7 +112,3 @@ An embedding host that renders its own windows can use the same pieces: any `Lay
 - [Architecture](./architecture.md)
 - [`@kernlize/core`](../packages/core.md#layouts-and-the-window-manager)
 - [Embed kernl core](../how-tos/embed-kernl-core.md)
-
-## Windows the shell draws itself
-
-Not every window holds an applet. The store is one: `WindowStore.openPanel('launcher', 'Applets')` asks the same `WindowManager` to `open` an id of its own (`panel:launcher`), so the store is placed, focused, stacked, tiled, moved, resized and minimised exactly like an applet's window, and it is listed in the bar with them. The shell draws its body in the window chrome, where it scrolls; there is no frame, no handle is attached, and the guard is told nothing about it, because nothing in it is an applet. A window manager you write needs no change for this: it is handed an id and never asked what is inside ([D-048](../decisions.md#d-048)).
