@@ -2,7 +2,7 @@ import { expect } from 'vitest';
 import { Given, Then, When, type DataTable } from 'quickpickle';
 import type { Bridge, BridgeAvailability } from '@kernlize/bridges';
 import { abbreviate, DEFAULT_WINDOW_SIZE, LAYOUT_KEY, publisherWords, RECENT_KEY, shortId, type ConsentSummary } from '../../src/shell/contract.ts';
-import { choiceNote, domainChoices, domainLabel, formatBytes, type DomainChoice } from '../../src/shell/domains.ts';
+import { choiceNote, domainChoices, domainLabel, formatBytes, withheldByMessages, WITHHELD_NOTE, type DomainChoice } from '../../src/shell/domains.ts';
 import { openFailure } from '../../src/shell/launcher-reasons.ts';
 import { serverAddress, serverLabel, serverName } from '../../src/shell/servers.ts';
 import { helperFrom, toolSearchWords } from '../../src/shell/meeting-words.ts';
@@ -283,4 +283,17 @@ Then('the shell explains a tool search that threw something other than an error 
 
 Then('the shell stores the helper {string} named {string} with {string} as {string}', (_world: WordsWorld, address: string, username: string, credential: string, json: string) => {
   expect(helperFrom(address, username, credential)).toEqual(JSON.parse(json));
+});
+
+Then('with {string} switched on, these are withheld and say {string}:', (_world: WordsWorld, on: string, note: string, table: DataTable) => {
+  for (const domain of table.raw().flat()) expect(withheldByMessages(domain, on.split(',')), domain).toBe(true);
+  expect(WITHHELD_NOTE).toBe(note);
+});
+
+Then('with {string} switched on, these stay:', (_world: WordsWorld, on: string, table: DataTable) => {
+  for (const domain of table.raw().flat()) expect(withheldByMessages(domain, on.split(',')), domain).toBe(false);
+});
+
+Then('with {string} switched on, nothing is withheld from {string}', (_world: WordsWorld, on: string, domains: string) => {
+  for (const domain of domains.split(',')) expect(withheldByMessages(domain, on.split(',')), domain).toBe(false);
 });

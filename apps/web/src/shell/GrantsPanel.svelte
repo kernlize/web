@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ShellKernl } from './contract';
   import { shortId } from './contract';
-  import { domainLabel, formatBytes } from './domains';
+  import { domainLabel, formatBytes, withheldByMessages, WITHHELD_NOTE } from './domains';
   import type { GuardLog } from './guard-log.svelte';
   import Overlay from './Overlay.svelte';
   import type { ShellWindow } from './window-store.svelte';
@@ -54,15 +54,17 @@
     <span class="shell-badge">{shortId(identity.hash)}</span>
     Grants are tied to this exact applet code. Taking one back, or blocking the applet, stops the running window; one you add arrives the next time it opens.
   </p>
+  {#if granted.includes('dm')}<p class="shell-muted lead" role="note">This applet can read your messages, so it gets nothing that could send them anywhere else.</p>{/if}
   <ul class="shell-list domains">
     {#each kernl.grants.availableDomains() as domain (domain)}
-      {@const always = baseline.includes(domain)}
+      {@const withheld = withheldByMessages(domain, granted)}
+      {@const always = baseline.includes(domain) && !withheld}
       <li class="shell-toggle">
         <label class="text" for="domain-{domain}">
           <span>{domainLabel(domain)}</span>
-          <small>{always ? 'always on' : win.plan.summary.requires.includes(domain) ? 'the applet says it needs this' : win.plan.summary.optional.includes(domain) ? 'optional for this applet' : 'not requested'}</small>
+          <small>{withheld ? WITHHELD_NOTE : always ? 'always on' : win.plan.summary.requires.includes(domain) ? 'the applet says it needs this' : win.plan.summary.optional.includes(domain) ? 'optional for this applet' : 'not requested'}</small>
         </label>
-        <input id="domain-{domain}" type="checkbox" checked={always || granted.includes(domain)} disabled={always || record?.blocked} onchange={(event) => toggle(domain, event.currentTarget.checked)} />
+        <input id="domain-{domain}" type="checkbox" checked={always || (granted.includes(domain) && !withheld)} disabled={always || withheld || record?.blocked} onchange={(event) => toggle(domain, event.currentTarget.checked)} />
       </li>
     {/each}
   </ul>

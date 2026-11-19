@@ -2,13 +2,20 @@ import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import { createAclState, type AclStateContainer, type Capability } from '@kehto/runtime';
 import {
+  MESSAGES_DOMAIN,
+  MESSAGE_COMPANION_DOMAINS,
   capabilitiesForDomain,
   capabilitiesForDomains,
+  capabilitiesInForce,
   createEnvironmentResolver,
   createGrants,
+  domainsInForce,
+  grantNarrowingReason,
+  sealsApplet,
   type AppletIdentity,
   type GrantRecord,
   type KernlGrants,
+  type MountPlan,
 } from '@kernlize/core';
 import { attempt, scratch, splitList, type CoreWorld } from './world.js';
 
@@ -147,4 +154,33 @@ Then('the capabilities for domain {string} are {string}', (_world: CoreWorld, do
 
 Then('the capabilities for domains {string} are {string}', (_world: CoreWorld, domains: string, capabilities: string) => {
   expect(capabilitiesForDomains(splitList(domains))).toEqual(splitList(capabilities));
+});
+
+Then('the domains that may go with messages are {string}', (_world: CoreWorld, domains: string) => {
+  expect(MESSAGE_COMPANION_DOMAINS).toEqual(splitList(domains));
+  expect(MESSAGE_COMPANION_DOMAINS).toContain(MESSAGES_DOMAIN);
+});
+
+Then('the grant record for {string} withholds {string}', (world: CoreWorld, dTag: string, domains: string) => {
+  expect(grants(world).get(identity(dTag))?.withheld).toEqual(splitList(domains));
+});
+
+const windowOf = (dTag: string, domains: string): MountPlan => ({ summary: { identity: identity(dTag) }, environment: { capabilities: { domains: splitList(domains) } } }) as never;
+
+Then('a window of {string} started with {string} keeps running', (world: CoreWorld, dTag: string, domains: string) => {
+  expect(grantNarrowingReason(windowOf(dTag, domains), grants(world).get(identity(dTag)) as GrantRecord, grants(world).baselineDomains())).toBeUndefined();
+});
+
+Then('a window of {string} started with {string} is stopped for {string}', (world: CoreWorld, dTag: string, domains: string, reason: string) => {
+  expect(grantNarrowingReason(windowOf(dTag, domains), grants(world).get(identity(dTag)) as GrantRecord, grants(world).baselineDomains())).toBe(reason);
+});
+
+Then('grants {string} seal an applet and grants {string} do not', (_world: CoreWorld, sealed: string, open: string) => {
+  expect(sealsApplet(splitList(sealed))).toBe(true);
+  expect(sealsApplet(splitList(open))).toBe(false);
+});
+
+Then('grants {string} leave {string} in force over the usual baseline', (_world: CoreWorld, granted: string, inForce: string) => {
+  expect(domainsInForce(splitList(granted))).toEqual(splitList(inForce));
+  expect(capabilitiesInForce(splitList(granted))).toEqual(capabilitiesForDomains(splitList(inForce)));
 });

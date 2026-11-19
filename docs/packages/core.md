@@ -529,6 +529,12 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `DOMAIN_CAPABILITIES` | `Readonly<Record<string, readonly Capability[]>>` | The table above. |
 | `capabilitiesForDomain` | `(domain: string) => readonly Capability[]` | Empty for unknown domains. |
 | `capabilitiesForDomains` | `(domains: readonly string[]) => readonly Capability[]` | Union in table order. |
+| `MESSAGES_DOMAIN` | `'dm'` | The domain whose grant seals an applet. |
+| `MESSAGE_COMPANION_DOMAINS` | `readonly string[]` | `['shell', 'dm', 'identity', 'theme', 'storage', 'config', 'notify', 'keys', 'intent']`: all that may be in force together with messages. |
+| `sealsApplet` | `(granted: readonly string[]) => boolean` | Whether the grants include messages. |
+| `domainsInForce` | `(granted, baseline?) => readonly string[]` | Baseline plus grants, cut to the companions when sealed. |
+| `withheldDomains` | `(granted, baseline?) => readonly string[]` | What the seal keeps out of force. |
+| `capabilitiesInForce` | `(granted: readonly string[]) => readonly Capability[]` | What is written to the ACL; no `intent:write` when sealed. |
 | `describeChange` | `(event: NostrEvent, before: NostrEvent \| undefined, applet: AppletIdentity) => ConsentSummary` | The kind table above. |
 | `isDestructiveKind` | `(kind: number) => boolean` | True for every replaceable kind (0, 3, 10000–19999), every addressable kind (30000–39999), 5 and 62. |
 | `createSigningConsent` | `(options: SigningConsentOptions) => SigningConsent` | The gate both signing routes pass; see [Consent summaries](#consent-summaries). |

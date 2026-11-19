@@ -556,6 +556,20 @@ Given('a mounted applet granted {string} that has said hello', async (world: Cor
   await settle();
 });
 
+Given('a mounted applet granted each of {string} that has said hello', async (world: CoreWorld, domains: string) => {
+  const { kernl } = k(world);
+  const summary = await kernl.resolve(kernl.decodePointer(`${vector(world).pubkey}:35129:chat`));
+  k(world).summary = summary;
+  for (const domain of domains.split(',')) kernl.grants.allowDomain(summary.identity, domain);
+  k(world).plan = await kernl.plan(summary);
+  mountFrame(world);
+  const win = k(world).frame?.contentWindow;
+  if (!win) throw new Error('mount first');
+  k(world).channel = hello(world, win);
+  k(world).channel.port1.postMessage({ type: 'shell.ready', id: 'ready-1' });
+  await settle();
+});
+
 async function publish(world: CoreWorld, event: Record<string, unknown>): Promise<void> {
   k(world).channel?.port1.postMessage({ type: 'relay.publish', id: 'publish-1', event });
   await settle();

@@ -24,7 +24,7 @@ import {
   type VisibilityGate,
   type WindowVisibility,
 } from '@kernlize/guard';
-import { grantNarrowingReason } from '@kernlize/core';
+import { domainsInForce, grantNarrowingReason } from '@kernlize/core';
 import { BehaviorSubject, of, Subject, type Subscription } from 'rxjs';
 import type {
   AppletHandle,
@@ -406,7 +406,7 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
   const environmentFor = (summary: AppletSummary): readonly string[] => {
     const granted = grants.get(summary.identity)?.domains ?? [];
     // Settings only where the host can show their form, as the live shell offers them (D-036).
-    return [...new Set([...baselineDomains(), ...granted])].filter((domain) => config !== undefined || domain !== 'config');
+    return domainsInForce(granted, baselineDomains()).filter((domain) => config !== undefined || domain !== 'config');
   };
 
   const intents = createPreviewIntents({

@@ -25,7 +25,7 @@ Feature: Applets that come with the shell
     And the shell summary takes "napplet:dm/open" with parameters "pubkey"
     And the shell summary takes "napplet:dm/list" with parameters ""
     When the shell plans the summary
-    Then the shell plan is for window "applet-1" with domains "shell,storage,inc,theme,dm,identity"
+    Then the shell plan is for window "applet-1" with domains "shell,storage,theme,dm,identity"
     And the shell plan is missing ""
     And the shell lists "messages" as installed at "kernl:messages"
 
@@ -35,13 +35,13 @@ Feature: Applets that come with the shell
     And the shell revokes "identity" for the resolved applet
     And the shell resolves the address "kernl:messages"
     And the shell plans the summary
-    Then the shell plan is for window "applet-1" with domains "shell,storage,inc,theme,dm"
+    Then the shell plan is for window "applet-1" with domains "shell,storage,theme,dm"
 
   Scenario: a domain this shell cannot provide is not switched on
     Given a kernl shell that ships the applet "messages" requiring "dm" and starting with "dm,teleport"
     When the shell resolves the address "kernl:messages"
     And the shell plans the summary
-    Then the shell plan is for window "applet-1" with domains "shell,storage,inc,theme,dm"
+    Then the shell plan is for window "applet-1" with domains "shell,storage,theme,dm"
 
   Scenario: an applet shipped with no starting domains and no requests holds only the baseline
     Given a kernl shell that ships the bare applet "clock"

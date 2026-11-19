@@ -3,7 +3,8 @@ import type { AclStateContainer, Capability } from '@kehto/runtime';
 import type { CapabilityHooks } from '@kehto/shell';
 import type { AppletIdentity, GrantRecord, Grants, StorageLike } from '../types.js';
 import { createNamespacedStore } from '../persistence/store.js';
-import { BASELINE_DOMAINS, capabilitiesForDomains } from './domain-capabilities.js';
+import { BASELINE_DOMAINS } from './domain-capabilities.js';
+import { capabilitiesInForce, domainsInForce, withheldDomains } from './message-isolation.js';
 
 const STORAGE_KEY = 'grants:v1';
 
@@ -40,7 +41,9 @@ function keyOf(identity: AppletIdentity): string {
  * no entry holds nothing. kernl grants the baseline domains plus what the user
  * allowed, and revokes whatever the applet's entry holds beyond that, which
  * covers a domain the user took back and an entry kept from an earlier
- * posture. The per-identity record is persisted at `kernl:grants:v1`; the ACL
+ * posture. An applet that holds messages is sealed: only the domains that
+ * cannot send what it read anywhere stay in force, and the rest are reported
+ * as `withheld` (D-046). The per-identity record is persisted at `kernl:grants:v1`; the ACL
  * itself is persisted by kehto. Blocking an applet blocks it in the ACL and empties its
  * environment through {@link createEnvironmentResolver}.
  *
@@ -68,14 +71,15 @@ export function createGrants(options: GrantsOptions): KernlGrants {
     return {
       identity: { dTag: entry.dTag, hash: entry.hash },
       domains: Object.freeze([...entry.domains]),
-      capabilities: capabilitiesForDomains([...BASELINE_DOMAINS, ...entry.domains]),
+      capabilities: capabilitiesInForce(entry.domains),
+      withheld: withheldDomains(entry.domains),
       blocked: entry.blocked,
       stateQuotaBytes: options.acl.getStateQuota('', entry.dTag, entry.hash),
     };
   }
 
   function syncAcl(entry: StoredGrant): void {
-    const wanted = new Set<Capability>(capabilitiesForDomains([...BASELINE_DOMAINS, ...entry.domains]));
+    const wanted = new Set<Capability>(capabilitiesInForce(entry.domains));
     const held = options.acl.getEntry('', entry.dTag, entry.hash)?.capabilities ?? [];
     for (const capability of held) if (!wanted.has(capability)) options.acl.revoke('', entry.dTag, entry.hash, capability);
     for (const capability of wanted) options.acl.grant('', entry.dTag, entry.hash, capability);
@@ -132,7 +136,8 @@ export function createGrants(options: GrantsOptions): KernlGrants {
  * Each applet sees the baseline domains plus the domains the user allowed,
  * intersected with what the shell offers live. kehto intersects again with
  * its own availability set, so this hook can only narrow. A blocked applet
- * sees only `shell`, enough to finish the handshake and nothing more.
+ * sees only `shell`, enough to finish the handshake and nothing more. An
+ * applet that holds messages sees only the domains that may go with them.
  *
  * @param grants - The grants surface the hook reads.
  * @returns The hook, ready for `adapter.capabilities.resolveEnvironment`.
@@ -144,7 +149,7 @@ export function createGrants(options: GrantsOptions): KernlGrants {
 export function createEnvironmentResolver(grants: Grants): NonNullable<CapabilityHooks['resolveEnvironment']> {
   return (identity, available) => {
     const record = grants.get({ dTag: identity.dTag, hash: identity.aggregateHash });
-    const allowed = new Set(record?.blocked ? ['shell'] : [...grants.baselineDomains(), ...(record?.domains ?? [])]);
+    const allowed = new Set(record?.blocked ? ['shell'] : domainsInForce(record?.domains ?? [], grants.baselineDomains()));
     return Object.freeze({
       domains: Object.freeze(available.domains.filter((domain) => allowed.has(domain))),
       services: Object.freeze(available.services.filter((service) => allowed.has(service))),

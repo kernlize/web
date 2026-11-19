@@ -40,7 +40,9 @@ export interface LifecycleContext {
  * A window keeps the environment it was started with, and `shell.init` is not
  * sent again, so a window whose grant no longer covers a domain it was started
  * with would go on advertising it. Granting more never stops a window; the
- * applet sees the new domain the next time it opens.
+ * applet sees the new domain the next time it opens. The one grant that
+ * narrows is messages: it withholds every domain that could send them on, so
+ * a window started with one of those stops (D-046).
  *
  * @param plan - The running window's plan; its environment is what it was started with.
  * @param record - The grant record that just changed.
@@ -58,7 +60,7 @@ export function grantNarrowingReason(plan: MountPlan, record: GrantRecord, basel
   const { identity } = plan.summary;
   if (record.identity.dTag !== identity.dTag || record.identity.hash !== identity.hash) return undefined;
   if (record.blocked) return 'blocked';
-  const allowed = new Set([...baseline, ...record.domains]);
+  const allowed = new Set([...baseline, ...record.domains].filter((domain) => !record.withheld.includes(domain)));
   return plan.environment.capabilities.domains.some((domain) => !allowed.has(domain)) ? 'grant-narrowed' : undefined;
 }
 
