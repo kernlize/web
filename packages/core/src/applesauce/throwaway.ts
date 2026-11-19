@@ -34,7 +34,7 @@ export class ThrowawayIdentity extends BaseAccount<PrivateKeySigner, never, { na
    *
    * @throws `denied:plaintext-key-persistence`, always.
    */
-  toJSON(): SerializedAccount<never, { name: string }> {
+  override toJSON(): SerializedAccount<never, { name: string }> {
     throw new Error('denied:plaintext-key-persistence');
   }
 }
