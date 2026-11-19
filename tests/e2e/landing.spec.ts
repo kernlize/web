@@ -61,7 +61,7 @@ test.describe('landing site', () => {
       await page.setViewportSize({ width, height });
       await page.goto('/');
       const hero = page.locator('section.hero');
-      for (const part of [hero.locator('h1'), hero.locator('.lede'), hero.getByRole('link', { name: 'Try the preview' }), hero.getByRole('link', { name: 'Adopt kernl' })]) {
+      for (const part of [hero.locator('h1'), hero.locator('.lede'), hero.getByRole('link', { name: 'Try it' }), hero.getByRole('link', { name: 'Adopt kernl' })]) {
         await expect(part).toBeInViewport({ ratio: 1 });
       }
       await expect(page.locator('#adopt h2')).not.toBeInViewport();
@@ -113,8 +113,8 @@ test.describe('landing site', () => {
   test('the shell is always a fresh page load, never a swap', async ({ page }) => {
     await page.goto('/');
     await page.evaluate(() => Object.assign(window, { sameVisit: true }));
-    await page.locator('section.hero').getByRole('link', { name: 'Try the preview' }).click();
-    await expect(page).toHaveURL(/\/app\/\?preview=1$/);
+    await page.locator('section.hero').getByRole('link', { name: 'Try it' }).click();
+    await expect(page).toHaveURL(/\/app\/$/);
     await expect(page.locator('meta[http-equiv="Content-Security-Policy"]')).toHaveCount(1);
     expect(await page.evaluate(() => 'sameVisit' in window)).toBe(false);
   });

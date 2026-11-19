@@ -33,6 +33,20 @@ Feature: Accounts and signing
     Then the shell refused with "denied:plaintext-key-persistence"
     And there are 0 accounts and no active account
 
+  Scenario: a throwaway identity signs and is never written down
+    Given kernl accounts over empty storage
+    When the shell adds a throwaway identity and makes it active
+    Then the auth hooks report the active pubkey
+    And the wrapped signer signs a kind 1 event for the active pubkey
+    And storage key "kernl:accounts:v1" lists 0 accounts of type "throwaway"
+    And there are 1 accounts and the active account is named "Just looking"
+
+  Scenario: a throwaway identity is gone on the next boot
+    Given kernl accounts over empty storage
+    And the shell adds a throwaway identity and makes it active
+    When kernl accounts are created again over the same storage
+    Then there are 0 accounts and no active account
+
   Scenario: plaintext key entries found in storage are dropped on restore
     Given storage key "kernl:accounts:v1" holding a serialised private key account
     And kernl accounts over that storage

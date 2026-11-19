@@ -4,7 +4,7 @@ import type { AccountManager, IAccount } from 'applesauce-accounts';
 import { PrivateKeyAccount, ReadonlyAccount } from 'applesauce-accounts/accounts';
 import { PrivateKeySigner } from 'applesauce-signers';
 import type { Signer } from '@kehto/runtime';
-import { createAuthHooks, createKernlAccounts, isReadOnlyAccount, wrapAccountSigner } from '@kernlize/core';
+import { createAuthHooks, createKernlAccounts, createThrowawayIdentity, isReadOnlyAccount, wrapAccountSigner } from '@kernlize/core';
 import { allowAllSigning, attempt, passwordAccount, scratch, type CoreWorld } from './world.js';
 
 function accounts(world: CoreWorld): AccountManager {
@@ -40,6 +40,12 @@ When('the shell adds a read-only account and makes it active', (world: CoreWorld
   const account = ReadonlyAccount.fromPubkey('3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d');
   accounts(world).addAccount(account);
   accounts(world).setActive(account);
+});
+
+When('the shell adds a throwaway identity and makes it active', (world: CoreWorld) => {
+  const identity = createThrowawayIdentity();
+  accounts(world).addAccount(identity);
+  accounts(world).setActive(identity);
 });
 
 When('the shell adds a private key account', async (world: CoreWorld) => {

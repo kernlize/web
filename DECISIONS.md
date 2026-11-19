@@ -658,3 +658,18 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Consequences.** The person can make room applets work across networks and trust the tools they want, and the host can still ship defaults. Settings stay on the device; another device starts from the host's choices.
 
 **Reversal cost.** Low. One settings store, one search, and one Settings section; the services read them through getters.
+
+## D-044 · Trying the shell is the live shell with a throwaway identity
+
+**Context.** "Try it" on the landing opened the offline preview (D-011), whose store lists three sample applets. The live shell's store lists every published applet, but only after signing in or creating a key behind a password. People trying kernl therefore never saw the store, which is most of what there is to see.
+
+**Decision.**
+
+- **The landing opens the live shell.** Its sign-in card offers "Just look around", which signs in with `createThrowawayIdentity()`: a fresh key held by its signer in memory.
+- **Never written down.** `ThrowawayIdentity` refuses to serialise, so the account manager's persistence skips it; it is gone on reload, the shell forgets it on sign-out, and the rule that the only stored form of a local key is password-encrypted stands.
+- **A real identity otherwise.** It signs, so the store, applets, grants and consent behave exactly as they will for a kept identity. What an applet publishes with it is public and belongs to nobody.
+- **The offline preview stays** at `?preview=1`, as the fallback when the core cannot start and as what the browser tests drive.
+
+**Consequences.** Trying kernl reaches the network, which the card says. Nothing done with a throwaway identity can be recovered.
+
+**Reversal cost.** Low. One account type and one button.

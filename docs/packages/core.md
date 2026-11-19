@@ -202,6 +202,8 @@ legacyMessages.subscribe({}, (message) => console.log(message.content));
 
 `createKernlAccounts(storage)` returns a `KernlAccountManager` with applesauce's common account types registered, state restored from `kernl:accounts:v1` and `kernl:active-account:v1`, and every later change persisted. `KernlAccountManager.addAccount` throws `denied:plaintext-key-persistence` for the types in `PLAINTEXT_KEY_ACCOUNT_TYPES`, `['nsec', 'seed-words']`: `PrivateKeyAccount` serialises the key itself and `SeedWordsAccount` the mnemonic. Any such entry found in storage is dropped on restore. The only persisted form of a local key is applesauce's `PasswordAccount`, whose `ncryptsec` is NIP-49 encrypted.
 
+`createThrowawayIdentity()` makes an identity for trying the shell: a fresh key in memory that signs like any other. The manager accepts it and never stores it, because it refuses to serialise; a reload starts without it ([D-044](../decisions.md#d-044)).
+
 `createAuthHooks(accounts, consent)` is kehto's `AuthHooks`: `getUserPubkey` is the active pubkey or null; `getSigner(windowId?)` is null while nobody is signed in and for read-only accounts, so the runtime refuses writes instead of failing inside a signer. The `identity` service is the one exception to "no signer, no answer": for a read-only account `createKernlServices` hands it a view that answers `getPublicKey` and nothing else (from `KernlServiceDeps.auth.getUserPubkey`), so an applet the user granted `identity` learns which account is signed in, and every write still finds no `signEvent`. With a `windowId`, the returned signer's `signEvent` awaits `consent(windowId, template)` before the account signs; without one it is the account's signer, ungated. `wrapAccountSigner(account)` exposes `getPublicKey`, `signEvent` and the `nip04`/`nip44` namespaces the account has, never the account.
 
 ### Relay tiers
@@ -544,6 +546,9 @@ Signatures are abbreviated; the generated reference has the full ones.
 | --- | --- | --- |
 | `createKernlAccounts` | `(storage: StorageLike) => AccountManager` | A `KernlAccountManager` with common types registered and persistence wired. |
 | `KernlAccountManager` | class extends `AccountManager` | `addAccount` throws `denied:plaintext-key-persistence` for plaintext-key types. |
+| `createThrowawayIdentity` | `(name?: string) => ThrowawayIdentity` | A fresh key held in memory, for trying the shell. Signs like any identity; never persisted ([D-044](../decisions.md#d-044)). |
+| `ThrowawayIdentity` | class extends `BaseAccount` | `toJSON` throws `denied:plaintext-key-persistence`, so persistence skips it. |
+| `THROWAWAY_IDENTITY_TYPE` | `'throwaway'` | Its account type. |
 | `PLAINTEXT_KEY_ACCOUNT_TYPES` | `readonly string[]` | `['nsec', 'seed-words']`. |
 | `createAuthHooks` | `(accounts: AccountManager, consent: SigningConsent) => AuthHooks` | kehto's auth over the account manager; a signer asked for with a window id passes `consent` before signing. |
 | `wrapAccountSigner` | `(account: IAccount) => Signer` | The NIP-07-shaped signer kehto expects. |
