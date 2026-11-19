@@ -95,6 +95,7 @@ The host is the only way the core reaches the user or the page. Applets never re
 | `grants: Grants` | The user-facing grants surface, see [Grants](#grants). |
 | `relays: RelayTiers` | `get()`, `add(tier, url)`, `remove(tier, url)`, `set(tier, urls)`, `changes$`. `add` and `set` throw `invalid:relay-url` for anything that is not `ws://` or `wss://`; `set` with an unchanged list emits nothing. |
 | `files: AccountFileServers` | Where the account's uploads go; the `upload` domain is offered and every upload is asked about (D-033). |
+| `multiplayer: KernlMultiplayer` | The person's servers, connection helpers and trusted tool families for direct connections and remote tools, kept on this device and coming before the host's; `discover(input)` finds families to trust ([Your own settings](#your-own-settings), D-043). |
 | `mailboxes: AccountMailboxes` | The signed-in account's published inbox and outbox (kind 10002, D-029). While a list is `found`, the `outbox` tier follows its outboxes, so every publish goes where the account says it writes. `save` signs with the active account and refuses `denied:read-only` for a read-only or signed-out session. |
 | `directory: RelayDirectory` | Monitored servers (kind 30166) from `DEFAULT_MONITOR_RELAYS`, idle until `start()`; `search` completes an address and `suggest` proposes servers. Settings starts it while open. |
 | `messaging`, `bridges` | The registries the services read. |
@@ -288,6 +289,17 @@ An applet with the `webrtc` grant ("direct connections") opens a session with ot
 - **Relays and helpers are the host's.** `KernlOptions.directConnections.relays` introduce people, the `super` tier by default; `iceServers` are none by default, so only people who can reach each other's devices connect. With no relays, `planOpen` refuses with `signaling unavailable`.
 - **Bounds.** Four sessions a window and eight peers a session; reliable ordered JSON of at most `DIRECT_MAX_PAYLOAD_BYTES` (16 KiB) a message. A session hears at most 32 signals a second and a peer at most 240 messages or 512 KiB a second; a peer that never connects is let go after 45 seconds. Refusals: `invalid room`, `invalid peers`, `invalid scope`, `invalid channel`, `invalid protocol`, `cannot connect to self`, `scope already open`, `session limit reached`, `peer unavailable`, `payload is not JSON of at most 16 KiB`, and kehto's `policy denied`.
 - **Closing.** Closing a session tells the peers it left; when the window ends its sessions close, its peer connections close and its key is wiped.
+
+### Your own settings
+
+`kernl.multiplayer` is `createMultiplayerSettings(host.storage)` plus a search, kept at `kernl:multiplayer:v1` ([D-043](../decisions.md#d-043)). Each choice comes before the host's:
+
+- `setServers(urls | undefined)`: the servers that introduce people and find tool servers, before `directConnections.relays` and `remoteTools.relays`, before the `super` tier. `invalid:relay-url` for anything but `ws:`/`wss:`.
+- `setHelpers(helpers | undefined)`: STUN and TURN helpers, `{ urls, username?, credential? }`, before `directConnections.iceServers`. `invalid:helper`.
+- `saveFamily(family)` and `removeFamily(label, pubkey)`: tool families the person trusts, at most 16; one with the same label and provider as the host's takes its place (`mergeFamilies`). `invalid:family` unless it has a label, a provider key and 1 to 64 uniquely named tools each pinned to a schema hash (`validFamily`).
+- `discover(input)`, over the servers in use: `discoverToolFamilies` reads a reference to a server's or tool list's announcement (kinds 11316 and 11317), a tool's schema hash, or a website's `/.well-known/napplet.json` (at most 1 MB, no credentials), within `TOOL_DISCOVERY_TIMEOUT_MS` (15 s). Only signed announcements count, the newest inventory of each provider is used, and every tool's hash is computed again with kehto's `computeCvmToolSchemaHash`. It returns `ToolFamilyCandidate`s for the person to name; refusals are `invalid:tool-reference`, `unavailable:website`, `invalid:tool-inventory` and `unavailable:no-tools`.
+
+Values are validated going in and coming out of storage; a stored value that fails is read as unset. The services read the settings each time a window starts using remote tools or direct connections.
 
 ### Layouts and the window manager
 
@@ -557,6 +569,10 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `createCvmRelayPool` | `(pool: ApplesaucePool) => CvmRelayPool` | kehto's tool transport relay surface over the one pool: subscriptions end in one `EOSE`, and a publish succeeds when any relay accepts. |
 | `createWindowIdentities` | `() => WindowIdentities` | `signer(windowId)` is the window's applesauce `PrivateKeySigner`, made on first use; `release(windowId)` overwrites its key with zeros and forgets it. |
 | `RemoteToolsOptions`, `RemoteToolsSettings`, `WindowIdentities` | types | `RemoteToolsSettings` is `KernlOptions.remoteTools`: `relays` and `registry`. |
+| `createMultiplayerSettings`, `validFamily` | `(storage: StorageLike) => MultiplayerSettings`, `(family) => boolean` | The person's settings above, and the rule a family must meet to be kept. |
+| `discoverToolFamilies`, `TOOL_DISCOVERY_TIMEOUT_MS` | `(input: string, options: ToolDiscoveryOptions) => Promise<ToolFamilyCandidate[]>` | The search above; `options` is `{ pool, relays, fetch, timeoutMs? }`. |
+| `mergeFamilies` | `(host, own) => CvmRegistryFamily[]` | The host's families and the person's, the person's taking the place of the host's with the same label and provider. |
+| `KernlMultiplayer`, `MultiplayerSettings`, `MultiplayerState`, `ToolDiscoveryOptions`, `ToolFamilyCandidate` | types | |
 | `createDirectConnectionsService` | `(options: DirectConnectionsOptions) => ServiceHandler` | The `webrtc` service: one kehto WebRTC service per window over `createDirectSignaling`, with kernl's approval step (grant, then `options.ask`); closing or revoking a window ends its sessions and wipes its key ([Direct connections](#direct-connections)). |
 | `createDirectSignaling` | `(options: DirectSignalingOptions) => WebrtcServiceOptions` | kehto's WebRTC hooks speaking `soy-rtc/1` for one window: `planOpen`, `open`, `send`, `close`, `destroyWindow`, `revokeWindow`. |
 | `describeDirectConnection` | `(requirements: readonly PermissionRequirement[], applet: AppletIdentity) => ConsentSummary` | The `direct` prompt for one session: with whom, what they learn, what the shell cannot see, who introduces and helps, and the new name. |
