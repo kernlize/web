@@ -6,9 +6,9 @@
  */
 export const UNAVAILABLE_WORDS: Readonly<Record<string, string>> = {
   'sign-in-required': 'Sign in to use this provider.',
-  'signer-cannot-encrypt': 'The account you signed in with cannot lock and unlock messages this way. Sign in with one that can.',
+  'signer-cannot-encrypt': 'The identity you signed in with cannot lock and unlock messages this way. Sign in with one that can.',
   'no-runtime': 'No backend is available for this provider yet; this build lacks the part it needs.',
-  'no-ratchet-runtime': 'Ratchet sessions run only in the live shell with a signed-in account, not in the preview.',
+  'no-ratchet-runtime': 'Ratchet sessions run only in the live shell once you are signed in, not in the preview.',
 };
 
 /** Plain words for the reasons a send, an enable or a disable can be refused with. */
@@ -19,7 +19,7 @@ const ERROR_WORDS: Readonly<Record<string, string>> = {
   'invalid:no-recipients': 'Add someone to write to.',
   'invalid:unknown-provider': 'That provider is not part of this shell.',
   'invalid:provider-not-enabled': 'Turn that provider on first.',
-  'invalid:recipient': 'That does not look like an account id.',
+  'invalid:recipient': 'That is not an identity. Paste one as it was shared with you.',
   'invalid:groups-unsupported': 'This provider writes to one person at a time.',
   'unavailable:recipient-not-ready': 'Someone you named has not set this provider up yet, so they cannot be added.',
   'denied:cancelled': 'The message was not sent.',

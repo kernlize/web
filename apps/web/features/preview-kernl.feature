@@ -261,7 +261,7 @@ Feature: The preview kernl
       | {"kernlPreview":"download"}                        |
 
   Scenario: the preview's people are named, and anyone else reads as a short key
-    Then the preview kernl names the correspondent "Ada", the publisher "kernl samples" and its own account "Preview account"
+    Then the preview kernl names the correspondent "Ada", the publisher "kernl samples" and its own account "Preview identity"
     And the preview kernl names key "ABCDEF0123456789abcdef0123456789abcdef0123456789abcdef0123456789" by its short form
 
   Scenario: the preview finds a person from any form of their identity, and asks nobody

@@ -3,7 +3,7 @@
  * key and address encodings, and remote-signer jargon. The browser vocabulary test imports this
  * same pattern, so what the shell avoids and what the test rejects cannot drift apart.
  */
-export const DENIED_WORDS = /\b(nostr|nip-?\d+|napplets?|relays?|pubkeys?|npub\w*|nsec\w*|naddr\w*|nevent\w*|bunker)\b/i;
+export const DENIED_WORDS = /\b(accounts?|nostr|nip-?\d+|napplets?|relays?|pubkeys?|npub\w*|nsec\w*|naddr\w*|nevent\w*|bunker)\b/i;
 
 /** Whether a piece of visible text would name the protocol underneath. */
 export function namesProtocol(text: string): boolean {

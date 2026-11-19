@@ -65,7 +65,7 @@
       {#if canSync}
         <label class="shell-toggle">
           <span class="text">
-            <span>Keep these choices with your account</span>
+            <span>Keep these choices with your identity</span>
             <small>Your other devices use them too. Anyone can see which kinds of request you set a choice for.</small>
           </span>
           <input type="checkbox" bind:checked={sync} onchange={toggleSync} />

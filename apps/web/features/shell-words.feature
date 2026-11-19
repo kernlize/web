@@ -19,14 +19,16 @@ Feature: Shell words
     Then the shell text "Open the Relay list" names the protocol
     And the shell text "verified by NIP-05" names the protocol
     And the shell text "paste your npub1xyz" names the protocol
-    And the shell text "Your account and your network" does not name the protocol
+    And the shell text "Your identity and your network" does not name the protocol
+    And the shell text "Sign in to your account" names the protocol
+    And the shell text "Remembered accounts" names the protocol
 
   Scenario Outline: grant domains read as plain words
     Then the shell calls the domain "<domain>" "<label>"
 
     Examples:
       | domain   | label                    |
-      | identity | your account             |
+      | identity | your identity            |
       | relay    | network                  |
       | outbox   | posting to your network  |
       | common   | social actions           |
@@ -41,7 +43,7 @@ Feature: Shell words
     When the shell lists the domain choices
     Then the domain choices are:
       | domain   | label              | required | baseline | granted | preset | available |
-      | identity | your account       | yes      | no       | no      | yes    | yes       |
+      | identity | your identity       | yes      | no       | no      | yes    | yes       |
       | storage  | its own storage    | yes      | yes      | yes     | no     | yes       |
       | relay    | network            | no       | no       | yes     | no     | yes       |
       | zap      | another capability | no       | no       | no      | no     | no        |
@@ -53,7 +55,7 @@ Feature: Shell words
     When the shell lists the domain choices
     Then the domain choices are:
       | domain   | label        | required | baseline | granted | preset | available |
-      | identity | your account | yes      | no       | no      | no     | yes       |
+      | identity | your identity | yes      | no       | no      | no     | yes       |
 
   Scenario: a domain this shell cannot offer is listed but can never be switched on
     Given an applet that requires "identity, outbox" and may use "config, theme"
@@ -63,7 +65,7 @@ Feature: Shell words
     When the shell lists the domain choices
     Then the domain choices are:
       | domain   | label                   | required | baseline | granted | preset | available |
-      | identity | your account            | yes      | no       | no      | no     | no        |
+      | identity | your identity            | yes      | no       | no      | no     | no        |
       | outbox   | posting to your network | yes      | no       | no      | no     | yes       |
       | config   | its settings            | no       | no       | no      | no     | no        |
       | theme    | your theme              | no       | yes      | yes     | no     | yes       |
@@ -107,7 +109,7 @@ Feature: Shell words
     When the shell lists the domain choices
     Then the domain choices are:
       | domain   | label                 | required | baseline | granted | preset | available |
-      | identity | your account          | yes      | no       | no      | yes    | yes       |
+      | identity | your identity          | yes      | no       | no      | yes    | yes       |
       | notify   | notifications         | no       | no       | no      | no     | yes       |
       | intent   | opening other applets | no       | no       | no      | yes    | yes       |
 
@@ -196,14 +198,14 @@ Feature: Shell words
 
   Scenario: messaging reasons never reach a person raw
     Then the shell explains the unavailable reason "sign-in-required" as "Sign in to use this provider."
-    And the shell explains the unavailable reason "signer-cannot-encrypt" as "The account you signed in with cannot lock and unlock messages this way. Sign in with one that can."
+    And the shell explains the unavailable reason "signer-cannot-encrypt" as "The identity you signed in with cannot lock and unlock messages this way. Sign in with one that can."
     And the shell explains the unavailable reason "mystery" as "No backend is available for this provider yet."
     And the shell explains the messaging refusal "invalid:no-recipients" as "Add someone to write to."
     And the shell explains the messaging refusal "unavailable:offline after 3 tries" as "The message could not be sent right now."
-    And the shell explains the messaging refusal "unavailable:no-ratchet-runtime" as "Ratchet sessions run only in the live shell with a signed-in account, not in the preview."
+    And the shell explains the messaging refusal "unavailable:no-ratchet-runtime" as "Ratchet sessions run only in the live shell once you are signed in, not in the preview."
     And the shell explains the messaging refusal "unavailable:no-runtime" as "No backend is available for this provider yet; this build lacks the part it needs."
     And the shell explains the messaging refusal "unavailable:mystery" as "No backend is available for this provider yet."
-    And the shell explains the messaging refusal "invalid:recipient" as "That does not look like an account id."
+    And the shell explains the messaging refusal "invalid:recipient" as "That is not an identity. Paste one as it was shared with you."
     And the shell explains the messaging refusal "invalid:groups-unsupported" as "This provider writes to one person at a time."
     And the shell explains the messaging refusal "denied:nope" as "That did not work. Try again."
     And the shell explains the messaging refusal "denied:cancelled" as "The message was not sent."
@@ -221,7 +223,7 @@ Feature: Shell words
     Then the record reads:
       | label      | value                      |
       | Type       | post (1)                   |
-      | Signed by  | your account               |
+      | Signed by  | your identity               |
       | Created    | 1970-01-01T00:00:00.000Z   |
       | Content    | hello                      |
       | Label 1    | person · 0123456789abcdef  |
@@ -247,7 +249,7 @@ Feature: Shell words
     Then the record reads:
       | label     | value                    |
       | Type      | record (40000)           |
-      | Signed by | your account             |
+      | Signed by | your identity             |
       | Created   | 1970-01-01T00:00:00.000Z |
       | Content   | x                        |
 

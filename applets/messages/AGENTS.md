@@ -49,7 +49,7 @@ the boundary table, the layout tiers and the known package gaps.
   id, never pass one on a direct send, and never time a send out: the shell
   picks the route and may ask the person first.
 - Every string a person can read or have read to them uses the shell's
-  vocabulary: applet, account, account id, provider, shell, network. No protocol
+  vocabulary: applet, identity, provider, shell, network. Never "account". No protocol
   or framework names in the interface.
 - No `<form>` elements. The frame is sandboxed without form submission, so a
   submit event never fires; handle the button and the Enter key directly.

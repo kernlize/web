@@ -6,7 +6,7 @@ const LABELS: Readonly<Record<string, string>> = {
   inc: 'talking to other applets',
   relay: 'network',
   outbox: 'posting to your network',
-  identity: 'your account',
+  identity: 'your identity',
   storage: 'its own storage',
   cache: 'saved copies',
   theme: 'your theme',

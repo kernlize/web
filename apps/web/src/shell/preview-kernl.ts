@@ -395,7 +395,7 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
   const shipped = createPreviewBuiltins(builtins, grants);
   const bridges = createPreviewBridges(host, torrent);
   const session$ = new BehaviorSubject<Session | null>(null);
-  const profiles = createPreviewProfiles({ [PREVIEW_OWNER]: 'Preview account', [PREVIEW_CORRESPONDENT]: 'Ada', [PREVIEW_LEGACY_CORRESPONDENT]: 'Grace', [PREVIEW_PUBLISHER]: 'kernl samples' });
+  const profiles = createPreviewProfiles({ [PREVIEW_OWNER]: 'Preview identity', [PREVIEW_CORRESPONDENT]: 'Ada', [PREVIEW_LEGACY_CORRESPONDENT]: 'Grace', [PREVIEW_PUBLISHER]: 'kernl samples' });
   const mounted = new Map<string, Mounted>();
   const config = createPreviewConfig(host, (windowId) => {
     const summary = mounted.get(windowId)?.plan.summary;

@@ -89,7 +89,7 @@
 <section class="shell-section" aria-labelledby="mailboxes-heading">
   <h3 id="mailboxes-heading">Inbox and outbox</h3>
   <p class="shell-muted small">
-    The servers that carry your posts and messages. Other apps read this same list, so a change here follows your account everywhere. Pictures and applet files live on separate file servers.
+    The servers that carry your posts and messages. Other apps read this same list, so a change here follows your identity everywhere. Pictures and applet files live on separate file servers.
   </p>
   {#if mode === 'preview'}<p class="shell-muted small">The preview keeps this list in the page and sends it nowhere.</p>{/if}
 
@@ -97,7 +97,7 @@
     <p class="shell-muted" role="status">Looking for your inbox and outbox…</p>
   {:else}
     {#if published.value.status === 'missing'}
-      <p class="small" role="status">This account has not said where it can be reached yet. The servers below are suggested; change them if you like, then publish the list.</p>
+      <p class="small" role="status">This identity has not said where it can be reached yet. The servers below are suggested; change them if you like, then publish the list.</p>
     {/if}
     {#if readOnly}<p class="shell-muted small">Signed in read-only: you can see this list but not change it.</p>{/if}
     <div class="sides">

@@ -74,7 +74,7 @@ export function describeDirectConnection(requirements: readonly PermissionRequir
       { label: 'They see', after: 'Whatever this applet sends them. The shell cannot see it.' },
       { label: 'Introduced by', after: relays.join(', ') },
       ...(helpers.length > 0 ? [{ label: 'Helped by', after: helpers.join(', ') }] : []),
-      { label: 'They know you as', after: 'A new name for this window, not your account' },
+      { label: 'They know you as', after: 'A new name for this window, not your identity' },
     ],
     applet,
     event: draft,

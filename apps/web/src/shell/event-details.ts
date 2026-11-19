@@ -42,7 +42,7 @@ function serverText(value: string): string {
 
 /** Who signs the record: the active account, or another person by a shortened key. */
 function signerText(pubkey: string, accountKey: string | undefined): string {
-  if (!pubkey || pubkey === accountKey) return 'your account';
+  if (!pubkey || pubkey === accountKey) return 'your identity';
   return `person ${pubkey.slice(0, 8)}…`;
 }
 

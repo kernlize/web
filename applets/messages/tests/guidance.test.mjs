@@ -217,8 +217,8 @@ test('declares the product boundary and keeps protocol words out of what people 
   assert.match(viteConfig, /requires:\s*\['dm'\]/);
   assert.match(viteConfig, /slug:\s*'dm'[^}]*'napplet:dm\/open'/);
 
-  // The shell's public vocabulary: applet, account, account id, provider, shell.
-  const forbidden = /nostr|napplet|relay|pubkey|npub|nsec|marmot|\bmls\b|\bnip-?\d/i;
+  // The shell's public vocabulary: applet, identity, provider, shell.
+  const forbidden = /\baccounts?\b|nostr|napplet|relay|pubkey|npub|nsec|marmot|\bmls\b|\bnip-?\d/i;
   const html = sources.get('index.html').replace(/<script[\s\S]*?<\/script>/g, '');
   assert.doesNotMatch(html, forbidden, 'index.html');
   // The frame is sandboxed without form submission: a submit event never fires.

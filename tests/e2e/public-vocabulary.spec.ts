@@ -144,7 +144,7 @@ test('every consent the preview can ask for, and its exact record, names no prot
     ['Delete a note', /^Delete/],
     ['Replace your contacts', /^Change who you follow/],
     ['Change your inbox and outbox', /^Change your inbox and outbox/],
-    ['Ask to erase your account', /erase your account/],
+    ['Ask to erase your identity', /erase your identity/],
   ] as const;
   for (const [button, title] of cases) {
     await applet.getByRole('button', { name: button }).click();

@@ -49,7 +49,7 @@ Feature: Mitigation descriptions
 
   Scenario: every overwrite or erasure of the account's record is put to the user
     When the guard describes the mitigations for the "strict" profile
-    Then the guard mitigation "destructive-consent" says "Before the shell signs anything for an applet that overwrites or erases part of your account's public record (your profile, contacts, connections, lists or any other record a new version replaces, a deletion, or a request to erase your account), it shows you what changes compared with the current version and waits for your answer. If the current version cannot be loaded, it says so."
+    Then the guard mitigation "destructive-consent" says "Before the shell signs anything for an applet that overwrites or erases part of your public record (your profile, contacts, connections, lists or any other record a new version replaces, a deletion, or a request to erase your identity), it shows you what changes compared with the current version and waits for your answer. If the current version cannot be loaded, it says so."
 
   Scenario: limits reflect the strict profile
     When the guard describes the mitigations for the "strict" profile

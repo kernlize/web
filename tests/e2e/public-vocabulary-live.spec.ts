@@ -40,7 +40,7 @@ test('the live sign-in names no protocol', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Who is at the keyboard?' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Try the preview' })).toHaveCount(0);
   await expectClean(page, 'live sign-in');
-  for (const [item, button] of [['Connect a remote signer', 'Connect'], ['Read-only', 'Choose'], ['Create a local account', 'Create']] as const) {
+  for (const [item, button] of [['Connect a remote signer', 'Connect'], ['Read-only', 'Choose'], ['Create a local identity', 'Create']] as const) {
     await page.getByRole('listitem').filter({ hasText: item }).getByRole('button', { name: button }).click();
     await expectClean(page, `live sign-in: ${item}`);
     await page.getByRole('button', { name: 'Back' }).click();

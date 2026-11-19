@@ -73,7 +73,7 @@
   {#if !current}
     <p class="shell-muted" role="status">Looking for your file servers…</p>
   {:else}
-    {#if published.value.status === 'missing' && !edited}<p class="small" role="status">This account has not chosen file servers yet, so these well-known ones are used.</p>{/if}
+    {#if published.value.status === 'missing' && !edited}<p class="small" role="status">This identity has not chosen file servers yet, so these well-known ones are used.</p>{/if}
     <ul class="shell-list urls" aria-label="File servers">
       {#each current as url, index (url)}
         {@const name = nameOf(url, index)}

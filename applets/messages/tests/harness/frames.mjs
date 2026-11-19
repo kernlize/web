@@ -193,7 +193,7 @@ async function stateShots(browser) {
   const to = app.getByRole('textbox', { name: 'To' });
   await to.fill('not an account');
   await to.press('Enter');
-  await app.getByText('That does not look like an account id.').waitFor();
+  await app.getByText('That is not an identity. Paste one as it was shared with you.').waitFor();
   await shoot(session, `${sizeName(frame)}-light-new-message`);
   await to.fill(await inner.evaluate(() => window.__stub.stranger));
   await to.press('Enter');

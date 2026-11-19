@@ -33,7 +33,7 @@
   let pairing: AbortController | null = null;
 
   const hasExtension = typeof window !== 'undefined' && 'nostr' in window;
-  const kinds: Readonly<Record<string, string>> = { extension: 'browser extension', 'nostr-connect': 'remote signer', ncryptsec: 'local account', readonly: 'read-only' };
+  const kinds: Readonly<Record<string, string>> = { extension: 'browser extension', 'nostr-connect': 'remote signer', ncryptsec: 'local identity', readonly: 'read-only' };
   const labelOf = (account: IAccount): string => (account.metadata as { name?: string } | undefined)?.name ?? abbreviate(account.pubkey);
 
   function explain(reason: unknown): string {
@@ -125,7 +125,7 @@
     });
 
   /** A key that is never written down: gone on reload, and never offered again once signed out (D-044). */
-  const tryIt = (): Promise<void> => attempt(() => adopt(createThrowawayIdentity(mode === 'preview' ? 'Preview account' : 'Just looking')));
+  const tryIt = (): Promise<void> => attempt(() => adopt(createThrowawayIdentity(mode === 'preview' ? 'Preview identity' : 'Just looking')));
 
   function pick(next: Method): void {
     method = next;
@@ -148,7 +148,7 @@
   <div class="card">
     <p class="label">kernl</p>
     <h2 id="signin-title">Who is at the keyboard?</h2>
-    <p class="shell-muted lede">Your account stays with you. Applets only ever see what you grant, for as long as you grant it.</p>
+    <p class="shell-muted lede">Your identity stays with you. Applets only ever see what you grant, for as long as you grant it.</p>
 
     <div class="preview">
       {#if mode === 'preview'}
@@ -162,7 +162,7 @@
 
     {#if remembered.length}
       <section class="shell-section">
-        <h3>Remembered accounts</h3>
+        <h3>Remembered identities</h3>
         <ul class="shell-list">
           {#each remembered as account (account.id)}
             <li class="shell-card row">
@@ -195,11 +195,11 @@
             <button type="button" class="shell-button" onclick={() => pick('remote')} disabled={busy}>Connect</button>
           </li>
           <li class="shell-card row">
-            <div><h4>Read-only</h4><p>Look around as any account. Applets see the identity; nothing can be signed.</p></div>
+            <div><h4>Read-only</h4><p>Look around as anyone. Applets see that identity; nothing can be signed.</p></div>
             <button type="button" class="shell-button" onclick={() => pick('readonly')} disabled={busy}>Choose</button>
           </li>
           <li class="shell-card row">
-            <div><h4>Create a local account</h4><p>A new key, encrypted with a password you choose and kept in this browser.</p></div>
+            <div><h4>Create a local identity</h4><p>A new key, encrypted with a password you choose and kept in this browser.</p></div>
             <button type="button" class="shell-button" onclick={() => pick('create')} disabled={busy}>Create</button>
           </li>
         </ul>
@@ -233,11 +233,11 @@
             <div class="shell-actions"><button type="submit" class="shell-button primary" disabled={busy || !readonlyId.trim()}>Continue</button><button type="button" class="shell-button quiet" onclick={cancel}>Back</button></div>
           </form>
         {:else if method === 'create'}
-          <h3>Create a local account</h3>
+          <h3>Create a local identity</h3>
           <form onsubmit={(event) => (event.preventDefault(), create())}>
             <label class="shell-field"><span>Password (at least {MIN_PASSWORD} characters)</span><input class="shell-input" type="password" bind:value={password} autocomplete="new-password" /></label>
             <label class="shell-field"><span>Repeat the password</span><input class="shell-input" type="password" bind:value={confirm} autocomplete="new-password" /></label>
-            <p class="shell-muted">The key is generated here and encrypted with this password. Lose the password and the account is gone; nobody can reset it.</p>
+            <p class="shell-muted">The key is generated here and encrypted with this password. Lose the password and the identity is gone; nobody can reset it.</p>
             <div class="shell-actions"><button type="submit" class="shell-button primary" disabled={busy || !password || !confirm}>Create and sign in</button><button type="button" class="shell-button quiet" onclick={cancel}>Back</button></div>
           </form>
         {/if}
