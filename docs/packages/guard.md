@@ -6,7 +6,7 @@ Ingress flood control, visibility gating, focus-aware firewall, CSP profile and 
 | --- | --- |
 | npm | `@kernlize/guard` |
 | JSR | `@kernl/guard` |
-| Version | `0.1.1` |
+| Version | `0.2.0` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts` |
 | Dependencies | `@kehto/rate-limit ^0.2.0` |
 | Peer dependencies | `@napplet/core >=0.37.0 <0.42.0` |
