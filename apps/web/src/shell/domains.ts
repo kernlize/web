@@ -1,3 +1,5 @@
+import { MESSAGE_COMPANION_DOMAINS, sealsApplet } from '@kernlize/core';
+
 /** Plain words for every domain the shell can offer (D-006). */
 const LABELS: Readonly<Record<string, string>> = {
   shell: 'the shell',
@@ -25,6 +27,15 @@ const LABELS: Readonly<Record<string, string>> = {
   lists: 'your lists',
   common: 'social actions',
 };
+
+/** What a withheld row says under its label, in the launcher and in the grants panel (D-046). */
+export const WITHHELD_NOTE = 'off while it can read your messages';
+
+/**
+ * Whether a domain is withheld from an applet given the domains switched on for it: it can read
+ * messages, and this domain is not one of the few that cannot send them anywhere (D-046).
+ */
+export const withheldByMessages = (domain: string, on: readonly string[]): boolean => sealsApplet(on) && !MESSAGE_COMPANION_DOMAINS.includes(domain);
 
 /** What the launcher says for a domain it has no words for: never the wire name. */
 export const UNKNOWN_DOMAIN_LABEL = 'another capability';

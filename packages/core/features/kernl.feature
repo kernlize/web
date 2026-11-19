@@ -558,3 +558,28 @@ Feature: The composed shell
     Given a mounted applet granted "webrtc" that has said hello
     When the applet asks to open the room "lobby-1234" over its port
     Then the host was asked about a session introduced by "relay.damus.io, nos.lol, relay.primal.net"
+
+  Scenario: an applet that reads messages is not served a web fetch, though the person granted it one (D-046)
+    Given a kernl shell over that host and pool with fake bridges
+    And the shell is signed in
+    And a mounted applet granted each of "resource,relay,dm" that has said hello
+    Then the applet received a "shell.init" with domains "shell,storage,theme,dm"
+    When the applet asks "resource.bytes" for "https://files.example/a.txt" over its port
+    Then the applet received no "resource.bytes.result"
+    And the fake bridges were asked for nothing
+
+  Scenario: an applet that reads messages opens no direct connection, and nobody is asked (D-046)
+    Given a kernl shell over that host and pool that makes peer connections
+    And a mounted applet granted each of "webrtc,dm" that has said hello
+    Then the applet received a "shell.init" with domains "shell,storage,theme,dm"
+    When the applet asks to open the room "lobby-1234" over its port
+    Then the host was not asked anything
+    And the applet got no answer to opening the room
+
+  Scenario: granting messages to a running applet that holds the network stops it (D-046)
+    Given a kernl shell over that host and pool
+    And the shell is signed in
+    And a mounted applet granted "relay" that has said hello
+    When the user also grants the mounted applet "dm"
+    Then the host was told the window was revoked for "grant-narrowed"
+    And the mounted frame was removed

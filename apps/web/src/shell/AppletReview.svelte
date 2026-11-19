@@ -1,7 +1,7 @@
 <script lang="ts">
   import Publisher from './Publisher.svelte';
   import type { AppletSummary, ShellKernl } from './contract';
-  import { choiceNote, domainChoices, domainLabel, type DomainChoice } from './domains';
+  import { choiceNote, domainChoices, domainLabel, withheldByMessages, WITHHELD_NOTE, type DomainChoice } from './domains';
   import { explainOpenFailure } from './launcher-reasons';
   import { acceptsWords } from './store';
 
@@ -39,7 +39,11 @@
   let busy = $state(false);
   let error = $state<string | null>(null);
 
-  const missing = $derived(choices.filter((choice) => choice.required && choice.available && !choice.on));
+  const on = $derived(choices.filter((choice) => choice.on).map((choice) => choice.domain));
+  const withheld = (choice: Choice): boolean => withheldByMessages(choice.domain, on);
+  const sealed = $derived(choices.some(withheld));
+  const sealedOut = $derived(choices.filter((choice) => choice.required && choice.available && withheld(choice)));
+  const missing = $derived(choices.filter((choice) => choice.required && choice.available && !choice.on && !withheld(choice)));
   const unprovided = $derived(choices.filter((choice) => choice.required && !choice.available));
   const accepts = $derived(acceptsWords(summary.manifest.archetypes.map((entry) => entry.convention)));
   const listWords = (words: readonly string[]): string => (words.length < 2 ? words.join('') : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`);
@@ -51,7 +55,7 @@
       for (const choice of choices) {
         // A domain the shell cannot offer is never asked for: granting it is refused, and the applet was told it is absent.
         if (choice.baseline || !choice.available) continue;
-        if (choice.on && !choice.granted) kernl.grants.allowDomain(summary.identity, choice.domain);
+        if (choice.on && !choice.granted && !withheld(choice)) kernl.grants.allowDomain(summary.identity, choice.domain);
         if (!choice.on && choice.granted) kernl.grants.revokeDomain(summary.identity, choice.domain);
       }
       await onconfirm(summary);
@@ -77,14 +81,20 @@
         <li class="shell-toggle">
           <label class="text" for="grant-{choice.domain}">
             <span>{choice.label}</span>
-            <small>{choiceNote(choice)}</small>
+            <small>{withheld(choice) ? WITHHELD_NOTE : choiceNote(choice)}</small>
           </label>
-          <input id="grant-{choice.domain}" type="checkbox" bind:checked={choice.on} disabled={choice.baseline || !choice.available} />
+          <input id="grant-{choice.domain}" type="checkbox" checked={choice.on && !withheld(choice)} onchange={(event) => (choice.on = event.currentTarget.checked)} disabled={choice.baseline || !choice.available || withheld(choice)} />
         </li>
       {/each}
     </ul>
   {:else}
     <p class="shell-muted">This applet asks for nothing beyond the baseline.</p>
+  {/if}
+  {#if sealed}
+    <p class="shell-muted" role="note">An applet that can read your messages gets nothing that could send them anywhere else.</p>
+  {/if}
+  {#if sealedOut.length}
+    <p class="warning" role="status">This applet asks for {listWords(sealedOut.map((choice) => domainLabel(choice.domain)))}, which it cannot have while it can read your messages. It may not work fully.</p>
   {/if}
   {#if unprovided.length}
     <p class="warning" role="status">This shell cannot provide {listWords(unprovided.map((choice) => domainLabel(choice.domain)))}, so this applet may not work here. You can still run it.</p>

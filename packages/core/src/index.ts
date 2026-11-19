@@ -76,6 +76,7 @@ export {
   type IdentityProviders,
   type RelayPermissions,
 } from './applesauce/identity-providers.js';
+export { MESSAGES_DOMAIN, MESSAGE_COMPANION_DOMAINS, capabilitiesInForce, domainsInForce, sealsApplet, withheldDomains } from './grants/message-isolation.js';
 export { KernlAccountManager, PLAINTEXT_KEY_ACCOUNT_TYPES, createKernlAccounts } from './applesauce/accounts.js';
 export { THROWAWAY_IDENTITY_TYPE, ThrowawayIdentity, createThrowawayIdentity } from './applesauce/throwaway.js';
 

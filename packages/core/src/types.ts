@@ -125,6 +125,8 @@ export interface GrantRecord {
   readonly identity: AppletIdentity;
   readonly domains: readonly string[];
   readonly capabilities: readonly Capability[];
+  /** Domains allowed or baseline that are not in force, because the applet can read messages (D-046). */
+  readonly withheld: readonly string[];
   readonly blocked: boolean;
   readonly stateQuotaBytes: number;
 }

@@ -333,3 +333,10 @@ Feature: Shell words
   Scenario: a page without the shell's tokens has no theme to tell
     Given the page's style tokens "--ink:#15171b"
     Then the shell has no theme
+
+  Scenario: an applet that can read messages keeps only what cannot send them on (D-046)
+    Then with "dm,identity" switched on, these are withheld and say "off while it can read your messages":
+      | relay | outbox | upload | webrtc | inc | cvm | resource | link | llm | fs | cache | media | something-new |
+    And with "dm,identity" switched on, these stay:
+      | shell | dm | identity | theme | storage | config | notify | keys | intent |
+    And with "relay,identity" switched on, nothing is withheld from "relay,upload,webrtc,inc"

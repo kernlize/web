@@ -1,3 +1,4 @@
+import { withheldDomains } from '@kernlize/core';
 import { BehaviorSubject, Subject } from 'rxjs';
 import type { AppletIdentity, GrantRecord, Grants, RelayTier, RelayTiers, StorageLike } from './contract';
 
@@ -70,6 +71,7 @@ export function createPreviewGrants(storage: StorageLike): Grants {
     identity,
     domains: stored.domains,
     capabilities: [],
+    withheld: withheldDomains(stored.domains, baselineDomains()),
     blocked: stored.blocked,
     stateQuotaBytes: stored.stateQuotaBytes,
   });

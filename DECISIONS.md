@@ -687,3 +687,19 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Consequences.** A shared identity works wherever it is pasted. A server named in an `nprofile` learns that this device asked about that person, as any server asked for a profile does.
 
 **Reversal cost.** Low. One module and three call sites.
+
+## D-046 · An applet that reads messages is sealed
+
+**Context.** The grants panel listed every domain the shell offers for every applet, so the Messages applet, which asks only for messages, could be given the network, uploads or direct connections with one switch, and a third-party messaging applet could ask for them outright. An applet that can read private messages and also reach anything outside the shell can copy those messages out. The baseline itself included talking to other applets, which is a way out through an applet that does hold the network. No deferred NAP is involved: there is no security-class or direct-network domain in kernl, and none is added here.
+
+**Decision.**
+
+- **Messages exclude everything that can send.** While an applet holds `dm`, the only other domains in force are `shell`, `identity`, `theme`, `storage`, `config`, `notify`, `keys` and `intent` (`MESSAGE_COMPANION_DOMAINS`). It is an allowlist, so a domain kehto adds later is withheld until someone decides otherwise.
+- **Receive, never hand on.** Of `intent`, a sealed applet keeps `intent:read`, so another applet can open a conversation in it, and loses `intent:write`.
+- **Enforced where grants are, not in the interface.** `createGrants` writes `capabilitiesInForce` into kehto's ACL and the environment resolver offers `domainsInForce`; kehto refuses and drops the rest. The record keeps what the person chose and reports the difference as `withheld`. Order does not matter, and taking messages back restores the others.
+- **A running window is stopped** when messages are granted to an applet that was started with a withheld domain, as when any grant it was using is taken back.
+- **Not the person's to loosen.** SOUL lets the person loosen a mitigation; this one they cannot, because the messages are also their correspondents'. The launcher and the grants panel show a withheld row as off and say "off while it can read your messages".
+
+**Consequences.** A messaging applet that also wants the network, such as one that fetches link previews or profiles itself, runs without them; the shell names people for it (D-031). The shipped Messages applet loses `inc`, which it never used. Sealing does not stop an applet from showing a message to the person in a way they then copy out, or from putting it in a notification.
+
+**Reversal cost.** Low. One module consulted by the grants layer.
