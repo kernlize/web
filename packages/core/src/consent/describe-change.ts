@@ -219,9 +219,9 @@ function deletion(event: NostrEvent, applet: AppletIdentity): ConsentSummary {
 function vanish(event: NostrEvent, applet: AppletIdentity): ConsentSummary {
   const services = tagValues(event, 'relay');
   const everywhere = services.length === 0 || services.includes(ALL_SERVICES);
-  const lines: ConsentLine[] = [{ label: 'Erase', before: 'Everything this account has published' }];
+  const lines: ConsentLine[] = [{ label: 'Erase', before: 'Everything this identity has published' }];
   lines.push({ label: 'Services asked', after: everywhere ? 'Every service' : describeItems(services, serverName) });
-  return destructive(event, applet, 'Ask services to erase your account', lines);
+  return destructive(event, applet, 'Ask services to erase your identity', lines);
 }
 
 /** The user's preferred applets for an archetype; an applet writing it could route other applets' requests to itself. */

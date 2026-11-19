@@ -1,5 +1,5 @@
 const WORDING: ReadonlyArray<readonly [RegExp, string]> = [
-  [/invalid:recipient/, 'That does not look like an account id.'],
+  [/invalid:recipient/, 'That is not an identity. Paste one as it was shared with you.'],
   [/unavailable:no-default-provider/, "Turn on a provider in the shell's settings first."],
   [/unavailable:recipient-not-ready/, 'This person cannot be reached that way yet.'],
   [/(?:^|[\s:])denied:/, 'Not sent.'],

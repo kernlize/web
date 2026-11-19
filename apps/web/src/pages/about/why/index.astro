@@ -24,7 +24,7 @@ const description =
         <h2 id="op-1">Everything in one place, reached one way.</h2>
       </div>
       <div>
-        <p>Your messages, contacts, files and account live in one store inside the shell, read through one connection and signed by one account manager. kernl does not hedge that with a second library doing the same job, because every extra copy is another thing to protect.</p>
+        <p>Your messages, contacts, files and identity live in one store inside the shell, read through one connection and signed by one keeper of your identity. kernl does not hedge that with a second library doing the same job, because every extra copy is another thing to protect.</p>
         <ul>
           <li>Applets never get a handle on the store. Services read from it for them.</li>
           <li>Your keys are never raw bytes outside the signer that holds them.</li>
@@ -42,7 +42,7 @@ const description =
         <p>A shell has two jobs. It gives you a place where your identity and your things are yours and portable. And it gives an untrusted program a place to run where the worst it can do is bounded. kernl cannot protect you from everything. It does all of it that it can.</p>
         <ul>
           <li>Applets run in a sealed frame with no network of their own, and cannot open another frame inside it.</li>
-          <li>They never hold keys, never see text you did not ask to show them, and learn which account you use only if you grant it.</li>
+          <li>They never hold keys, never see text you did not ask to show them, and learn which identity you use only if you grant it.</li>
           <li>Before the shell signs anything for an applet that overwrites or erases part of your record, it shows you what changes, not code.</li>
           <li>An applet's identity is bound to the exact bytes you verified. Changed bytes are a new applet, with no grants.</li>
         </ul>
@@ -67,10 +67,10 @@ const description =
     <section class="opinion reveal" aria-labelledby="op-4">
       <div>
         <p class="number">04</p>
-        <h2 id="op-4">One account, many networks, no brand names.</h2>
+        <h2 id="op-4">One identity, many networks, no brand names.</h2>
       </div>
       <div>
-        <p>Your account is how you are known, how applets are found and verified, and how you reach other people. It is not the only network kernl speaks. Downloads, sharing and mail are meant to plug in as <a href={href(`${ABOUT}bridges/`)}>bridges</a>. Today web fetch works inside the shell, and downloads, sharing and mail work by handing off to an app on your device after the shell asks you; in-shell backends are planned. There is no per-applet allowance for bridges yet.</p>
+        <p>Your identity is how you are known, how applets are found and verified, and how you reach other people. It is not the only network kernl speaks. Downloads, sharing and mail are meant to plug in as <a href={href(`${ABOUT}bridges/`)}>bridges</a>. Today web fetch works inside the shell, and downloads, sharing and mail work by handing off to an app on your device after the shell asks you; in-shell backends are planned. There is no per-applet allowance for bridges yet.</p>
         <ul>
           <li>Bridges are named by what they do for you, not by the wire format they speak.</li>
           <li>This site does not name protocols. The protocol is the plumbing. The person is the point.</li>
@@ -84,7 +84,7 @@ const description =
         <h2 id="op-5">No private-messaging system is "the best".</h2>
       </div>
       <div>
-        <p>kernl is built to support any reasonable private-messaging provider through one interface. You pick the one your correspondent can read, and the shell makes that choice visible and reversible. In this alpha private, legacy and ratchet messages work when your account can encrypt; ratchet sessions are experimental.</p>
+        <p>kernl is built to support any reasonable private-messaging provider through one interface. You pick the one your correspondent can read, and the shell makes that choice visible and reversible. In this alpha private, legacy and ratchet messages work when your identity can encrypt; ratchet sessions are experimental.</p>
         <ul>
           <li>The shell does not rank providers. It <a href={href(`${ABOUT}messaging/`)}>describes them</a>: forward secrecy or not, what the network can see, whether the other person needs the same app.</li>
           <li>Applets are given one messaging surface that spans every provider you enable.</li>

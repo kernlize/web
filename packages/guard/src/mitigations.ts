@@ -109,7 +109,7 @@ export function describeMitigations(config: GuardConfig): readonly MitigationDes
       'destructive-consent',
       'kernl',
       'Deleting or overwriting asks you first',
-      "Before the shell signs anything for an applet that overwrites or erases part of your account's public record (your profile, contacts, connections, lists or any other record a new version replaces, a deletion, or a request to erase your account), it shows you what changes compared with the current version and waits for your answer. If the current version cannot be loaded, it says so.",
+      "Before the shell signs anything for an applet that overwrites or erases part of your public record (your profile, contacts, connections, lists or any other record a new version replaces, a deletion, or a request to erase your identity), it shows you what changes compared with the current version and waits for your answer. If the current version cannot be loaded, it says so.",
     ),
   ];
 }

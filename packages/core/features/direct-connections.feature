@@ -47,7 +47,7 @@ Feature: Direct connections between people
     And the question says "They learn" is "Your network address, which can show roughly where you are"
     And the question says "They see" is "Whatever this applet sends them. The shell cannot see it."
     And the question says "Helped by" is "stun:stun.example:3478"
-    And the question says "They know you as" is "A new name for this window, not your account"
+    And the question says "They know you as" is "A new name for this window, not your identity"
     And the question names the loopback relay as what introduces them
     And "Ann" is told "policy denied"
     And nothing was published for "Ann"

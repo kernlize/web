@@ -44,7 +44,7 @@ test('two people in their own shells meet in a room and their applets talk direc
     await expect(question).toBeVisible();
     await expect(question.getByText('direct', { exact: true })).toBeVisible();
     await expect(question.getByText('Your network address, which can show roughly where you are')).toBeVisible();
-    await expect(question.getByText('A new name for this window, not your account')).toBeVisible();
+    await expect(question.getByText('A new name for this window, not your identity')).toBeVisible();
     await question.getByRole('button', { name: 'Allow' }).click();
   }
   for (const page of [ann, ben]) {

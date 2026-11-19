@@ -95,20 +95,20 @@ Feature: Consent summaries
 
   Scenario: a request to vanish asks services to erase the account
     When the shell describes signing a kind 62 request naming services "ALL_RELAYS"
-    Then the summary is "destructive" titled "Ask services to erase your account"
+    Then the summary is "destructive" titled "Ask services to erase your identity"
     And the summary lines are:
       | label          | before                                | after         |
-      | Erase          | Everything this account has published |               |
+      | Erase          | Everything this identity has published |               |
       | Services asked |                                       | Every service |
     When the shell describes signing a kind 62 request naming services ""
     Then the summary lines are:
       | label          | before                                | after         |
-      | Erase          | Everything this account has published |               |
+      | Erase          | Everything this identity has published |               |
       | Services asked |                                       | Every service |
     When the shell describes signing a kind 62 request naming services "wss://relay.damus.io/,wss://nos.lol,wss://relay.example"
     Then the summary lines are:
       | label          | before                                | after                                 |
-      | Erase          | Everything this account has published |                                       |
+      | Erase          | Everything this identity has published |                                       |
       | Services asked |                                       | damus.io, nos.lol, relay.example |
 
   Scenario: any other replaceable or addressable record is destructive and diffed

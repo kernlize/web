@@ -7,7 +7,7 @@ const { failedSendNote, failureReason, isUnansweredSend, sendFailureText } = loa
 const FORBIDDEN = /invalid:|unavailable:|denied:|firewall|nostr|nip-?\d|napplet|relay|pubkey|npub|nsec|marmot|\bmls\b/i;
 
 test('maps each known reason to plain words', () => {
-  assert.equal(sendFailureText('invalid:recipient'), 'That does not look like an account id.');
+  assert.equal(sendFailureText('invalid:recipient'), 'That is not an identity. Paste one as it was shared with you.');
   assert.equal(
     sendFailureText('unavailable:no-default-provider'),
     "Turn on a provider in the shell's settings first.",

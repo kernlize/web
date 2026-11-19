@@ -171,7 +171,7 @@ const ACTIONS: readonly Action[] = [
 const EXTRA_ACTIONS: readonly Action[] = [
   { id: 'contacts', label: 'Replace your contacts', hint: 'asks you first: it replaces who you follow', domain: 'relay' },
   { id: 'servers', label: 'Change your inbox and outbox', hint: 'asks you first: it replaces your published inbox and outbox', domain: 'relay' },
-  { id: 'vanish', label: 'Ask to erase your account', hint: 'asks you first: it cannot be undone', domain: 'relay' },
+  { id: 'vanish', label: 'Ask to erase your identity', hint: 'asks you first: it cannot be undone', domain: 'relay' },
 ];
 
 /** The shared buttons, less settings for a sample that never asks for them. */
@@ -213,7 +213,7 @@ window.addEventListener('message', (event) => {
 let count = 0;
 const handlers = {
   publish: () => send('publish', { text: document.getElementById('note').value || 'Hello from the preview applet.' }),
-  profile: () => send('profile', { text: 'Preview account' }),
+  profile: () => send('profile', { text: 'Preview identity' }),
   delete: () => send('delete'),
   contacts: () => send('contacts'),
   servers: () => send('servers'),

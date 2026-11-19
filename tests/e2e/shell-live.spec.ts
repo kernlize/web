@@ -46,7 +46,7 @@ test.describe('with one relay and one blob server down', () => {
     await expect(dialog.getByRole('searchbox', { name: 'Find an applet' })).toHaveCount(0);
 
     // Required and offered: on for the account at first run, off for posting until the person says so.
-    await expect(dialog.getByRole('checkbox', { name: /your account/ })).toBeChecked();
+    await expect(dialog.getByRole('checkbox', { name: /your identity/ })).toBeChecked();
     const posting = dialog.getByRole('checkbox', { name: /posting to your network/ });
     await expect(posting).toBeEnabled();
     await expect(posting).not.toBeChecked();

@@ -703,3 +703,13 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Consequences.** A messaging applet that also wants the network, such as one that fetches link previews or profiles itself, runs without them; the shell names people for it (D-031). The shipped Messages applet loses `inc`, which it never used. Sealing does not stop an applet from showing a message to the person in a way they then copy out, or from putting it in a notification.
 
 **Reversal cost.** Low. One module consulted by the grants layer.
+
+## D-047 · There are no accounts, only identities
+
+**Context.** D-006 chose "account" as the public word for who is signed in. It is the wrong word: an account is something a service keeps for you and can take away. What a person signs in with is a key they hold, which no service issued.
+
+**Decision.** Public copy says "identity", never "account": the site, the shell, the consent summaries the core writes, the guard's mitigation descriptions and the shipped Messages applet. Both vocabulary gates (`scripts/check-public-vocabulary.mjs` and `apps/web/src/shell/vocabulary.ts`) and the applet's guidance test now reject the word. Code keeps the names its libraries use (`AccountManager`, `kernl.accounts`), and developer docs keep "account" where they describe those APIs.
+
+**Consequences.** A library error that says "account" is shown as the generic refusal, like one that names the protocol.
+
+**Reversal cost.** Low. Copy and three patterns.

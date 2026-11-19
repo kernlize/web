@@ -13,7 +13,7 @@ test('the preview shell signs in, runs a sample applet, shows the guard and open
   await expect(page.getByRole('dialog').getByRole('heading', { name: 'Notes' })).toBeVisible();
 
   // Your account is a grant, not baseline, in both modes; Notes requires it, so it starts switched on.
-  const account = page.getByRole('checkbox', { name: /your account/ });
+  const account = page.getByRole('checkbox', { name: /your identity/ });
   await expect(account).toBeEnabled();
   await expect(account).toBeChecked();
   const network = page.getByRole('checkbox', { name: /network/ });
