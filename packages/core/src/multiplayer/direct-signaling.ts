@@ -3,7 +3,8 @@ import type { WebrtcOpenPlan, WebrtcServiceContext, WebrtcServiceOptions } from 
 import type { EventTemplate, NostrEvent, NostrFilter, WebrtcEvent, WebrtcOpenRequest, WebrtcOpenResult } from '@napplet/core';
 
 /**
- * The signaling format, shared with Paja so one applet meets the same rooms in either shell.
+ * The signaling format, shared with Paja so one applet meets the same rooms in
+ * either shell when both introduce people through the same servers.
  *
  * @example
  * ```ts

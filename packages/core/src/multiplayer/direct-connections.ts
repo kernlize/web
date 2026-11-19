@@ -28,7 +28,8 @@ export interface DirectConnectionsOptions {
 /**
  * The stable address rooms are kept apart by: the publisher, the manifest
  * kind and the applet's name, the same for every version. Paja derives the
- * same string, so one applet meets the same rooms in either shell.
+ * same string, so one applet meets the same rooms in either shell when both
+ * introduce people through the same servers.
  *
  * @param summary - The verified applet.
  * @returns `<publisher>:<kind>:<name>`.
