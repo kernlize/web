@@ -531,3 +531,30 @@ Feature: The composed shell
     When the shell is destroyed
     Then the shell has 0 applets
     And the mounted frame was removed
+
+  Scenario: a shell that can make peer connections offers direct connections and asks before each session
+    Given a kernl shell over that host and pool that makes peer connections
+    Then the shell offers "webrtc"
+    Given a mounted applet granted "webrtc" that has said hello
+    When the applet asks to open the room "lobby-1234" over its port
+    Then the host was asked "Connect directly to other people"
+    When the host answers no
+    Then the applet was told "policy denied" for opening the room
+
+  Scenario: an applet the person did not grant direct connections reaches nothing and nobody is asked
+    Given a kernl shell over that host and pool that makes peer connections
+    And a mounted applet granted "notify" that has said hello
+    Then the applet received a "shell.init" with domains "shell,storage,inc,theme,notify"
+    When the applet asks to open the room "lobby-1234" over its port
+    Then the host was not asked anything
+    And the applet got no answer to opening the room
+
+  Scenario: a page with its own peer connections offers direct connections, and one without does not
+    Given a kernl shell over that host and pool
+    Then the shell does not offer "webrtc"
+    Given a page that has its own peer connections
+    And a kernl shell over that host and pool
+    Then the shell offers "webrtc"
+    Given a mounted applet granted "webrtc" that has said hello
+    When the applet asks to open the room "lobby-1234" over its port
+    Then the host was asked about a session introduced by "relay.damus.io, nos.lol, relay.primal.net"

@@ -42,3 +42,5 @@ import './file-uploads.js';
 import './common-actions.js';
 import './applet-config.js';
 import './remote-tools.js';
+import './direct-connections.js';
+import './kernl-direct.js';

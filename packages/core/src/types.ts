@@ -155,8 +155,11 @@ export interface ConsentLine {
 /** A write described as what it changes, not as JSON. */
 export interface ConsentSummary {
   readonly title: string;
-  /** `destructive` replaces or erases part of the record; `public` puts something where anyone can fetch it; both are asked about. */
-  readonly severity: 'routine' | 'destructive' | 'public';
+  /**
+   * `destructive` replaces or erases part of the record; `public` puts something where anyone can fetch it;
+   * `direct` connects the person to someone else, who learns their network address. All three are asked about.
+   */
+  readonly severity: 'routine' | 'destructive' | 'public' | 'direct';
   readonly lines: readonly ConsentLine[];
   readonly applet: AppletIdentity;
   /** The raw event, for an "advanced" disclosure. */
@@ -306,6 +309,25 @@ export interface KernlOptions {
   readonly intentRetry?: { readonly intervalMs: number; readonly attempts: number };
   /** Where applets' remote tools are looked for, and which tool families the host vouches for (D-041). */
   readonly remoteTools?: RemoteToolsSettings;
+  /** How applets connect people directly: the relays that introduce them and the ICE servers that help (D-042). */
+  readonly directConnections?: DirectConnectionsSettings;
+}
+
+/** A STUN or TURN server, as `RTCPeerConnection` takes it. Its credentials stay in the shell. */
+export interface DirectIceServer {
+  readonly urls: readonly string[];
+  readonly username?: string;
+  readonly credential?: string;
+}
+
+/** The host's settings for direct connections between people. */
+export interface DirectConnectionsSettings {
+  /** Relays people in a room find each other through; the general (`super`) tier by default. */
+  readonly relays?: readonly string[];
+  /** STUN and TURN servers; none by default, so only people who can reach each other's devices connect. */
+  readonly iceServers?: readonly DirectIceServer[];
+  /** Makes a peer connection; the browser's `RTCPeerConnection` by default. Without either, the `webrtc` domain is not offered. */
+  readonly createPeer?: (configuration: RTCConfiguration) => RTCPeerConnection;
 }
 
 /** The host's settings for remote tools. */
