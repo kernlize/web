@@ -1,5 +1,13 @@
 # @kernlize/core
 
+## 0.11.0
+
+### Minor Changes
+
+- 798e9b0: Applets can open direct sessions between people. Where the page has `RTCPeerConnection`, `createKernl` registers the `webrtc` service as `createDirectConnectionsService`: kehto's service over `createDirectSignaling`, which speaks Paja's `soy-rtc/1` signaling under each window's own key, never the account. A session opens only for an applet granted direct connections, and only after the person allows it in a prompt that says what the other side learns; `ConsentSummary.severity` gains `direct` (D-042). `KernlOptions.directConnections` names the relays that introduce people (the `super` tier by default), STUN and TURN servers (none by default) and a peer factory. New exports: `createDirectConnectionsService`, `createDirectSignaling`, `describeDirectConnection`, `directNamespace`, `DIRECT_SIGNALING_PROFILE`, `DIRECT_SIGNAL_KIND`, `DIRECT_MAX_PAYLOAD_BYTES`, and their option types.
+- b5fe9fa: The person chooses, on their device, the servers that introduce them and find tool servers, the helpers that get their connections through, and the tool families they trust. `kernl.multiplayer` (`createMultiplayerSettings`, kept at `kernl:multiplayer:v1`) holds them, and each comes before the host's. `kernl.multiplayer.discover(input)` finds families from a shared reference, a tool's schema hash or a website, reading only signed announcements and checking every tool's hash again (D-043). `RemoteToolsOptions.registry` and `DirectConnectionsOptions.iceServers` are now read through functions. New exports: `createMultiplayerSettings`, `validFamily`, `discoverToolFamilies`, `TOOL_DISCOVERY_TIMEOUT_MS`, `mergeFamilies`, and their types.
+- 70cb90d: Applets can call remote tools. `createKernl` registers the `cvm` service as `createRemoteToolsService`: each window calls under its own key from `createWindowIdentities`, never the account's, through its own transport over the shell's pool, and the key is wiped when the window ends (D-041). `KernlOptions.remoteTools` names the relays tool servers are looked for on (the `super` tier by default) and the tool families the host vouches for. New exports: `createRemoteToolsService`, `createCvmRelayPool`, `createWindowIdentities`, `RemoteToolsOptions`, `RemoteToolsSettings`, `WindowIdentities`.
+
 ## 0.10.0
 
 ### Minor Changes
