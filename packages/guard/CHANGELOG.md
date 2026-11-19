@@ -1,5 +1,11 @@
 # @kernlize/guard
 
+## 0.2.1
+
+### Patch Changes
+
+- 0f8efb1: Say "identity" instead of "account" in the consent summaries and mitigation descriptions people read.
+
 ## 0.2.0
 
 ### Minor Changes

@@ -1,5 +1,19 @@
 # @kernlize/core
 
+## 0.12.0
+
+### Minor Changes
+
+- 98f7a27: Seal applets that hold the `dm` grant: only the domains that cannot send a message elsewhere stay in force (`MESSAGE_COMPANION_DOMAINS`), and the rest are withheld from the ACL and the environment. `GrantRecord` gains `withheld`. Adds `domainsInForce`, `withheldDomains`, `capabilitiesInForce` and `sealsApplet`.
+- 33db31a: Find a person from any form of their identity: `parsePerson`, `createPeople` (`kernl.people`) and `locateRecipients` read hex, `npub` and `nprofile`, and ask the servers an `nprofile` names. `CommonActionsOptions` gains a required `locate`.
+- df260b8: Add `createThrowawayIdentity`, an identity for trying the shell whose key is held in memory and never persisted.
+
+### Patch Changes
+
+- 0f8efb1: Say "identity" instead of "account" in the consent summaries and mitigation descriptions people read.
+- Updated dependencies [0f8efb1]
+  - @kernlize/guard@0.2.1
+
 ## 0.11.0
 
 ### Minor Changes
