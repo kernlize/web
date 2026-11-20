@@ -94,10 +94,16 @@ export function describeMitigations(config: GuardConfig): readonly MitigationDes
     ),
     mitigation(
       'size-caps',
-      'both',
+      'kernl',
       'Oversized requests are refused',
       'The shell measures download and long-running query requests against a maximum size. One that is too large is refused before it is handled, so nothing it asked for is fetched, and the shell tells you.',
       `downloads ${kib(limits.maxResourceEnvelopeBytes)}, queries ${kib(limits.maxSubscribeEnvelopeBytes)}`,
+    ),
+    mitigation(
+      'firewall',
+      'both',
+      'The firewall decides what an applet may ask for',
+      'Every request an applet makes passes the firewall’s rules before anything happens. To begin with, what you granted is allowed and opening a link outside the shell asks you each time. You can change the rules, for every applet or for one, in the firewall panel.',
     ),
     mitigation(
       'device-denial',

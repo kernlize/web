@@ -1,11 +1,4 @@
-import {
-  addMatcher,
-  defaultConfig,
-  setGlobalRate,
-  setRateLimit,
-  type FirewallConfig,
-  type RateLimit,
-} from '@kehto/rate-limit/legacy';
+import type { RateLimitConfig } from '@kehto/rate-limit';
 import type { GuardConfig, GuardLimits, GuardProfile, OpClass } from './types.js';
 
 const KIB = 1024;
@@ -22,7 +15,7 @@ const KIB = 1024;
  */
 export const GUARD_PROFILES: readonly GuardProfile[] = ['strict', 'balanced', 'relaxed'];
 
-/** Exceed action for every rate kernl registers. kehto's own default is `flag`. */
+/** Exceed action for every budget kernl builds. kehto's own suggestion is `flag`. */
 const RATE_EXCEED_ACTION = 'block' as const;
 
 type Rates = GuardLimits['rates'];
@@ -87,98 +80,48 @@ const PROFILE_LIMITS: Readonly<Record<GuardProfile, GuardLimits>> = {
   },
 };
 
-function toRateLimit(rate: { capacity: number; windowMs: number }): RateLimit {
-  return { capacity: rate.capacity, windowMs: rate.windowMs, action: RATE_EXCEED_ACTION };
-}
+/** The ingress guard counts every second of a window's life, so the class budgets carry no startup burst of their own. */
+const NO_STARTUP_BURST: RateLimitConfig['burst'] = Object.freeze({ windowMs: 0, maxOperations: 0, action: 'ignore' });
 
-/**
- * Derive the kehto firewall config for a set of limits.
- *
- * kehto keys per-class rate limits by applet, so a fresh config can only carry
- * the class-independent parts: `defaultRate` (the `generic` class), the content
- * matchers that block oversized envelopes, the init-burst guard and the
- * unfocused multiplier. Per-class rates are registered per applet by
- * {@link applyNappletRules}.
- */
-function deriveFirewall(limits: GuardLimits): FirewallConfig {
-  let firewall: FirewallConfig = {
-    ...defaultConfig(),
-    defaultRate: toRateLimit(limits.rates.generic),
-    burstGuard: { windowMs: 1000, maxOps: limits.ingressBurst, action: 'block' },
-    unfocusedMultiplier: limits.unfocusedMultiplier,
-  };
-  // kehto matchers fire on `size >= minSize`; the limits are inclusive maxima.
-  firewall = addMatcher(firewall, {
-    id: 'size:resource:bytes',
-    opClass: 'resource:bytes',
-    minSize: limits.maxResourceEnvelopeBytes + 1,
-    action: 'block',
-  });
-  for (const opClass of ['relay:subscribe', 'outbox:subscribe'] as const) {
-    firewall = addMatcher(firewall, {
-      id: `size:${opClass}`,
-      opClass,
-      minSize: limits.maxSubscribeEnvelopeBytes + 1,
-      action: 'block',
+function deriveRateLimits(limits: GuardLimits): Readonly<Record<OpClass, RateLimitConfig>> {
+  const budgets: Partial<Record<OpClass, RateLimitConfig>> = {};
+  for (const [opClass, rate] of Object.entries(limits.rates) as [OpClass, Rates[OpClass]][]) {
+    budgets[opClass] = Object.freeze({
+      capacity: rate.capacity,
+      windowMs: rate.windowMs,
+      action: RATE_EXCEED_ACTION,
+      unfocusedMultiplier: limits.unfocusedMultiplier,
+      burst: NO_STARTUP_BURST,
     });
   }
-  return firewall;
+  return Object.freeze(budgets as Record<OpClass, RateLimitConfig>);
 }
 
 /**
  * Build the complete guard configuration for a profile.
  *
- * The `firewall` field is kehto's `defaultConfig()` tightened to the profile.
- * What each layer enforces:
+ * `rateLimits` holds one `@kehto/rate-limit` budget per operation class, each
+ * blocking when spent and scaled by the profile's unfocused multiplier. What
+ * each layer enforces:
  *
- * - The kehto engine (`evaluate`) enforces the content matchers, the per-applet
- *   rates registered by {@link applyNappletRules}, the `generic` default rate
- *   and the unfocused multiplier. Its init-burst guard only fires for callers
- *   that supply `initElapsedMs`; kernl's focus firewall does not, so inside
- *   `@kernlize/guard` the per-second burst is enforced by the ingress guard.
- *   `@kernlize/core` installs `burstGuard` and `unfocusedMultiplier` in kehto's
- *   runtime firewall, which supplies `initElapsedMs` and the window's focus.
+ * - The focus-aware rate limiter charges every envelope against its class
+ *   budget, with the focus the shell observed.
  * - The ingress guard enforces `ingressBurst`, `ingressQueue`,
  *   `quarantineThreshold`, `hiddenResourceAllowance` and the envelope size caps.
  * - The visibility gate enforces `deferQueue`.
+ * - `@kernlize/core` hands the same budgets to kehto's runtime, which charges
+ *   what it actually carries out.
  *
  * @param profile - Which profile to build.
- * @returns The profile's limits and derived firewall config.
+ * @returns The profile's limits and the budgets derived from them.
  * @example
  * ```ts
  * const config = createGuardConfig('strict');
  * config.limits.ingressBurst; // 8
- * config.firewall.unfocusedMultiplier; // 0.25
+ * config.rateLimits['relay:publish'].capacity; // 20
  * ```
  */
 export function createGuardConfig(profile: GuardProfile): GuardConfig {
   const limits = PROFILE_LIMITS[profile];
-  return { profile, limits, firewall: deriveFirewall(limits) };
-}
-
-/**
- * Register the profile's per-class rates for one applet in the kehto firewall.
- *
- * kehto's `rateLimits` map is keyed by applet identity, so class rates cannot
- * live in a fresh config. The focus firewall calls this lazily on the first
- * observation of an applet; core may call it earlier, when a window binds, so
- * that a user's per-applet policy and the rates land in one config. Existing
- * policy and matchers are preserved; rates for the applet are overwritten.
- *
- * @param config - Current guard configuration.
- * @param napplet - Applet identity (dTag) to register rules for.
- * @returns A new guard configuration; the input is not modified.
- * @example
- * ```ts
- * const bound = applyNappletRules(createGuardConfig('strict'), 'chat');
- * bound.firewall.napplets.chat?.rateLimits['relay:publish']?.capacity; // 20
- * ```
- */
-export function applyNappletRules(config: GuardConfig, napplet: string): GuardConfig {
-  let firewall = config.firewall;
-  for (const [opClass, rate] of Object.entries(config.limits.rates)) {
-    firewall = setRateLimit(firewall, napplet, opClass, toRateLimit(rate));
-  }
-  firewall = setGlobalRate(firewall, napplet, toRateLimit(config.limits.rates.generic));
-  return { ...config, firewall };
+  return { profile, limits, rateLimits: deriveRateLimits(limits) };
 }

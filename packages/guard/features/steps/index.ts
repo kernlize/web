@@ -5,5 +5,5 @@ import './csp.js';
 import './mitigations.js';
 import './ingress.js';
 import './visibility.js';
-import './firewall.js';
+import './rate-limit.js';
 import './insertion-lock.js';

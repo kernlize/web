@@ -1,6 +1,6 @@
 # @kernlize/guard
 
-Ingress flood control, visibility gating, focus-aware firewall and CSP profile for the kernl shell.
+Ingress flood control, visibility gating, focus-aware rate limiting and CSP profile for the kernl shell.
 
 | Registry | Package |
 | --- | --- |

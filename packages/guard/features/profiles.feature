@@ -47,36 +47,15 @@ Feature: Guard profiles
       | balanced | 10     | 240      | 20     |
       | relaxed  | 15     | 360      | 30     |
 
-  Scenario: the firewall config is kehto's default tightened to the profile
+  Scenario: every class gets a blocking budget scaled for unfocused windows
     When the guard builds the "strict" profile
-    Then the guard firewall default rate is 120 per 10000 ms with action "block"
-    And the guard firewall burst guard allows 8 ops in 1000 ms with action "block"
-    And the guard firewall unfocused multiplier is 0.25
-    And the guard firewall has 3 matchers
-    And the guard firewall has matcher "size:resource:bytes" for class "resource:bytes" blocking from 65537 bytes
-    And the guard firewall has matcher "size:relay:subscribe" for class "relay:subscribe" blocking from 262145 bytes
-    And the guard firewall has matcher "size:outbox:subscribe" for class "outbox:subscribe" blocking from 262145 bytes
-    And the guard firewall has no applet rules
+    Then the guard budget for "relay:publish" is 20 per 60000 ms with action "block"
+    And the guard budget for "relay:publish:delete" is 5 per 60000 ms with action "block"
+    And the guard budget for "generic" is 120 per 10000 ms with action "block"
+    And every guard budget has unfocused multiplier 0.25
+    And no guard budget has a startup burst of its own
 
-  Scenario: the balanced firewall carries the balanced multiplier and burst
+  Scenario: the balanced budgets carry the balanced multiplier
     When the guard builds the "balanced" profile
-    Then the guard firewall burst guard allows 12 ops in 1000 ms with action "block"
-    And the guard firewall unfocused multiplier is 0.5
-    And the guard firewall has matcher "size:resource:bytes" for class "resource:bytes" blocking from 131073 bytes
-
-  Scenario: registering an applet maps every class rate into kehto's per-applet rules
-    When the guard builds the "strict" profile
-    And the guard registers rules for applet "chat"
-    Then the guard firewall rate for applet "chat" and class "relay:publish" is 20 per 60000 ms with action "block"
-    And the guard firewall rate for applet "chat" and class "relay:publish:delete" is 5 per 60000 ms with action "block"
-    And the guard firewall rate for applet "chat" and class "generic" is 120 per 10000 ms with action "block"
-    And the guard firewall global rate for applet "chat" is 120 per 10000 ms
-    And the guard firewall has rules for 1 applet
-    And the original guard firewall still has no applet rules
-
-  Scenario: registering rules keeps a policy the user already set
-    When the guard builds the "strict" profile
-    And the guard firewall gives applet "chat" the "deny" policy
-    And the guard registers rules for applet "chat"
-    Then the guard firewall policy for applet "chat" is "deny"
-    And the guard firewall rate for applet "chat" and class "dm:send" is 20 per 60000 ms with action "block"
+    Then the guard budget for "relay:publish" is 40 per 60000 ms with action "block"
+    And every guard budget has unfocused multiplier 0.5
