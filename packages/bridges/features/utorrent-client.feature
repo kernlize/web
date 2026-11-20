@@ -11,7 +11,7 @@ Feature: uTorrent client
 
   Scenario: the first request fetches a token and every request carries it with its cookie
     When the uTorrent client probes the program
-    Then the uTorrent client reports version "44994"
+    Then the uTorrent client reports version "30470"
     And the uTorrent handed out 1 token
     And every uTorrent request carried its token first and the cookie that came with it
 
@@ -25,13 +25,13 @@ Feature: uTorrent client
     When the uTorrent client probes the program
     And the uTorrent is started again
     And the uTorrent client probes the program
-    Then the uTorrent client reports version "44994"
+    Then the uTorrent client reports version "30470"
     And the uTorrent handed out 2 tokens
 
   Scenario: a program that sets no cookie is sent none
     Given the uTorrent sets no cookie with its token
     When the uTorrent client probes the program
-    Then the uTorrent client reports version "44994"
+    Then the uTorrent client reports version "30470"
     And no uTorrent request carried a cookie
 
   Scenario Outline: a token page answering <status> with <body> is a bad response
@@ -68,7 +68,7 @@ Feature: uTorrent client
   Scenario Outline: the address the person typed leads to the WebUI
     Given the uTorrent client uses the program's address followed by "<typed>"
     When the uTorrent client probes the program
-    Then the uTorrent client reports version "44994"
+    Then the uTorrent client reports version "30470"
 
     Examples:
       | typed  |
@@ -80,7 +80,7 @@ Feature: uTorrent client
   Scenario: a host that supplies its own fetch has every request go through it
     Given the uTorrent client is given its host's own fetch
     When the uTorrent client probes the program
-    Then the uTorrent client reports version "44994"
+    Then the uTorrent client reports version "30470"
     And the uTorrent client's requests all went through its host's fetch
 
   Scenario: a magnet link is named by its info hash once the program lists it
@@ -148,9 +148,9 @@ Feature: uTorrent client
     Then the uTorrent client fails with "unavailable:outcome-unknown"
 
   Scenario: a torrent the program will not take is reported as declined, in the program's words
-    Given the uTorrent answers "add-file" with status 200 and the body {"build":44994,"error":"Can't add torrent: torrent is not valid bencoding!"}
+    Given the uTorrent answers "add-file" with status 200 and the body {"build":30470,"error":"Can't add torrent: torrent is not valid bencoding"}
     When the uTorrent client adds the torrent file "night-mix.flac"
-    Then the uTorrent client fails with "unavailable:rejected: Can't add torrent: torrent is not valid bencoding!"
+    Then the uTorrent client fails with "unavailable:rejected: Can't add torrent: torrent is not valid bencoding"
 
   Scenario Outline: what is not a torrent is refused before anything is sent
     When the uTorrent client adds the <kind> "<what>"
@@ -282,6 +282,11 @@ Feature: uTorrent client
     Given the uTorrent has a magnet torrent still waiting for its metadata
     When the uTorrent client is asked to "list the files of" the torrent
     Then the uTorrent client reports no files
+
+  Scenario: the files of a torrent the program does not have are not found from the files answer alone
+    When the uTorrent client is asked to "list the files of" the torrent "1111111111111111111111111111111111111111"
+    Then the uTorrent client fails with "unavailable:not-found"
+    And the uTorrent was never asked "list"
 
   Scenario Outline: files <files> marked as <change> reach the program as one priority change
     Given the uTorrent has the torrent file "Field Recordings"
@@ -472,14 +477,14 @@ Feature: uTorrent client
       | list     | look up           | 500    | Internal Server Error                                  |
       | list     | look up           | 200    | <html>WebUI</html>                                     |
       | list     | look up           | 200    | []                                                     |
-      | list     | look up           | 200    | {"build":44994}                                        |
-      | list     | look up           | 200    | {"build":44994,"torrents":["night-mix"]}               |
-      | list     | look up           | 200    | {"build":44994,"torrents":[["night-mix",201]]}         |
-      | list     | look up           | 200    | {"build":44994,"torrents":[[7,201]]}                   |
-      | getprops | look up           | 200    | {"build":44994,"props":[{"hash":"night-mix"}]}         |
-      | getprops | look up           | 200    | {"build":44994,"props":{}}                             |
-      | getfiles | list the files of | 200    | {"build":44994,"files":["ABCDEF"]}                     |
-      | getfiles | list the files of | 200    | {"build":44994,"files":["ABCDEF",[["a.txt","1",0,2]]]} |
+      | list     | look up           | 200    | {"build":30470}                                        |
+      | list     | look up           | 200    | {"build":30470,"torrents":["night-mix"]}               |
+      | list     | look up           | 200    | {"build":30470,"torrents":[["night-mix",201]]}         |
+      | list     | look up           | 200    | {"build":30470,"torrents":[[7,201]]}                   |
+      | getprops | look up           | 200    | {"build":30470,"props":[{"hash":"night-mix"}]}         |
+      | getprops | look up           | 200    | {"build":30470,"props":{}}                             |
+      | getfiles | list the files of | 200    | {"build":30470,"files":["ABCDEF"]}                     |
+      | getfiles | list the files of | 200    | {"build":30470,"files":["ABCDEF",[["a.txt","1",0,2]]]} |
 
   Scenario: a program that does not say which build it is cannot be probed
     Given the uTorrent answers "list" with status 200 and the body {"torrents":[]}
