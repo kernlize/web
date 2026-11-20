@@ -4,6 +4,7 @@ import type { RelayPool } from 'applesauce-relay';
 import type { AccountManager, IAccount } from 'applesauce-accounts';
 import type { ShellBridge, ShellEnvironment } from '@kehto/shell';
 import type { Capability } from '@kehto/runtime';
+import type { PermissionRuleAction, PermissionRules } from '@kehto/firewall';
 import type { CvmRegistryFamily } from '@kehto/services';
 import type { MultiplayerSettings } from './multiplayer/settings.js';
 import type { ToolFamilyCandidate } from './multiplayer/tool-discovery.js';
@@ -172,6 +173,97 @@ export interface ConsentSummary {
 }
 
 /** What the host must answer. */
+/** An answer the person can give to a firewall question. `allow-session` lasts while the applet stays open. */
+export type FirewallChoice = 'allow-once' | 'allow-session' | 'allow-always' | 'deny';
+
+/** The applet a firewall question or stored answer is about. */
+export interface FirewallApplet {
+  readonly title: string;
+  /** The applet across its versions; firewall rules are keyed by it. */
+  readonly catalogId: string;
+  /** The exact code that asked; stored answers are tied to it. */
+  readonly identity: AppletIdentity;
+}
+
+/** One thing an applet asked for, named by identifiers the host words. */
+export interface FirewallRequest {
+  /** `access` is the use of a whole domain; `resource` one named thing; `network` one server. */
+  readonly kind: 'access' | 'resource' | 'network';
+  readonly domain: string;
+  /** The request, such as `link.open`; `access` for a whole domain. */
+  readonly operation: string;
+  /** What exactly: the link, the server's origin, or the domain. */
+  readonly target: string;
+}
+
+/** What a firewall question shows. It carries no copy; the host words it. */
+export interface FirewallSummary {
+  /** `link` opens something outside the shell; `access` is an applet starting with a domain; `request` is anything else. */
+  readonly kind: 'link' | 'access' | 'request';
+  readonly applet: FirewallApplet;
+  readonly requests: readonly FirewallRequest[];
+  /** The answers open to the person, most generous last but for `deny`, which is always last. */
+  readonly choices: readonly FirewallChoice[];
+}
+
+/** A firewall question waiting for the person. */
+export interface FirewallPrompt {
+  readonly summary: FirewallSummary;
+  /** Aborts when the request is withdrawn: the applet closed, or the question went unanswered too long. */
+  readonly signal: { readonly aborted: boolean; addEventListener(type: 'abort', listener: () => void, options?: { once?: boolean }): void; removeEventListener(type: 'abort', listener: () => void): void };
+  /** Answer with one of `summary.choices`; `undefined` dismisses without storing anything. */
+  resolve(choice: FirewallChoice | undefined): void;
+}
+
+/** An answer in force: one the person gave, or one a rule gave for a running applet. */
+export interface FirewallDecision {
+  readonly id: string;
+  /** The applet's catalogue id and the exact code the answer is tied to. */
+  readonly catalogId: string;
+  readonly hash: string;
+  readonly request: FirewallRequest;
+  readonly effect: 'allow' | 'deny';
+  /** `session` ends when the applet's window does; `always` is kept across visits. */
+  readonly lifetime: 'session' | 'always';
+  /** True when a rule gave the answer, not the person. */
+  readonly byRule: boolean;
+}
+
+/** Which firewall rule to change: everything, one domain or one request, for every applet or for one. */
+export interface FirewallRuleTarget {
+  /** The applet's catalogue id, as in `summary.manifest.catalogId`; every applet when absent. */
+  readonly applet?: string;
+  /** A whole domain, such as `relay`. */
+  readonly domain?: string;
+  /** One kind of request, such as `link.open`. */
+  readonly operation?: string;
+}
+
+/**
+ * The firewall: what happens to a request no stored answer covers, and the answers in force (D-049).
+ * Grants decide which domains an applet holds; the firewall decides, inside those, what goes ahead
+ * without asking, what asks, and what is refused.
+ */
+export interface Firewall {
+  /** The rules in force. A shell starts with everything allowed and links asking. */
+  rules(): PermissionRules;
+  readonly rules$: Observable<PermissionRules>;
+  /**
+   * Set one rule, or remove it with `undefined`. An applet running under an answer the new rules
+   * no longer give is stopped. Throws `invalid:rule` for a malformed target.
+   */
+  setRule(target: FirewallRuleTarget, action: PermissionRuleAction | undefined): void;
+  restoreDefaults(): void;
+  /** Answers in force, the person's and the rules'. */
+  decisions(): readonly FirewallDecision[];
+  /** Emits whenever an answer is given, used up or taken back. */
+  readonly decisions$: Observable<readonly FirewallDecision[]>;
+  /** Take one answer back; an applet running under it is stopped. False when the stored copy could not be removed. */
+  forget(id: string): boolean;
+  /** Take every answer back and stop every applet. False when the stored copy could not be removed. */
+  forgetAll(): boolean;
+}
+
 export interface ConsentPrompt {
   readonly summary: ConsentSummary;
   resolve(allowed: boolean): void;
@@ -247,8 +339,11 @@ export interface KernlHost {
   presentSettings?(prompt: SettingsPrompt): void;
   /** Show something the applet or the guard wants the user to know. */
   notify(notice: { readonly title: string; readonly body?: string; readonly windowId?: string; readonly tone: 'info' | 'warning' }): void;
-  /** Open a link outside the shell after the link policy allowed it. */
-  openLink(url: string): void;
+  /**
+   * Open a link outside the shell. `approved` is set when the firewall already let this exact link
+   * through, by asking the person or by a rule they set, so the host should not ask again.
+   */
+  openLink(url: string, options?: { readonly approved?: boolean }): void;
   /** Current visibility for a window, when the core needs it synchronously. */
   getVisibility(windowId: string): WindowVisibility;
   /** Called after the core removed a frame because its binding was revoked. */
@@ -268,6 +363,11 @@ export interface KernlHost {
    * provider the user's order picked is used.
    */
   chooseReply?(prompt: ReplyPrompt): Promise<ReplyAnswer | undefined>;
+  /**
+   * Put a firewall question to the person: a request a rule says to ask about, such as opening a link.
+   * Close the prompt when `signal` aborts. Without it, such a request is refused (D-049).
+   */
+  presentApproval?(prompt: FirewallPrompt): void;
   /** Verify an artifact blob. Defaults to `fetch` over the manifest's servers. */
   fetchBlob?(sha256: string, servers: readonly string[]): Promise<Uint8Array>;
   now?(): number;
@@ -403,6 +503,8 @@ export interface Kernl {
   /** Monitored servers (NIP-66) for completing and suggesting; idle until `start()`. */
   readonly directory: RelayDirectory;
   readonly intents: Intents;
+  /** The rules for what applets may ask for without the person being asked, and the answers in force. */
+  readonly firewall: Firewall;
   readonly session$: Observable<Session | null>;
   readonly session: Session | null;
   login(account: IAccount): Promise<Session>;

@@ -8,6 +8,7 @@ import {
   type NappletCspOptions,
   type NappletExperimentalOptions,
   type ShellAdapter,
+  type ShellEnvironment,
 } from '@kehto/shell';
 import { createAppletCsp, renderInsertionLockScript, type GuardProfile } from '@kernlize/guard';
 import { renderRandomUuidFallbackScript } from '../crypto/install.js';
@@ -22,6 +23,8 @@ export interface PlanMountOptions {
   readonly adapter: ShellAdapter;
   readonly guardProfile: GuardProfile;
   readonly windowId: string;
+  /** The domains the firewall admitted the applet with; the environment is narrowed to them. Everything the grants leave when absent. */
+  readonly domains?: readonly string[];
 }
 
 /**
@@ -74,11 +77,35 @@ function addInsertionLock(srcdoc: string, csp: NappletCspOptions, domains: reado
 }
 
 /**
+ * The environment an applet is offered before the firewall admits it: kehto's
+ * live domains narrowed by the host's `capabilities.resolveEnvironment`,
+ * which in kernl is the grants layer.
+ *
+ * @param adapter - The shell adapter.
+ * @param summary - The verified applet.
+ * @returns The environment the grants leave the applet.
+ * @example
+ * ```ts
+ * resolveAppletEnvironment(adapter, summary).capabilities.domains; // ['shell', 'identity', 'theme', …]
+ * ```
+ */
+export function resolveAppletEnvironment(adapter: ShellAdapter, summary: Pick<AppletSummary, 'identity'>): ShellEnvironment {
+  return resolveShellEnvironment(adapter, { dTag: summary.identity.dTag, aggregateHash: summary.identity.hash });
+}
+
+/** Keep only the domains the firewall admitted; everything when it was not asked. */
+function narrowEnvironment(environment: ShellEnvironment, domains: readonly string[] | undefined): ShellEnvironment {
+  if (!domains) return environment;
+  const kept = environment.capabilities.domains.filter((domain) => domains.includes(domain));
+  return { ...environment, capabilities: { ...environment.capabilities, domains: kept } };
+}
+
+/**
  * Build everything `mountApplet` needs, without touching the DOM.
  *
  * The environment is kehto's `resolveShellEnvironment`, so it is the live
  * domains narrowed by the host's `capabilities.resolveEnvironment` (kernl's
- * grants). The CSP is the guard's zero-network profile, inserted first in
+ * grants), and then by `domains` when the firewall admitted fewer. The CSP is the guard's zero-network profile, inserted first in
  * `<head>` by `prepareNappletSrcdoc` with kehto's nested-context lock enabled
  * (`experimental.nestedContextLock`): the policy gains kehto's Trusted Types
  * directives and the mandatory namespace prelude installs kehto's creation
@@ -100,7 +127,7 @@ function addInsertionLock(srcdoc: string, csp: NappletCspOptions, domains: reado
 export function planMount(options: PlanMountOptions): MountPlan {
   const { summary } = options;
   assertNoFrame(options.indexHtml);
-  const environment = resolveShellEnvironment(options.adapter, { dTag: summary.identity.dTag, aggregateHash: summary.identity.hash });
+  const environment = narrowEnvironment(resolveAppletEnvironment(options.adapter, summary), options.domains);
   const domains = environment.capabilities.domains;
   const guardCsp = createAppletCsp(options.guardProfile);
   const csp: NappletCspOptions = { connectOrigins: guardCsp.connectOrigins, directives: guardCsp.directives as NappletCspDirectives };

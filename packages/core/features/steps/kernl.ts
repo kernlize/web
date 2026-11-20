@@ -58,7 +58,7 @@ export function k(world: CoreWorld): KernlScratch {
   return value;
 }
 
-function vector(world: CoreWorld): ManifestVector {
+export function vector(world: CoreWorld): ManifestVector {
   return scratch(world).manifest as ManifestVector;
 }
 
@@ -382,7 +382,7 @@ Then('the shell plan is missing {string}', (world: CoreWorld, domains: string) =
   expect(k(world).plan?.missingRequired).toEqual(splitList(domains));
 });
 
-function mountFrame(world: CoreWorld): void {
+export function mountFrame(world: CoreWorld): void {
   const s = k(world);
   if (!s.plan) throw new Error('plan first');
   s.frame = createFakeFrame();
@@ -428,7 +428,7 @@ function windowMessage(source: MessageEventSource | null, data: unknown, ports: 
   return Object.assign(new Event('message'), { source, data, ports, origin: 'null' }) as MessageEvent;
 }
 
-function hello(world: CoreWorld, win: Window): MessageChannel {
+export function hello(world: CoreWorld, win: Window): MessageChannel {
   const channel = new MessageChannel();
   channel.port1.onmessage = (event) => void k(world).received.push(event.data as Record<string, unknown>);
   const message = windowMessage(win, { type: 'napplet.hello' }, [channel.port2]);
@@ -486,18 +486,31 @@ When('a window message with no source reaches the shell', (world: CoreWorld) => 
   k(world).kernl.handleWindowMessage(windowMessage(null, { type: 'napplet.hello' }, []));
 });
 
-When('a rogue window registered outside the shell is granted {string}, sends its hello, asks {string} for {string} and floods {string}', async (world: CoreWorld, domain: string, ask: string, url: string, type: string) => {
+/** A window the host put in front of kehto itself, past `kernl.plan`. `admitted` also has kehto's firewall admit it, as another part of the host could. */
+async function rogueWindow(world: CoreWorld, rogue: { windowId: string; hash: string; domain: string; admitted: boolean }): Promise<MessageChannel> {
   const win = {} as Window;
-  const windowId = 'rogue-1';
-  const identity = { dTag: 'rogue', hash: 'cd'.repeat(32) };
-  k(world).kernl.grants.allowDomain(identity, domain);
-  originRegistry.register(win, windowId, { dTag: identity.dTag, aggregateHash: identity.hash });
+  const { windowId, hash, domain } = rogue;
+  const identity = { dTag: 'rogue', hash };
+  const { kernl } = k(world);
+  kernl.grants.allowDomain(identity, domain);
+  const permissionPrincipal = { kind: 'verified', manifestKey: `nip5d:35129:${'ab'.repeat(32)}:rogue`, artifactHash: hash } as const;
+  if (rogue.admitted) {
+    const { runtime } = kernl.bridge;
+    runtime.sessionRegistry.register(windowId, { pubkey: '', windowId, origin: 'null', type: 'nip5d', dTag: identity.dTag, aggregateHash: hash, permissionPrincipal, registeredAt: 0, instanceId: windowId, provenance: 'nip-5d' });
+    await runtime.permissions?.admit(windowId, { available: [domain, 'storage'], required: [], optional: [domain, 'storage'] });
+  }
+  originRegistry.register(win, windowId, { dTag: identity.dTag, aggregateHash: hash, ...(rogue.admitted ? { permissionPrincipal } : {}) });
   const channel = hello(world, win);
+  k(world).rogue = { windowId, channel };
+  return channel;
+}
+
+When('a rogue window {word} outside the shell is granted {string}, sends its hello, asks {string} for {string} and floods {string}', async (world: CoreWorld, how: string, domain: string, ask: string, url: string, type: string) => {
+  const channel = await rogueWindow(world, { windowId: 'rogue-1', hash: 'cd'.repeat(32), domain, admitted: how === 'admitted' });
   channel.port1.postMessage({ type: ask, id: 'rogue-ask', url });
   await settle();
   for (let i = 0; i < 320; i += 1) channel.port1.postMessage({ type, id: `rogue-${i}`, key: 'k' });
   await settle();
-  k(world).rogue = { windowId, channel };
 });
 
 Then('the fake bridges were asked for {string} by the shell itself', (world: CoreWorld, uri: string) => {
@@ -597,14 +610,8 @@ When('the applet sends {string} without an id or an event over its port', async 
   await settle();
 });
 
-When('a rogue window registered outside the shell is granted {string}, sends its hello and publishes a kind {int} event', async (world: CoreWorld, domain: string, kind: number) => {
-  const win = {} as Window;
-  const windowId = 'rogue-publisher';
-  const identity = { dTag: 'rogue', hash: 'ce'.repeat(32) };
-  k(world).kernl.grants.allowDomain(identity, domain);
-  originRegistry.register(win, windowId, { dTag: identity.dTag, aggregateHash: identity.hash });
-  const channel = hello(world, win);
-  k(world).rogue = { windowId, channel };
+When('a rogue window {word} outside the shell is granted {string}, sends its hello and publishes a kind {int} event', async (world: CoreWorld, how: string, domain: string, kind: number) => {
+  const channel = await rogueWindow(world, { windowId: 'rogue-publisher', hash: 'ce'.repeat(32), domain, admitted: how === 'admitted' });
   channel.port1.postMessage({ type: 'shell.ready', id: 'ready-1' });
   channel.port1.postMessage({ type: 'relay.publish', id: 'publish-1', event: { kind, content: '{"name":"rogue"}', tags: [], created_at: Math.floor(Date.now() / 1000) } });
   await settle();

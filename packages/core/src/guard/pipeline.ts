@@ -2,13 +2,13 @@ import { BehaviorSubject, type Observable } from 'rxjs';
 import type { NappletMessageDecision } from '@kehto/shell';
 import {
   classifyEnvelope,
-  createFocusFirewall,
+  createFocusRateLimiter,
   createGuardConfig,
   createIngressGuard,
   createVisibilityGate,
   estimateEnvelopeSize,
   type AdmitOptions,
-  type FocusFirewall,
+  type FocusRateLimiter,
   type GuardConfig,
   type GuardDisposition,
   type GuardEnvelope,
@@ -68,7 +68,7 @@ export interface GuardPipeline {
    * window that is not visible (reason `hidden:<class>`) until it is visible
    * again, up to `deferQueue` envelopes. `drop` discards an envelope over its
    * size cap, a burst above the per-second rate, a request over the
-   * focus-aware firewall's budget, a hidden window's envelope past the defer
+   * focus-aware rate limiter's budget, a hidden window's envelope past the defer
    * queue, and the envelope that triggers a quarantine. Control envelopes are
    * dispatched unless the window is quarantined.
    */
@@ -87,7 +87,7 @@ export interface GuardPipeline {
 interface Layers {
   ingress: IngressGuard;
   gate: VisibilityGate;
-  firewall: FocusFirewall;
+  rateLimiter: FocusRateLimiter;
 }
 
 function toEnvelope(data: unknown): GuardEnvelope {
@@ -114,24 +114,24 @@ type HoldPort = (port: PortEnvelope, opClass: OpClass) => NappletMessageDecision
 /**
  * What the pipeline answers for a port envelope once the ingress guard has
  * admitted it. Control envelopes are dispatched; a hidden window's other
- * envelopes are held; the rest go to the firewall.
+ * envelopes are held; the rest go to the rate limiter.
  */
-function judgePort(port: PortEnvelope, admitted: GuardDisposition, firewall: FocusFirewall, hold: HoldPort): NappletMessageDecision {
+function judgePort(port: PortEnvelope, admitted: GuardDisposition, rateLimiter: FocusRateLimiter, hold: HoldPort): NappletMessageDecision {
   const { windowId, napplet, envelope, visibility } = port;
   if (admitted === 'quarantine') return 'drop';
   const opClass = classifyEnvelope(envelope);
   if (opClass === 'control') {
-    if (admitted === 'pass') firewall.observe(windowId, napplet, envelope, visibility);
+    if (admitted === 'pass') rateLimiter.observe(windowId, napplet, envelope, visibility);
     return 'dispatch';
   }
   if (admitted !== 'pass') return 'drop';
   if (!visibility.visible) return hold(port, opClass);
-  return firewall.observe(windowId, napplet, envelope, visibility).decision === 'pass' ? 'dispatch' : 'drop';
+  return rateLimiter.observe(windowId, napplet, envelope, visibility).decision === 'pass' ? 'dispatch' : 'drop';
 }
 
 /**
  * Compose the guard: ingress flood control, then the visibility gate, then the
- * focus-aware firewall, then kehto's bridge.
+ * focus-aware rate limiter, then kehto's bridge.
  *
  * What is enforced where (D-020): kehto binds NAP traffic to a `MessagePort`
  * the bridge owns. Window-level messages, of which only `napplet.hello` is
@@ -140,9 +140,9 @@ function judgePort(port: PortEnvelope, admitted: GuardDisposition, firewall: Foc
  * kehto follows: dispatch, hold until `releaseDeferred`, or drop. Hidden
  * windows' envelopes are held and `onRelease` is called when the window is
  * visible again. Quarantine revokes the window inside the filter, and kehto
- * discards what it held. The runtime firewall configured by
- * `applyRuntimeFirewallRules` adds the profile's per-class rates to every
- * envelope it dispatches, held ones included.
+ * discards what it held. kehto's runtime then charges what it
+ * carries out against the same budgets (`createRuntimeRateLimiter`), held
+ * envelopes included, and puts each request to the firewall.
  *
  * @param options - Configuration, clock, event sink and quarantine callback.
  * @returns The pipeline.
@@ -169,7 +169,7 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
   const buildLayers = (): Layers => ({
     ingress: createIngressGuard(layerOptions()),
     gate: createVisibilityGate({ ...layerOptions(), nappletFor: () => deferring }),
-    firewall: createFocusFirewall(layerOptions()),
+    rateLimiter: createFocusRateLimiter(layerOptions()),
   });
   let layers = buildLayers();
 
@@ -201,11 +201,11 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
       push(heldByGate, windowId, pending);
       return 'defer';
     }
-    return pastFirewall(windowId, pending);
+    return pastRateLimiter(windowId, pending);
   }
 
-  function pastFirewall(windowId: string, pending: Pending): GuardDisposition {
-    const result = layers.firewall.observe(windowId, pending.napplet, pending.envelope, visibilityOf(windowId));
+  function pastRateLimiter(windowId: string, pending: Pending): GuardDisposition {
+    const result = layers.rateLimiter.observe(windowId, pending.napplet, pending.envelope, visibilityOf(windowId));
     if (result.decision !== 'pass') return 'reject';
     pending.forward(pending.event);
     return 'pass';
@@ -229,7 +229,7 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
     const released = layers.ingress.drain(windowId).length;
     for (const pending of take(heldByIngress, windowId, released)) pastGate(windowId, pending);
     const visible = layers.gate.drain(windowId).length;
-    for (const pending of take(heldByGate, windowId, visible)) pastFirewall(windowId, pending);
+    for (const pending of take(heldByGate, windowId, visible)) pastRateLimiter(windowId, pending);
   }
 
   return {
@@ -260,7 +260,7 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
     observe(windowId, napplet, message) {
       const envelope = toEnvelope(message);
       const port: PortEnvelope = { windowId, napplet, envelope, visibility: visibilityOf(windowId) };
-      return judgePort(port, admit(windowId, napplet, envelope, { hold: false }), layers.firewall, holdPort);
+      return judgePort(port, admit(windowId, napplet, envelope, { hold: false }), layers.rateLimiter, holdPort);
     },
     setVisibility(windowId, visibility) {
       known.set(windowId, visibility);
@@ -275,7 +275,7 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
     forget(windowId) {
       layers.ingress.forget(windowId);
       layers.gate.forget(windowId);
-      layers.firewall.forget(windowId);
+      layers.rateLimiter.forget(windowId);
       heldByIngress.delete(windowId);
       heldByGate.delete(windowId);
       known.delete(windowId);

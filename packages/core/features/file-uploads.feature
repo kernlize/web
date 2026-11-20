@@ -88,9 +88,16 @@ Feature: Uploading files
     Given the uploader has no signer
     When an applet uploads a 10-byte "text/plain" file
     Then the upload was "failed" with "denied:read-only"
+    And no plan was given to the firewall because "denied:read-only"
     Given an uploader over "" where the person says "yes"
     When an applet uploads a 10-byte "text/plain" file
     Then the upload was "failed" with "unavailable:no-file-server"
+    And no plan was given to the firewall because "unavailable:no-file-server"
+
+  Scenario: the firewall is given the first file server before any byte leaves
+    Given an uploader over "https://one.test/,https://two.test/" where the person says "yes"
+    When an applet uploads a 10-byte "text/plain" file
+    Then the firewall was given a plan for "https://one.test/" signed by the account, which uploads the file when run
 
   Scenario Outline: sizes read the way a person reads them
     Then <bytes> bytes read "<words>"

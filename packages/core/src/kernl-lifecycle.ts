@@ -5,10 +5,10 @@ import type { AppletHandle, AppletIdentity, AppletPointer, AppletSummary, Builti
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { resolveBuiltin } from './applets/builtin.js';
 import { fetchManifestEvent, resolveApplet, type PublishedPointer, type ResolvedApplet } from './applets/resolve.js';
-import { planMount } from './applets/plan.js';
+import { planMount, resolveAppletEnvironment } from './applets/plan.js';
 import { mountApplet, type MountedApplet } from './applets/mount.js';
 import type { GuardPipeline, WindowResolution } from './guard/pipeline.js';
-import { applyRuntimeFirewallRules, type RuntimeFirewallState } from './guard/runtime-rules.js';
+import type { AppletAdmissions } from './firewall/admission.js';
 import type { KernlGrants } from './grants/grants.js';
 import type { InstalledApplets } from './intents/installed.js';
 
@@ -19,8 +19,10 @@ export interface LifecycleContext {
   readonly adapter: ShellAdapter;
   readonly bridge: ShellBridge;
   readonly pipeline: GuardPipeline;
-  /** The runtime firewall kernl constructed; mounting installs the applet's rates in it. */
-  readonly firewall: RuntimeFirewallState;
+  /** The firewall's say over which applets start; planning asks it and mounting checks the answer still stands. */
+  readonly admissions: AppletAdmissions;
+  /** Tells the firewall which applet a window id's questions are about. */
+  readonly remember: (summary: AppletSummary) => void;
   readonly grants: KernlGrants;
   /** Every planned applet is installed, so others can hand it work. */
   readonly installed: InstalledApplets;
@@ -107,7 +109,7 @@ async function resolveShipped(context: LifecycleContext, id: string): Promise<Re
 
 /**
  * The applet lifecycle: `resolve` fetches and verifies (or loads an applet the host ships), `plan` narrows the
- * environment under the user's grants and installs the applet, `mount` performs the NIP-5D mount order
+ * environment under the user's grants, puts the start to the firewall and installs the applet, `mount` performs the NIP-5D mount order
  * and `handleWindowMessage` runs the guard in front of the bridge.
  *
  * @param context - The composed shell's parts.
@@ -119,7 +121,21 @@ async function resolveShipped(context: LifecycleContext, id: string): Promise<Re
  * ```
  */
 export function createAppletLifecycle(context: LifecycleContext): AppletLifecycle {
-  const { handles, pipeline, bridge } = context;
+  const { handles, pipeline, bridge, admissions } = context;
+  // An answer was taken back: a window admitted under it stops, as when a grant it used is taken back (D-038).
+  const stopStale = (): void => {
+    for (const handle of [...handles.values()]) {
+      if (admissions.isCurrent(handle.windowId)) continue;
+      handle.revoked('firewall');
+      bridge.revokeNapplet(handle.windowId, 'host');
+    }
+  };
+  // kehto is still ending the work the answer covered when it tells us, so the windows stop right after it.
+  const stopFollowing = admissions.onInvalidated(() => queueMicrotask(stopStale));
+  context.subscriptions.add(() => {
+    stopFollowing();
+    admissions.close();
+  });
   const verified = new Map<string, string>();
   let windowCounter = 0;
   const lookUp = async (pointer: PublishedPointer): Promise<ResolvedApplet> => {
@@ -148,10 +164,15 @@ export function createAppletLifecycle(context: LifecycleContext): AppletLifecycl
       context.grants.ensure(summary.identity);
       context.installed.install(summary);
       windowCounter += 1;
-      return planMount({ summary, indexHtml, adapter: context.adapter, guardProfile: pipeline.config.profile, windowId: `applet-${windowCounter}` });
+      const windowId = `applet-${windowCounter}`;
+      context.remember(summary);
+      // The firewall admits the applet before a plan exists, so no code runs with a domain it refused (D-049).
+      const domains = await admissions.admit(windowId, summary, resolveAppletEnvironment(context.adapter, summary));
+      return planMount({ summary, indexHtml, adapter: context.adapter, guardProfile: pipeline.config.profile, windowId, domains });
     },
     mount(plan: MountPlan, frame: FrameLike): AppletHandle {
-      applyRuntimeFirewallRules(context.firewall, pipeline.config, plan.summary.identity.dTag);
+      if (!admissions.isCurrent(plan.windowId)) throw new Error('denied:admission-expired');
+      admissions.mounted(plan.windowId);
       const handle = mountApplet(plan, frame, {
         bridge,
         originRegistry,
@@ -171,6 +192,8 @@ export function createAppletLifecycle(context: LifecycleContext): AppletLifecycl
         if (status !== 'closed' && status !== 'revoked') return;
         handles.delete(plan.windowId);
         narrowed.unsubscribe();
+        // A window closed before it said hello has only the session admission opened for it.
+        admissions.discard(plan.windowId);
       }));
       return handle;
     },

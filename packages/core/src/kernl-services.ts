@@ -17,6 +17,7 @@ import {
   type CommonServiceOptions,
   type ConfigServiceOptions,
   type DmService,
+  type OutboxPublishResult,
   type OutboxRouter,
   type RelayListEntry,
   type ResourceFetchInit,
@@ -36,7 +37,7 @@ import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { createAppletRelayService, createOutboxRelayPool } from './applesauce/relay-backend.js';
 import { createIdentityProviders, type IdentityProviders, type RelayPermissions } from './applesauce/identity-providers.js';
 import type { SigningConsent, SigningTemplate } from './consent/handler.js';
-import { locateRecipients } from './people/locate-recipients.js';
+import { locateRecipients, locateSendRecipients } from './people/locate-recipients.js';
 import type { People } from './people/person.js';
 import { labelConversations } from './messaging/label-conversations.js';
 import type { Profiles } from './profiles/profiles.js';
@@ -146,15 +147,72 @@ function withShellWrites(entry: RelayListEntry, tiers: KernlServiceDeps['tiers']
  * ```
  */
 export function acceptAnyRelay(router: OutboxRouter): OutboxRouter {
+  const accept = (result: OutboxPublishResult): OutboxPublishResult => {
+    if (result.ok || !result.relays || !Object.values(result.relays).some(Boolean)) return result;
+    const { error: _refused, ...accepted } = result;
+    return { ...accepted, ok: true };
+  };
+  // Under the firewall kehto plans a publish, has the plan approved and publishes through `publishWithPlan`, so that path gets the same policy.
+  const planned = router as PlannedPublishRouter;
+  const publishWithPlan = planned.publishWithPlan?.bind(planned);
   return {
     ...router,
-    async publish(template, options) {
-      const result = await router.publish(template, options);
-      if (result.ok || !result.relays || !Object.values(result.relays).some(Boolean)) return result;
-      const { error: _refused, ...accepted } = result;
-      return { ...accepted, ok: true };
-    },
-  };
+    publish: async (template, options) => accept(await router.publish(template, options)),
+    ...(publishWithPlan ? { publishWithPlan: async (...args: Parameters<typeof publishWithPlan>) => accept(await publishWithPlan(...args)) } : {}),
+  } as OutboxRouter;
+}
+
+/** The planned publish kehto's relay-pool router adds beside `OutboxRouter`; kehto does not export its type. */
+interface PlannedPublishRouter extends OutboxRouter {
+  publishWithPlan?(template: EventTemplate, plan: unknown): Promise<OutboxPublishResult>;
+}
+
+/**
+ * The relays the shell itself may reach for an applet, as bare origins: the
+ * form kehto's firewall takes a network destination in.
+ *
+ * kehto's messaging and social services have each request's relays approved
+ * before they run it. In kernl the applet never chooses them: a provider finds
+ * the recipient's inboxes and a post goes to the tier for its kind, so the
+ * plan is every relay in the shell's tiers, which is the widest set either can
+ * reach. A relay whose address is not a bare `ws:` or `wss:` origin is left out.
+ *
+ * @param tiers - The shell's relay tiers.
+ * @returns Distinct relay origins.
+ * @example
+ * ```ts
+ * shellRelayOrigins(tiers); // ['wss://relay.example', …]
+ * ```
+ */
+export function shellRelayOrigins(tiers: Pick<RelayTiers, 'get'>): readonly string[] {
+  const { outbox, discovery, apps, super: shared } = tiers.get();
+  const origins = [...outbox, ...shared, ...discovery, ...apps].flatMap((relay) => {
+    const origin = /^(wss?:\/\/[^/?#@]+)\/?$/.exec(relay)?.[1];
+    return origin ? [origin] : [];
+  });
+  return [...new Set(origins)];
+}
+
+/**
+ * Have the firewall approve the server a download contacts before it is
+ * contacted. kehto's resource service passes `authorizeNetwork` when the
+ * firewall is on; a web address is put to it by origin, and anything else
+ * (a magnet link, a file-server address) is resolved by its bridge, which
+ * names its own servers. Upstream gap: the bridge registry follows a redirect
+ * itself under its own address policy, so only the first origin is put to the
+ * firewall.
+ *
+ * @param url - The address the applet asked for.
+ * @param init - What kehto's resource service passed.
+ * @param run - Resolves the address under the signal it is given.
+ * @returns What `run` resolved.
+ * @example
+ * ```ts
+ * createResourceService({ fetch: (url, init) => fetchThroughFirewall(url, init, (signal) => resolve(url, { signal })) });
+ * ```
+ */
+export function fetchThroughFirewall<T>(url: string, init: Pick<ResourceFetchInit, 'signal' | 'authorizeNetwork'>, run: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  return init.authorizeNetwork && /^https?:/i.test(url) ? init.authorizeNetwork(url, run) : run(init.signal);
 }
 
 function requesterFor(deps: Pick<KernlServiceDeps, 'resolveIdentity'>, windowId: string | undefined): BridgeContext['requester'] {
@@ -281,7 +339,10 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
   const identity = deps.identity ?? createIdentityProviders(deps.eventStore, deps.pool, deps.tiers);
   const theme = createThemeService(deps.theme ? { initialTheme: deps.theme } : {});
   const located = deps.people ? locateRecipients(deps.messaging.composite(), deps.people) : deps.messaging.composite();
-  const dm = createDmService({ adapter: deps.profiles ? labelConversations(located, deps.profiles) : located });
+  const relayPlan = (): readonly string[] => shellRelayOrigins(deps.tiers);
+  const labelled = deps.profiles ? labelConversations(located, deps.profiles) : located;
+  const dmService = createDmService({ adapter: { ...labelled, planRelays: relayPlan } });
+  const dm = deps.people ? locateSendRecipients(dmService, deps.people) : dmService;
   const resolve = createBridgeResourceResolver(deps.bridges);
   const identities = deps.identities ?? createWindowIdentities();
   const direct = deps.directConnections;
@@ -296,14 +357,13 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
     }),
     link: createLinkService({
       allowedProtocols: LINK_PROTOCOLS,
+      // kehto calls this only after the firewall let this exact link through, so the host need not ask again (D-049).
       open: ({ url }) => {
-        deps.host.openLink(url.href);
+        deps.host.openLink(url.href, { approved: true });
         return { status: 'opened' };
       },
     }),
-    resource: createResourceService({
-      fetch: (url, init) => resolve(url, resourceInitFor(deps, init)),
-    }),
+    resource: createResourceService({ fetch: (url, init) => fetchThroughFirewall(url, init, (signal) => resolve(url, resourceInitFor(deps, { ...init, signal }))) }),
     dm,
     outbox: gateOutboxPublish(createOutbox(deps, identity), deps.consent),
     cvm: createRemoteToolsService({
@@ -322,7 +382,7 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
       }),
     } : {}),
     ...(deps.config ? { config: createConfigService(deps.config).handler } : {}),
-    ...(deps.common ? { common: createCommonService(deps.common) } : {}),
+    ...(deps.common ? { common: createCommonService({ planRelays: relayPlan, ...deps.common }) } : {}),
     ...(deps.uploader ? { upload: createUploadService({ uploader: deps.uploader, uploadInfo: { rails: [{ rail: 'blossom', enabled: true }] } }) } : {}),
   };
   return { registry, theme, dm };

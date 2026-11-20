@@ -7,7 +7,7 @@ import type { MessagingRegistry } from '@kernlize/messaging';
 import { buildShellCapabilities, createShellBridge, type ShellAdapter, type ShellBridge } from '@kehto/shell';
 import { createGuardConfig, describeMitigations, type GuardEvent } from '@kernlize/guard';
 import type { AccountFileServers } from './files/file-servers.js';
-import type { AppletIdentity, AppletSummary, Grants, GuardFacade, Kernl, KernlHost, KernlMultiplayer, KernlOptions, RelayTiers, Session } from './types.js';
+import type { AppletIdentity, AppletSummary, FirewallApplet, Grants, GuardFacade, Kernl, KernlHost, KernlMultiplayer, KernlOptions, RelayTiers, Session } from './types.js';
 import { createMultiplayerSettings } from './multiplayer/settings.js';
 import { discoverToolFamilies } from './multiplayer/tool-discovery.js';
 import { createKernlAccounts } from './applesauce/accounts.js';
@@ -24,7 +24,12 @@ import { decodePointer } from './applets/pointer.js';
 import { defaultFetchBlob, openDefaultArtifactCache } from './applets/resolve.js';
 import type { MountedApplet } from './applets/mount.js';
 import { createGuardPipeline, type GuardPipeline } from './guard/pipeline.js';
-import { applyRuntimeFirewallProfile, applyRuntimeFirewallRules, createRuntimeFirewallHooks, type RuntimeFirewallState } from './guard/runtime-rules.js';
+import { createRuntimeRateLimiter, toGuardEvent } from './guard/runtime-rate-limit.js';
+import { permissionRuleSubject } from '@kehto/firewall';
+import { createFirewallRules } from './firewall/rules.js';
+import { createFirewallPermissions } from './firewall/permissions.js';
+import { createAppletAdmissions } from './firewall/admission.js';
+import { createFirewall, type KernlFirewall } from './firewall/firewall.js';
 import { createEnvironmentResolver, createGrants, type KernlGrants } from './grants/grants.js';
 import { createConsentHandler, createSigningConsent, lookupReplaceable } from './consent/handler.js';
 import { abbreviate } from './consent/describe-change.js';
@@ -61,10 +66,7 @@ export function toSession(account: IAccount, card?: ProfileCard): Session {
 }
 
 interface ShellState {
-  readonly pipeline: GuardPipeline;
-  readonly firewall: RuntimeFirewallState;
   readonly bridge: ShellBridge;
-  readonly handles: ReadonlyMap<string, MountedApplet>;
   readonly accounts: AccountManager;
   readonly session$: BehaviorSubject<Session | null>;
   readonly profiles: Profiles;
@@ -72,13 +74,9 @@ interface ShellState {
   readonly tiers: RelayTiers;
 }
 
-/** Keep the runtime firewall on the guard's profile and the session on the active account. */
-function followShellState({ pipeline, firewall, bridge, handles, accounts, session$, profiles, mailboxes, tiers }: ShellState): Subscription {
+/** Keep the session on the active account and the outbox tier on where it publishes. */
+function followShellState({ bridge, accounts, session$, profiles, mailboxes, tiers }: ShellState): Subscription {
   const subscriptions = new Subscription();
-  subscriptions.add(pipeline.profile$.subscribe(() => {
-    applyRuntimeFirewallProfile(firewall, pipeline.config);
-    for (const handle of handles.values()) applyRuntimeFirewallRules(firewall, pipeline.config, handle.summary.identity.dTag);
-  }));
   subscriptions.add(accounts.active$.subscribe((account) => bridge.publishIdentityChanged(account?.pubkey ?? '')));
   // The session's label follows the account's published name once it arrives.
   const sessions = accounts.active$.pipe(switchMap((account) => (account ? profiles.card$(account.pubkey).pipe(map((card) => toSession(account, card))) : of(null))));
@@ -88,6 +86,56 @@ function followShellState({ pipeline, firewall, bridge, handles, accounts, sessi
     if (state.status === 'found') tiers.set('outbox', state.mailboxes.outboxes);
   }));
   return subscriptions;
+}
+
+/** The legacy rate gate's stored configuration; nothing reads it since the firewall took over (D-049). */
+const RETIRED_STORAGE_KEYS: readonly string[] = ['kernl:firewall:v1'];
+
+interface FirewallParts {
+  readonly host: KernlHost;
+  readonly pipeline: GuardPipeline;
+  readonly handles: ReadonlyMap<string, MountedApplet>;
+  readonly guardEvents$: Subject<GuardEvent>;
+  /** Applets this shell planned, by catalogue id and hash; the firewall's questions name them. */
+  readonly planned: ReadonlyMap<string, FirewallApplet>;
+  /** Called after the person answered a question, once kehto stored the answer. */
+  readonly answered: () => void;
+}
+
+/** The applet across versions and the exact code, as both the lifecycle and kehto's principal name them. */
+function plannedKey(subject: string, hash: string): string {
+  return `${subject}\n${hash}`;
+}
+
+/** The firewall's host side: the rules, the person's answers, and the guard profile's budgets for what the runtime carries out. */
+function firewallFor(parts: FirewallParts): { rules: ReturnType<typeof createFirewallRules>; permissions: ReturnType<typeof createFirewallPermissions> } {
+  const { host, pipeline, handles } = parts;
+  for (const key of RETIRED_STORAGE_KEYS) host.storage.removeItem(key);
+  const rules = createFirewallRules(host.storage);
+  const now = host.now ? host.now.bind(host) : Date.now;
+  const presentApproval = host.presentApproval?.bind(host);
+  const permissions = createFirewallPermissions({
+    host: {
+      storage: host.storage,
+      notify: (notice) => host.notify(notice),
+      ...(host.now ? { now } : {}),
+      ...(presentApproval ? {
+        presentApproval: (prompt) => presentApproval({
+          ...prompt,
+          resolve(choice) {
+            prompt.resolve(choice);
+            // kehto stores the answer in the turn after this one.
+            setTimeout(parts.answered, 0);
+          },
+        }),
+      } : {}),
+    },
+    rules,
+    appletOf: (principal) => parts.planned.get(plannedKey(permissionRuleSubject(principal), principal.artifactHash)),
+    rateLimiter: createRuntimeRateLimiter(() => pipeline.config),
+    onRateLimit: (event) => parts.guardEvents$.next(toGuardEvent(event, handles.get(event.windowId)?.summary.identity.dTag ?? 'unknown', now())),
+  });
+  return { rules, permissions };
 }
 
 /** Signing in and out. The session itself is a getter on the shell, so spreading this never copies a stale value. */
@@ -325,11 +373,9 @@ export function createKernl(options: KernlOptions): Kernl {
 
   const intents = createKernlIntents({ host, pool, tiers, accounts, handles, ...(options.intentRetry ? { retry: options.intentRetry } : {}) });
   services.registry.intent = intents.handler;
-  const runtimeFirewall = createRuntimeFirewallHooks({
-    storage: host.storage,
-    onEvent: (event) => guardEvents$.next(event),
-    ...(host.now ? { now: host.now.bind(host) } : {}),
-  });
+  const planned = new Map<string, FirewallApplet>();
+  let firewall: KernlFirewall;
+  const guarding = firewallFor({ host, pipeline, handles, guardEvents$, planned, answered: () => firewall.touch() });
   const adapter: ShellAdapter = createShellAdapter({
     pool,
     tiers,
@@ -340,13 +386,17 @@ export function createKernl(options: KernlOptions): Kernl {
     onNappletRevoked: ({ windowId, reason }) => handles.get(windowId)?.revoked(reason),
     filterNappletMessage: (windowId, message) => pipeline.observe(windowId, identityOf(windowId)?.dTag ?? 'unknown', message),
     getFocusContext: (windowId) => ({ focused: pipeline.getVisibility(windowId).focused }),
-    runtimeFirewall,
+    permissions: guarding.permissions,
   });
   const bridge = createShellBridge(adapter);
   grants = createGrants({ acl: bridge.runtime.aclState, storage: host.storage, availableDomains: () => buildShellCapabilities(adapter).domains });
   bridge.registerConsentHandler(createConsentHandler(host, lookupBefore, identityOf));
 
-  subscriptions.add(followShellState({ pipeline, firewall: runtimeFirewall.legacyFirewall, bridge, handles, accounts, session$, profiles, mailboxes, tiers }));
+  // `permissions` is always configured here, so the runtime always has its management surface.
+  firewall = createFirewall({ rules: guarding.rules, permissions: bridge.runtime.permissions as NonNullable<typeof bridge.runtime.permissions> });
+  subscriptions.add(() => firewall.close());
+
+  subscriptions.add(followShellState({ bridge, accounts, session$, profiles, mailboxes, tiers }));
 
   const lifecycle = createAppletLifecycle({
     pool,
@@ -354,7 +404,8 @@ export function createKernl(options: KernlOptions): Kernl {
     adapter,
     bridge,
     pipeline,
-    firewall: runtimeFirewall.legacyFirewall,
+    admissions: createAppletAdmissions(bridge.runtime, host.now ? host.now.bind(host) : Date.now),
+    remember: (summary) => void planned.set(plannedKey(summary.manifest.catalogId, summary.identity.hash), { title: summary.title, catalogId: summary.manifest.catalogId, identity: summary.identity }),
     grants,
     installed: intents.installed,
     host,
@@ -386,6 +437,7 @@ export function createKernl(options: KernlOptions): Kernl {
     multiplayer: meeting.multiplayer,
     directory,
     intents: intents.intents,
+    firewall,
     session$,
     get session() {
       return session$.value;

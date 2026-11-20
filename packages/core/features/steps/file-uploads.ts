@@ -4,7 +4,7 @@ import { Subject, type Observable } from 'rxjs';
 import { EventStore } from 'applesauce-core';
 import { PrivateKeySigner } from 'applesauce-signers';
 import type { BlobDescriptor } from 'blossom-client-sdk';
-import type { UploadResult, UploadStatus } from '@kehto/services';
+import type { UploadExecutionPlan, UploadResult, UploadStatus } from '@kehto/services';
 import type { NostrEvent } from '@napplet/core';
 import {
   askUploadConsent,
@@ -40,6 +40,8 @@ interface UploadScratch {
   storing: Set<string> | 'all';
   breaks: boolean;
   result?: UploadResult;
+  /** What `planUpload` gave kehto's firewall, or the reason it gave none. */
+  plan?: UploadExecutionPlan | string;
 }
 
 const u = (world: CoreWorld): UploadScratch => {
@@ -204,13 +206,25 @@ async function upload(world: CoreWorld, data: Blob | ArrayBuffer, extra: { mimeT
   const signer = state.signer as PrivateKeySigner;
   const uploader = createBlossomUploader({
     servers: async () => state.servers,
-    signer: () => (state.noSigner ? undefined : { signEvent: (draft) => ((state.signed += 1), signer.signEvent(draft)) }),
+    signer: () => (state.noSigner ? undefined : { getPublicKey: () => signer.getPublicKey(), signEvent: (draft) => ((state.signed += 1), signer.signEvent(draft)) }),
     ask: async (_windowId, details) => (state.asked.push(details), state.allow),
     transfer: transfer(world),
   });
   const statuses: UploadStatus[] = [];
-  state.result = await uploader.upload({ data, ...extra }, { uploadId: 'u1', windowId: 'w1', onStatus: (status) => statuses.push(status) });
+  const context = { uploadId: 'u1', windowId: 'w1', onStatus: (status: UploadStatus) => void statuses.push(status) };
+  state.plan = await Promise.resolve(uploader.planUpload?.({ data, ...extra }, context)).catch((error: Error) => error.message);
+  state.result = await uploader.upload({ data, ...extra }, context);
 }
+
+Then('the firewall was given a plan for {string} signed by the account, which uploads the file when run', async (world: CoreWorld, destination: string) => {
+  const plan = u(world).plan as Exclude<UploadScratch['plan'], string | undefined>;
+  expect(plan).toMatchObject({ rail: 'blossom', destination, signingPubkey: await u(world).signer?.getPublicKey() });
+  expect(await plan.execute(new AbortController().signal)).toMatchObject({ ok: true, status: 'complete' });
+});
+
+Then('no plan was given to the firewall because {string}', (world: CoreWorld, reason: string) => {
+  expect(u(world).plan).toBe(reason);
+});
 
 When('an applet uploads a {int}-byte {string} file named {string}', (world: CoreWorld, size: number, type: string, filename: string) =>
   upload(world, new Blob([new Uint8Array(size)], { type }), { filename }),
