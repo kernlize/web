@@ -22,7 +22,7 @@ document.getElementById('post').addEventListener('click', () => window.parent.po
 window.napplet.storage.getItem('k').then(() => { document.body.dataset.bound = 'yes'; });
 </script></body></html>`;
 
-async function runCounter(page: Page): Promise<void> {
+async function runCounter(page: Page): Promise<string> {
   const applet = signApplet({ servers: ['https://blobs.test/'], requires: [], optional: [], html: COUNTING_APPLET });
   await fakeNetwork(page, applet, { 'catalogue.test': 'holds' }, { 'blobs.test': 'has' });
   await page.goto('/app/');
@@ -31,10 +31,12 @@ async function runCounter(page: Page): Promise<void> {
   await page.getByLabel('Repeat the password').fill('correct horse battery');
   await page.getByRole('button', { name: 'Create and sign in' }).click();
   await page.getByRole('button', { name: 'Open an applet' }).click();
-  await page.getByRole('searchbox', { name: 'Find an applet' }).fill(applet.address(['wss://catalogue.test']));
+  const address = applet.address(['wss://catalogue.test']);
+  await page.getByRole('searchbox', { name: 'Find an applet' }).fill(address);
   await page.getByRole('button', { name: 'Look up' }).click();
   await page.getByRole('region', { name: 'Applets window' }).getByRole('button', { name: 'Run' }).click();
   await expect(page.locator('section.window')).toHaveAttribute('data-status', 'running');
+  return address;
 }
 
 const frame = (page: Page) => page.frameLocator('iframe[data-window-id]');
@@ -71,6 +73,11 @@ test('reloading a running applet starts it fresh in a new frame, where its windo
   // A fresh frame, not a second load of the old one: nothing was revoked.
   await expect(page.getByText('Feed applet was stopped')).toHaveCount(0);
   await proof(page, '02-reloaded');
+
+  // At 720 wide or less every window fills the desktop; the title bar still has room for Reload.
+  await page.setViewportSize({ width: 700, height: 800 });
+  await expect(page.getByRole('button', { name: 'Reload Feed applet' })).toBeVisible();
+  await proof(page, '04-narrow');
 });
 
 test('a stopped applet can be reloaded from its stopped window', async ({ page }) => {
@@ -97,4 +104,37 @@ test('a blocked applet offers no reload, only closing', async ({ page }) => {
   await expect(window).toHaveAttribute('data-status', 'revoked');
   await expect(window.getByRole('button', { name: 'Reload', exact: true })).toHaveCount(0);
   await expect(window.getByRole('button', { name: 'Close window' })).toBeVisible();
+});
+
+test('reloading one applet leaves another one running untouched', async ({ page }) => {
+  const address = await runCounter(page);
+  // The same applet again, in a second window after the first.
+  await page.getByRole('button', { name: 'Open an applet' }).click();
+  await page.getByRole('searchbox', { name: 'Find an applet' }).fill(address);
+  await page.getByRole('button', { name: 'Look up' }).click();
+  await page.getByRole('region', { name: 'Applets window' }).getByRole('button', { name: 'Run' }).click();
+  const frames = page.locator('iframe[data-window-id]');
+  await expect(frames).toHaveCount(2);
+  const [first, second] = await frames.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-window-id') ?? ''));
+  const other = page.frameLocator(`iframe[data-window-id="${second}"]`);
+  await expect(other.locator('body')).toHaveAttribute('data-bound', 'yes');
+  await other.getByRole('button', { name: 'Add one' }).click();
+  await expect(other.locator('#count')).toHaveText('1');
+
+  const windows = page.locator('section.window').filter({ has: page.getByText('Feed applet', { exact: true }) });
+  await windows.nth(0).getByRole('button', { name: 'Reload Feed applet' }).click();
+  await expect(frames).toHaveCount(2);
+  await expect(page.locator(`iframe[data-window-id="${first}"]`)).toHaveCount(0);
+  await expect(other.locator('#count')).toHaveText('1');
+
+  // Stopped, then reloaded from its stopped window: the other applet still never notices.
+  await page.frameLocator(`iframe[data-window-id]:not([data-window-id="${second}"])`).getByRole('button', { name: 'Post to the parent' }).click();
+  await expect(windows.nth(0)).toHaveAttribute('data-status', 'revoked');
+  await windows.nth(0).getByRole('button', { name: 'Reload', exact: true }).click();
+  await expect(windows.nth(0)).toHaveAttribute('data-status', 'running');
+  await expect(frames).toHaveCount(2);
+  await expect(page.locator(`iframe[data-window-id="${second}"]`)).toHaveCount(1);
+  await expect(windows.nth(1)).toHaveAttribute('data-status', 'running');
+  await expect(other.locator('#count')).toHaveText('1');
+  await expect(page.getByText('Feed applet was stopped')).toHaveCount(1);
 });
