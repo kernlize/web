@@ -892,3 +892,19 @@ This amends D-006 and D-031 for the shell only.
 
 **Reversal cost.** Low. One function, two template lines and one style.
 
+## D-058 · The shell reports every message an applet sends and receives
+
+**Context.** When an applet misbehaved, nothing showed what it had asked for or what it got back. The guard log lists only the guard's decisions, for every applet together. kehto's shell adapter has an observe-only hook for envelopes arriving on a port (`onNappletMessage`) and none for what it sends; its own devtools, Paja, hear replies by replacing `originRegistry.postToNapplet`.
+
+**Decision.**
+
+- **The core reports, the host keeps.** `kernl.traffic$` emits each message between this shell's applets and itself, both ways, on the window and on the port. The core keeps nothing.
+- **Replies are heard the way Paja hears them.** `createAppletTraffic` wraps `originRegistry.postToNapplet`, the one function every reply goes through. The wrapper is shared by every shell on the page and put back when the last one stops listening. It goes when kehto has a hook for outgoing messages.
+- **Window-level messages are reported before kehto sees them.** The one that gets an applet stopped (`window-message`) is then in the stream.
+- **A failure is what the envelope says.** `appletMessageFailure`: a non-empty `error` string, or for a `*.error` type its `message`, `reason` or type. kehto's runtime answers a failed request with a `*.result` carrying `error`. The shell marks guard events as warnings, except a hidden window's held requests, which are normal.
+- **Payloads stay in memory.** The shell's log keeps 200 rows per window while the window is open, shows a payload only when its row is opened, and never writes one to storage.
+
+**Consequences.** Every reply kehto sends now passes through one more function on the page. A second kernl on the same page shares the wrapper but sees only its own windows. The offline preview reports its own port the same way with `describeAppletMessage`.
+
+**Reversal cost.** Low. One module, one adapter hook and one wrapper.
+

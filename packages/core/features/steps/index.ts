@@ -18,6 +18,7 @@ import './kernl.js';
 import './grant-narrowing.js';
 import './quarantine.js';
 import './runtime-guard.js';
+import './applet-traffic.js';
 import './ratchet-backend.js';
 import './kernl-dm.js';
 import './group-sessions.js';

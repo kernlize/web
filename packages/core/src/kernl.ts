@@ -26,6 +26,7 @@ import { SHELL_RELAY_OPTIONS } from './applesauce/relay-hooks.js';
 import { decodePointer } from './applets/pointer.js';
 import { defaultFetchBlob, openDefaultArtifactCache } from './applets/resolve.js';
 import type { MountedApplet } from './applets/mount.js';
+import { createAppletTraffic } from './applets/traffic.js';
 import { createGuardPipeline, type GuardPipeline } from './guard/pipeline.js';
 import { createShellFirewall } from './kernl-firewall.js';
 import { createEnvironmentResolver, createGrants, type KernlGrants } from './grants/grants.js';
@@ -42,7 +43,7 @@ import { createKernlServices, isTheme, type DirectConnectionsDeps, type KernlSer
 import { createWindowIdentities } from './multiplayer/window-identities.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { createShellAdapter } from './kernl-adapter.js';
-import { createAppletLifecycle } from './kernl-lifecycle.js';
+import { createAppletLifecycle, resolveWindow } from './kernl-lifecycle.js';
 import { createKernlIntents } from './kernl-intents.js';
 import { loadCatalog, streamCatalog, type LoadCatalogOptions } from './catalog/fetch.js';
 
@@ -261,6 +262,7 @@ interface ShellParts {
   readonly downloads: { dispose(): void };
   readonly keys: { destroy(): void };
   readonly bridge: ShellBridge;
+  readonly traffic: { close(): void };
   /** Closed only when the shell created it. */
   readonly messaging?: MessagingRegistry;
   readonly pool?: RelayPool;
@@ -278,6 +280,7 @@ function tearDown(parts: ShellParts): void {
   parts.downloads.dispose();
   parts.keys.destroy();
   parts.bridge.destroy();
+  parts.traffic.close();
   parts.messaging?.close();
   parts.pool?.close();
 }
@@ -346,6 +349,7 @@ export function createKernl(options: KernlOptions): Kernl {
   let grants: KernlGrants;
 
   const pipeline = pipelineFor(options, { handles, guardEvents$, bridge: () => bridge });
+  const traffic = createAppletTraffic((windowId) => handles.has(windowId));
 
   const identityOf = (windowId: string): AppletIdentity | undefined => handles.get(windowId)?.summary.identity;
   const { eventCache, replaceableLoader, profiles, people, directory, mailboxes, files, signer } = createKernlNetwork(options, { eventStore, pool, tiers, accounts, destroyed$ });
@@ -387,6 +391,7 @@ export function createKernl(options: KernlOptions): Kernl {
     services: services.registry,
     resolveEnvironment: (identity, available) => createEnvironmentResolver(grants)(identity, available),
     onNappletRevoked: ({ windowId, reason }) => handles.get(windowId)?.revoked(reason),
+    onNappletMessage: (windowId, message) => traffic.fromApplet(windowId, 'port', message),
     filterNappletMessage: (windowId, message) => pipeline.observe(windowId, identityOf(windowId)?.dTag ?? 'unknown', message),
     getFocusContext: (windowId) => ({ focused: pipeline.getVisibility(windowId).focused }),
     permissions: guarding.permissions,
@@ -424,6 +429,7 @@ export function createKernl(options: KernlOptions): Kernl {
     pool,
     bridge,
     guard: createGuardFacade(pipeline, guardEvents$),
+    traffic$: traffic.traffic$,
     grants,
     relays: tiers,
     messaging,
@@ -444,7 +450,13 @@ export function createKernl(options: KernlOptions): Kernl {
     ...createSignIn(accounts),
     decodePointer,
     ...lifecycle,
+    handleWindowMessage(event) {
+      // Reported before kehto sees it: a message that gets the applet stopped is the one worth seeing.
+      const from = resolveWindow(handles, event);
+      if (from) traffic.fromApplet(from.windowId, 'window', event.data);
+      lifecycle.handleWindowMessage(event);
+    },
     destroy: () =>
-      tearDown({ handles, subscriptions, destroyed$, network: { directory, eventCache }, intents, dm: services.dm, downloads, keys: services.keys, bridge, ...(ownsMessaging ? { messaging } : {}), ...(ownsPool ? { pool } : {}) }),
+      tearDown({ traffic, handles, subscriptions, destroyed$, network: { directory, eventCache }, intents, dm: services.dm, downloads, keys: services.keys, bridge, ...(ownsMessaging ? { messaging } : {}), ...(ownsPool ? { pool } : {}) }),
   };
 }

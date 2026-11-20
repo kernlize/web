@@ -7,6 +7,7 @@ import type { Capability } from '@kehto/runtime';
 import type { PermissionRuleAction, PermissionRules } from '@kehto/firewall';
 import type { CvmRegistryFamily } from '@kehto/services';
 import type { MultiplayerSettings } from './multiplayer/settings.js';
+import type { AppletMessage } from './applets/traffic.js';
 import type { ToolFamilyCandidate } from './multiplayer/tool-discovery.js';
 import type { NappletArtifactCache, NappletManifest } from '@kehto/nip/5d';
 import type { NostrEvent } from '@napplet/core';
@@ -515,6 +516,11 @@ export interface Kernl {
   readonly pool: RelayPool;
   readonly bridge: ShellBridge;
   readonly guard: GuardFacade;
+  /**
+   * Every message between this shell's applets and itself, both ways, on the window and on the
+   * port. Envelopes can hold private messages and signed events: a host keeps them in memory only.
+   */
+  readonly traffic$: Observable<AppletMessage>;
   readonly grants: Grants;
   readonly relays: RelayTiers;
   readonly messaging: MessagingRegistry;

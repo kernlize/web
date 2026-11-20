@@ -423,7 +423,7 @@ Then('the mounted frame was removed', (world: CoreWorld) => {
 });
 
 /** A window-level message as the bridge sees it: a real Event carrying the NIP-5D fields. */
-function windowMessage(source: MessageEventSource | null, data: unknown, ports: MessagePort[]): MessageEvent {
+export function windowMessage(source: MessageEventSource | null, data: unknown, ports: MessagePort[]): MessageEvent {
   return Object.assign(new Event('message'), { source, data, ports, origin: 'null' }) as MessageEvent;
 }
 
