@@ -6,7 +6,11 @@ import { need, NzbFault, type NzbErrorCode, type NzbJob } from './nzb-wire.js';
 
 /** One downloader the person set up. */
 export interface NzbDownloader {
-  /** Stable key for the program, such as `nzbget` or `sabnzbd`; never sent to an applet. */
+  /**
+   * What handles are issued against; never sent to an applet. The shell passes the connection's
+   * routing key, which changes with its address, so a handle issued for one server's job never
+   * reaches another server's job with the same id.
+   */
   readonly key: string;
   /** What the person calls it. */
   readonly label: string;
@@ -95,8 +99,8 @@ export function nzbFaultOf(error: unknown, sent: boolean): NzbFault {
 }
 
 /**
- * The downloaders the person set up, each key once: a key names one program, so a
- * second set-up under a key already seen is not offered.
+ * The downloaders the person set up, each key once: a key names one server, so a
+ * second downloader under a key already seen is not offered.
  *
  * @param session - The service's session.
  * @returns The downloaders, first of each key.

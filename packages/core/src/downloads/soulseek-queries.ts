@@ -36,7 +36,19 @@ export interface SoulseekLane {
   tail: Promise<unknown>;
 }
 
-/** What the daemon holds for one search, bound to the client that started it. */
+/**
+ * The connection a query or transfer was admitted to. Its routing key is kept too, so work
+ * started at one address is never carried on at the new address of the same connection.
+ */
+export interface SoulseekRoute {
+  readonly id: string;
+  readonly routingKey: string;
+}
+
+/** What a removed or locked connection's work fails with. */
+export const SOULSEEK_GONE = 'That sharing program is no longer set up';
+
+/** What the daemon holds for one search, bound to the connection that started it. */
 export interface SoulseekQueryDaemon {
   read(): Promise<SoulseekClientSearch>;
   /** Never rejects: stopping is best effort. */
@@ -49,6 +61,8 @@ export interface SoulseekQueryDaemon {
 export interface SoulseekQueryRecord extends SoulseekLane {
   readonly id: string;
   readonly kind: SoulseekQueryKind;
+  /** Where the query was made; its files are downloaded from there too. */
+  readonly route: SoulseekRoute;
   /** Undefined for a browse, which is one answer and not a search the daemon keeps. */
   readonly daemon: SoulseekQueryDaemon | undefined;
   readonly files: SoulseekFile[];
@@ -64,8 +78,8 @@ export interface SoulseekQueryRecord extends SoulseekLane {
 export interface SoulseekTransferRecord extends SoulseekLane {
   readonly id: string;
   readonly file: SoulseekFile;
-  /** The daemon that admitted it; a transfer never moves to another one. */
-  readonly client: SoulseekClient;
+  /** The connection that admitted it; a transfer never moves to another one. */
+  readonly route: SoulseekRoute;
   daemonId: string;
   /** Whether the daemon still holds an unfinished record kernl put there. */
   inDaemon: boolean;
@@ -102,8 +116,14 @@ export interface SoulseekContext {
   readonly now: () => number;
   /** Rejects `unavailable` unless this daemon is signed in to its network. */
   readonly online: (client: SoulseekClient) => Promise<void>;
-  /** The person's daemon, once it is known to be signed in; rejects `unavailable` otherwise. */
-  readonly reach: () => Promise<SoulseekClient>;
+  /**
+   * A daemon once it is known to be signed in: the one `route` names, or the person's default
+   * for new work. Rejects `unavailable` when it is not signed in or none is set up, and
+   * `backend_error` when the named connection is gone.
+   */
+  readonly reach: (route?: SoulseekRoute) => Promise<{ readonly route: SoulseekRoute; readonly client: SoulseekClient }>;
+  /** The live client of a route; undefined once the connection was removed, is locked or has a new address. */
+  readonly clientOf: (route: SoulseekRoute) => SoulseekClient | undefined;
   /** Resolves once the person has said yes for this window; rejects `denied` on a no. */
   readonly consent: (windowId: string, session: SoulseekSession) => Promise<void>;
 }
@@ -125,6 +145,23 @@ const COLLECTION_FAILED = 'The sharing program stopped answering while results w
  */
 export function ignore(): undefined {
   return undefined;
+}
+
+/**
+ * Runs work on a route's daemon, or rejects `backend_error` when that connection is gone.
+ *
+ * @param context - The service's shared parts.
+ * @param route - The connection the work belongs to.
+ * @param work - What to ask its daemon.
+ * @returns What the work returns.
+ * @example
+ * ```ts
+ * await onRoute(context, record.route, (client) => client.transfer(username, id));
+ * ```
+ */
+export function onRoute<T>(context: SoulseekContext, route: SoulseekRoute, work: (client: SoulseekClient) => Promise<T>): Promise<T> {
+  const client = context.clientOf(route);
+  return client ? work(client) : Promise.reject(new SoulseekFault('backend_error', SOULSEEK_GONE));
 }
 
 /**
@@ -203,19 +240,20 @@ export function within<T>(session: SoulseekSession, record: SoulseekLane & { rea
  *
  * @param context - The service's shared parts.
  * @param call - The window asking.
- * @param work - The admission, given the daemon it was admitted to.
+ * @param work - The admission, given the daemon it was admitted to and its route.
+ * @param route - The connection the work must go to; the person's default when left out.
  * @returns What the admission returns.
  * @example
  * ```ts
- * await admitSoulseekWork(context, call, (client) => client.download(source));
+ * await admitSoulseekWork(context, call, (client) => client.download(source), query.route);
  * ```
  */
-export async function admitSoulseekWork<T>(context: SoulseekContext, call: SoulseekCall, work: (client: SoulseekClient) => T | Promise<T>): Promise<T> {
-  const client = await context.reach();
+export async function admitSoulseekWork<T>(context: SoulseekContext, call: SoulseekCall, work: (client: SoulseekClient, route: SoulseekRoute) => T | Promise<T>, route?: SoulseekRoute): Promise<T> {
+  const reached = await context.reach(route);
   await context.consent(call.windowId, call.session);
   return serial(call.session.admissions, () => {
     alive(call.session);
-    return work(client);
+    return work(reached.client, reached.route);
   });
 }
 
@@ -394,6 +432,7 @@ async function gather(context: SoulseekContext, session: SoulseekSession, query:
   const due = now >= query.deadline;
   if (query.state !== 'collecting' || !daemon || (!due && now - query.polledAt < limits.pollIntervalMs)) return;
   query.polledAt = now;
+  if (!context.clientOf(query.route)) return finish(query, 'failed', { error: { code: 'backend_error', message: SOULSEEK_GONE } });
   const found = await daemon.read().catch(ignore);
   if (query.state !== 'collecting') return;
   if (!found) return finish(query, 'failed', { error: { code: 'backend_error', message: COLLECTION_FAILED } });
@@ -439,8 +478,8 @@ export function createSoulseekQueries(context: SoulseekContext): SoulseekQueries
   const room = (session: SoulseekSession): void => {
     if (session.queries.size >= limits.maxQueries) throw new SoulseekFault('limit_exceeded', `This window already holds ${limits.maxQueries} searches; release one first`);
   };
-  const open = (session: SoulseekSession, kind: SoulseekQueryKind, daemon: SoulseekQueryDaemon | undefined): SoulseekQueryRecord => {
-    const query: SoulseekQueryRecord = { id: issueSoulseekHandle('q'), kind, daemon, files: [], keys: new Set(), deadline: context.now() + limits.queryTimeoutMs, state: 'collecting', ending: {}, polledAt: context.now(), released: false, tail: Promise.resolve() };
+  const open = (session: SoulseekSession, kind: SoulseekQueryKind, route: SoulseekRoute, daemon: SoulseekQueryDaemon | undefined): SoulseekQueryRecord => {
+    const query: SoulseekQueryRecord = { id: issueSoulseekHandle('q'), kind, route, daemon, files: [], keys: new Set(), deadline: context.now() + limits.queryTimeoutMs, state: 'collecting', ending: {}, polledAt: context.now(), released: false, tail: Promise.resolve() };
     session.queries.set(query.id, query);
     return query;
   };
@@ -458,24 +497,29 @@ export function createSoulseekQueries(context: SoulseekContext): SoulseekQueries
       const { text, username } = request as { text?: unknown; username?: unknown };
       if (textOf(text, 'text', limits.maxTextBytes).trim() === '') throw invalid('text must have a character that is not white space');
       const peer = username === undefined ? {} : { username: textOf(username, 'username', limits.maxTextBytes) };
-      return admitSoulseekWork(context, call, async (client) => {
+      return admitSoulseekWork(context, call, async (client, route) => {
         const { session } = call;
         room(session);
         const { id } = await client.startSearch(text as string, { ...peer, timeoutMs: limits.queryTimeoutMs, limit: limits.maxResults });
-        const stop = (): Promise<void> => client.stopSearch(id).catch(ignore);
-        const daemon: SoulseekQueryDaemon = { read: () => client.searchResults(id), stop, forget: () => stop().then(() => client.deleteSearch(id)).catch(ignore) };
+        // Every later look goes to the connection by its route, so one removed meanwhile is never asked.
+        const stop = (): Promise<void> => onRoute(context, route, (daemon) => daemon.stopSearch(id)).catch(ignore);
+        const daemon: SoulseekQueryDaemon = {
+          read: () => onRoute(context, route, (daemon) => daemon.searchResults(id)),
+          stop,
+          forget: () => stop().then(() => onRoute(context, route, (daemon) => daemon.deleteSearch(id))).catch(ignore),
+        };
         if (session.closed) await daemon.forget();
         alive(session);
-        return snapshot(open(session, 'search', daemon));
+        return snapshot(open(session, 'search', route, daemon));
       });
     },
     async browse(call, fields) {
       onlyFields(fields, ['username']);
       const username = textOf(fields.username, 'username', limits.maxTextBytes);
-      return admitSoulseekWork(context, call, (client) => {
+      return admitSoulseekWork(context, call, (client, route) => {
         const { session } = call;
         room(session);
-        const query = open(session, 'browse', undefined);
+        const query = open(session, 'browse', route, undefined);
         const land = (apply: () => void): void => {
           expire(context, query);
           if (query.state === 'collecting') apply();

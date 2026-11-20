@@ -201,6 +201,8 @@ export interface StoredTorrentJob {
   readonly applet: string;
   readonly jobId: string;
   readonly infoHash: string;
+  /** The id of the connection the torrent was handed to. */
+  readonly connection: string;
   readonly mode: TorrentServiceMode;
   readonly revision: number;
   readonly downloadLimit: number;
@@ -210,8 +212,8 @@ export interface StoredTorrentJob {
 }
 
 const STORED_JOB: Shape = {
-  fields: { applet: isText, jobId: isName, infoHash: isHash, mode: oneOf(['download', 'download-and-seed']), revision: isCount, downloadLimit: isCount, uploadLimit: isCount, paused: isFlag, title: isText },
-  required: ['applet', 'jobId', 'infoHash', 'mode', 'revision', 'downloadLimit', 'uploadLimit', 'paused'],
+  fields: { applet: isText, jobId: isName, infoHash: isHash, connection: isName, mode: oneOf(['download', 'download-and-seed']), revision: isCount, downloadLimit: isCount, uploadLimit: isCount, paused: isFlag, title: isText },
+  required: ['applet', 'jobId', 'infoHash', 'connection', 'mode', 'revision', 'downloadLimit', 'uploadLimit', 'paused'],
 };
 
 /**

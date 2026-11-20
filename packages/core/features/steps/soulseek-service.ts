@@ -4,6 +4,7 @@ import type { SoulseekClient, SoulseekClientFile, SoulseekClientTransfer } from 
 import type { NappletMessage, SoulseekFailure, SoulseekFile, SoulseekQuery, SoulseekTransfer } from '@napplet/core';
 import { createSoulseekService, type SoulseekLimits } from '../../src/downloads/soulseek-service.js';
 import type { DownloadQuestion, DownloadService } from '../../src/downloads/types.js';
+import { memoryRouting } from './memory-routing.js';
 import { createMemorySoulseekClient, type MemorySoulseekClient, type PeerMood } from './memory-soulseek-client.js';
 import { last, scratch, splitList, type CoreWorld } from './world.js';
 
@@ -53,7 +54,7 @@ function seek(world: CoreWorld): Seek {
 
 function serviceOf(state: Seek): DownloadService {
   state.service ??= createSoulseekService({
-    client: (): SoulseekClient | undefined => (state.configured ? state.daemon : undefined),
+    connections: memoryRouting((): SoulseekClient | undefined => (state.configured ? state.daemon : undefined), 'slskd'),
     appletOf: (windowId) => (state.live.has(windowId) ? { dTag: 'crate', hash: 'cd'.repeat(32) } : undefined),
     async ask(windowId, question) {
       expect(state.live.has(windowId)).toBe(true);

@@ -1,5 +1,6 @@
 import type { ServiceRuntimeContext } from '@kehto/runtime';
 import type { TorrentClient, TorrentClientJob } from '@kernlize/bridges';
+import type { ConnectionRouting, RoutedClient } from './connections.js';
 import type { NappletMessage, TorrentJobStatus } from '@napplet/core';
 import {
   createTorrentJobs,
@@ -33,8 +34,8 @@ import type { DownloadService, DownloadServiceDeps } from './types.js';
 
 /** What the torrent service needs from the shell. */
 export interface TorrentServiceOptions extends DownloadServiceDeps {
-  /** The person's torrent client, read on every request; undefined when none is set up. */
-  readonly client: () => TorrentClient | undefined;
+  /** The person's torrent connections, read on every request: new torrents go to one, and each job stays on its own. */
+  readonly connections: ConnectionRouting<TorrentClient>;
   /** How often jobs with a live window are refreshed and pushed; 2000 ms by default. */
   readonly pollMs?: number;
 }
@@ -59,12 +60,13 @@ interface Engine {
   /** The end of the queue every call to the program waits in. */
   tail: Promise<unknown>;
   timer: ReturnType<typeof setTimeout> | undefined;
-  /** The program could not be reached at the last refresh, and the windows were told. */
-  unreachable: boolean;
+  /** The connections that could not be reached at the last refresh, whose windows were told. */
+  readonly unreachable: Set<string>;
   disposed: boolean;
 }
 
 const NOT_SET_UP = 'No torrent program is set up.';
+const NO_LONGER = 'That torrent program is no longer set up.';
 const GONE = 'Your torrent program no longer has this torrent.';
 
 /** Runs work after everything queued before it, whether that succeeded or not. */
@@ -74,10 +76,14 @@ function serial<T>(engine: Engine, work: () => Promise<T>): Promise<T> {
   return run;
 }
 
-function program(engine: Engine, code = 'network-error'): TorrentClient {
-  const client = engine.options.client();
-  if (!client) throw new TorrentFailure(code, NOT_SET_UP);
-  return client;
+/** The connection a job's torrent was handed to, while it can still serve. */
+const routeOf = (engine: Engine, record: TorrentJobRecord): RoutedClient<TorrentClient> | undefined => engine.options.connections.byId(record.connection);
+
+/** The client of a job's own connection; `source-unavailable` once the person removed it or it is locked. */
+function clientOf(engine: Engine, record: TorrentJobRecord): TorrentClient {
+  const routed = routeOf(engine, record);
+  if (!routed) throw new TorrentFailure('source-unavailable', NO_LONGER);
+  return routed.client;
 }
 
 /** A session job speaks to its own window; a persistent job to every live window of its applet. */
@@ -90,9 +96,9 @@ function push(engine: Engine, record: TorrentJobRecord, message: Envelope): void
   for (const windowId of recipients(engine, record)) for (const runtime of engine.runtimes) runtime.sendToEligibleNapplet(windowId, message);
 }
 
-/** The other jobs holding the same torrent. */
+/** The other jobs holding the same torrent on the same connection; the same torrent elsewhere is another program's copy. */
 function sharers(engine: Engine, record: TorrentJobRecord): readonly TorrentJobRecord[] {
-  return engine.jobs.all().filter((other) => other !== record && other.infoHash === record.infoHash);
+  return engine.jobs.all().filter((other) => other !== record && other.connection === record.connection && other.infoHash === record.infoHash);
 }
 
 function visible(engine: Engine, call: Call, jobId: string): TorrentJobRecord {
@@ -106,7 +112,7 @@ function visible(engine: Engine, call: Call, jobId: string): TorrentJobRecord {
  * takes a limit changed in the program as a new revision, and pauses a finished
  * torrent that no owner wants shared.
  */
-async function settle(engine: Engine, record: TorrentJobRecord, job: TorrentClientJob | undefined): Promise<TorrentClientJob | undefined> {
+async function settle(engine: Engine, record: TorrentJobRecord, job: TorrentClientJob | undefined, client: TorrentClient): Promise<TorrentClientJob | undefined> {
   if (record.failed || !job) {
     record.failed = true;
     return undefined;
@@ -116,12 +122,13 @@ async function settle(engine: Engine, record: TorrentJobRecord, job: TorrentClie
     engine.jobs.touch(record);
   }
   const wanted = [record, ...sharers(engine, record)].some((owner) => !owner.failed && owner.mode === 'download-and-seed');
-  if (job.state === 'seeding' && !wanted) await program(engine).pause(record.infoHash);
+  if (job.state === 'seeding' && !wanted) await client.pause(record.infoHash);
   return job;
 }
 
 async function current(engine: Engine, record: TorrentJobRecord): Promise<TorrentClientJob> {
-  const job = await settle(engine, record, await program(engine).get(record.infoHash));
+  const client = clientOf(engine, record);
+  const job = await settle(engine, record, await client.get(record.infoHash), client);
   if (!job) throw new TorrentFailure('source-unavailable', GONE);
   return job;
 }
@@ -148,22 +155,40 @@ function report(engine: Engine, record: TorrentJobRecord, job: TorrentClientJob 
   Object.assign(record, { lastState: status.state, lastNumbers: numbers, idle: status.state === 'complete' || status.state === 'error' });
 }
 
+/**
+ * Tells a job's windows its connection is gone. The job is not ended: a locked connection
+ * signed in to again serves it once more, so it is only left unwatched until asked about.
+ */
+function orphan(engine: Engine, record: TorrentJobRecord): void {
+  push(engine, record, { type: 'torrent.error', jobId: record.jobId, error: 'source-unavailable', reason: NO_LONGER });
+  push(engine, record, { type: 'torrent.state', jobId: record.jobId, state: 'error' });
+  Object.assign(record, { lastState: 'error', idle: true });
+}
+
 function watched(engine: Engine): readonly TorrentJobRecord[] {
   return engine.jobs.all().filter((record) => !record.idle && recipients(engine, record).length > 0);
 }
 
-/** One reading of the program for every watched job. An outage is told once, not every tick. */
-async function poll(engine: Engine): Promise<void> {
-  const records = watched(engine);
+/** One reading of one connection for its watched jobs. An outage is told once per connection, not every tick. */
+async function pollConnection(engine: Engine, id: string, records: readonly TorrentJobRecord[]): Promise<void> {
+  const routed = engine.options.connections.byId(id);
+  if (!routed) return records.forEach((record) => orphan(engine, record));
   try {
-    const list = await program(engine).list();
-    for (const record of records) report(engine, record, await settle(engine, record, list.find((job) => job.infoHash === record.infoHash)));
-    engine.unreachable = false;
+    const list = await routed.client.list();
+    for (const record of records) report(engine, record, await settle(engine, record, list.find((job) => job.infoHash === record.infoHash), routed.client));
+    engine.unreachable.delete(id);
   } catch (error) {
     const reason = torrentFailureFrom(error).reason as string;
-    if (!engine.unreachable) for (const record of records) push(engine, record, { type: 'torrent.error', jobId: record.jobId, error: 'network-error', reason });
-    engine.unreachable = true;
+    if (!engine.unreachable.has(id)) for (const record of records) push(engine, record, { type: 'torrent.error', jobId: record.jobId, error: 'network-error', reason });
+    engine.unreachable.add(id);
   }
+}
+
+/** One `list()` per connection that has watched jobs. */
+async function poll(engine: Engine): Promise<void> {
+  const byConnection = new Map<string, TorrentJobRecord[]>();
+  for (const record of watched(engine)) byConnection.set(record.connection, [...(byConnection.get(record.connection) ?? []), record]);
+  for (const [id, records] of byConnection) await pollConnection(engine, id, records);
 }
 
 /** Keeps the one timer running only while some live window has a job that can still change. */
@@ -180,8 +205,9 @@ function onJob<T>(engine: Engine, call: Call, jobId: unknown, act: (record: Torr
   const id = torrentText(jobId);
   return serial(engine, async () => {
     const record = visible(engine, call, id);
+    const client = clientOf(engine, record);
     record.idle = false;
-    return act(record, program(engine));
+    return act(record, client);
   });
 }
 
@@ -196,16 +222,18 @@ function admit(engine: Engine, applet: string, plan: TorrentAddPlan): void {
  * down first. Limits are set while the torrent is still paused, so it never runs
  * unlimited first; if that fails it stays paused in the program and no job is kept.
  */
-async function start(engine: Engine, call: Call, plan: TorrentAddPlan): Promise<Record<string, unknown>> {
+async function start(engine: Engine, call: Call, plan: TorrentAddPlan, connection: string): Promise<Record<string, unknown>> {
   if (engine.windows.get(call.windowId) !== call.applet) throw new TorrentFailure('policy-denied');
   admit(engine, call.applet, plan);
-  const client = program(engine, 'unsupported-transport');
+  // The person said yes to this connection; if it went meanwhile, the torrent goes nowhere else.
+  const client = engine.options.connections.byId(connection)?.client;
+  if (!client) throw new TorrentFailure('unsupported-transport', NO_LONGER);
   const { infoHash, mode, retention, title, downloadLimit, uploadLimit, startPaused } = plan;
   const state = startPaused ? 'paused' : 'queued';
   const record: TorrentJobRecord = {
     applet: call.applet,
     jobId: plan.jobId ?? `tor-${crypto.randomUUID()}`,
-    infoHash, retention, mode, downloadLimit, uploadLimit,
+    infoHash, connection, retention, mode, downloadLimit, uploadLimit,
     revision: 0,
     paused: startPaused,
     failed: false,
@@ -227,28 +255,48 @@ async function start(engine: Engine, call: Call, plan: TorrentAddPlan): Promise<
   return { ok: true, jobId: record.jobId, state };
 }
 
+/** Where a new torrent goes: the connection a job already holds it on, so it is never fetched twice, else the person's default. */
+function target(engine: Engine, plan: TorrentAddPlan): RoutedClient<TorrentClient> {
+  const holder = engine.jobs.all().find((record) => record.infoHash === plan.infoHash && routeOf(engine, record) !== undefined);
+  const routed = (holder && routeOf(engine, holder)) ?? engine.options.connections.preferred();
+  if (!routed) throw new TorrentFailure('unsupported-transport', NOT_SET_UP);
+  return routed;
+}
+
 async function add(engine: Engine, call: Call): Promise<Record<string, unknown>> {
   const plan = await planTorrentAdd(call.message.request);
-  program(engine, 'unsupported-transport');
+  const { connection } = target(engine, plan);
   admit(engine, call.applet, plan);
-  if (!(await engine.options.ask(call.windowId, describeTorrentAdd(plan)))) throw new TorrentFailure('user-denied');
-  return serial(engine, () => start(engine, call, plan));
+  if (!(await engine.options.ask(call.windowId, describeTorrentAdd(plan, connection.label)))) throw new TorrentFailure('user-denied');
+  return serial(engine, () => start(engine, call, plan, connection.id));
+}
+
+/** Takes the torrent out of its program when no other job holds it there; resolves whether the program had it. */
+async function takeOut(engine: Engine, record: TorrentJobRecord, deleteData: boolean): Promise<boolean> {
+  const routed = routeOf(engine, record);
+  if (!routed || sharers(engine, record).length > 0) return false;
+  const job = await routed.client.get(record.infoHash);
+  if (job) await routed.client.remove(record.infoHash, deleteData);
+  return job !== undefined;
 }
 
 /**
  * A torrent another job still holds stays in the program with its data, whatever was
- * asked. Data is deleted only when the person said yes to this very removal.
+ * asked. Data is deleted only when the person said yes to this very removal. A job whose
+ * connection is gone is only forgotten: kernl cannot remove anything from a program it no
+ * longer knows, so nobody is asked about files.
  */
 async function remove(engine: Engine, call: Call): Promise<Record<string, unknown>> {
   const jobId = torrentText(call.message.jobId);
-  const asking = wantsTorrentDataDeleted(call.message.options) && sharers(engine, visible(engine, call, jobId)).length === 0;
-  if (asking && !(await engine.options.ask(call.windowId, describeTorrentDelete(visible(engine, call, jobId))))) throw new TorrentFailure('user-denied');
+  const wanted = wantsTorrentDataDeleted(call.message.options);
+  const held = visible(engine, call, jobId);
+  const asking = wanted && routeOf(engine, held) !== undefined && sharers(engine, held).length === 0;
+  if (asking && !(await engine.options.ask(call.windowId, describeTorrentDelete(held)))) throw new TorrentFailure('user-denied');
   return serial(engine, async () => {
     const record = visible(engine, call, jobId);
-    const job = sharers(engine, record).length === 0 ? await program(engine).get(record.infoHash) : undefined;
-    if (job) await program(engine).remove(record.infoHash, asking);
+    const removed = await takeOut(engine, record, asking);
     engine.jobs.drop(record);
-    return { ok: true, jobId, deletedData: asking && job !== undefined };
+    return { ok: true, jobId, deletedData: asking && removed };
   });
 }
 
@@ -302,15 +350,22 @@ function setPaused(engine: Engine, call: Call, paused: boolean): Promise<Torrent
   });
 }
 
-/** An applet with no jobs is answered without troubling the program. */
+/** A job's line, reading its connection's list once per request; a job whose connection is gone is listed in `error`. */
+async function summarise(engine: Engine, record: TorrentJobRecord, lists: Map<string, Promise<readonly TorrentClientJob[]>>) {
+  const routed = routeOf(engine, record);
+  if (!routed) return torrentJobSummary(record, undefined);
+  const reported = lists.get(record.connection) ?? routed.client.list();
+  lists.set(record.connection, reported);
+  return torrentJobSummary(record, await settle(engine, record, (await reported).find((job) => job.infoHash === record.infoHash), routed.client));
+}
+
+/** An applet with no jobs is answered without troubling any program. */
 function list(engine: Engine, call: Call): Promise<unknown> {
   const filter = planTorrentFilter(call.message.filter);
   return serial(engine, async () => {
-    const mine = engine.jobs.visible(call.applet, call.windowId);
-    if (mine.length === 0) return [];
-    const reported = await program(engine).list();
+    const lists = new Map<string, Promise<readonly TorrentClientJob[]>>();
     const summaries = [];
-    for (const record of mine) summaries.push(torrentJobSummary(record, await settle(engine, record, reported.find((job) => job.infoHash === record.infoHash))));
+    for (const record of engine.jobs.visible(call.applet, call.windowId)) summaries.push(await summarise(engine, record, lists));
     return summaries.filter((summary) => (filter.states ?? [summary.state]).includes(summary.state) && (filter.modes ?? [summary.mode]).includes(summary.mode));
   });
 }
@@ -326,7 +381,7 @@ async function unsupported(): Promise<never> {
 }
 
 const OPERATIONS: Readonly<Record<string, (engine: Engine, call: Call) => Promise<unknown>>> = {
-  'torrent.capabilities': async (engine) => (engine.options.client() ? TORRENT_CAPABILITIES : { ...TORRENT_CAPABILITIES, transports: [], modes: [] }),
+  'torrent.capabilities': async (engine) => (engine.options.connections.all().length > 0 ? TORRENT_CAPABILITIES : { ...TORRENT_CAPABILITIES, transports: [], modes: [] }),
   'torrent.add': add,
   'torrent.status': (engine, call) => onJob(engine, call, call.message.jobId, (record) => view(engine, record)),
   'torrent.jobs': list,
@@ -365,13 +420,16 @@ function answer(engine: Engine, windowId: string, request: Envelope, send: (mess
   });
 }
 
-/** A session job ends with its window: its torrent is paused, never removed, unless another job still holds it. */
+/** A session job ends with its window: its torrent is paused in its own program, never removed, unless another job still holds it there. */
 function end(engine: Engine, windowId: string): void {
   engine.windows.delete(windowId);
   const ended = engine.jobs.endWindow(windowId);
   if (ended.length === 0) return;
   const pauseOrphans = async (): Promise<void> => {
-    for (const record of ended) if (sharers(engine, record).length === 0) await program(engine).pause(record.infoHash);
+    for (const record of ended) {
+      const routed = routeOf(engine, record);
+      if (routed && sharers(engine, record).length === 0) await routed.client.pause(record.infoHash);
+    }
   };
   void serial(engine, pauseOrphans).catch(() => undefined);
 }
@@ -393,16 +451,21 @@ function declared(types: readonly string[]): Record<string, null> {
  * call to the program runs one after another, so a removal always wins over the
  * changes queued behind it, and one timer tells live windows what changed.
  *
- * @param options - The shell's hooks, the person's torrent client and the refresh interval.
+ * The person may set up several torrent programs (D-053). A new torrent goes to the one a
+ * job already holds it on, else to the person's default, and the question names it; every
+ * later call for the job goes to that connection alone, and a job whose connection was
+ * removed or is locked answers `source-unavailable` and can still be removed.
+ *
+ * @param options - The shell's hooks, the person's torrent connections and the refresh interval.
  * @returns The handler to register as `torrent`, and `dispose`.
  * @example
  * ```ts
- * const torrents = createTorrentService({ appletOf, ask, storage: localStorage, client: () => transmission });
+ * const torrents = createTorrentService({ appletOf, ask, storage: localStorage, connections: programs.routing('torrent') });
  * registry.torrent = torrents.handler;
  * ```
  */
 export function createTorrentService(options: TorrentServiceOptions): DownloadService {
-  const engine: Engine = { options, jobs: createTorrentJobs(options.storage), windows: new Map(), runtimes: [], tail: Promise.resolve(), timer: undefined, unreachable: false, disposed: false };
+  const engine: Engine = { options, jobs: createTorrentJobs(options.storage), windows: new Map(), runtimes: [], tail: Promise.resolve(), timer: undefined, unreachable: new Set(), disposed: false };
   return {
     handler: {
       descriptor: { name: 'torrent', version: '1.0.0', description: "Torrent downloads through the person's own torrent program" },

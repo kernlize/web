@@ -5,6 +5,7 @@ import type { ServiceRuntimeContext } from '@kehto/runtime';
 import type { NappletMessage } from '@napplet/core';
 import { createTorrentService } from '../../src/downloads/torrent-service.js';
 import type { DownloadQuestion, DownloadService } from '../../src/downloads/types.js';
+import { memoryRouting } from './memory-routing.js';
 import { MemoryTorrentClient } from './memory-torrent-client.js';
 import { scratch, type CoreWorld } from './world.js';
 
@@ -86,7 +87,7 @@ function startService(world: CoreWorld, scenario: () => Torrents, pollMs: number
       return held ? new Promise((resolve) => held.push(resolve)) : Promise.resolve(state.answer);
     },
     storage: scratch(world).storage,
-    client: () => (scenario().configured ? scenario().client : undefined),
+    connections: memoryRouting(() => (scenario().configured ? scenario().client : undefined), 'transmission'),
     ...(pollMs === undefined ? {} : { pollMs }),
   });
   service.handler.onRegistered?.({

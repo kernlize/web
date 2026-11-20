@@ -11,6 +11,8 @@ export interface TorrentJobRecord {
   readonly applet: string;
   readonly jobId: string;
   readonly infoHash: string;
+  /** The id of the connection the torrent was handed to; every later call goes there, or nowhere. */
+  readonly connection: string;
   readonly retention: TorrentRetention;
   /** The window a session job lives and dies with; absent on a persistent job. */
   readonly windowId?: string;
@@ -49,8 +51,8 @@ export interface TorrentJobs {
 const KEY = 'torrent-jobs:v1';
 
 function stored(record: TorrentJobRecord): StoredTorrentJob {
-  const { applet, jobId, infoHash, mode, revision, downloadLimit, uploadLimit, paused, title } = record;
-  return { applet, jobId, infoHash, mode, revision, downloadLimit, uploadLimit, paused, ...(title === undefined ? {} : { title }) };
+  const { applet, jobId, infoHash, connection, mode, revision, downloadLimit, uploadLimit, paused, title } = record;
+  return { applet, jobId, infoHash, connection, mode, revision, downloadLimit, uploadLimit, paused, ...(title === undefined ? {} : { title }) };
 }
 
 /**
@@ -250,18 +252,20 @@ function naming(subject: { readonly title?: string; readonly infoHash: string })
  * The question put to the person before a torrent is handed to their program.
  *
  * @param plan - The validated request.
- * @returns What is added, how long it shares, who sees what, and what closing the applet does.
+ * @param program - The label of the connection the torrent goes to.
+ * @returns What is added, where, how long it shares, who sees what, and what closing the applet does.
  * @example
  * ```ts
- * describeTorrentAdd(plan).title; // 'Download with your torrent program'
+ * describeTorrentAdd(plan, 'Home').title; // 'Download with your torrent program'
  * ```
  */
-export function describeTorrentAdd(plan: TorrentAddPlan): DownloadQuestion {
+export function describeTorrentAdd(plan: TorrentAddPlan, program: string): DownloadQuestion {
   return {
     kind: 'add',
     title: 'Download with your torrent program',
     lines: [
       ...naming(plan),
+      { label: 'Program', value: program },
       { label: 'Sharing', value: plan.mode === 'download' ? 'Stops when the download finishes' : 'Keeps sharing with other people after the download finishes' },
       PEERS_SEE,
       { label: 'If you close this applet', value: plan.retention === 'session' ? 'The download pauses' : 'The download carries on in your torrent program' },

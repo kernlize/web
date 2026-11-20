@@ -54,6 +54,7 @@ Feature: Torrent downloads through the person's own torrent program
       Then the person was asked "Download with your torrent program" as a torrent "add" question
       And the torrent question says "Name" is "ubuntu"
       And the torrent question says "Torrent" is "$hash:ubuntu"
+      And the torrent question says "Program" is "Transmission"
       And the torrent question says "Sharing" is "Stops when the download finishes"
       And the torrent question says "Other people see" is "The network address of the machine running your torrent program"
       And the torrent question says "If you close this applet" is "The download pauses"
@@ -222,6 +223,14 @@ Feature: Torrent downloads through the person's own torrent program
       Then the torrent window "A" is refused with "policy-denied"
       And the torrent program was never called
 
+    Scenario: a program taken out of the settings while the person is still deciding gets nothing, and nothing goes elsewhere
+      Given the person is slow to answer the torrent question
+      When the torrent window "A" adds "ubuntu"
+      And the person takes the torrent program out of their settings
+      And the person answers every torrent question with yes
+      Then the torrent window "A" gets back exactly '{"type":"torrent.add.result","ack":{"ok":false,"error":"unsupported-transport","reason":"That torrent program is no longer set up."}}'
+      And the torrent program was never called
+
     Scenario: another applet cannot see, read or change a job by knowing its id
       Given the applet "music" is open in the torrent window "B"
       When the torrent window "A" sends '{"type":"torrent.add","request":{"jobId":"shared-name","source":{"sourceType":"magnet","magnet":"$magnet:ubuntu"},"options":{"retention":"persistent"}}}'
@@ -368,7 +377,7 @@ Feature: Torrent downloads through the person's own torrent program
       And the torrent window "C" is pushed the state "downloading" for "ubuntu"
 
     Scenario: what comes back out of storage is checked, and damaged jobs are dropped
-      Given the torrent job storage holds '[{"applet":"films","jobId":"kept","infoHash":"$hash:ubuntu","mode":"download","revision":3,"downloadLimit":0,"uploadLimit":0,"paused":false,"title":"ubuntu"},{"applet":"films","jobId":"kept","infoHash":"$hash:debian","mode":"download","revision":0,"downloadLimit":0,"uploadLimit":0,"paused":false},{"applet":"films","jobId":"bad-hash","infoHash":"../../etc","mode":"download","revision":0,"downloadLimit":0,"uploadLimit":0,"paused":false},{"applet":"films","jobId":"bad-mode","infoHash":"$hash:debian","mode":"seed","revision":0,"downloadLimit":0,"uploadLimit":0,"paused":false},{"applet":"films","jobId":"extra","infoHash":"$hash:debian","mode":"download","revision":0,"downloadLimit":0,"uploadLimit":0,"paused":false,"windowId":"window-A"},{"applet":"films","jobId":"partial"},"nonsense",null]'
+      Given the torrent job storage holds '[{"applet":"films","jobId":"kept","infoHash":"$hash:ubuntu","connection":"memory","mode":"download","revision":3,"downloadLimit":0,"uploadLimit":0,"paused":false,"title":"ubuntu"},{"applet":"films","jobId":"kept","infoHash":"$hash:debian","connection":"memory","mode":"download","revision":0,"downloadLimit":0,"uploadLimit":0,"paused":false},{"applet":"films","jobId":"no-connection","infoHash":"$hash:debian","mode":"download","revision":0,"downloadLimit":0,"uploadLimit":0,"paused":false},{"applet":"films","jobId":"bad-connection","infoHash":"$hash:debian","connection":7,"mode":"download","revision":0,"downloadLimit":0,"uploadLimit":0,"paused":false},{"applet":"films","jobId":"bad-hash","infoHash":"../../etc","mode":"download","revision":0,"downloadLimit":0,"uploadLimit":0,"paused":false},{"applet":"films","jobId":"bad-mode","infoHash":"$hash:debian","mode":"seed","revision":0,"downloadLimit":0,"uploadLimit":0,"paused":false},{"applet":"films","jobId":"extra","infoHash":"$hash:debian","mode":"download","revision":0,"downloadLimit":0,"uploadLimit":0,"paused":false,"windowId":"window-A"},{"applet":"films","jobId":"partial"},"nonsense",null]'
       When the shell is reloaded and starts its torrent service again
       And the applet "films" is open in the torrent window "A"
       And the torrent window "A" sends '{"type":"torrent.jobs"}'
@@ -728,15 +737,34 @@ Feature: Torrent downloads through the person's own torrent program
       And the torrent window "A" asks to pause "ubuntu"
       Then the torrent window "A" gets back exactly '{"type":"torrent.pause.result","error":"job-not-found"}'
 
-    Scenario: jobs made before the program was taken out of the settings say so
+    Scenario: a job whose program was taken out of the settings says so, and can still be removed
       When the torrent window "A" adds "ubuntu" with '{"retention":"persistent"}'
       And the person takes the torrent program out of their settings
-      Then the torrent window "A" is pushed '{"type":"torrent.error","error":"network-error","reason":"No torrent program is set up."}' for "ubuntu"
+      Then the torrent window "A" is pushed '{"type":"torrent.error","error":"source-unavailable","reason":"That torrent program is no longer set up."}' for "ubuntu"
+      And the torrent window "A" is pushed the state "error" for "ubuntu"
       When the torrent window "A" asks to status "ubuntu"
-      Then the torrent window "A" gets back exactly '{"type":"torrent.status.result","error":"network-error"}'
-      When the torrent window "A" asks to remove "ubuntu"
-      Then the torrent window "A" gets back exactly '{"type":"torrent.remove.result","result":{"ok":false,"jobId":"$job:ubuntu","error":"network-error","reason":"No torrent program is set up."}}'
-      And the torrent job storage holds 1 job
+      Then the torrent window "A" gets back exactly '{"type":"torrent.status.result","error":"source-unavailable"}'
+      When the torrent window "A" sends '{"type":"torrent.jobs"}'
+      Then the torrent window "A" gets back '{"jobs":[{"jobId":"$job:ubuntu","state":"error"}]}'
+      When the torrent window "A" asks to remove "ubuntu" and delete its files
+      Then the torrent window "A" gets back exactly '{"type":"torrent.remove.result","result":{"ok":true,"jobId":"$job:ubuntu","deletedData":false}}'
+      And the person was asked 1 torrent question
+      And the torrent job storage holds 0 jobs
+
+    Scenario Outline: a job whose program was taken out of the settings cannot be <operation>
+      When the torrent window "A" adds "ubuntu"
+      And the person takes the torrent program out of their settings
+      And the torrent window "A" sends '<request>'
+      Then the torrent window "A" gets back '<answer>'
+
+      Examples:
+        | operation          | request                                                                                                         | answer                                                                                   |
+        | paused             | {"type":"torrent.pause","jobId":"$job:ubuntu"}                                                                  | {"error":"source-unavailable"}                                                           |
+        | resumed            | {"type":"torrent.resume","jobId":"$job:ubuntu"}                                                                 | {"error":"source-unavailable"}                                                           |
+        | listed by file     | {"type":"torrent.files","jobId":"$job:ubuntu"}                                                                  | {"error":"source-unavailable"}                                                           |
+        | described          | {"type":"torrent.metadata","jobId":"$job:ubuntu"}                                                               | {"result":{"ok":false,"error":"source-unavailable","reason":"That torrent program is no longer set up."}} |
+        | narrowed to a file | {"type":"torrent.selectFiles","jobId":"$job:ubuntu","selection":{"indexes":[0]}}                                | {"error":"source-unavailable"}                                                           |
+        | changed            | {"type":"torrent.update","request":{"jobId":"$job:ubuntu","expectedRevision":0,"patch":{"uploadLimitBytesPerSecond":1}}} | {"result":{"ok":false,"error":"source-unavailable","reason":"That torrent program is no longer set up."}} |
 
   Rule: Every request gets exactly one answer, in the shape its type has
 

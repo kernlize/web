@@ -1,7 +1,9 @@
 import type { ServiceHandler } from '@kehto/runtime';
 import type { SoulseekClient } from '@kernlize/bridges';
+import type { ConnectionRouting } from './connections.js';
 import type { NappletMessage, SoulseekFailure, SoulseekInfo, SoulseekReleased } from '@napplet/core';
 import {
+  SOULSEEK_GONE,
   SoulseekFault,
   alive,
   createSoulseekQueries,
@@ -10,6 +12,7 @@ import {
   type SoulseekCall,
   type SoulseekContext,
   type SoulseekLimits,
+  type SoulseekRoute,
   type SoulseekSession,
 } from './soulseek-queries.js';
 import { createSoulseekTransfers } from './soulseek-transfers.js';
@@ -19,8 +22,8 @@ export type { SoulseekLimits } from './soulseek-queries.js';
 
 /** What the `soulseek` service needs from the shell. */
 export interface SoulseekServiceOptions extends DownloadServiceDeps {
-  /** The person's Soulseek daemon, read on every request; undefined when none is set up. */
-  readonly client: () => SoulseekClient | undefined;
+  /** The person's Soulseek connections, read on every request: new searches go to the default, and what they find stays on it. */
+  readonly connections: ConnectionRouting<SoulseekClient>;
   /** Runtime limits; each has the default in {@link DEFAULT_SOULSEEK_LIMITS}. */
   readonly limits?: Partial<SoulseekLimits>;
 }
@@ -99,17 +102,27 @@ export function createSoulseekService(options: SoulseekServiceOptions): Download
   const limits: SoulseekLimits = { ...DEFAULT_SOULSEEK_LIMITS, ...options.limits };
   const sessions = new Map<string, SoulseekSession>();
   const stateOf = (client: SoulseekClient): Promise<'offline' | 'online'> => client.state().catch(() => 'offline');
+  /** A route's client only while the connection is there, serving, and at the address the route was made at. */
+  const clientOf = (route: SoulseekRoute): SoulseekClient | undefined => {
+    const routed = options.connections.byId(route.id);
+    return routed?.connection.routingKey === route.routingKey ? routed.client : undefined;
+  };
+  const preferred = (): { readonly route: SoulseekRoute; readonly client: SoulseekClient | undefined } => {
+    const routed = options.connections.preferred();
+    return { route: { id: routed?.connection.id ?? '', routingKey: routed?.connection.routingKey ?? '' }, client: routed?.client };
+  };
   const context: SoulseekContext = {
     limits,
     now: options.now ?? Date.now,
     async online(client) {
       if ((await stateOf(client)) !== 'online') throw new SoulseekFault('unavailable', 'The sharing program is not connected to its network');
     },
-    async reach() {
-      const client = options.client();
-      if (!client) throw new SoulseekFault('unavailable', 'No sharing program is set up');
-      await context.online(client);
-      return client;
+    clientOf,
+    async reach(named) {
+      const reached = named ? { route: named, client: clientOf(named) } : preferred();
+      if (!reached.client) throw named ? new SoulseekFault('backend_error', SOULSEEK_GONE) : new SoulseekFault('unavailable', 'No sharing program is set up');
+      await context.online(reached.client);
+      return { route: reached.route, client: reached.client };
     },
     async consent(windowId, session) {
       if (session.approved) return;
@@ -130,7 +143,7 @@ export function createSoulseekService(options: SoulseekServiceOptions): Download
     Object.entries<Operation>({
       async info(_call, fields): Promise<SoulseekInfo> {
         onlyFields(fields, []);
-        const client = options.client();
+        const client = options.connections.preferred()?.client;
         return { state: client ? await stateOf(client) : 'unconfigured', canSave: false, ...limits };
       },
       async release({ session }, fields): Promise<SoulseekReleased> {
