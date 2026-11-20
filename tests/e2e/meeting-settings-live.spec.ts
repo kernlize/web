@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test } from './fixtures';
+import { expect, openSettings, test } from './fixtures';
 import { fakeNetwork, generalRelays, installSignerExtension, signApplet } from './live-network';
 import { familyCallingApplet, installToolServer } from './live-tools';
 
@@ -14,9 +14,7 @@ const TOOLS = 'wss://tools.test/';
  */
 
 async function settings(page: Page) {
-  await page.locator('details.account summary').click();
-  await page.getByRole('button', { name: 'Settings' }).click();
-  return page.getByRole('region', { name: 'Meeting people and remote tools' });
+  return (await openSettings(page, 'Connections')).getByRole('region', { name: 'Meeting people and remote tools' });
 }
 
 test('the person trusts tools from a shared reference, and an applet runs one by the name they gave', async ({ page }) => {

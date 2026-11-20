@@ -4,7 +4,7 @@ import type { Page } from '@playwright/test';
 import { getPublicKey, generateSecretKey, nip19 } from 'nostr-tools';
 import { expect, test } from './fixtures';
 import { UNAVAILABLE_WORDS, messagingError } from '../../apps/web/src/shell/messaging-reasons';
-import { expectClean } from './vocabulary';
+import { expectClean, expectCleanSettings } from './vocabulary';
 
 /**
  * The live shell (no `?preview=1`), walked offline. Every socket the shell opens is answered by a
@@ -50,24 +50,23 @@ test('the live sign-in names no protocol', async ({ page }) => {
 test('the live settings show every default server without naming the protocol', async ({ page }) => {
   await signInReadOnly(page);
   await expectClean(page, 'live desktop');
-  await page.locator('details.account summary').click();
-  await page.getByRole('button', { name: 'Settings' }).click();
+  // Every section is read once, which also draws it: the server lists below are spread over Servers and Connections.
+  const settings = await expectCleanSettings(page, 'live settings');
   // The shell's own server lists, the file servers uploads use while the account has chosen none (D-033),
   // and the general servers again, which introduce people while the person has chosen none (D-043).
   const defaults = [...Object.values(core.DEFAULT_RELAY_TIERS).flat(), ...core.DEFAULT_FILE_SERVERS, ...core.DEFAULT_RELAY_TIERS.super];
   const shown = await page.locator('[data-address]').evaluateAll((items) => items.map((item) => item.getAttribute('data-address')));
   expect(shown.sort()).toEqual([...defaults].sort());
   // The applet catalogue's default server has a name that would say what the protocol is, so it is called by its tier.
+  await settings.getByRole('tab', { name: 'Servers' }).click();
   await expect(page.getByText('Applet catalogue server 1', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Remove Applet catalogue server 1 from Applet catalogue' })).toBeVisible();
   // A read-only account can neither sign nor decrypt, so private, legacy, ratchet and group messages all ask for a different account (D-016).
-  const settings = page.getByRole('dialog', { name: 'Settings' });
+  await settings.getByRole('tab', { name: 'Messages' }).click();
   await expect(settings.getByText(UNAVAILABLE_WORDS['signer-cannot-encrypt'] as string).first()).toBeVisible();
   expect(await settings.getByText(UNAVAILABLE_WORDS['signer-cannot-encrypt'] as string).count()).toBeGreaterThanOrEqual(3);
   // Every provider is listed in the user's order, the group one included, and none is recommended.
   for (const name of ['Private messages', 'Legacy messages', 'Ratchet sessions', 'Group sessions']) await expect(settings.getByRole('heading', { name, exact: true })).toBeVisible();
-  await settings.locator('details').evaluateAll((all) => all.forEach((d) => d.setAttribute('open', '')));
-  await expectClean(page, 'live settings with the default servers');
   await page.keyboard.press('Escape');
 
   // Messages is the applet the shell ships; with no provider that can run, it says so in its own frame.

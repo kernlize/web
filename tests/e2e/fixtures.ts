@@ -1,4 +1,4 @@
-import { expect, test as base } from '@playwright/test';
+import { expect, test as base, type Locator, type Page } from '@playwright/test';
 
 /**
  * Every spec imports `test` from here. A page error or a console error anywhere on the page,
@@ -26,3 +26,19 @@ export const test = base.extend<{ pageErrors: string[]; expectedConsoleError: Re
 });
 
 export { expect };
+
+/** The tabs of the Settings window, in the order it lists them (D-049). */
+export const SETTINGS_SECTIONS = ['General', 'Servers', 'Messages', 'Connections', 'Downloads'] as const;
+
+/**
+ * Open Settings from the identity menu on the bar and, when a section is named, go to it. Settings
+ * is a window, found as the "Settings window" region; it opens on the section last used, so a spec
+ * that needs one names it.
+ */
+export async function openSettings(page: Page, section?: (typeof SETTINGS_SECTIONS)[number]): Promise<Locator> {
+  await page.locator('details.account summary').click();
+  await page.locator('details.account').getByRole('button', { name: 'Settings' }).click();
+  const settings = page.getByRole('region', { name: 'Settings window' });
+  if (section) await settings.getByRole('tab', { name: section }).click();
+  return settings;
+}

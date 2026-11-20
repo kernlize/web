@@ -1,5 +1,5 @@
 import type { FrameLocator, Page } from '@playwright/test';
-import { expect, test } from './fixtures';
+import { expect, openSettings, test } from './fixtures';
 
 const base = process.env.PLAYWRIGHT_BASE_URL ?? '';
 
@@ -239,11 +239,6 @@ test('the chosen layout is remembered, and a choice stored by an earlier build s
   await expect(page.getByRole('button', { name: /^Layout:/ })).toHaveAccessibleName('Layout: columns. Switch to main and stack');
 });
 
-async function openSettings(page: Page): Promise<void> {
-  await page.locator('details.account summary').click();
-  await page.getByRole('button', { name: 'Settings' }).click();
-}
-
 test('a shared download joins the Downloads panel, fills in and can be saved', async ({ page }) => {
   const applet = await runPulse(page);
   const asked: string[] = [];
@@ -288,7 +283,7 @@ test('a download link pasted into the panel can be paused and resumed', async ({
 
 test('choosing an app on the device hands a shared download off only after the shell asks to leave', async ({ page }) => {
   const applet = await runPulse(page);
-  await openSettings(page);
+  await openSettings(page, 'Downloads');
   await page.getByRole('radio', { name: /Open in an app on your device/ }).check();
   await expect(page.getByText('Ready (opens an app on your device)')).toHaveCount(4);
   await page.keyboard.press('Escape');
@@ -305,14 +300,14 @@ test('choosing an app on the device hands a shared download off only after the s
 
   await page.reload();
   await page.getByRole('button', { name: 'Try the preview' }).click();
-  await openSettings(page);
+  await openSettings(page, 'Downloads');
   await expect(page.getByRole('radio', { name: /Open in an app on your device/ })).toBeChecked();
 });
 
 test('settings say downloads from peers happen in kernl, and sharing and mail open an app on the device', async ({ page }) => {
   await page.goto(`${base}/app/?preview=1`);
   await page.getByRole('button', { name: 'Try the preview' }).click();
-  await openSettings(page);
+  await openSettings(page, 'Downloads');
   await expect(page.getByRole('radio', { name: /Download in kernl/ })).toBeChecked();
   await expect(page.getByText('Ready (opens an app on your device)')).toHaveCount(3);
 });
@@ -327,7 +322,7 @@ test('an empty desktop reads as two sentences and the sign-in choices follow the
 test('settings show a new account suggested inbox and outbox servers, and say how many took the published list', async ({ page }) => {
   await page.goto(`${base}/app/?preview=1`);
   await page.getByRole('button', { name: 'Try the preview' }).click();
-  await openSettings(page);
+  await openSettings(page, 'Servers');
   await expect(page.getByRole('heading', { name: 'Inbox and outbox' })).toBeVisible();
   await expect(page.getByText('This identity has not said where it can be reached yet.')).toBeVisible();
   const inbox = page.getByRole('list', { name: 'Inbox servers' });
@@ -367,7 +362,7 @@ test('a relay list change asks in terms of inbox and outbox', async ({ page }) =
 test('settings show where uploads go, and the list can be changed and published', async ({ page }) => {
   await page.goto(`${base}/app/?preview=1`);
   await page.getByRole('button', { name: 'Try the preview' }).click();
-  await openSettings(page);
+  await openSettings(page, 'Servers');
   const section = page.getByRole('region', { name: 'File servers' });
   await expect(section.getByText('This identity has not chosen file servers yet')).toBeVisible();
   const list = section.getByRole('list', { name: 'File servers' });

@@ -1,5 +1,5 @@
 import type { FrameLocator, Page } from '@playwright/test';
-import { expect, test } from './fixtures';
+import { expect, openSettings as openSettingsAt, test } from './fixtures';
 
 const base = process.env.PLAYWRIGHT_BASE_URL ?? '';
 // Set to a directory to keep a picture of each step, for a pull request or the docs.
@@ -37,9 +37,7 @@ const said = (applet: FrameLocator, text: string) => applet.getByRole('log').get
 const question = (page: Page) => page.getByRole('dialog', { name: 'How should this reply travel?' });
 
 async function openSettings(page: Page): Promise<void> {
-  await page.locator('details.account summary').click();
-  await page.getByRole('button', { name: 'Settings' }).click();
-  await page.getByRole('heading', { name: 'Messages', exact: true }).evaluate((heading) => heading.scrollIntoView({ block: 'start' }));
+  await openSettingsAt(page, 'Messages');
 }
 
 test('Messages opens the applet the shell ships, and a conversation is written and answered in it', async ({ page }) => {
@@ -87,7 +85,7 @@ test('answering someone who wrote another way asks first, and the answer can be 
   await expect(dialog).toHaveCount(0);
 
   await openSettings(page);
-  const settings = page.getByRole('dialog', { name: 'Settings' });
+  const settings = page.getByRole('region', { name: 'Settings window' });
   await expect(settings.getByText('You settled this for one person.')).toBeVisible();
   await settings.getByRole('button', { name: 'Forget those answers' }).click();
   await expect(settings.getByText('You settled this for one person.')).toHaveCount(0);
@@ -103,7 +101,7 @@ test('answering someone who wrote another way asks first, and the answer can be 
 test('the order of providers is the user\'s, and the first one that is on is used first', async ({ page }) => {
   const applet = await openMessages(page);
   await openSettings(page);
-  const settings = page.getByRole('dialog', { name: 'Settings' });
+  const settings = page.getByRole('region', { name: 'Settings window' });
   const providers = settings.getByRole('list', { name: 'Providers, in your order' }).getByRole('listitem');
   await expect(providers.locator('h4')).toHaveText(['Private messages', 'Legacy messages', 'Ratchet sessions', 'Group sessions']);
   await expect(providers.nth(0)).toContainText('used first');
@@ -131,13 +129,13 @@ test('the order of providers is the user\'s, and the first one that is on is use
   await page.reload();
   await page.getByRole('button', { name: 'Try the preview' }).click();
   await openSettings(page);
-  await expect(page.getByRole('dialog', { name: 'Settings' }).getByRole('list', { name: 'Providers, in your order' }).locator('h4').first()).toHaveText('Legacy messages');
+  await expect(page.getByRole('region', { name: 'Settings window' }).getByRole('list', { name: 'Providers, in your order' }).locator('h4').first()).toHaveText('Legacy messages');
 });
 
 test('a standing rule answers the question, and a provider that is switched off is not used', async ({ page }) => {
   const applet = await openMessages(page);
   await openSettings(page);
-  const settings = page.getByRole('dialog', { name: 'Settings' });
+  const settings = page.getByRole('region', { name: 'Settings window' });
   await settings.getByRole('radio', { name: /Reply the way they wrote to me/ }).check();
   await settings.getByRole('group', { name: /When someone last wrote to you/ }).evaluate((rules) => rules.scrollIntoView({ block: 'center' }));
   await proof(page, '06-settings-reply-rule');

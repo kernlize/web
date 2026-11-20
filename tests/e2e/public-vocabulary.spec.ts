@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { expectClean } from './vocabulary';
+import { expectClean, expectCleanSettings } from './vocabulary';
 
 // DECISIONS D-006: the public site and the shell never name a protocol. The build-time scan reads files;
 // this reads what a person can perceive in a real browser, including text that scripts render,
@@ -78,10 +78,7 @@ test('every shell surface names no protocol', async ({ page }) => {
   await expectClean(page, 'reply question');
   await page.getByRole('dialog').getByRole('button', { name: 'Do not send' }).click();
   await expectClean(page, 'messages, not sent');
-  await page.locator('details.account summary').click();
-  await page.getByRole('button', { name: 'Settings' }).click();
-  await page.getByRole('dialog').locator('details').evaluateAll((all) => all.forEach((d) => d.setAttribute('open', '')));
-  await expectClean(page, 'settings, messages');
+  await expectCleanSettings(page, 'settings');
   await page.keyboard.press('Escape');
   // The messages window is in front; its grants are the ones the shell switched on for it.
   await page.getByRole('button', { name: 'Grants for Messages' }).click();
@@ -92,12 +89,14 @@ test('every shell surface names no protocol', async ({ page }) => {
   await page.keyboard.press('Escape');
   await page.locator('details.account summary').click();
   await expectClean(page, 'account menu');
-  await page.getByRole('button', { name: 'Settings' }).click();
-  const servers = page.locator('[data-address]');
+  await page.locator('details.account').getByRole('button', { name: 'Settings' }).click();
+  const settings = page.getByRole('region', { name: 'Settings window' });
+  await settings.getByRole('tab', { name: 'Servers' }).click();
+  const servers = settings.getByRole('tabpanel', { name: 'Servers' }).locator('[data-address]');
   await expect(servers.first()).toBeVisible();
   expect(await servers.count()).toBeGreaterThanOrEqual(4);
   await expect(page.getByText('damus.io', { exact: true }).first()).toBeVisible();
-  await expectClean(page, 'settings panel with servers');
+  await expectClean(page, 'settings with servers');
   const add = page.getByRole('textbox', { name: 'Add a server to People lookup' });
   await add.fill('relay.example.org');
   await add.press('Enter');
