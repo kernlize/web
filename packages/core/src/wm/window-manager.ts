@@ -73,6 +73,13 @@ export interface WindowManager {
   move(id: string, rect: Rect): void;
   /** Mark a window's applet as stopped: it loses focus, is no longer reported to, and waits to be closed. */
   stop(id: string): void;
+  /**
+   * The window's applet starts again under the id `next`: the window keeps its rectangle, its place
+   * in the opening order and in any arrangement, is shown, is no longer stopped, and comes to the
+   * front, focused. Its old target is reported to no more; the new applet is attached under `next`.
+   * Does nothing when `id` is not open or `next` already is.
+   */
+  replace(id: string, next: string): void;
   /** Report this window's visibility to `target`, now and after every change. Called once per window, when its applet is mounted. */
   attach(id: string, target: VisibilityTarget): void;
   /** What the guard is told about a window when it asks. An unknown window is neither visible nor focused. */
@@ -308,6 +315,13 @@ export function createWindowManager(options: WindowManagerOptions = {}): WindowM
       entry.target = undefined;
       leave(id);
       changed();
+    },
+    replace(id, next) {
+      const index = desk.entries.findIndex((entry) => entry.id === id);
+      if (index === -1 || find(desk, next)) return;
+      desk.entries[index] = { ...(desk.entries[index] as Entry), id: next, minimised: false, stopped: false, target: undefined };
+      if (desk.focusedId === id) desk.focusedId = null;
+      manager.focus(next);
     },
     attach(id, target) {
       const entry = find(desk, id);

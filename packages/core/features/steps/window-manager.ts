@@ -195,6 +195,10 @@ When('the applet in {string} is stopped', (world: WmWorld, id: string) => {
   manager(world).stop(id);
 });
 
+When('the window {string} starts again as {string}', (world: WmWorld, id: string, next: string) => {
+  manager(world).replace(id, next);
+});
+
 When('the person moves {string} to {int},{int} sized {int} by {int}', (world: WmWorld, id: string, x: number, y: number, w: number, h: number) => {
   manager(world).move(id, { x, y, w, h });
 });

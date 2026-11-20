@@ -260,6 +260,37 @@ Feature: Window manager
       Then "a" is focused
       And the guard is told "b" is hidden
 
+    Scenario: a window whose applet starts again keeps its place, size and slot under the new id
+      Given new windows are 300 by 200
+      And a window manager on a desktop of 1000 by 600
+      When the windows "a, b, c" open
+      And the person moves "b" to 500,300 sized 320 by 220
+      And the applet in "b" is stopped
+      And the window "b" starts again as "b2"
+      Then the windows are:
+        | id | x   | y   | w   | h   | focused | stopped |
+        | a  | 40  | 24  | 300 | 200 | no      | no      |
+        | b2 | 500 | 300 | 320 | 220 | yes     | no      |
+        | c  | 104 | 88  | 300 | 200 | no      | no      |
+      And the front-to-back order is "b2, c, a"
+
+    Scenario: a window that starts again in a layout keeps its place in the arrangement
+      Given a window manager on a desktop of 1000 by 600
+      When the windows "a, b" open
+      And the person picks the layout "columns"
+      And the person minimises "a"
+      And the window "a" starts again as "a2"
+      Then the windows include:
+        | id | x | y | minimised |
+        | a2 | 0 | 0 | no        |
+
+    Scenario: starting again a window nobody opened, or under an id already open, does nothing
+      Given a window manager on a desktop of 1000 by 600
+      When the windows "a, b" open
+      And the window "ghost" starts again as "g2"
+      And the window "a" starts again as "b"
+      Then the front-to-back order is "b, a"
+
   Rule: the guard is told the truth
 
     Scenario: a window is visible while it is shown on a visible page, and focused while the person works in it
@@ -323,6 +354,10 @@ Feature: Window manager
       And the person focuses "c"
       Then "a" got 1 report
       And "b" got 2 reports
+      When "c" is attached
+      And the window "c" starts again as "c2"
+      And the person turns to the shell
+      Then "c" got 1 report
 
     Scenario: moving, resizing and re-arranging are not reported, because nothing the guard relies on changed
       Given a window manager on a desktop of 1000 by 600
