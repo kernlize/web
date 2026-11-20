@@ -1,6 +1,6 @@
 # Public vocabulary
 
-The public website and the shell UI never name a protocol. The person is the point; the protocol is plumbing. This page is the denylist, the reasoning, and where the rule stops.
+The public website and the shell UI never name a protocol. The person is the point; the protocol is plumbing. This page is the denylist, the reasoning, and where the rule stops. One word differs between the two: the website never says "relay", and the shell does ([D-051](../decisions.md#d-051)).
 
 ## The rule
 
@@ -11,15 +11,15 @@ The public website and the shell UI never name a protocol. The person is the poi
 | `nostr` | "your account", "the network" |
 | `nip-` (prefix) | describe the behaviour: "signing extension", "remote signer", "private messages" |
 | `napplet` | "applet" |
-| `relay` | "network", or nothing: the user's relays are "where your account lives" |
+| `relay` (website only) | "network", or nothing. The shell says "relay": it is the accurate word for the thing a person adds and removes there ([D-051](../decisions.md#d-051)) |
 | `pubkey` | "account", "address" |
 | `npub` | "address" |
 | `nsec` | "secret key", in the one place the shell must warn about it |
 
 Two checks enforce it:
 
-- **Build time.** `scripts/check-public-vocabulary.mjs` reads every HTML, Markdown, text, JSON and XML file in the Pages artifact outside `docs/`, so Astro pages, JSON-LD, `llms.txt` and the Markdown twins are covered.
-- **In a browser.** `tests/e2e/public-vocabulary.spec.ts` loads every public page and walks the shell (sign-in, launcher, applet summary, a running applet's frame, the consent dialog with its record view open, and the guard, messages, grants and settings panels). It reads what a person can perceive: rendered text, `title`, `aria-label`, `placeholder` and `alt`. Copy rendered by scripts, which the file scan cannot see, is covered here.
+- **Build time.** `scripts/check-public-vocabulary.mjs` reads every HTML, Markdown, text, JSON and XML file in the Pages artifact outside `docs/`, so Astro pages, JSON-LD, `llms.txt` and the Markdown twins are covered. Its list includes `relay`.
+- **In a browser.** `tests/e2e/public-vocabulary.spec.ts` loads every public page and walks the shell (sign-in, launcher, applet summary, a running applet's frame, the consent dialog with its record view open, the guard, grants and downloads sheets, and every section of the Settings window). It reads what a person can perceive: rendered text, `title`, `aria-label`, `placeholder` and `alt`. Copy rendered by scripts, which the file scan cannot see, is covered here. Its list is `DENIED_WORDS` in `apps/web/src/shell/vocabulary.ts`, which has no `relay`.
 
 Identifiers inside JavaScript bundles are not copy and are not checked. The consent dialog's record view shows every field of the event it will sign, with plain labels ("Signed by", "Type", "Labels") instead of wire field names.
 
@@ -38,7 +38,7 @@ Three reasons, in the order `SOUL.md` ranks them.
 - **These docs.** Written for developers, who need the names. Every page here uses them.
 - **Code, specs, commit messages, issues.** `napplet` is the protocol term and stays in identifiers and in `features/`.
 - **`specification` fields.** `SecurityProperties.specification` and a bridge's protocol are shown in the docs, never in the picker.
-- **Addresses.** Server URLs a user adds, edits or removes are data, and their hostnames belong to whoever runs the server. Both checks ignore `http(s)://` and `ws(s)://` URLs.
+- **Addresses.** A relay or file server is shown by its own host, exactly as it is, with no nickname in its place, and a host belongs to whoever runs it: `relay.nostr.band` is shown as that. The build-time scan blanks `http(s)://` URLs. The browser check blanks addresses before it reads the words (`withoutAddresses` in `vocabulary.ts`): lower-case labels joined by dots and ending in a top-level label, with a scheme, port and path when present. A token whose last label is itself a denied word is not treated as an address, and neither is one with a capital, so two words run together by a full stop cannot hide one.
 - **The secret-key warning.** The one place the shell mentions `nsec` is the warning that it will never ask for one.
 
 ## The words we use
@@ -50,5 +50,6 @@ Three reasons, in the order `SOUL.md` ranks them.
 | grant | permission, capability | A grant is something the user gave and can take back. |
 | provider | protocol | Users choose providers by what they do. |
 | guard | firewall, mitigation | The guard is the set of protections between an applet and the user. |
+| relay (in the shell) | server, "servers that introduce you", a role nickname | A relay is a relay, and it is shown by its own host. File servers and connection helpers are different things and keep their names. |
 
 Marketing adjectives, filler and hedges that hide a decision are out everywhere, including here.

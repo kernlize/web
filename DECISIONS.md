@@ -82,7 +82,7 @@ Published packages have zero framework dependencies, matching kehto's rule. The 
 
 **Decision.** `apps/web` output is scanned by `scripts/check-public-vocabulary.mjs` for a denylist (`nostr`, `nip-`, `napplet`, `relay`, `pubkey`, `npub`, `nsec`) and the build fails on a hit. The denylist applies to the landing pages and the shell UI copy. It does not apply to `docs/`, which is written for developers and must name things precisely.
 
-**Consequences.** UI copy says "applet", "account", "network", "provider", "guard". Developer-facing terms live in the docs.
+**Consequences.** UI copy says "applet", "account", "network", "provider", "guard". Developer-facing terms live in the docs. In the shell, a relay is since called a relay ([D-051](#d-051)); the website still never says it.
 
 **Reversal cost.** Low.
 
@@ -464,7 +464,7 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 
 - **Always look for kind 0.** `createProfiles` asks the lookup relays (`discovery`, then `super`) for the profile and the relay list at once; when the list names write relays the profile was not found on, it asks there (NIP-65). A card never gives up on a timer, and a late profile replaces the short key. The session label follows the account's published name. Every person in the shell is drawn through one component that does this, and the `dm` domain names conversation participants the same way before an applet sees them, so applets get names without asking.
 - **Stream, and bound only at the extremes.** The store emits its list as each relay answers, says "no applets match, more may still arrive" after `CATALOG_SETTLE_MS` (3 s) with nothing, and stops listening at `CATALOG_TIMEOUT_MS` (30 s). Cached manifests are listed first. A manifest its publisher deleted (kind 5) is left out. Every published applet is listed by default, as the public stores list them; one that needs a capability this shell does not offer says which, and "Only applets that work here" hides those when the person asks.
-- **Name servers by role.** Settings has "Inbox and outbox", the account's published list (D-029), with "Inbox: where people send things to you" and "Outbox: where your posts are kept, and where others look for them", and says that pictures and applet files live on separate file servers. The shell's own lists are "People lookup", "Applet catalogue" and "General". The consent for a relay list says "Change your inbox and outbox" and lists what each side gains and loses. The word for the protocol's server still never appears (D-006).
+- **Name servers by role.** Settings has "Inbox and outbox", the account's published list (D-029), with "Inbox: where people send things to you" and "Outbox: where your posts are kept, and where others look for them", and says that pictures and applet files live on separate file servers. The shell's own lists are "People lookup", "Applet catalogue" and "General". The consent for a relay list says "Change your inbox and outbox" and lists what each side gains and loses. The word for the protocol's server still never appears (D-006). [D-051](#d-051) reverses this bullet: the lists are named as relays and each relay is shown by its own host.
 
 **Consequences.** Names appear wherever a key did, from cache at once and from the network as it answers. The store fills from the first relay. The `outbox` tier is no longer edited by hand; it follows the published list.
 
@@ -728,6 +728,23 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 
 **Reversal cost.** Low. One store method and one snippet.
 
+## D-049 · Settings are a window with sections
+
+**Context.** Settings was one long modal sheet: inbox and outbox, file servers, meeting people, the lookup servers, messaging providers, downloads, bridges, appearance and About, in the order they had been written. Nothing was grouped, so finding a setting meant scrolling past all the others. Being modal, the sheet also hid the applet a setting was being changed for, and it was the last large surface that ignored the layout the person chose ([D-048](#d-048) had moved the store).
+
+**Decision.**
+
+- **Settings is the second shell-drawn window.** `Desktop.openSettings(section?)` calls `WindowStore.openPanel('settings', 'Settings')`, so the one `WindowManager` places, focuses, tiles, moves, minimises and closes it like the store and every applet window, and the bar lists it. Asking for it again brings it forward.
+- **Five sections, one showing at a time**, named for where a person looks: General (appearance, About), Servers (inbox and outbox, file servers, the lookup servers), Messages (providers and their order, replies), Connections (meeting people and remote tools), Downloads (where links go, bridges). They are tabs with the usual semantics and keys: a list down the side of the window, and one row across the top when the window is narrow. "Narrow" is the window's own width, by a container query, because a window is resized and tiled independently of the page. The list and its key handling live in `settings/sections.ts`.
+- **The section is remembered** under `kernl:settings:section:v1`, and another part of the shell can open Settings at a section by its id (the Downloads sheet does).
+- **A section is drawn when first chosen and kept until the window closes**, so a list half edited in Servers survives a look at Messages, and the monitored-server lookup starts only when Servers is opened.
+- **Escape closes the shell-drawn window the person is working in**, or else the one in front; a minimised one is left alone (`panelToClose` in `windows.ts`). The store follows the same rule.
+- **The guard, grants and Downloads stay sheets.** They are short, and each is about something else on the desktop that it is right to pause over.
+
+**Consequences.** No setting does anything different; each is in a section. Browser tests find Settings as the "Settings window" region and name the section they need, and the vocabulary walk visits every section, because a section that is not showing is not rendered text. The count of unread messages is taken again when Settings loses focus, not when a sheet closes.
+
+**Reversal cost.** Low. The sections are components that do not know they are in a window; a sheet could hold the same tabs.
+
 ## D-050 · Applets download through the programs the person already runs
 
 **Context.** Three NAP drafts let an applet ask the shell for transfers it could never make itself: NAP-TORRENT (napplet/naps#72), NAP-NZB (#136) and NAP-SOULSEEK (#135). Each says the runtime may be its own engine or may adapt a program the user configured, and names Transmission-style daemons, NZBGet, SABnzbd and slskd. D-017 put a browser-peer engine in the page for magnet links and left everything else to a hand-off, because a page cannot open the sockets those networks need. The programs people already run for this do open them, and each has an HTTP API a page can call. kehto's runtime dispatches a domain it does not build in to a service that lists its message types (`messageCapabilities`), but `@kehto/shell` 0.35 advertises a fixed list of domains, and the port an applet talks through is private to kehto's injected prelude, which builds a domain it does not know as an empty object.
@@ -746,6 +763,24 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Consequences.** A browser applies its own rule on top of the scheme check: the program has to accept requests from the page's origin. SABnzbd, NZBGet and slskd send the headers that allow it; Transmission and uTorrent do not, so from a page they need a small reverse proxy that adds them, which the how-to shows. A host outside a browser has neither limit. The in-page engine and the hand-offs of D-017 are unchanged: they serve links the person opens, while these domains serve applets.
 
 **Reversal cost.** Low for any one program: an adapter is one file behind a contract. Medium for a domain: the service and its stored handles.
+
+## D-051 · In the shell a relay is called a relay, and shown by its own address
+
+**Context.** [D-006](#d-006) kept the word "relay" out of everything a person reads, and [D-031](#d-031) named relays by the role they play. The shell therefore said "servers that introduce you", "People lookup" and "Applet catalogue", shortened `relay.damus.io` to `damus.io`, and replaced a host that contained a denied word with a nickname such as "Applet catalogue server 1". On 2026-11-20 the owner ruled that "servers that introduce you" is not technically accurate, "They are relays", and that a nickname in place of an address is "unintuitive, confusing and not user friendly". The same review found the Settings window carrying more help text than a settings window should.
+
+**Decision.**
+
+- **The shell says relay.** `relays?` leaves `DENIED_WORDS` in `apps/web/src/shell/vocabulary.ts`. Settings has "Inbox relays" and "Outbox relays" under "Inbox and outbox", "Lookup relays", "Applet relays" and "General relays" under "Relays the shell asks", and "Relays for meeting people". Status, error and consent text follows: "Saved to all 3 relays", "The shell could not connect to any relay.", "Inbox relays added", "Relays asked". File servers stay "file servers" and connection helpers stay "helpers", because they are not relays. The Servers tab keeps its name: it holds relays and file servers.
+- **Every relay and file server is shown by its own host**, port included, with no label dropped and no nickname (`hostOf` in `servers.ts`; `relayName` in the core's consent summaries). `serverLabel` and the label-dropping `serverName` are gone.
+- **The vocabulary check reads the shell's words, not the addresses it shows.** A host can contain a denied word (`relay.nostr.band`, `relay.napplet.soy`), so the browser check blanks addresses first with `withoutAddresses`. It is narrow: lower-case dot-joined labels ending in a top-level label, never a token whose last label is itself a denied word. The scenarios in `shell-words.feature` hold both sides.
+- **The website is unchanged.** `scripts/check-public-vocabulary.mjs` still denies `relay` on the landing and `/about/` pages. The shell page's static HTML names no relay, since its copy is rendered by script, so the scan needed no exemption.
+- **Settings copy is cut to what a settings window carries**: at most one short line under a heading, field labels of one to four words, conditions as placeholders. A privacy fact a person needs before acting stays, as one line beside its control.
+
+This amends D-006 and D-031 for the shell only.
+
+**Consequences.** A person who knows the network finds the word they expect, and one who does not sees an address they can search for. An address someone else chose can put a protocol word on screen; that is the address, not the shell's copy. `@kernlize/core` consent summaries and `describeOutcome` change wording, a patch release.
+
+**Reversal cost.** Low. One pattern, one function and the labels.
 
 ## D-052 · Secrets are kept by a provider the host can replace
 

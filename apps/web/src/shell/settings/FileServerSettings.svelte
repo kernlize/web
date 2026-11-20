@@ -1,8 +1,7 @@
 <script lang="ts">
   import type { FileServerState } from '@kernlize/core';
-  import type { ShellKernl } from './contract';
-  import { observe } from './observe.svelte';
-  import { serverLabel } from './servers';
+  import type { ShellKernl } from '../contract';
+  import { observe } from '../observe.svelte';
 
   interface Props {
     kernl: ShellKernl;
@@ -23,8 +22,8 @@
 
   const current = $derived(edited ?? (published.value.status === 'loading' ? undefined : published.value.servers));
   const readOnly = $derived(session.value?.readOnly !== false);
-  // A name that would say the protocol's name is replaced by the list's own (D-006).
-  const nameOf = (url: string, index: number): string => serverLabel(new URL(url).hostname, 'File', index);
+  // A file server is shown by its own host, whatever words that host contains (D-051).
+  const nameOf = (url: string): string => new URL(url).host;
 
   function add(): void {
     error = null;
@@ -60,7 +59,7 @@
       saved = describeOutcome(outcome);
       if (outcome.ok) edited = undefined;
     } catch {
-      error = 'The list could not be signed. Check that your signer is open, then try again.';
+      error = 'The list could not be signed. Check your signer.';
     } finally {
       saving = false;
     }
@@ -69,20 +68,20 @@
 
 <section class="shell-section" aria-labelledby="file-servers-heading">
   <h3 id="file-servers-heading">File servers</h3>
-  <p class="shell-muted small">Where pictures and files you upload through an applet are kept. The first gets each file and the others keep copies. You are asked before every upload.</p>
+  <p class="shell-muted small">Uploads go to the first. The others keep copies.</p>
   {#if !current}
     <p class="shell-muted" role="status">Looking for your file servers…</p>
   {:else}
-    {#if published.value.status === 'missing' && !edited}<p class="small" role="status">This identity has not chosen file servers yet, so these well-known ones are used.</p>{/if}
+    {#if published.value.status === 'missing' && !edited}<p class="small" role="status">None chosen yet, so these are used.</p>{/if}
     <ul class="shell-list urls" aria-label="File servers">
       {#each current as url, index (url)}
-        {@const name = nameOf(url, index)}
+        {@const name = nameOf(url)}
         <li data-address={url}>
           <span class="server">{name}{index === 0 ? ' (first)' : ''}</span>
           {#if !readOnly}<button type="button" class="shell-button quiet" onclick={() => remove(url)} aria-label="Remove {name} from file servers">Remove</button>{/if}
         </li>
       {:else}
-        <li class="shell-muted">None. Uploads are refused until you add one.</li>
+        <li class="shell-muted">None, so uploads are refused.</li>
       {/each}
     </ul>
     {#if !readOnly}

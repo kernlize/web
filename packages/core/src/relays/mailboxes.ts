@@ -234,7 +234,7 @@ async function publishList(options: AccountMailboxesOptions, signer: MailboxSign
  * const mailboxes = createAccountMailboxes({ store, pool, pubkey$, lookupRelays: () => tiers.get().discovery, signer });
  * mailboxes.state$.subscribe((state) => render(state));
  * const outcome = await mailboxes.save({ inboxes: ['wss://in.example'], outboxes: ['wss://out.example'] });
- * describeOutcome(outcome); // 'Saved to 3 of 4 servers'
+ * describeOutcome(outcome); // 'Saved to 3 of 4 relays'
  * ```
  */
 export function createAccountMailboxes(options: AccountMailboxesOptions): AccountMailboxes {

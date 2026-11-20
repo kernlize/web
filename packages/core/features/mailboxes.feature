@@ -93,7 +93,7 @@ Feature: Account mailboxes
     Then the save succeeded
     And the list was published to "wss://out.example/,wss://in.example/,wss://old.example/,wss://look1.example/,wss://look2.example/"
     And "wss://look2.example/" refused it with "blocked: not on the list"
-    And the person is told "Saved to 4 of 5 servers"
+    And the person is told "Saved to 4 of 5 relays"
     And the outboxes are "wss://in.example/,wss://out.example/"
     And the inboxes are "wss://in.example/"
 
@@ -106,7 +106,7 @@ Feature: Account mailboxes
     And the account saves inboxes "wss://in.example" and outboxes "wss://out.example"
     Then the save failed
     And "wss://out.example/" refused it with "error: full"
-    And the person is told "No server accepted it"
+    And the person is told "No relay accepted it"
     And the outboxes are "wss://old.example/"
 
   Scenario: when the network throws, every server counts as refusing
@@ -136,14 +136,14 @@ Feature: Account mailboxes
     Then the progress went "0/1:missing,1/2:found,2/3:found"
     And the save succeeded
     And "wss://look2.example/" refused it with "no answer"
-    And the person is told "Saved to 2 of 4 servers"
+    And the person is told "Saved to 2 of 4 relays"
 
   Scenario: a streamed save whose stream fails still counts every server
     Given the servers answer publishes one at a time, "wss://look1.example,wss://look2.example" never answering, then the stream fails
     When the signed-in account's mailboxes are watched
     And the account saves inboxes "wss://in.example" and outboxes "wss://in.example", watching progress
     Then the progress went "1/1:found"
-    And the person is told "Saved to 1 of 3 servers"
+    And the person is told "Saved to 1 of 3 relays"
 
   Scenario: saving keeps the other tags and the content, and moves time forward
     Given "wss://look1.example" holds a mailbox list from 1900000000 with content "kept" and

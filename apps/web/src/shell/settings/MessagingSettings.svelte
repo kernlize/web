@@ -1,9 +1,9 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { describeProvider, type ProviderEntry, type ReplyRule } from '@kernlize/messaging';
-  import type { ShellKernl } from './contract';
-  import { messagingError, unavailableWhy } from './messaging-reasons';
-  import { REPLY_RULES, moved, settledWords } from './reply-words';
+  import type { ShellKernl } from '../contract';
+  import { messagingError, unavailableWhy } from '../messaging-reasons';
+  import { REPLY_RULES, moved, settledWords } from '../reply-words';
 
   interface Props {
     kernl: ShellKernl;
@@ -64,11 +64,10 @@
   }
 </script>
 
-<section class="shell-section" aria-labelledby="messaging-settings" bind:this={section}>
-  <h3 id="messaging-settings">Messages</h3>
-  <p class="shell-muted small">
-    A message to someone new leaves through the first provider on this list that is switched on and can reach them. Each provider states what it protects. None is recommended over another: you put them in order.
-  </p>
+<div bind:this={section}>
+<section class="shell-section" aria-labelledby="messaging-settings">
+  <h3 id="messaging-settings">Providers</h3>
+  <p class="shell-muted small">A new message uses the first one that is on and can reach the person.</p>
   <ol class="shell-list providers" aria-label="Providers, in your order">
     {#each providers as entry, index (entry.provider.id)}
       {@const id = entry.provider.id}
@@ -112,9 +111,11 @@
   </ol>
   <p class="visually-hidden" role="status">{moveNote}</p>
   {#if error}<p class="shell-error" role="alert">{error}</p>{/if}
-
+</section>
+<section class="shell-section" aria-labelledby="reply-settings">
+  <h3 id="reply-settings">Replies</h3>
   <fieldset class="rules">
-    <legend>When someone last wrote to you through a provider that is not first in your order</legend>
+    <legend class="shell-muted small">When someone last wrote through a provider that is not your first.</legend>
     {#each REPLY_RULES as rule (rule.id)}
       <label class="shell-card rule" class:active={preferences.reply === rule.id}>
         <input type="radio" name="reply-rule" value={rule.id} checked={preferences.reply === rule.id} onchange={() => apply(() => messaging.setReplyRule(rule.id as ReplyRule))} />
@@ -125,11 +126,12 @@
   </fieldset>
   {#if settled}
     <div class="settled">
-      <p class="shell-muted small">{settledWords(settled)} Their answer comes before the rule above.</p>
+      <p class="shell-muted small">{settledWords(settled)}</p>
       <button type="button" class="shell-button quiet" onclick={forget}>Forget those answers</button>
     </div>
   {/if}
 </section>
+</div>
 
 <style>
   .small {
@@ -186,13 +188,13 @@
   .rules {
     border: 0;
     padding: 0;
-    margin: 0.5rem 0 0;
+    margin: 0;
     display: grid;
     gap: 0.5rem;
   }
 
   .rules legend {
-    font-size: 0.9rem;
+    padding: 0;
     margin-bottom: 0.5rem;
   }
 

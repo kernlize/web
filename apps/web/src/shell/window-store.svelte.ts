@@ -124,11 +124,6 @@ export class WindowStore {
     this.manager.open(id);
   }
 
-  /** Whether one of the shell's own surfaces is open as a window. */
-  hasPanel(panel: string): boolean {
-    return this.#panels.some((item) => item.id === panelWindowId(panel));
-  }
-
   /** Called by the iframe layer when the frame element exists. Mounts once per window, however often it is called. */
   attach(id: string, frame: FrameLike, mount: Mount): void {
     const applet = this.#applets.find((item) => item.id === id);
