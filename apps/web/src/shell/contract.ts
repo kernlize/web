@@ -9,6 +9,8 @@ export type ShellKernl = Omit<Kernl, 'bridge' | 'eventStore' | 'pool'>;
 
 export type {
   AppletHandle,
+  AppletStopDetails,
+  AppletStopLimit,
   AppletIdentity,
   AppletPointer,
   AppletStatus,

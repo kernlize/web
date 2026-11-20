@@ -2,14 +2,15 @@
 import type { LayoutChoice, ManagedWindow, Rect, WindowManager, WindowManagerState } from '@kernlize/core/wm';
 import type { WindowVisibility } from '@kernlize/guard';
 import type { AppletHandle, AppletStatus, FrameLike, MountPlan } from './contract';
+import type { StopReport } from './stop-words';
 import { frameRect, layoutAfter } from './windows';
 
 /** A window as the shell draws it: where the manager put it, and the applet inside. */
 export interface ShellWindow extends ManagedWindow {
   readonly plan: MountPlan;
   readonly status: AppletStatus;
-  /** Why the applet was stopped, in plain words. */
-  readonly revoked?: string;
+  /** Why the applet was stopped. */
+  readonly revoked?: StopReport;
 }
 
 /** A window the shell draws itself, such as the store: placed, focused and stacked by the manager like any other. */
@@ -39,7 +40,7 @@ interface Applet {
   readonly id: string;
   readonly plan: MountPlan;
   readonly status: AppletStatus;
-  readonly revoked?: string;
+  readonly revoked?: StopReport;
 }
 
 type Mount = (plan: MountPlan, frame: FrameLike) => AppletHandle;
@@ -159,9 +160,9 @@ export class WindowStore {
     this.manager.close(id);
   }
 
-  markRevoked(id: string, reason: string): void {
+  markRevoked(id: string, report: StopReport): void {
     this.#handles.delete(id);
-    this.#update(id, { revoked: reason, status: 'revoked' });
+    this.#update(id, { revoked: report, status: 'revoked' });
     this.manager.stop(id);
   }
 
