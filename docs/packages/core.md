@@ -361,7 +361,7 @@ Values are validated going in and coming out of storage; a stored value that fai
 
 The torrent service sends a new torrent to the connection that already holds it for kernl, else to `preferred()`, and keeps each job on its connection by id. The Soulseek service sends searches and browses to `preferred()` and keeps each query and transfer on its connection and `routingKey`. The NZB service is handed every connection as an `NzbDownloader` keyed by `routingKey` and lets the applet choose.
 
-The three services are kehto `ServiceHandler`s. Each takes `appletOf`, `ask`, `storage` and `now` (`DownloadServiceDeps`) and its connections, read on every request, so a connection set up, edited or removed while an applet runs is seen at once. What each answers is in [Connected programs](../concepts/download-programs.md) and [Error reasons](../reference/errors.md#download-programs). The `secrets` contract is in [Secrets](../concepts/secrets.md).
+The three services are kehto `ServiceHandler`s. Each takes `appletOf`, `ownerOf`, `ask`, `storage` and `now` (`DownloadServiceDeps`) and its connections, read on every request, so a connection set up, edited or removed while an applet runs is seen at once. What each answers is in [Connected programs](../concepts/download-programs.md) and [Error reasons](../reference/errors.md#download-programs). The `secrets` contract is in [Secrets](../concepts/secrets.md).
 
 ### Layouts and the window manager
 
@@ -740,7 +740,7 @@ Not yet composed by `createKernl`; [Inbox, outbox and finding servers](../concep
 | `DEFAULT_SOULSEEK_LIMITS` | `SoulseekLimits` | `{ maxQueries: 4, maxTransfers: 16, maxResults: 500, maxPageSize: 100, maxReadBytes: 65536, maxTextBytes: 1024, queryTimeoutMs: 30000, pollIntervalMs: 1000 }`. |
 | `SOULSEEK_SESSION_QUESTION` | `DownloadQuestion` | What the person is asked before a window first searches or downloads: who sees what, that nothing is encrypted end to end, and that downloads stop when the window closes. |
 | `DownloadService` | interface | `{ handler: ServiceHandler; dispose(): void }`. `dispose` stops every timer and ends every window's work. |
-| `DownloadServiceDeps` | interface | `{ appletOf: (windowId) => AppletIdentity \| undefined; ask: (windowId, question) => Promise<boolean>; storage: StorageLike; now?: () => number }`. |
+| `DownloadServiceDeps` | interface | `{ appletOf: (windowId) => AppletIdentity \| undefined; ownerOf: (windowId) => string \| undefined; ask: (windowId, question) => Promise<boolean>; storage: StorageLike; now?: () => number }`. `ownerOf` is the key what an applet starts is kept under; the shell passes its catalogue id, so another publisher's applet with the same name is another applet. |
 | `DownloadQuestion`, `DownloadQuestionLine` | interfaces | `{ kind: 'add' \| 'session' \| 'delete'; title; lines }` with lines of `{ label, value }`. Words only: no address, path, credential or backend id belongs in a line. |
 | `describeDownloadQuestion` | `(question: DownloadQuestion, applet: AppletIdentity, exposesAddress: boolean) => ConsentSummary` | The question as `host.presentConsent` takes it: `destructive` for `delete`, otherwise `direct` when `exposesAddress`, else `routine`. The summary has no `event`. |
 | `createKernlDownloads` | `(deps: KernlDownloadsDeps) => KernlDownloads` | The composition `createKernl` uses: the settings always, and the three handlers, the planning extension and their teardown when the domains can be offered. A question from a window that is no longer a live applet is answered no without asking. |

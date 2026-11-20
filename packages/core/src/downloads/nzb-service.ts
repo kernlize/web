@@ -55,7 +55,7 @@ function framed(message: Routable, body: Answer): NappletMessage {
  * @returns The handler to register as `nzb`, and `dispose`.
  * @example
  * ```ts
- * const nzb = createNzbService({ downloaders: () => [{ key: 'nzbget', label: 'Home', client }], appletOf, ask, storage: localStorage });
+ * const nzb = createNzbService({ downloaders: () => [{ key: 'nzbget', label: 'Home', client }], appletOf, ownerOf, ask, storage: localStorage });
  * registry.nzb = nzb.handler;
  * ```
  */

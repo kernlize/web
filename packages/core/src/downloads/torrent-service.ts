@@ -460,7 +460,7 @@ function declared(types: readonly string[]): Record<string, null> {
  * @returns The handler to register as `torrent`, and `dispose`.
  * @example
  * ```ts
- * const torrents = createTorrentService({ appletOf, ask, storage: localStorage, connections: programs.routing('torrent') });
+ * const torrents = createTorrentService({ appletOf, ownerOf, ask, storage: localStorage, connections: programs.routing('torrent') });
  * registry.torrent = torrents.handler;
  * ```
  */
