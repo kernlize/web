@@ -10,6 +10,8 @@
   import { THROWAWAY_IDENTITY_TYPE } from '@kernlize/core';
   import type { Booted, Session } from './contract';
   import Desktop from './Desktop.svelte';
+  import FirewallDialog from './FirewallDialog.svelte';
+  import { FirewallQueue } from './firewall-queue.svelte';
   import { GuardLog } from './guard-log.svelte';
   import HandlerChooser from './HandlerChooser.svelte';
   import { HandlerQueue } from './handler-queue.svelte';
@@ -28,13 +30,14 @@
   const storage = new URLSearchParams(location.search).get('preview') === '1' ? scopedStorage(pickStorage(), PREVIEW_STORAGE_PREFIX) : pickStorage();
   const notices = new NoticeStore();
   const consent = new ConsentQueue();
+  const firewall = new FirewallQueue();
   const windows = new WindowStore(createShellWindowManager(storage));
   const guardLog = new GuardLog();
   const handlers = new HandlerQueue();
   const replies = new ReplyQueue();
   const settings = new SettingsQueue();
   const opener: AppletOpener = {};
-  const host = createHost({ storage, consent, settings, notices, windows, handlers, replies, opener });
+  const host = createHost({ storage, consent, firewall, settings, notices, windows, handlers, replies, opener });
 
   let booted = $state.raw<Booted | null>(null);
   let session = $state.raw<Session | null>(null);
@@ -83,6 +86,7 @@
   function onKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
       if (consent.current) consent.answer(false);
+      else if (firewall.current) firewall.answer(undefined);
       else if (replies.current) replies.answer(undefined);
       else if (settings.current) settings.close();
       else if (handlers.current) handlers.answer(undefined);
@@ -97,6 +101,7 @@
 
   async function signOut(): Promise<void> {
     for (const win of [...windows.windows]) windows.close(win.id);
+    while (firewall.current) firewall.answer(undefined);
     while (handlers.current) handlers.answer(undefined);
     while (replies.current) replies.answer(undefined);
     while (settings.current) settings.close();
@@ -130,6 +135,12 @@
   {#if booted && session && settings.current}
     {#key settings.current}
       <AppletSettings prompt={settings.current} onclose={() => settings.close()} />
+    {/key}
+  {/if}
+
+  {#if firewall.current && !consent.current}
+    {#key firewall.current}
+      <FirewallDialog prompt={firewall.current} waiting={firewall.queue.length - 1} onanswer={(choice) => firewall.answer(choice)} />
     {/key}
   {/if}
 

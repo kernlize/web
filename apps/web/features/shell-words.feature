@@ -342,3 +342,61 @@ Feature: Shell words
     And with "dm,identity" switched on, these stay:
       | shell | dm | identity | theme | storage | config | notify | keys | intent |
     And with "relay,identity" switched on, nothing is withheld from "relay,upload,webrtc,inc"
+
+  Scenario Outline: a firewall question is put in plain words
+    Given a firewall question of kind "<kind>" about '<requests>'
+    Then the firewall question reads "<title>"
+    And its rows are "<rows>"
+
+    Examples:
+      | kind    | requests                                                                                                           | title                                 | rows                                                   |
+      | link    | [{"kind":"resource","domain":"link","operation":"link.open","target":"https://example.org/a?b=1"}]                 | Open a link outside kernl             | Link=https://example.org/a?b=1; Leads to=example.org   |
+      | link    | [{"kind":"resource","domain":"link","operation":"link.open","target":"mailto:ada@example.org"}]                    | Open a link outside kernl             | Link=mailto:ada@example.org; Leads to=your mail app    |
+      | link    | [{"kind":"resource","domain":"link","operation":"link.open","target":"not an address"}]                            | Open a link outside kernl             | Link=not an address; Leads to=not an address           |
+      | access  | [{"kind":"access","domain":"relay","operation":"access","target":"relay"}]                                         | Use network                           | Uses=network                                           |
+      | access  | [{"kind":"access","domain":"relay","operation":"access","target":"relay"},{"kind":"access","domain":"dm","operation":"access","target":"dm"},{"kind":"access","domain":"upload","operation":"access","target":"upload"}] | Use network, messages and uploads | Uses=network; Uses=messages; Uses=uploads |
+      | request | [{"kind":"network","domain":"relay","operation":"relay.network","target":"wss://one.example"},{"kind":"network","domain":"relay","operation":"relay.network","target":"wss://one.example"},{"kind":"resource","domain":"notify","operation":"notify.send","target":"x"}] | Go ahead with a request | Reaches=one.example; For=notifications |
+
+  Scenario: every firewall question carries one short line, and nothing names the protocol
+    Then the firewall notes for "link,access,request" each say why the person is asked
+    And the firewall's words never name the protocol
+
+  Scenario Outline: a firewall answer's button says what it does
+    Then the "<choice>" answer to a "<kind>" question reads "<words>"
+
+    Examples:
+      | choice        | kind    | words                  |
+      | allow-once    | link    | Open link              |
+      | deny          | link    | Don’t open             |
+      | allow-once    | request | Allow once             |
+      | allow-session | access  | Allow while it is open |
+      | allow-always  | access  | Always allow           |
+      | deny          | access  | Don’t allow            |
+
+  Scenario Outline: an answer in force reads as what it lets through and for how long
+    Then the firewall answer '<request>' that is "<effect>" for "<lifetime>" reads "<words>"
+
+    Examples:
+      | request                                                                                         | effect | lifetime | words                                                           |
+      | {"kind":"access","domain":"relay","operation":"access","target":"relay"}                        | allow  | always   | network: allowed, kept across visits                            |
+      | {"kind":"network","domain":"relay","operation":"relay.network","target":"wss://one.example"}    | deny   | session  | network, reaching one.example: refused, until its window closes |
+      | {"kind":"resource","domain":"link","operation":"link.open","target":"https://example.org/a"}    | allow  | session  | opening example.org: allowed, until its window closes           |
+
+  Scenario Outline: a rule is read at its own target and followed down to the wider ones
+    Given firewall rules '<rules>'
+    Then the rule set at '<target>' is "<own>", what happens there is "<in force>", and leaving it unset reads "<inherit>"
+
+    Examples:
+      | rules                                                                                               | target                                    | own     | in force | inherit                                        |
+      | {"default":"allow","operations":{"link.open":"ask"}}                                                | {}                                        | allow   | allow    | Follow the wider rule (allow without asking)   |
+      | {"default":"allow","operations":{"link.open":"ask"}}                                                | {"operation":"link.open"}                 | ask     | ask      | Follow the wider rule (allow without asking)   |
+      | {"default":"allow","domains":{"link":"deny"}}                                                       | {"operation":"link.open"}                 | inherit | deny     | Follow the wider rule (refuse)                 |
+      | {"default":"ask"}                                                                                   | {"domain":"relay"}                        | inherit | ask      | Follow the wider rule (ask me every time)      |
+      | {"default":"allow","operations":{"link.open":"ask"}}                                                | {"applet":"a1","operation":"link.open"}   | inherit | ask      | Follow the wider rule (ask me every time)      |
+      | {"default":"allow","operations":{"link.open":"ask"},"napplets":{"a1":{"domains":{},"operations":{"link.open":"allow"}}}} | {"applet":"a1","operation":"link.open"} | allow | allow | Follow the wider rule (ask me every time) |
+      | {"default":"allow","napplets":{"a1":{"default":"deny","domains":{"relay":"ask"},"operations":{}}}}  | {"applet":"a1","domain":"relay"}          | ask     | ask      | Follow the wider rule (refuse)                 |
+      | {"default":"allow","napplets":{"a1":{"default":"deny","domains":{},"operations":{}}}}               | {"applet":"a1"}                           | deny    | deny     | Follow the wider rule (allow without asking)   |
+      | {"default":"allow","napplets":{"a1":{"domains":{"relay":"ask"},"operations":{}}}}                   | {"applet":"a1"}                           | inherit | allow    | Follow the wider rule (allow without asking)   |
+
+  Scenario: a rule select's value becomes an action, or nothing for the wider rule
+    Then the rule choices "allow,ask,deny,inherit,anything" become "allow,ask,deny,none,none"

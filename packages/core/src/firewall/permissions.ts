@@ -45,11 +45,11 @@ export function permissionPrincipalFor(summary: Pick<AppletSummary, 'identity' |
 }
 
 const STORAGE_FAILURES: Readonly<Record<PermissionStorageFailure, string>> = Object.freeze({
-  'load-failed': 'Your stored answers could not be read, so every applet is refused until you clear them in the firewall panel.',
-  'invalid-state': 'Your stored answers are damaged, so every applet is refused until you clear them in the firewall panel.',
-  'unsupported-version': 'Your stored answers were written by a newer shell, so every applet is refused until you clear them in the firewall panel.',
-  'save-failed': 'That answer could not be stored. It was not applied.',
-  'storage-unavailable': 'This browser is not keeping stored answers, so "always" answers cannot be given.',
+  'load-failed': 'They could not be read. Applets are refused until you clear them.',
+  'invalid-state': 'They are damaged. Applets are refused until you clear them.',
+  'unsupported-version': 'A newer shell wrote them. Applets are refused until you clear them.',
+  'save-failed': 'That answer could not be stored, so it was not applied.',
+  'storage-unavailable': 'This browser keeps no stored answers, so "always" cannot be given.',
 });
 
 /** Options for {@link createFirewallPermissions}. */
@@ -118,7 +118,7 @@ export function createFirewallPermissions(options: FirewallPermissionsOptions): 
       load: () => host.storage.getItem(FIREWALL_DECISIONS_STORAGE_KEY),
       persist: (serialized) => host.storage.setItem(FIREWALL_DECISIONS_STORAGE_KEY, serialized),
     },
-    onStorageError: (failure) => host.notify({ title: 'The firewall could not use its stored answers', body: STORAGE_FAILURES[failure], tone: 'warning' }),
+    onStorageError: (failure) => host.notify({ title: 'Firewall: stored answers', body: STORAGE_FAILURES[failure], tone: 'warning' }),
     rateLimiter: options.rateLimiter,
     promptRateLimiter: createRateLimiter(defaultPromptRateLimitConfig()),
     onRateLimit: options.onRateLimit,

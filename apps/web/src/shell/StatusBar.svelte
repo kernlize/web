@@ -10,7 +10,7 @@
     guardEvents: number;
     unread: number;
     onlauncher: () => void;
-    onpanel: (kind: 'guard' | 'messages' | 'settings' | 'downloads') => void;
+    onpanel: (kind: 'guard' | 'firewall' | 'messages' | 'settings' | 'downloads') => void;
     onsignout: () => void;
   }
 
@@ -46,6 +46,9 @@
 {#snippet guardButton()}
   <button type="button" class="shell-button quiet" onclick={() => choose(() => onpanel('guard'))} aria-label="Guard: {profile}, {guardEvents} events">Guard · {profile} · {guardEvents}</button>
 {/snippet}
+{#snippet firewallButton()}
+  <button type="button" class="shell-button quiet" onclick={() => choose(() => onpanel('firewall'))}>Firewall</button>
+{/snippet}
 {#snippet messagesButton()}
   <button type="button" class="shell-button quiet" onclick={() => choose(() => onpanel('messages'))} aria-label="Messages, {unread} unread">Messages{#if unread} <span class="count">{unread}</span>{/if}</button>
 {/snippet}
@@ -73,6 +76,7 @@
       <nav id="shell-menu" class="sheet" aria-label="Shell menu">
         <p class="shell-muted who">{session.label}{#if session.readOnly} · read-only{/if}</p>
         {@render guardButton()}
+        {@render firewallButton()}
         {@render messagesButton()}
         {@render downloadsButton()}
         {#if windows.canSwitchLayout}
@@ -96,6 +100,7 @@
     <div class="right">
       {#if mode === 'preview'}<span class="shell-badge warn" title="Nothing here reaches the network">preview</span>{/if}
       {@render guardButton()}
+      {@render firewallButton()}
       {@render messagesButton()}
       {@render downloadsButton()}
       <details class="account" bind:open={accountOpen}>

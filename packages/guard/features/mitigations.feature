@@ -70,4 +70,4 @@ Feature: Mitigation descriptions
   Scenario: the firewall is described by what it does to begin with
     When the guard describes the mitigations for the "strict" profile
     Then the guard mitigation "firewall" is titled "The firewall decides what an applet may ask for"
-    And the guard mitigation "firewall" says "Every request an applet makes passes the firewall’s rules before anything happens. To begin with, what you granted is allowed and opening a link outside the shell asks you each time. You can change the rules, for every applet or for one, in the firewall panel."
+    And the guard mitigation "firewall" says "Every request passes the firewall’s rules. What you granted is allowed; opening a link asks you each time. Change the rules in the firewall panel."

@@ -28,13 +28,23 @@ Feature: The shell host
     Given the shell host with window "w1" titled "Notes"
     Then the shell host asks the chooser, opens applets through the desktop once it can, and brings windows forward
 
-  Scenario: a link opens only after the user agrees
+  Scenario: a link the firewall did not decide opens only after the user agrees
     Given the shell host with window "w1" titled "Notes"
     When the shell host is asked to open "https://example.org" and the user says "no"
     Then the shell host asked before opening "https://example.org"
     And the shell host opened nothing
     When the shell host is asked to open "https://example.org" and the user says "yes"
     Then the shell host opened "https://example.org" in a new, unlinked tab
+
+  Scenario: a link the firewall already let through opens without a second question
+    Given the shell host with window "w1" titled "Notes"
+    When the shell host is asked to open "https://example.org", which the firewall already let through
+    Then the shell host did not ask again
+    And the shell host opened "https://example.org" in a new, unlinked tab
+
+  Scenario: firewall questions wait in their own queue
+    Given the shell host with window "w1" titled "Notes"
+    Then the shell host puts a firewall question in the firewall queue
 
   Scenario Outline: a stopped applet is explained in plain words
     Given the shell host with window "w1" titled "Notes"
@@ -47,6 +57,7 @@ Feature: The shell host
       | w1     | host           | Notes was stopped     | The shell closed it.                                                                    |
       | w1     | grant-narrowed | Notes was stopped     | You took back something it was using. Open it again to run it with what it may use now. |
       | w1     | blocked        | Notes was stopped     | You blocked it.                                                                         |
+      | w1     | firewall       | Notes was stopped     | A firewall rule or answer it ran under changed. Open it again. |
       | w9     | expired        | An applet was stopped | expired                                                                                 |
 
   Scenario: the window itself records why it stopped

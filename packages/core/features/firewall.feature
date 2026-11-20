@@ -199,7 +199,7 @@ Feature: The firewall
     And the applet is resolved and granted "relay"
     When the shell starts planning the applet
     Then planning failed with "unavailable:firewall"
-    And the host was told "The firewall could not use its stored answers"
+    And the host was told "Firewall: stored answers"
 
   Scenario Outline: the rules decide a request by its strictest requirement
     Given firewall rules over the host storage with '<rules>'

@@ -1,5 +1,6 @@
 import type { KernlHost, StorageLike } from './contract';
 import type { ConsentQueue } from './consent-queue.svelte';
+import type { FirewallQueue } from './firewall-queue.svelte';
 import type { HandlerQueue } from './handler-queue.svelte';
 import type { NoticeStore } from './notice-store.svelte';
 import type { ReplyQueue } from './reply-queue.svelte';
@@ -9,6 +10,7 @@ import type { WindowStore } from './window-store.svelte';
 interface HostDeps {
   readonly storage: StorageLike;
   readonly consent: ConsentQueue;
+  readonly firewall: Pick<FirewallQueue, 'enqueue'>;
   readonly settings: Pick<SettingsQueue, 'show'>;
   readonly notices: NoticeStore;
   readonly windows: WindowStore;
@@ -63,20 +65,23 @@ const REVOKE_REASONS: Readonly<Record<string, string>> = {
   host: 'The shell closed it.',
   'grant-narrowed': 'You took back something it was using. Open it again to run it with what it may use now.',
   blocked: 'You blocked it.',
+  firewall: 'A firewall rule or answer it ran under changed. Open it again.',
 };
 
 /** Plain words for a revocation reason; reasons the shell does not know pass through. */
 const revokeReason = (reason: string): string => REVOKE_REASONS[reason] ?? reason;
 
-/** The UI's side of the contract: dialogs, applet settings, the handler chooser, the reply question, toasts, link confirmation, opening and focusing windows. */
+/** The UI's side of the contract: dialogs, firewall questions, applet settings, the handler chooser, the reply question, toasts, link confirmation, opening and focusing windows. */
 export function createHost(deps: HostDeps): KernlHost {
   return {
     storage: deps.storage,
     presentConsent: (prompt) => deps.consent.enqueue(prompt),
     presentSettings: (prompt) => deps.settings.show(prompt),
     notify: (notice) => void deps.notices.push(notice),
-    openLink(url) {
-      if (!window.confirm(`Leave kernl and open this link?\n\n${url}`)) return;
+    presentApproval: (prompt) => deps.firewall.enqueue(prompt),
+    openLink(url, options) {
+      // The firewall already put this link to the person, or a rule of theirs let it through; anything else is asked about here.
+      if (!options?.approved && !window.confirm(`Leave kernl and open this link?\n\n${url}`)) return;
       window.open(url, '_blank', 'noopener,noreferrer');
     },
     getVisibility: (windowId) => deps.windows.visibilityOf(windowId),

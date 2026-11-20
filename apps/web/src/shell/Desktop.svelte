@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import type { Booted, MountPlan, Session, StorageLike } from './contract';
+  import FirewallPanel from './FirewallPanel.svelte';
   import GrantsPanel from './GrantsPanel.svelte';
   import type { GuardLog } from './guard-log.svelte';
   import type { AppletOpener } from './host';
@@ -32,7 +33,7 @@
   const { booted, session, storage, windows, guardLog, opener, onproblem, onsignout }: Props = $props();
   const kernl = $derived(booted.kernl);
 
-  type Overlay = { kind: 'grants'; windowId: string } | { kind: 'guard' } | { kind: 'settings' } | { kind: 'downloads' };
+  type Overlay = { kind: 'grants'; windowId: string } | { kind: 'guard' } | { kind: 'firewall' } | { kind: 'settings' } | { kind: 'downloads' };
 
   let overlay = $state.raw<Overlay | null>(null);
   /** The store is a window like any other (D-048); it is opened at an address when one was shared. */
@@ -81,7 +82,7 @@
   const showsMessages = (win: (typeof windows.windows)[number]): boolean => win.status !== 'revoked' && win.plan.summary.archetypes.includes('dm');
   const reading = $derived(windows.windows.some((win) => win.focused && showsMessages(win)));
 
-  function panel(kind: 'guard' | 'messages' | 'settings' | 'downloads'): void {
+  function panel(kind: 'guard' | 'firewall' | 'messages' | 'settings' | 'downloads'): void {
     if (kind !== 'messages') return open(kind);
     overlay = null;
     asked = true;
@@ -169,6 +170,8 @@
       <GrantsPanel {kernl} win={grantsWindow} {guardLog} onclose={() => (overlay = null)} />
     {:else if overlay?.kind === 'guard'}
       <GuardPanel {kernl} {guardLog} {windows} onclose={() => (overlay = null)} />
+    {:else if overlay?.kind === 'firewall'}
+      <FirewallPanel {kernl} {windows} {onproblem} onclose={() => (overlay = null)} />
     {:else if overlay?.kind === 'settings'}
       <SettingsPanel {kernl} mode={booted.mode} downloads={booted.downloads} onclose={() => (overlay = null)} />
     {:else if overlay?.kind === 'downloads'}
