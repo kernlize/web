@@ -26,6 +26,8 @@ const PREFIXED: readonly (readonly [string, OpClass])[] = [
   ['theme.', 'control'],
   ['identity.', 'control'],
   ['dm.', 'control'],
+  // Shortcuts are the person's own typing and an applet's keymap, registered whole as it starts; nothing leaves the shell.
+  ['keys.', 'control'],
 ];
 
 /**

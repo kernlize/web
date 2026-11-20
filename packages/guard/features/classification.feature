@@ -23,6 +23,9 @@ Feature: Envelope classification
       | storage.remove         | storage:write    |
       | storage.get            | control          |
       | storage.keys           | control          |
+      | keys.registerAction    | control          |
+      | keys.unregisterAction  | control          |
+      | keys.forward           | control          |
       | dm.send                | dm:send          |
       | dm.list                | control          |
       | intent.invoke          | intent:invoke    |
