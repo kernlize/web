@@ -727,3 +727,18 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Consequences.** The store can be tiled next to applets, moved, resized and minimised to the bar. Browser tests find it as the "Applets window" region, not a dialog.
 
 **Reversal cost.** Low. One store method and one snippet.
+
+## D-057 · A grant shows its contract beside its plain words
+
+**Context.** Grants are named in plain words ("web fetches", "posting to your network") so a person can decide without knowing the protocol (D-006). Someone who does know it, such as an applet's author or a person checking what an applet really asks for, could not tell which NAP contract a row stood for: "network" is `relay`, "web fetches" is `resource`.
+
+**Decision.**
+
+- **Every grant row shows its contract.** In the store's review and the grants panel, the NAP domain is written in capitals after the plain words (`RESOURCE`, `OUTBOX`), in the monospace face, smaller and lower in contrast, so the words stay first. `contractName(domain)` makes it.
+- **It is an identifier, not prose.** The plain-words rule is kept for everything a person reads as text. A contract tag carries `data-contract`, and the browser vocabulary check leaves out a tag only when its text is a bare capitalised identifier, the way an address is not read as prose, so a sentence cannot pass the check by being put in one.
+- **It is part of the row's name.** A screen reader reads it after the words, as a sighted person sees it.
+
+**Consequences.** `RELAY` appears in the grants UI although the word is otherwise kept out of the shell's copy on `main`. Any other place that lists grants by their words, such as the firewall's rows, should add the same tag.
+
+**Reversal cost.** Low. One function, two template lines and one style.
+
