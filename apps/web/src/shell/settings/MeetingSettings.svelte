@@ -4,7 +4,7 @@
   import { abbreviate } from '../contract';
   import { helperFrom, toolSearchWords } from '../meeting-words';
   import { observe } from '../observe.svelte';
-  import { serverAddress, serverLabel } from '../servers';
+  import { hostOf, serverAddress } from '../servers';
 
   interface Props {
     kernl: ShellKernl;
@@ -38,7 +38,7 @@
   }
 
   function addServer(): void {
-    attempt(() => kernl.multiplayer.setServers([...servers, serverAddress(server)]), 'Enter a server address such as nos.lol.');
+    attempt(() => kernl.multiplayer.setServers([...servers, serverAddress(server)]), 'Enter a relay address such as nos.lol.');
     if (!error) server = '';
   }
 
@@ -62,55 +62,55 @@
   }
 
   function trust(candidate: ToolFamilyCandidate): void {
-    attempt(() => kernl.multiplayer.saveFamily({ ...candidate.family, family: (labels[candidate.eventId] ?? '').trim() }), 'Give the tools a name, so applets can ask for them by it.');
+    attempt(() => kernl.multiplayer.saveFamily({ ...candidate.family, family: (labels[candidate.eventId] ?? '').trim() }), 'Give the tools a name.');
     if (!error) found = found.filter((entry) => entry !== candidate);
   }
 </script>
 
 <section class="shell-section" aria-labelledby="meeting-heading">
   <h3 id="meeting-heading">Meeting people and remote tools</h3>
-  <p class="shell-muted small">Some applets let you meet other people who run them, or use tools that run elsewhere. You are asked before every meeting, and only applets you allow can do either.</p>
+  <p class="shell-muted small">You are asked before every meeting.</p>
 
   <div class="shell-card part">
-    <h4>Servers that introduce you</h4>
-    <p>They introduce you to people in an applet's rooms and carry sealed requests to tools. What you and the people you meet send each other does not pass through them.</p>
-    {#if !chosen.value.servers}<p class="small" role="status">Using the shell's general servers.</p>{/if}
-    <ul class="shell-list urls" aria-label="Servers that introduce you">
-      {#each servers as url, index (url)}
-        {@const name = serverLabel(url, 'Meeting', index)}
-        <li data-address={url}><span class="server">{name}</span><button type="button" class="shell-button quiet" onclick={() => attempt(() => kernl.multiplayer.setServers(servers.filter((entry) => entry !== url)), 'That server could not be removed.')} aria-label="Remove {name} from servers that introduce you">Remove</button></li>
+    <h4>Relays for meeting people</h4>
+    <p>They do not see what you and the people you meet send.</p>
+    {#if !chosen.value.servers}<p class="small" role="status">Using the general relays.</p>{/if}
+    <ul class="shell-list urls" aria-label="Relays for meeting people">
+      {#each servers as url (url)}
+        {@const name = hostOf(url)}
+        <li data-address={url}><span class="server">{name}</span><button type="button" class="shell-button quiet" onclick={() => attempt(() => kernl.multiplayer.setServers(servers.filter((entry) => entry !== url)), 'That relay could not be removed.')} aria-label="Remove {name} from relays for meeting people">Remove</button></li>
       {:else}
-        <li class="shell-muted">None. Nobody can be introduced, and no tools found, until you add one.</li>
+        <li class="shell-muted">None, so nobody can be introduced.</li>
       {/each}
     </ul>
     <form class="add" onsubmit={(event) => (event.preventDefault(), addServer())}>
-      <label class="shell-field"><span>Add a server that introduces you</span><input class="shell-input mono" type="text" inputmode="url" autocomplete="off" spellcheck="false" bind:value={server} placeholder="nos.lol" /></label>
+      <label class="shell-field"><span>Add a meeting relay</span><input class="shell-input mono" type="text" inputmode="url" autocomplete="off" spellcheck="false" bind:value={server} placeholder="nos.lol" /></label>
       <button type="submit" class="shell-button" disabled={!server.trim()}>Add</button>
     </form>
-    {#if chosen.value.servers}<button type="button" class="shell-button quiet" onclick={() => kernl.multiplayer.setServers(undefined)}>Use the general servers</button>{/if}
+    {#if chosen.value.servers}<button type="button" class="shell-button quiet" onclick={() => kernl.multiplayer.setServers(undefined)}>Use the general relays</button>{/if}
   </div>
 
   <div class="shell-card part">
     <h4>Connection helpers</h4>
-    <p>Without one, you reach only people your device can reach directly, usually on the same network. A helper learns your network address, and one that carries the connection sees that you are talking, though not what you say.</p>
+    <p>A helper learns your network address and that you are talking.</p>
     <ul class="shell-list urls" aria-label="Connection helpers">
       {#each helpers as entry, index (index)}
         <li><span class="mono">{entry.urls.join(', ')}</span><button type="button" class="shell-button quiet" onclick={() => kernl.multiplayer.setHelpers(helpers.filter((other) => other !== entry))} aria-label="Remove connection helper {index + 1}">Remove</button></li>
       {:else}
-        <li class="shell-muted">None.</li>
+        <li class="shell-muted">None, so you may reach only your own network.</li>
       {/each}
     </ul>
     <form class="helper" onsubmit={(event) => (event.preventDefault(), addHelper())}>
       <label class="shell-field"><span>Helper address</span><input class="shell-input mono" type="text" autocomplete="off" spellcheck="false" bind:value={helper.address} placeholder="stun:helper.example:3478" /></label>
-      <label class="shell-field"><span>Name, if it asks for one</span><input class="shell-input" type="text" autocomplete="off" bind:value={helper.username} /></label>
-      <label class="shell-field"><span>Password, if it asks for one</span><input class="shell-input" type="password" autocomplete="off" bind:value={helper.credential} /></label>
+      <label class="shell-field"><span>Name</span><input class="shell-input" type="text" autocomplete="off" bind:value={helper.username} placeholder="optional" /></label>
+      <label class="shell-field"><span>Password</span><input class="shell-input" type="password" autocomplete="off" bind:value={helper.credential} placeholder="optional" /></label>
       <button type="submit" class="shell-button" disabled={!helper.address.trim()}>Add</button>
     </form>
   </div>
 
   <div class="shell-card part">
     <h4>Tools you trust</h4>
-    <p>Applets can ask for tools by a name you give them here. Each tool is checked against what its server says it is before you see it, and again every time an applet uses it.</p>
+    <p>Applets ask for tools by the name you give them.</p>
     <ul class="shell-list" aria-label="Tools you trust">
       {#each chosen.value.families as family (`${family.family}:${family.server.pubkey}`)}
         <li><span><strong>{family.family}</strong> · {family.tools.map((tool) => tool.name).join(', ')} · from {abbreviate(family.server.pubkey)}</span><button type="button" class="shell-button quiet" onclick={() => kernl.multiplayer.removeFamily(family.family, family.server.pubkey)} aria-label="Stop trusting {family.family}">Remove</button></li>
@@ -119,7 +119,7 @@
       {/each}
     </ul>
     <form class="add" onsubmit={(event) => (event.preventDefault(), void find())}>
-      <label class="shell-field"><span>Find tools</span><input class="shell-input mono" type="text" autocomplete="off" spellcheck="false" bind:value={search} placeholder="A shared reference, a tool fingerprint, or a website" /></label>
+      <label class="shell-field"><span>Find tools</span><input class="shell-input mono" type="text" autocomplete="off" spellcheck="false" bind:value={search} placeholder="Reference, fingerprint or website" /></label>
       <button type="submit" class="shell-button" disabled={!search.trim() || searching}>{searching ? 'Looking…' : 'Look'}</button>
     </form>
     {#each found as candidate (candidate.eventId)}

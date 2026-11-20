@@ -47,20 +47,23 @@ test('the live sign-in names no protocol', async ({ page }) => {
   }
 });
 
-test('the live settings show every default server without naming the protocol', async ({ page }) => {
+test('the live settings show every default relay and file server by its own host, in words that name no protocol', async ({ page }) => {
   await signInReadOnly(page);
   await expectClean(page, 'live desktop');
-  // Every section is read once, which also draws it: the server lists below are spread over Servers and Connections.
+  // Every section is read once, which also draws it: the lists below are spread over Servers and Connections.
   const settings = await expectCleanSettings(page, 'live settings');
-  // The shell's own server lists, the file servers uploads use while the account has chosen none (D-033),
-  // and the general servers again, which introduce people while the person has chosen none (D-043).
+  // The shell's own relay lists, the file servers uploads use while the identity has chosen none (D-033),
+  // and the general relays again, which introduce people while the person has chosen none (D-043).
   const defaults = [...Object.values(core.DEFAULT_RELAY_TIERS).flat(), ...core.DEFAULT_FILE_SERVERS, ...core.DEFAULT_RELAY_TIERS.super];
   const shown = await page.locator('[data-address]').evaluateAll((items) => items.map((item) => item.getAttribute('data-address')));
   expect(shown.sort()).toEqual([...defaults].sort());
-  // The applet catalogue's default server has a name that would say what the protocol is, so it is called by its tier.
+  // Every one is shown by its own host, nothing dropped and no nickname, even where the host holds a word the shell avoids (D-051).
   await settings.getByRole('tab', { name: 'Servers' }).click();
-  await expect(page.getByText('Applet catalogue server 1', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Remove Applet catalogue server 1 from Applet catalogue' })).toBeVisible();
+  for (const address of [...Object.values(core.DEFAULT_RELAY_TIERS).flat(), ...core.DEFAULT_FILE_SERVERS]) {
+    await expect(settings.locator(`[data-address="${address}"]`).first()).toContainText(new URL(address).host);
+  }
+  await expect(page.getByText('relay.napplet.soy', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Remove relay.napplet.soy from Applet relays' })).toBeVisible();
   // A read-only account can neither sign nor decrypt, so private, legacy, ratchet and group messages all ask for a different account (D-016).
   await settings.getByRole('tab', { name: 'Messages' }).click();
   await expect(settings.getByText(UNAVAILABLE_WORDS['signer-cannot-encrypt'] as string).first()).toBeVisible();

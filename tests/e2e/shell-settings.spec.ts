@@ -80,8 +80,8 @@ test('sections switch by click and by keyboard, one showing at a time, and what 
   await expect(tab(settings, 'Servers')).toHaveAttribute('aria-selected', 'true');
   await expect(tab(settings, 'General')).toHaveAttribute('aria-selected', 'false');
   await expect(settings.getByRole('tabpanel')).toHaveCount(1);
-  for (const heading of ['Inbox and outbox', 'File servers', 'How the shell finds things']) await expect(section(settings, 'Servers').getByRole('heading', { name: heading })).toBeVisible();
-  await section(settings, 'Servers').getByRole('textbox', { name: 'Add a server to People lookup' }).fill('half.typed.example');
+  for (const heading of ['Inbox and outbox', 'File servers', 'Relays the shell asks']) await expect(section(settings, 'Servers').getByRole('heading', { name: heading })).toBeVisible();
+  await section(settings, 'Servers').getByRole('textbox', { name: 'Add a lookup relay' }).fill('half.typed.example');
 
   // Only the chosen tab is in the Tab order; the arrows along the list move between tabs and wrap.
   await tab(settings, 'Servers').focus();
@@ -106,7 +106,7 @@ test('sections switch by click and by keyboard, one showing at a time, and what 
   await expect(tab(settings, 'General')).toHaveAttribute('aria-selected', 'true');
 
   await tab(settings, 'Servers').click();
-  await expect(section(settings, 'Servers').getByRole('textbox', { name: 'Add a server to People lookup' })).toHaveValue('half.typed.example');
+  await expect(section(settings, 'Servers').getByRole('textbox', { name: 'Add a lookup relay' })).toHaveValue('half.typed.example');
 });
 
 test('the chosen section is kept when the window is closed and reopened, and across a reload', async ({ page }) => {

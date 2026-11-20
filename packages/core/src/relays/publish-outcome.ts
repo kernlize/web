@@ -108,21 +108,21 @@ export function summarizePublish(responses: readonly PublishAnswer[]): PublishOu
 
 /**
  * Say what came of a publish in words for the person. The sentence never
- * repeats a server's reason, which is written for developers and often names
+ * repeats a relay's reason, which is written for developers and often names
  * the protocol.
  *
  * @param outcome - The result of {@link summarizePublish}.
- * @returns A sentence such as `Saved to 2 of 3 servers` or `No server accepted it`.
+ * @returns A sentence such as `Saved to 2 of 3 relays` or `No relay accepted it`.
  * @example
  * ```ts
  * describeOutcome({ accepted: ['wss://a/'], refused: [{ url: 'wss://b/', reason: 'blocked' }], ok: true });
- * // 'Saved to 1 of 2 servers'
+ * // 'Saved to 1 of 2 relays'
  * ```
  */
 export function describeOutcome(outcome: PublishOutcome): string {
   const total = outcome.accepted.length + outcome.refused.length;
-  if (total === 0) return 'There was no server to save it to';
-  if (!outcome.ok) return 'No server accepted it';
-  if (outcome.refused.length > 0) return `Saved to ${outcome.accepted.length} of ${total} servers`;
-  return total === 1 ? 'Saved to 1 server' : `Saved to all ${total} servers`;
+  if (total === 0) return 'There was no relay to save it to';
+  if (!outcome.ok) return 'No relay accepted it';
+  if (outcome.refused.length > 0) return `Saved to ${outcome.accepted.length} of ${total} relays`;
+  return total === 1 ? 'Saved to 1 relay' : `Saved to all ${total} relays`;
 }

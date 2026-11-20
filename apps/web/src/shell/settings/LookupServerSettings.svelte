@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { RelayTier, ShellKernl } from '../contract';
   import { observe } from '../observe.svelte';
-  import { serverAddress, serverLabel } from '../servers';
+  import { hostOf, serverAddress } from '../servers';
 
   interface Props {
     kernl: ShellKernl;
@@ -14,10 +14,10 @@
   $effect(() => tiers.stop);
 
   // The outbox tier is not listed: it follows the identity's published outbox, edited under "Inbox and outbox" (D-029).
-  const TIERS: readonly { id: LookupTier; label: string; help: string }[] = [
-    { id: 'discovery', label: 'People lookup', help: 'Where the shell finds profiles, follow lists and other people\'s inbox and outbox.' },
-    { id: 'apps', label: 'Applet catalogue', help: 'Where applets are published and verified from.' },
-    { id: 'super', label: 'General', help: 'Asked for everything else, and for anyone who has not listed their own servers.' },
+  const TIERS: readonly { id: LookupTier; label: string; help: string; field: string }[] = [
+    { id: 'discovery', label: 'Lookup relays', help: 'Profiles and follow lists.', field: 'Add a lookup relay' },
+    { id: 'apps', label: 'Applet relays', help: 'Where applets come from.', field: 'Add an applet relay' },
+    { id: 'super', label: 'General relays', help: 'Everything else.', field: 'Add a general relay' },
   ];
 
   let drafts = $state<Record<LookupTier, string>>({ discovery: '', apps: '', super: '' });
@@ -29,29 +29,28 @@
       kernl.relays.add(tier, serverAddress(drafts[tier]));
       drafts[tier] = '';
     } catch (reason) {
-      error = reason instanceof Error && reason.message.startsWith('invalid:') ? 'Enter a server address such as nos.lol.' : 'That server could not be added.';
+      error = reason instanceof Error && reason.message.startsWith('invalid:') ? 'Enter a relay address such as nos.lol.' : 'That relay could not be added.';
     }
   }
 </script>
 
 <section class="shell-section" aria-labelledby="lookup-servers-heading">
-  <h3 id="lookup-servers-heading">How the shell finds things</h3>
-  <p class="shell-muted small">Servers the shell itself asks, on your behalf; applets never connect to anything. Your own posts go to your outbox first.</p>
+  <h3 id="lookup-servers-heading">Relays the shell asks</h3>
   <div class="tiers">
     {#each TIERS as tier (tier.id)}
       <div class="shell-card tier">
         <h4>{tier.label}</h4>
         <p>{tier.help}</p>
         <ul class="shell-list urls">
-          {#each tiers.value[tier.id] as url, index (url)}
-            {@const name = serverLabel(url, tier.label, index)}
+          {#each tiers.value[tier.id] as url (url)}
+            {@const name = hostOf(url)}
             <li data-address={url}><span class="server">{name}</span><button type="button" class="shell-button quiet" onclick={() => kernl.relays.remove(tier.id, url)} aria-label="Remove {name} from {tier.label}">Remove</button></li>
           {:else}
-            <li class="shell-muted">None configured.</li>
+            <li class="shell-muted">None.</li>
           {/each}
         </ul>
         <form class="add" onsubmit={(event) => (event.preventDefault(), add(tier.id))}>
-          <label class="shell-field"><span>Add a server to {tier.label}</span><input class="shell-input mono" type="text" inputmode="url" autocomplete="off" spellcheck="false" bind:value={drafts[tier.id]} placeholder="nos.lol" /></label>
+          <label class="shell-field"><span>{tier.field}</span><input class="shell-input mono" type="text" inputmode="url" autocomplete="off" spellcheck="false" bind:value={drafts[tier.id]} placeholder="nos.lol" /></label>
           <button type="submit" class="shell-button" disabled={!drafts[tier.id].trim()}>Add</button>
         </form>
       </div>
@@ -61,11 +60,6 @@
 </section>
 
 <style>
-  .small {
-    font-size: 0.85rem;
-    margin: 0;
-  }
-
   .tiers {
     display: grid;
     gap: 0.75rem;

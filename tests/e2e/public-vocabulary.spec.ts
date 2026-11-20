@@ -3,9 +3,9 @@ import { expectClean, expectCleanSettings } from './vocabulary';
 
 // DECISIONS D-006: the public site and the shell never name a protocol. The build-time scan reads files;
 // this reads what a person can perceive in a real browser, including text that scripts render,
-// accessible names, and the values of fields the shell fills in. Addresses are not exempt: the shell
-// shows servers by a display name and keeps pairing codes out of the page (QR and clipboard only).
-// The live shell, with its real default servers, is walked in public-vocabulary-live.spec.ts.
+// accessible names, and the values of fields the shell fills in. A relay is called a relay and shown by
+// its own host (D-051), so addresses are blanked before the words are read; pairing codes stay out of
+// the page (QR and clipboard only). The live shell, with its real default relays, is walked in public-vocabulary-live.spec.ts.
 
 for (const path of ['/', '/about/', '/about/why/', '/about/guard/', '/about/messaging/', '/about/bridges/', '/about/developers/', '/app/']) {
   test(`${path} names no protocol`, async ({ page }) => {
@@ -95,13 +95,13 @@ test('every shell surface names no protocol', async ({ page }) => {
   const servers = settings.getByRole('tabpanel', { name: 'Servers' }).locator('[data-address]');
   await expect(servers.first()).toBeVisible();
   expect(await servers.count()).toBeGreaterThanOrEqual(4);
-  await expect(page.getByText('damus.io', { exact: true }).first()).toBeVisible();
-  await expectClean(page, 'settings with servers');
-  const add = page.getByRole('textbox', { name: 'Add a server to People lookup' });
+  await expect(page.getByText('relay.damus.io', { exact: true }).first()).toBeVisible();
+  await expectClean(page, 'settings with relays');
+  const add = page.getByRole('textbox', { name: 'Add a lookup relay' });
   await add.fill('relay.example.org');
   await add.press('Enter');
-  await expect(page.getByText('example.org', { exact: true })).toBeVisible();
-  await expectClean(page, 'settings after adding a server');
+  await expect(page.getByText('relay.example.org', { exact: true })).toBeVisible();
+  await expectClean(page, 'settings after adding a relay');
 });
 
 // Every wire name a domain can have. The launcher shows each one in plain words, and an unknown
@@ -125,7 +125,7 @@ for (const sample of ['Notes', 'Pulse']) {
   });
 }
 
-const PLAIN_TAG = /^(person|item|address|topic|server|name|type|label)( · |$)/;
+const PLAIN_TAG = /^(person|item|address|topic|relay|link|name|type|label)( · |$)/;
 
 test('every consent the preview can ask for, and its exact record, names no protocol', async ({ page }) => {
   await page.goto('/app/?preview=1');

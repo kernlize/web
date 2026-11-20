@@ -136,8 +136,8 @@ test('a standing rule answers the question, and a provider that is switched off 
   const applet = await openMessages(page);
   await openSettings(page);
   const settings = page.getByRole('region', { name: 'Settings window' });
-  await settings.getByRole('radio', { name: /Reply the way they wrote to me/ }).check();
-  await settings.getByRole('group', { name: /When someone last wrote to you/ }).evaluate((rules) => rules.scrollIntoView({ block: 'center' }));
+  await settings.getByRole('radio', { name: /Reply their way/ }).check();
+  await settings.getByRole('group', { name: /When someone last wrote through a provider/ }).evaluate((rules) => rules.scrollIntoView({ block: 'center' }));
   await proof(page, '06-settings-reply-rule');
   await page.keyboard.press('Escape');
 

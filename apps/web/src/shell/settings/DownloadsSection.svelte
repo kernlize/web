@@ -13,8 +13,8 @@
   let downloadMode = $state<DownloadMode>(downloads.mode());
 
   const DOWNLOAD_CHOICES: readonly { id: DownloadMode; label: string; help: string }[] = [
-    { id: 'kernl', label: 'Download in kernl', help: 'Files shared by peers download inside this page. Peers see your network address and what you fetch.' },
-    { id: 'device', label: 'Open in an app on your device', help: 'kernl asks first, then hands the link to the app your device uses for downloads.' },
+    { id: 'kernl', label: 'Download in kernl', help: 'Peers see your network address and what you fetch.' },
+    { id: 'device', label: 'Open in another app', help: 'kernl asks first.' },
   ];
 
   function chooseDownloads(next: DownloadMode): void {
@@ -25,9 +25,9 @@
 
 <section class="shell-section" aria-labelledby="download-links-heading">
   <h3 id="download-links-heading">Downloads</h3>
-  {#if mode === 'preview'}<p class="shell-muted small">The preview makes its sample file in the page and reaches no peers.</p>{/if}
+  {#if mode === 'preview'}<p class="shell-muted small">The preview reaches no peers.</p>{/if}
   <fieldset class="choices">
-    <legend class="shell-muted small">Where links to files shared by peers go.</legend>
+    <legend class="shell-muted small">Where links to files from peers open.</legend>
     {#each DOWNLOAD_CHOICES as choice (choice.id)}
       {@const unavailable = choice.id === 'kernl' && !downloads.inKernl}
       <label class="shell-card choice" class:active={downloadMode === choice.id}>
@@ -40,7 +40,7 @@
 </section>
 <section class="shell-section" aria-labelledby="bridges-heading">
   <h3 id="bridges-heading">Bridges</h3>
-  <p class="shell-muted small">Shell-owned services that fetch things from other networks for you. Each one says what the other side learns.</p>
+  <p class="shell-muted small">They fetch from other networks for you.</p>
   {#key downloadMode}
     <ul class="shell-list bridges">
       {#each kernl.bridges.list() as bridge (bridge.id)}

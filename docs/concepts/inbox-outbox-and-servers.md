@@ -92,17 +92,17 @@ const outcome = summarizePublish([
 ]);
 outcome.ok; // true
 outcome.refused; // [{ url: 'wss://c.example/', reason: 'blocked: spam' }]
-describeOutcome(outcome); // 'Saved to 2 of 3 servers'
+describeOutcome(outcome); // 'Saved to 2 of 3 relays'
 ```
 
 `ok` is true when any relay accepted. A relay that answered twice counts once and an acceptance wins. `describeOutcome` gives the person one of four sentences and never the relay's reason, which is written for developers and often names the protocol ([Public vocabulary](../policies/public-vocabulary.md)).
 
 | Outcome | Sentence |
 | --- | --- |
-| no relay was asked | There was no server to save it to |
-| none accepted | No server accepted it |
-| some accepted | Saved to 2 of 3 servers |
-| all accepted | Saved to all 3 servers (Saved to 1 server for one) |
+| no relay was asked | There was no relay to save it to |
+| none accepted | No relay accepted it |
+| some accepted | Saved to 2 of 3 relays |
+| all accepted | Saved to all 3 relays (Saved to 1 relay for one) |
 
 ## Wiring
 
@@ -132,7 +132,7 @@ const mailboxes = createAccountMailboxes({
 });
 
 const outcome = await mailboxes.save({ inboxes: ['wss://in.example'], outboxes: ['wss://out.example'] });
-describeOutcome(outcome); // 'Saved to 3 of 4 servers', say
+describeOutcome(outcome); // 'Saved to 3 of 4 relays', say
 ```
 
 ## Related

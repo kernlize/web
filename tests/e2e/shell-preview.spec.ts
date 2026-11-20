@@ -284,7 +284,7 @@ test('a download link pasted into the panel can be paused and resumed', async ({
 test('choosing an app on the device hands a shared download off only after the shell asks to leave', async ({ page }) => {
   const applet = await runPulse(page);
   await openSettings(page, 'Downloads');
-  await page.getByRole('radio', { name: /Open in an app on your device/ }).check();
+  await page.getByRole('radio', { name: /Open in another app/ }).check();
   await expect(page.getByText('Ready (opens an app on your device)')).toHaveCount(4);
   await page.keyboard.press('Escape');
   const asked: string[] = [];
@@ -301,7 +301,7 @@ test('choosing an app on the device hands a shared download off only after the s
   await page.reload();
   await page.getByRole('button', { name: 'Try the preview' }).click();
   await openSettings(page, 'Downloads');
-  await expect(page.getByRole('radio', { name: /Open in an app on your device/ })).toBeChecked();
+  await expect(page.getByRole('radio', { name: /Open in another app/ })).toBeChecked();
 });
 
 test('settings say downloads from peers happen in kernl, and sharing and mail open an app on the device', async ({ page }) => {
@@ -319,32 +319,32 @@ test('an empty desktop reads as two sentences and the sign-in choices follow the
   await expect(page.locator('.desktop .empty p')).toHaveText(/^No applets open\. (Press|Use)/);
 });
 
-test('settings show a new account suggested inbox and outbox servers, and say how many took the published list', async ({ page }) => {
+test('settings show a new account suggested inbox and outbox relays, and say how many took the published list', async ({ page }) => {
   await page.goto(`${base}/app/?preview=1`);
   await page.getByRole('button', { name: 'Try the preview' }).click();
   await openSettings(page, 'Servers');
   await expect(page.getByRole('heading', { name: 'Inbox and outbox' })).toBeVisible();
-  await expect(page.getByText('This identity has not said where it can be reached yet.')).toBeVisible();
-  const inbox = page.getByRole('list', { name: 'Inbox servers' });
+  await expect(page.getByText('Nothing published yet. These are suggestions.')).toBeVisible();
+  const inbox = page.getByRole('list', { name: 'Inbox relays' });
   await expect(inbox.getByRole('listitem')).toHaveCount(3);
-  await inbox.getByRole('button', { name: 'Remove nos.lol from Inbox' }).click();
+  await inbox.getByRole('button', { name: 'Remove nos.lol from Inbox relays' }).click();
   await expect(inbox.getByRole('listitem')).toHaveCount(2);
-  // A removed server comes back as a suggestion, and a typed address completes from monitored servers.
-  await page.getByRole('group', { name: 'Suggested for Inbox' }).getByRole('button', { name: 'Add nos.lol to Inbox' }).click();
+  // A removed relay comes back as a suggestion, and a typed address completes from monitored relays.
+  await page.getByRole('group', { name: 'Suggested for Inbox relays' }).getByRole('button', { name: 'Add nos.lol to Inbox relays' }).click();
   await expect(inbox.getByRole('listitem')).toHaveCount(3);
-  const field = page.getByRole('combobox', { name: 'Add an inbox server' });
+  const field = page.getByRole('combobox', { name: 'Add an inbox relay' });
   await field.fill('inbox.example.org');
   await field.press('Enter');
   await expect(inbox.getByText('inbox.example.org', { exact: true })).toBeVisible();
-  await field.fill('not a server');
+  await field.fill('not a relay');
   await field.press('Enter');
-  await expect(page.getByRole('alert')).toHaveText('Enter a server address such as nos.lol.');
+  await expect(page.getByRole('alert')).toHaveText('Enter a relay address such as nos.lol.');
   await page.getByRole('button', { name: 'Publish this list' }).click();
-  await expect(page.getByText('Saved to all 4 servers')).toBeVisible();
-  await expect(page.getByText('This identity has not said where it can be reached yet.')).toHaveCount(0);
+  await expect(page.getByText('Saved to all 4 relays')).toBeVisible();
+  await expect(page.getByText('Nothing published yet. These are suggestions.')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Publish this list' })).toBeDisabled();
   // The shell's own lists say what each is for, and the outbox is no longer a separate local list.
-  await expect(page.getByRole('heading', { name: 'People lookup' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Lookup relays' })).toBeVisible();
   await expect(page.getByText('Your connections')).toHaveCount(0);
 });
 
@@ -354,8 +354,8 @@ test('a relay list change asks in terms of inbox and outbox', async ({ page }) =
   await applet.getByRole('button', { name: 'Change your inbox and outbox' }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('heading', { name: 'Change your inbox and outbox' })).toBeVisible();
-  await expect(dialog.getByText('Inbox added')).toBeVisible();
-  await expect(dialog.getByText('Outbox added')).toBeVisible();
+  await expect(dialog.getByText('Inbox relays added')).toBeVisible();
+  await expect(dialog.getByText('Outbox relays added')).toBeVisible();
   await expect(dialog.getByText('(write)')).toHaveCount(0);
 });
 
@@ -364,12 +364,13 @@ test('settings show where uploads go, and the list can be changed and published'
   await page.getByRole('button', { name: 'Try the preview' }).click();
   await openSettings(page, 'Servers');
   const section = page.getByRole('region', { name: 'File servers' });
-  await expect(section.getByText('This identity has not chosen file servers yet')).toBeVisible();
+  await expect(section.getByText('None chosen yet, so these are used.')).toBeVisible();
   const list = section.getByRole('list', { name: 'File servers' });
   await expect(list.getByRole('listitem')).toHaveCount(3);
   await expect(list.getByText('blossom.primal.net (first)')).toBeVisible();
-  // A server whose name says the protocol's name is called by the list's own (D-006).
-  await section.getByRole('button', { name: 'Remove File server 2 from file servers' }).click();
+  // A file server is shown by its own host, whatever words that host contains (D-051).
+  await expect(list.getByText('nostr.download', { exact: true })).toBeVisible();
+  await section.getByRole('button', { name: 'Remove nostr.download from file servers' }).click();
   const field = section.getByRole('textbox', { name: 'Add a file server' });
   await field.fill('not a server');
   await field.press('Enter');
@@ -379,7 +380,7 @@ test('settings show where uploads go, and the list can be changed and published'
   await expect(list.getByText('files.example.org')).toBeVisible();
   await section.getByRole('button', { name: 'Publish file servers' }).click();
   await expect(section.getByRole('status').filter({ hasText: 'Saved to' })).toBeVisible();
-  await expect(section.getByText('This identity has not chosen file servers yet')).toHaveCount(0);
+  await expect(section.getByText('None chosen yet, so these are used.')).toHaveCount(0);
 });
 
 test('an applet opens its settings, the shell draws the form from its schema and the applet hears the saved values', async ({ page }) => {

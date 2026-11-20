@@ -26,9 +26,9 @@ export function alwaysMeans(use: ReplyAnswer['use']): string {
 
 /** The reply rules as Settings lists them. */
 export const REPLY_RULES: readonly { readonly id: ReplyRule; readonly label: string; readonly help: string }[] = [
-  { id: 'ask', label: 'Ask me', help: 'The shell stops and asks before the message leaves.' },
-  { id: 'theirs', label: 'Reply the way they wrote to me', help: 'The reply leaves through the provider the other person last used.' },
-  { id: 'mine', label: 'Always use my order', help: 'The reply leaves through the first provider on your list, whatever they used.' },
+  { id: 'ask', label: 'Ask me', help: 'Before the message leaves.' },
+  { id: 'theirs', label: 'Reply their way', help: 'The provider they last used.' },
+  { id: 'mine', label: 'Use my order', help: 'Your first provider, whatever they used.' },
 ];
 
 /** How many people the user settled the question for, in words; empty when none. */

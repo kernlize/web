@@ -13,7 +13,6 @@
 
 <section class="shell-section" aria-labelledby="appearance-heading">
   <h3 id="appearance-heading">Appearance</h3>
-  <p class="shell-muted small">The shell starts in the look your device asks for. A choice made here is kept in this browser.</p>
   <div class="shell-actions">
     <button type="button" class="shell-button" onclick={toggleTheme}>Switch between light and dark</button>
   </div>
@@ -26,10 +25,3 @@
     <div><dt>Source</dt><dd>Private during alpha. <a href="https://kernl.run/docs/decisions">Decisions</a> are public.</dd></div>
   </dl>
 </section>
-
-<style>
-  .small {
-    font-size: 0.85rem;
-    margin: 0;
-  }
-</style>
