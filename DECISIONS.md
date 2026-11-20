@@ -727,3 +727,18 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Consequences.** The store can be tiled next to applets, moved, resized and minimised to the bar. Browser tests find it as the "Applets window" region, not a dialog.
 
 **Reversal cost.** Low. One store method and one snippet.
+
+## D-055 · An applet's Blossom resources are found on its own servers and verified
+
+**Context.** Applets load assets through the `resource` domain as `blossom:` references. kernl had no bridge for the scheme, so every such request failed, and kehto's resource service reports any error that is not a `ResourceServiceError` as `network-error`, so the applet could not tell a missing scheme from a dead network. Published applets name the blob as `blossom:sha256:<hash>`, which is not BUD-10's `blossom:<hash>.<ext>`, and give no server: the blob sits on the servers their manifest names, and nowhere else. kehto's resource service does not pass the request's advisory `servers` to the host's resolver.
+
+**Decision.**
+
+- **A Blossom bridge, in `@kernlize/bridges`.** `createBlossomBridge` reads both forms. It asks the reference's `xs` hints, then the servers named for the requester, in order and each once, through a web bridge under the same SSRF policy, and returns the first blob whose SHA-256 matches. Other bytes, a 404, an unreachable or private server are passed over. The content type comes from the extension; the server's header is not trusted.
+- **The applet's own servers are the fallback.** `createKernl` passes the running applet's manifest `server` tags as `serversFor`, matched by the verified identity the resource service names. No general servers are tried: a hash is not revealed to a server neither the applet nor its publisher named, and a blob that is not where its publisher put it is the publisher's to fix.
+- **Bridge reasons become resource errors.** `resourceErrorFor` maps the registry's prefixed reasons to NAP-RESOURCE codes before kehto sees them.
+
+**Consequences.** Applets whose assets sit beside their artifact load them. A reference to a blob on a server nobody named is `not-found`. The loose `blossom:sha256:` form is accepted though BUD-10 does not define it; it is recorded next to the parser. Payloads larger than about 2 MB still fail inside kehto's prelude, whose canonical-base64 pattern exhausts the stack (kehto/web#473), until kernl takes a kehto release with that fix. A host that passes its own `bridges` gets no Blossom bridge unless it registers one.
+
+**Reversal cost.** Low. One bridge, one registry option and one error mapping.
+
