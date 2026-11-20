@@ -797,3 +797,20 @@ This amends D-006 and D-031 for the shell only.
 **Consequences.** On kernl.run the default still keeps sign-ins readable to the origin, which the settings line states. A host with a keychain, an extension or a local service closes that by passing one object. Other secrets the shell holds as plain settings today, the connection helpers' credentials (D-043), should move behind the same provider.
 
 **Reversal cost.** Low. One interface and one caller.
+
+## D-053 · Connections are many, and kernl routes
+
+**Context.** D-050 kept one connection per program, so a person with two Transmission daemons, or a Transmission and a uTorrent, could use only one of them at a time. NAP-NZB lets an applet choose among several downloaders. NAP-TORRENT and NAP-SOULSEEK have no way for an applet to name a backend, and should not: which machine a download runs on is the person's business.
+
+**Decision.**
+
+- **A connection is a record of its own.** It has a random id, a program, a label the person can change, an address and a sign-in. Any number may exist, several of one program among them. Secrets are kept under the connection's id (D-052) and go with it when it is removed.
+- **kernl routes torrent and Soulseek work.** Each domain has a default connection, the first of its kind until the person picks another; removing the default makes the next one the default. A new torrent goes to the connection that already holds that torrent for kernl, else to the default. A search or browse goes to the default. A torrent job, and a Soulseek query with its files and transfers, remembers the connection it went to and is served by that connection from then on. The add prompt names the connection by its label.
+- **NZB connections are each a downloader.** The applet chooses among them as NAP-NZB says, by the person's label and an opaque id.
+- **An address change starts a new routing key.** What a service hands an applet is keyed by it, so a handle issued for jobs at the old address can never reach a different server's job that happens to have the same id; it answers "not found" instead.
+- **A connection that is gone leaves nothing stuck.** A job on a removed or locked connection reports the torrent as unavailable, and removing that job succeeds without touching any program.
+- **Uploads will ask.** When NAP-UPLOAD reaches these programs, seeding through a torrent connection is the person's choice, asked in the prompt sequence when more than one connection could take it. Only the torrent domain has a way to seed; NAP-NZB and NAP-SOULSEEK define none.
+
+**Consequences.** Two connections to the same daemon are two connections: kernl does not detect that they are one program. Routing is not load balancing; a default that cannot be reached is not replaced by another for new work.
+
+**Reversal cost.** Low. Routing is one interface the services read.
