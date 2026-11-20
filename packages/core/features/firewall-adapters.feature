@@ -1,7 +1,7 @@
 Feature: What the firewall needs from the shell's services
   Under the firewall kehto has each request's destinations approved before it
   runs, and charges what it carries out against a rate limiter the host
-  supplies. These are the pieces kernl hands it (D-049).
+  supplies. These are the pieces kernl hands it (D-050).
 
   Scenario: the relays put to the firewall are the shell's tiers as bare origins
     Given relay tiers of "wss://a.example,wss://a.example/,wss://b.example/path,https://c.example,wss://user@d.example"

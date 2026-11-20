@@ -30,7 +30,7 @@ export const FIREWALL_RULES_STORAGE_KEY = 'kernl:firewall-rules:v1';
  * The grants layer already decided which domains an applet holds, so asking
  * again for each of them would bury the one question that matters under a
  * wall of prompts. A link leaves the shell, which no grant describes, so it is
- * the one request that always asks (D-049).
+ * the one request that always asks (D-050).
  *
  * @returns Fresh rules; change them with kehto's `setPermissionRule`.
  * @example

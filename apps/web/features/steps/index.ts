@@ -11,3 +11,4 @@ import './mailboxes.ts';
 import './settings.ts';
 import './preview-settings.ts';
 import './firewall-words.ts';
+import './preview-firewall.ts';

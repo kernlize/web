@@ -116,7 +116,7 @@ export function createAppletAdmissions(runtime: AdmissionRuntime, now: () => num
     discard,
     onInvalidated: (listener) => permissions().subscribeInvalidation(listener),
     close() {
-      for (const windowId of [...waiting]) discard(windowId);
+      for (const windowId of waiting) discard(windowId);
     },
   };
 }

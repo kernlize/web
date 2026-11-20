@@ -5,7 +5,7 @@ import type { IAccount } from 'applesauce-accounts';
 import { PrivateKeyAccount, ReadonlyAccount } from 'applesauce-accounts/accounts';
 import { BASELINE_DOMAINS, DEFAULT_FILE_SERVERS } from '@kernlize/core';
 import { MemoryStorage } from '../../../../packages/core/features/steps/world.ts';
-import { abbreviate, type AppletHandle, type AppletPointer, type AppletSummary, type ConsentPrompt, type FirewallChoice, type FirewallPrompt, type FirewallRuleTarget, type FrameLike, type HandlerPrompt, type KernlHost, type MountPlan, type SettingsPrompt, type ShellKernl } from '../../src/shell/contract.ts';
+import { abbreviate, type AppletHandle, type AppletPointer, type AppletSummary, type ConsentPrompt, type FirewallChoice, type FirewallPrompt, type FrameLike, type HandlerPrompt, type KernlHost, type MountPlan, type SettingsPrompt, type ShellKernl } from '../../src/shell/contract.ts';
 import { PREVIEW_PUBLISHER, sampleSummary } from '../../src/shell/preview-applet.ts';
 import { PREVIEW_CORRESPONDENT } from '../../src/shell/preview-messaging.ts';
 import { createShellDownloads } from '../../src/shell/downloads.ts';
@@ -135,7 +135,7 @@ async function openFromDesktop(world: PreviewWorld, address: string): Promise<st
   return handleOf(scratch, frameName).windowId;
 }
 
-function previewKernl(world: PreviewWorld, inKernl: boolean, showsSettings = true, asksFirewall = true): void {
+export function previewKernl(world: PreviewWorld, inKernl: boolean, showsSettings = true, asksFirewall = true): void {
   const prompts: ConsentPrompt[] = [];
   const settings: SettingsPrompt[] = [];
   const notices: unknown[] = [];
@@ -192,48 +192,6 @@ function previewKernl(world: PreviewWorld, inKernl: boolean, showsSettings = tru
 }
 
 Given('a preview kernl', (world: PreviewWorld) => previewKernl(world, false));
-
-Given('a preview kernl whose host cannot ask firewall questions', (world: PreviewWorld) => previewKernl(world, false, true, false));
-
-Given('the preview kernl user will answer firewall questions with {string}', (world: PreviewWorld, answer: FirewallChoice | 'dismiss') => {
-  preview(world).firewallAnswer = answer;
-});
-
-Given('the preview kernl firewall rule for {string} is {string}', (world: PreviewWorld, target: string, action: string) => {
-  const { firewall } = preview(world).kernl;
-  if (action === 'restored') firewall.restoreDefaults();
-  else firewall.setRule(JSON.parse(target) as FirewallRuleTarget, action === 'removed' ? undefined : (action as 'allow' | 'ask' | 'deny'));
-});
-
-Then('the preview kernl user was asked {int} firewall question(s)', (world: PreviewWorld, count: number) => {
-  expect(preview(world).firewallQuestions).toHaveLength(count);
-});
-
-Then('the preview kernl firewall question is a link to {string} from {string} that can be opened once or not', (world: PreviewWorld, url: string, title: string) => {
-  const question = preview(world).firewallQuestions.at(-1);
-  expect(question?.summary).toMatchObject({ kind: 'link', applet: { title }, requests: [{ kind: 'resource', domain: 'link', operation: 'link.open', target: url }], choices: ['allow-once', 'deny'] });
-  expect(question?.signal.aborted).toBe(false);
-  expect(() => {
-    question?.signal.addEventListener('abort', () => undefined);
-    question?.signal.removeEventListener('abort', () => undefined);
-  }).not.toThrow();
-});
-
-Then('the preview kernl host opened {string} as already approved', (world: PreviewWorld, url: string) => {
-  expect(preview(world).approvedLinks).toEqual([url]);
-});
-
-Then('the preview kernl firewall keeps its rules, holds no answers and has none to take back', (world: PreviewWorld) => {
-  const { firewall } = preview(world).kernl;
-  const seen: unknown[] = [];
-  firewall.rules$.subscribe((rules) => seen.push(rules)).unsubscribe();
-  expect(seen).toEqual([firewall.rules()]);
-  expect(firewall.rules().operations).toEqual({ 'link.open': 'ask' });
-  const told: unknown[] = [];
-  firewall.decisions$.subscribe((decisions) => told.push(decisions)).unsubscribe();
-  expect([firewall.decisions(), ...told]).toEqual([[], []]);
-  expect([firewall.forget('any'), firewall.forgetAll()]).toEqual([true, true]);
-});
 
 Given('a preview kernl whose host shows no settings', (world: PreviewWorld) => previewKernl(world, false, false));
 

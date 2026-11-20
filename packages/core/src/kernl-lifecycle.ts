@@ -124,7 +124,7 @@ export function createAppletLifecycle(context: LifecycleContext): AppletLifecycl
   const { handles, pipeline, bridge, admissions } = context;
   // An answer was taken back: a window admitted under it stops, as when a grant it used is taken back (D-038).
   const stopStale = (): void => {
-    for (const handle of [...handles.values()]) {
+    for (const handle of handles.values()) {
       if (admissions.isCurrent(handle.windowId)) continue;
       handle.revoked('firewall');
       bridge.revokeNapplet(handle.windowId, 'host');
@@ -166,7 +166,7 @@ export function createAppletLifecycle(context: LifecycleContext): AppletLifecycl
       windowCounter += 1;
       const windowId = `applet-${windowCounter}`;
       context.remember(summary);
-      // The firewall admits the applet before a plan exists, so no code runs with a domain it refused (D-049).
+      // The firewall admits the applet before a plan exists, so no code runs with a domain it refused (D-050).
       const domains = await admissions.admit(windowId, summary, resolveAppletEnvironment(context.adapter, summary));
       return planMount({ summary, indexHtml, adapter: context.adapter, guardProfile: pipeline.config.profile, windowId, domains });
     },

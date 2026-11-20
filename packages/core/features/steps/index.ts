@@ -48,3 +48,4 @@ import './kernl-direct.js';
 import './multiplayer-settings.js';
 import './firewall.js';
 import './firewall-adapters.js';
+import './rogue-window.js';

@@ -33,6 +33,7 @@ import type {
   AppletSummary,
   BuiltinApplet,
   ConsentSummary,
+  Firewall,
   FrameLike,
   Grants,
   GuardFacade,
@@ -48,7 +49,7 @@ import { PREVIEW_CATALOG, PREVIEW_PUBLISHER, renderPreviewApplet, sampleSummary,
 import { createPreviewBuiltins } from './preview-builtin';
 import { createPreviewConfig, type PreviewConfig } from './preview-config';
 import { PORT_DOMAINS, createPreviewPorts, type PortLike, type PreviewPorts } from './preview-port';
-import { createPreviewFirewall, type PreviewFirewall } from './preview-firewall';
+import { createPreviewFirewall } from './preview-firewall';
 import { createPreviewIntents, type PreviewIntentDeps, type PreviewIntents } from './preview-intents';
 import { createPreviewMessaging, PREVIEW_CORRESPONDENT, PREVIEW_LEGACY_CORRESPONDENT } from './preview-messaging';
 import { createPreviewAccountServices } from './preview-mailboxes';
@@ -188,6 +189,8 @@ function createPreviewGuard(): PreviewGuard {
 
 interface Actions {
   perform(entry: Mounted, message: PreviewMessage): void;
+  /** The rules those actions follow, for the firewall panel. */
+  readonly firewall: Firewall;
 }
 
 /** What the preview applet may ask for, gated by the grants in its mount plan. */
@@ -197,10 +200,10 @@ interface ActionParts {
   readonly pubkeyOf: () => string;
   readonly intents: PreviewIntents;
   readonly config: PreviewConfig | undefined;
-  readonly firewall: PreviewFirewall;
 }
 
-function createActions({ host, bridges, pubkeyOf, intents, config, firewall }: ActionParts): Actions {
+function createActions({ host, bridges, pubkeyOf, intents, config }: ActionParts): Actions {
+  const firewall = createPreviewFirewall(host);
   const reply = (entry: Mounted, ok: boolean, text: string): void => {
     entry.frame.contentWindow?.postMessage({ kernlPreview: 'result', ok, text }, '*');
   };
@@ -282,7 +285,7 @@ function createActions({ host, bridges, pubkeyOf, intents, config, firewall }: A
         if (needs('config')) config?.open(entry.plan.windowId, (words) => reply(entry, true, words));
         return;
       case 'link':
-        // The firewall's rules decide a link, as in the live shell: to begin with it asks every time (D-049).
+        // The firewall's rules decide a link, as in the live shell: to begin with it asks every time (D-050).
         if (message.url?.startsWith('https://')) void firewall.openLink(entry.plan.summary, message.url).then((result) => reply(entry, result.ok, result.text));
         return;
       case 'download':
@@ -293,7 +296,7 @@ function createActions({ host, bridges, pubkeyOf, intents, config, firewall }: A
     }
   };
 
-  return { perform };
+  return { perform, firewall: firewall.firewall };
 }
 
 /** Mount order: sandbox, register, srcdoc. Closing or revoking removes the frame and forgets the window in the guard. */
@@ -434,8 +437,7 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
     retry: intentRetry,
   });
   const pubkey = (): string => session$.value?.pubkey ?? PREVIEW_OWNER;
-  const firewall = createPreviewFirewall(host);
-  const { perform } = createActions({ host, bridges, pubkeyOf: pubkey, intents, config, firewall });
+  const { perform, firewall } = createActions({ host, bridges, pubkeyOf: pubkey, intents, config });
   const mount = createMounter(host, guard, mounted, config);
   const narrowing = stopNarrowed(grants, mounted);
   const ports = createPreviewPorts({ messaging, profiles, pubkey: () => PREVIEW_OWNER, notify: (notice) => host.notify(notice), ...(theme ? { theme: { initialTheme: theme } } : {}) });
@@ -452,7 +454,7 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
     people: createPreviewPeople(),
     ...createPreviewAccountServices(host.storage),
     intents: intents.intents,
-    firewall: firewall.firewall,
+    firewall,
     session$,
     get session() {
       return session$.value;

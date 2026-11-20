@@ -19,7 +19,7 @@ import { MemoryStorage, scratch, splitList, type CoreWorld } from './world.js';
 interface AdapterScratch {
   origins?: readonly string[];
   resolvedUnder?: 'approval' | 'request';
-  router?: OutboxRouter & { publishWithPlan?: (...args: never[]) => Promise<OutboxPublishResult> };
+  router?: PublishingRouter;
   limiter?: TemporalPolicy;
   charge?: TemporalDecision;
   handed: Array<Record<string, unknown>>;
@@ -56,11 +56,14 @@ Then(/^the download was resolved under the (firewall's approval|request's own si
   expect(a(world).resolvedUnder).toBe(how === "firewall's approval" ? 'approval' : 'request');
 });
 
-function router(result: OutboxPublishResult): NonNullable<AdapterScratch['router']> {
-  return {
-    publish: async () => result,
-    publishWithPlan: async () => result,
-  } as unknown as NonNullable<AdapterScratch['router']>;
+/** The two publishes of kehto's relay-pool router; `acceptAnyRelay` touches nothing else. */
+interface PublishingRouter {
+  publish(): Promise<OutboxPublishResult>;
+  publishWithPlan(): Promise<OutboxPublishResult>;
+}
+
+function router(result: OutboxPublishResult): PublishingRouter {
+  return { publish: async () => result, publishWithPlan: async () => result };
 }
 
 Given('an outbox router whose publishes are accepted by one relay of two', (world: CoreWorld) => {
@@ -72,8 +75,8 @@ Given('an outbox router whose publishes are accepted by no relay', (world: CoreW
 });
 
 async function bothPublishes(world: CoreWorld): Promise<OutboxPublishResult[]> {
-  const accepting = acceptAnyRelay(a(world).router as OutboxRouter) as NonNullable<AdapterScratch['router']>;
-  return [await accepting.publish({} as never), await (accepting.publishWithPlan as () => Promise<OutboxPublishResult>)()];
+  const accepting = acceptAnyRelay(a(world).router as OutboxRouter) as PublishingRouter;
+  return [await accepting.publish(), await accepting.publishWithPlan()];
 }
 
 Then('both its plain and its planned publish report success and keep the per-relay results', async (world: CoreWorld) => {
@@ -85,7 +88,7 @@ Then('both its plain and its planned publish report failure', async (world: Core
 });
 
 Then('an outbox router with no planned publish gains none', (world: CoreWorld) => {
-  const { publish } = a(world).router as OutboxRouter;
+  const { publish } = a(world).router as PublishingRouter;
   expect('publishWithPlan' in acceptAnyRelay({ publish } as OutboxRouter)).toBe(false);
 });
 
@@ -118,8 +121,8 @@ Then('retiring {string} from the runtime limiter does nothing harmful', (world: 
 
 Given('a messaging service that reads a send\'s recipients through a finder knowing {string}', (world: CoreWorld, known: string) => {
   const state = a(world);
-  const service = { handleMessage: (_windowId: string, message: Record<string, unknown>) => void state.handed.push(message) } as unknown as DmService;
-  state.service = locateSendRecipients(service, {
+  const service: Pick<DmService, 'handleMessage'> = { handleMessage: (_windowId, message) => void state.handed.push({ ...message }) };
+  state.service = locateSendRecipients(service as DmService, {
     locate: async (input: string) => {
       if (input !== known) throw new Error('invalid:person');
       return input.replace('npub', 'hex');
@@ -131,7 +134,7 @@ async function ask(world: CoreWorld, message: Record<string, unknown>): Promise<
   const state = a(world);
   state.handed.length = 0;
   state.replies.length = 0;
-  state.service?.handleMessage('w1', message as never, (reply) => void state.replies.push(reply as unknown as Record<string, unknown>));
+  state.service?.handleMessage('w1', message as never, (reply) => void state.replies.push({ ...reply }));
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
@@ -169,7 +172,7 @@ Given('applet admissions over a runtime without a firewall', (world: CoreWorld) 
 
 Then('admitting a window fails with {string} and opens no session', async (world: CoreWorld, reason: string) => {
   const admissions = scratch(world).admissions as ReturnType<typeof createAppletAdmissions>;
-  const summary = { identity: { dTag: 'chat', hash: 'ab'.repeat(32) }, requires: [], manifest: { catalogId: 'nip5d:35129:x:chat' } } as unknown as AppletSummary;
+  const summary = { identity: { dTag: 'chat', hash: 'ab'.repeat(32) }, requires: [], manifest: { catalogId: 'nip5d:35129:x:chat' } } as AppletSummary;
   await expect(admissions.admit('w1', summary, { capabilities: { domains: ['shell'] }, services: [] } as never)).rejects.toThrow(reason);
   expect(scratch(world).registered).toEqual([]);
   expect(() => admissions.isCurrent('w1')).not.toThrow();
@@ -191,13 +194,13 @@ Given('a firewall over a grant store holding a used-once answer, a development a
     grant('net-1', 'network'),
     grant('res-1', 'resource', { lifetime: 'persistent', effect: 'deny' }),
   ];
-  const permissions = {
+  const permissions: Pick<RuntimePermissions, 'grants' | 'revoke' | 'clear' | 'subscribeInvalidation'> = {
     grants,
-    revoke: (id: string) => (state.revoked.push(id), true),
+    revoke: (id) => (state.revoked.push(id), true),
     clear: () => ((state.cleared += 1), false),
     subscribeInvalidation: () => () => undefined,
-  } as unknown as RuntimePermissions;
-  scratch(world).listedFirewall = createFirewall({ rules: createFirewallRules(new MemoryStorage()), permissions });
+  };
+  scratch(world).listedFirewall = createFirewall({ rules: createFirewallRules(new MemoryStorage()), permissions: permissions as RuntimePermissions });
 });
 
 Then('the firewall lists a {string} answer and a {string} answer and nothing else', (world: CoreWorld, first: string, second: string) => {
