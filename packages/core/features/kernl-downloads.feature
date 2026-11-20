@@ -21,7 +21,7 @@ Feature: Download domains in the composed shell
     Given a kernl shell that offers the download domains, with a Transmission program set up
     Then the shell offers "torrent"
     Given a mounted applet granted "torrent" that has said hello
-    Then the applet received a "shell.init" with domains "shell,storage,inc,theme,torrent"
+    Then the applet received a "shell.init" with domains "shell,storage,inc,theme,keys,torrent"
     When the applet asks to add the magnet for "abcdef0123456789abcdef0123456789abcdef01" over its port
     Then the host is asked "Add a torrent to Transmission" as a "direct" question with no record to show
     When the host answers yes to the download question
@@ -47,7 +47,7 @@ Feature: Download domains in the composed shell
   Scenario: an applet that reads messages holds none of the three (D-046)
     Given a kernl shell that offers the download domains, with a Transmission program set up
     And a mounted applet granted each of "dm,torrent,nzb,soulseek" that has said hello
-    Then the applet received a "shell.init" with domains "shell,storage,theme,dm"
+    Then the applet received a "shell.init" with domains "shell,storage,theme,keys,dm"
 
   Scenario: with nothing set up each domain says so instead of failing
     Given a kernl shell that offers the download domains
