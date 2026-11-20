@@ -26,6 +26,9 @@ const LABELS: Readonly<Record<string, string>> = {
   count: 'counting',
   lists: 'your lists',
   common: 'social actions',
+  torrent: 'downloads from peers',
+  nzb: 'downloads from archives',
+  soulseek: 'shared libraries',
 };
 
 /** What a withheld row says under its label, in the launcher and in the grants panel (D-046). */
