@@ -66,6 +66,10 @@ Given('the applet {string} may use NZB downloads', (world: CoreWorld, name: stri
   nzb(world).applets.set(name, name);
 });
 
+Given("another publisher's applet, also called {string}, may use NZB downloads as {string}", (world: CoreWorld, name: string, window: string) => {
+  nzb(world).applets.set(window, `other-pk:${name}`);
+});
+
 Given('the NZB downloader {string} has the categories {string}', (world: CoreWorld, label: string, names: string) => {
   setup(nzb(world), label).client.categoryNames = names.split(', ');
 });

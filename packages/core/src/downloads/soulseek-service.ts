@@ -33,7 +33,7 @@ export interface SoulseekServiceOptions extends DownloadServiceDeps {
  *
  * @example
  * ```ts
- * createSoulseekService({ ...deps, client, limits: { ...DEFAULT_SOULSEEK_LIMITS, maxTransfers: 4 } });
+ * createSoulseekService({ ...deps, connections: programs.routing('soulseek'), limits: { ...DEFAULT_SOULSEEK_LIMITS, maxTransfers: 4 } });
  * ```
  */
 export const DEFAULT_SOULSEEK_LIMITS: SoulseekLimits = {
@@ -94,7 +94,7 @@ function failureOf(error: unknown): SoulseekFailure {
  * @returns The handler to register as `soulseek`, and `dispose`.
  * @example
  * ```ts
- * const soulseek = createSoulseekService({ client: () => daemon, appletOf, ask, storage });
+ * const soulseek = createSoulseekService({ connections: programs.routing('soulseek'), appletOf, ownerOf, ask, storage });
  * registry.soulseek = soulseek.handler;
  * ```
  */

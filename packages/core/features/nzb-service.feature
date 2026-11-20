@@ -303,6 +303,15 @@ Feature: NZB downloads through the person's own downloaders
       Then "reader" sees 1 NZB jobs and no more to come
       And the NZB job "add-1" is among them, "queued"
 
+    Scenario: an applet from another publisher with the same name is another applet
+      Given another publisher's applet, also called "reader", may use NZB downloads as "lookalike"
+      When "reader" adds the NZB document "one file" to "Home" under the key "add-1"
+      And "lookalike" asks for the NZB downloaders
+      And "lookalike" lists its NZB jobs on "Home"
+      Then "lookalike" sees 0 NZB jobs and no more to come
+      When "lookalike" asks for the status of the NZB job "add-1"
+      Then "lookalike" is told the NZB request failed as "not_found" with no replay time
+
     Scenario: another applet can neither see nor control the job
       Given the applet "player" may use NZB downloads
       When "reader" adds the NZB document "one file" to "Home" under the key "add-1"
