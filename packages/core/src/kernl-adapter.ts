@@ -28,7 +28,7 @@ export interface ShellAdapterDeps {
   /** The runtime firewall's persistence and event sink; see `createRuntimeFirewallHooks`. */
   readonly runtimeFirewall: RuntimeFirewallHooks;
   readonly onUnroutedMessage?: (info: UnroutedMessageInfo) => void;
-  /** Takes a key an applet had no shortcut for, so the shell's own shortcuts work while an applet has focus (D-049). */
+  /** Takes a key an applet had no shortcut for, so the shell's own shortcuts work while an applet has focus (D-054). */
   readonly onShortcut?: (key: ShortcutKey) => void;
 }
 

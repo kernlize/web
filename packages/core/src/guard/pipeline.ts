@@ -69,9 +69,9 @@ export interface GuardPipeline {
    * `filterNappletMessage`. `defer` holds every non-control envelope from a
    * window that is not visible (reason `hidden:<class>`) until it is visible
    * again, up to `deferQueue` envelopes, and a shortcut registration from a
-   * window in its first second until that second is over (D-049). `drop` discards an envelope over its
+   * window in its first second until that second is over (D-054). `drop` discards an envelope over its
    * size cap, a forwarded key that is a held key's repeat or comes from a
-   * window that is not focused (D-049), a burst above the per-second rate, a request over the
+   * window that is not focused (D-054), a burst above the per-second rate, a request over the
    * focus-aware firewall's budget, a hidden window's envelope past the defer
    * queue, and the envelope that triggers a quarantine. Control envelopes are
    * dispatched unless the window is quarantined.
@@ -146,7 +146,7 @@ function take(queue: Map<string, Pending[]>, windowId: string, count: number): P
 
 /**
  * What the pipeline does with shortcut traffic before the guard counts anything
- * (D-049). A held key is the person's typing, not the applet's traffic, so its
+ * (D-054). A held key is the person's typing, not the applet's traffic, so its
  * repeats are dropped; an applet's keymap arrives as it starts, so it waits out
  * the runtime's startup window.
  */

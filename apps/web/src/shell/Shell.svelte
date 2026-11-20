@@ -102,7 +102,7 @@
   }
 
   // A key an applet had no shortcut for comes back through the core, so these work while an applet has focus.
-  // A dialog holds the keyboard while it is open, so a key an applet sends then was not typed by the person (D-049).
+  // A dialog holds the keyboard while it is open, so a key an applet sends then was not typed by the person (D-054).
   shortcuts.run = (key) => {
     if (!(consent.current || replies.current || settings.current || handlers.current)) runShortcut(key);
   };

@@ -26,7 +26,7 @@ function chordOf(message: Record<string, unknown>): string {
 }
 
 /**
- * The filter in front of the guard for keys an applet forwards (D-049).
+ * The filter in front of the guard for keys an applet forwards (D-054).
  *
  * The frame forwards every key it has no binding for, repeats included, so a
  * held key arrives faster than any budget; counted like other traffic it would

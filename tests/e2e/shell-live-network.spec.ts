@@ -16,7 +16,7 @@ const PUBLISHED = [
   },
 ];
 
-/** Dodgy Duck: a published game that names no domain for its keys and registers its whole keymap as it starts (D-049). */
+/** Dodgy Duck: a published game that names no domain for its keys and registers its whole keymap as it starts (D-054). */
 const DODGY_DUCK = 'naddr1qvzqqqyf8ypzpem34u9stj8ftlxldl4n2qz5f5hmrnxns3uga86fpwe7u28ga4n0qythwumn8ghj7un9d3shjtnwv9c8qmr9wsh8xmmeqyt8wumn8ghj7un9d3shjtnswf5k6ctv9ehx2aqpzemhxue69uhhyetvv9ujumn0wvh8xmmrd9skcqg4waehxw309aex2mrp0yhxummnw3ezumn9wsq3gamnwvaz7tmwdaehgu3wdau8gu3wv3jhvqguwaehxw309ahx7um5wgknqvfw09skk6tgdahxuefwvdhk6qgawaehxw309aex2mrp0yhxummnw3ezuamfwfjkgmn9wshx5uqqp9c82eryd3jksmmsrwrnfp';
 
 interface KeysEnvelope {

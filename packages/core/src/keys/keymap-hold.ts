@@ -32,7 +32,7 @@ function isRegistration(message: unknown): boolean {
 }
 
 /**
- * The wait in front of the runtime for an applet's keymap (D-049).
+ * The wait in front of the runtime for an applet's keymap (D-054).
  *
  * An applet registers its shortcuts as it starts, a dozen or more at once,
  * which is exactly when the runtime's startup burst guard lets fewest

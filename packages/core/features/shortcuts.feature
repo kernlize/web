@@ -5,7 +5,7 @@ Feature: Applets' keyboard shortcuts
   action when the key is pressed on the shell's own page while the applet's
   window is the focused one. A key the shell keeps for itself is never bound,
   and a key an applet had no shortcut for comes back to the host, so the
-  shell's own shortcuts work while an applet has focus (D-049).
+  shell's own shortcuts work while an applet has focus (D-054).
 
   Background:
     Given a kernl host over empty storage

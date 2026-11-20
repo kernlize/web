@@ -728,7 +728,7 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 
 **Reversal cost.** Low. One store method and one snippet.
 
-## D-049 · Applets' keyboard shortcuts work, for every applet
+## D-054 · Applets' keyboard shortcuts work, for every applet
 
 **Context.** An applet that registers keyboard shortcuts worked in other shells and not in kernl, for four reasons that each hid the next.
 

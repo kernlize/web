@@ -65,7 +65,7 @@ Feature: The preview kernl
     And the preview kernl plan grants "" beyond the baseline
     And the preview kernl plan is missing "relay,identity,intent"
 
-  Scenario: the preview does not advertise keyboard shortcuts it cannot serve (D-049)
+  Scenario: the preview does not advertise keyboard shortcuts it cannot serve (D-054)
     When the preview kernl plans "notes"
     Then the preview kernl plan does not offer "keys"
 

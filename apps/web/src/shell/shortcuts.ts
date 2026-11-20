@@ -1,6 +1,6 @@
 import type { ShortcutKey } from './contract';
 
-/** The shell's own chords. An applet asking for one is answered without a binding (D-049). */
+/** The shell's own chords. An applet asking for one is answered without a binding (D-054). */
 export const SHELL_CHORDS: readonly string[] = Object.freeze(['Alt+/']);
 
 /** What one of the shell's own keys does. */

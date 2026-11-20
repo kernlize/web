@@ -273,7 +273,7 @@ export interface KernlHost {
   fetchBlob?(sha256: string, servers: readonly string[]): Promise<Uint8Array>;
   /**
    * Take a key pressed inside an applet that the applet has no shortcut for. Without it the
-   * shell's own shortcuts do nothing while an applet has focus (D-049).
+   * shell's own shortcuts do nothing while an applet has focus (D-054).
    */
   onShortcut?(key: ShortcutKey): void;
   now?(): number;
@@ -322,7 +322,7 @@ export interface KernlOptions {
   readonly remoteTools?: RemoteToolsSettings;
   /** How applets connect people directly: the relays that introduce them and the ICE servers that help (D-042). */
   readonly directConnections?: DirectConnectionsSettings;
-  /** The chords the shell keeps from applets' keyboard shortcuts, and where key presses are heard (D-049). */
+  /** The chords the shell keeps from applets' keyboard shortcuts, and where key presses are heard (D-054). */
   readonly shortcuts?: ShortcutSettings;
 }
 

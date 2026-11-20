@@ -55,7 +55,7 @@ function pageTarget(options: ShortcutSettings): EventTarget | undefined {
 }
 
 /**
- * The `keys` domain (D-049): kehto's reference service, which binds the key an
+ * The `keys` domain (D-054): kehto's reference service, which binds the key an
  * applet asks for, tells it which keys it holds and runs its action when the
  * key is pressed outside every applet, behind three rules of kernl's. A key
  * pressed on the shell's own page reaches applets only when the shell did not

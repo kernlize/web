@@ -9,7 +9,7 @@ const base = process.env.PLAYWRIGHT_BASE_URL ?? '';
  * server that exist only in this browser. The applet names no domain in its manifest and the person
  * grants it nothing: shortcuts are part of the baseline. The shell binds the key, tells the applet
  * which key it got, runs the action from the applet and from the shell's own chrome, and still
- * answers its own shortcut while the applet has focus (D-049).
+ * answers its own shortcut while the applet has focus (D-054).
  */
 
 const SHORTCUT_APPLET = `<!doctype html><html><head><meta charset="utf-8"><title>Keys</title></head><body><h1>Keys</h1>

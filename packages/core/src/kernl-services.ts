@@ -105,7 +105,7 @@ export interface KernlServiceDeps {
   readonly directConnections?: DirectConnectionsDeps | undefined;
   /** The person's own choices, which come before the host's (D-043). */
   readonly multiplayer?: Pick<MultiplayerSettings, 'state'>;
-  /** Reserved chords, the key listener's target and the focus source for the `keys` domain (D-049). */
+  /** Reserved chords, the key listener's target and the focus source for the `keys` domain (D-054). */
   readonly shortcuts: ShortcutsOptions;
 }
 

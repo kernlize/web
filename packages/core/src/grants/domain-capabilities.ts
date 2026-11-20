@@ -38,7 +38,7 @@ export const DOMAIN_CAPABILITIES: Readonly<Record<string, readonly Capability[]>
 /**
  * Domains every applet gets without asking: the handshake, in-shell messaging,
  * the theme, scoped storage and keyboard shortcuts, which act only in the
- * applet's own focused window (D-049). No network, and not the identity: which
+ * applet's own focused window (D-054). No network, and not the identity: which
  * account is signed in is the user's to reveal, so an applet learns it only
  * after the user grants "your account" (SOUL opinion 2).
  *
