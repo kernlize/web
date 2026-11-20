@@ -72,7 +72,7 @@ export interface GuardLimits {
   readonly maxResourceEnvelopeBytes: number;
   /** Largest `relay.subscribe` / `outbox.subscribe` envelope in bytes. */
   readonly maxSubscribeEnvelopeBytes: number;
-  /** Token-bucket capacity per op class per window. */
+  /** Token-bucket capacity per op class, kept per applet. */
   readonly rates: Readonly<Record<OpClass, { capacity: number; windowMs: number }>>;
   /** Multiplier applied to rate capacities while a window is unfocused. */
   readonly unfocusedMultiplier: number;

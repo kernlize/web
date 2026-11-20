@@ -71,6 +71,9 @@ export function createFirewall(options: FirewallOptions): KernlFirewall {
       rules.restoreDefaults();
       retractRuleAnswers();
     },
+    get available() {
+      return permissions.available;
+    },
     decisions,
     decisions$: touched$.pipe(startWith(undefined), map(decisions)) as Observable<readonly FirewallDecision[]>,
     forget: (id) => permissions.revoke(id),

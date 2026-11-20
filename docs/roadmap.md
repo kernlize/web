@@ -6,8 +6,7 @@ Ordered by the tie-breakers in `SOUL.md`: the user's safety and agency first, pr
 
 The four gaps filed as [kehto/web #397](https://github.com/kehto/web/issues/397), [#398](https://github.com/kehto/web/issues/398), [#399](https://github.com/kehto/web/issues/399) and [#400](https://github.com/kehto/web/issues/400) are released and in use ([D-020](./decisions.md#d-020)). What is left:
 
-- Configure kehto's `permissions` before kehto drops the legacy rate gate ([kehto/web#336](https://github.com/kehto/web/pull/336) shipped; kernl runs `legacyFirewall` from `@kehto/rate-limit/legacy` until then, [D-037](./decisions.md#d-037)). kernl will move `packages/core/src/guard/runtime-rules.ts` to `permissions.rateLimiter` and `onRateLimit`, drop `kernl:firewall:v1`, give each applet a permission principal and an admission step, and decide how admission approvals meet the restrictive ACL. `getFocusContext`, `aclDefaultPolicy`, `filterNappletMessage` and `releaseDeferred` stay.
-- Ask for an event when a stored deny refuses a request on a host that configures #336's permissions, so the host can show it; until then kernl's own guard layers report what they refuse.
+- Ask for an event when a stored deny refuses a request, so the host can show it. kernl configures kehto's `permissions` now ([D-050](./decisions.md#d-050)), and a refusal by a `deny` rule or a stored answer reaches the applet without a guard event.
 - Ask for a reply kehto can send for a request the host drops, so an applet does not wait for an answer that will not come. NAP defines none today.
 - Let the runtime measure envelopes without an `event`, so its size limits see downloads and queries and kernl's size caps could move into kehto.
 - Report the four creation routes past `experimental.nestedContextLock` and ask kehto to guard insertion, so kernl can drop its insertion lock ([D-014](./decisions.md#d-014)).
@@ -49,7 +48,9 @@ The window manager contracts come from `@kehto/wm`. A narrow-viewport layout wit
 ## 6. Guard
 
 - Per-applet guard profiles: today the profile is shell-wide and resets to `strict` on boot ([D-003](./decisions.md#d-003)). Next: an override per applet identity, remembered locally.
-- Bridge consent per host: wire `createDefaultBridges({ authorize })` to a host prompt so a granted `resource` request still asks before reaching a new origin.
+- Bridge consent per host: wire `createDefaultBridges({ authorize })` to a host prompt so a granted `resource` request still asks before reaching a new origin. The firewall already sees a download's first origin and asks about it when a rule says so; the origins a download is redirected to should reach it too, which today the bridge registry follows under its own address policy ([D-050](./decisions.md#d-050)).
+- Firewall plans that name what a request reaches: the recipient's inboxes for a message, where the plan today names every relay in the shell's tiers, and an upload's mirrors, where it names the first file server only.
+- Per-applet firewall rules in the panel beyond links. `kernl.firewall.setRule` already takes them ([Change the firewall rules](./how-tos/change-firewall-rules.md)).
 - Persist per-applet profile overrides and grants through a user-chosen sync, so loosening an applet once does not have to be repeated per device.
 
 ## 7. Conformance

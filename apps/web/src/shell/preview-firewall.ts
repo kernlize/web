@@ -32,6 +32,7 @@ export function createPreviewFirewall(host: Pick<KernlHost, 'storage' | 'present
     rules$: rules.rules$,
     setRule: (target, action) => rules.set(target, action),
     restoreDefaults: () => rules.restoreDefaults(),
+    available: true,
     decisions: () => [],
     decisions$: of([]),
     forget: () => true,

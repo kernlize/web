@@ -23,14 +23,16 @@ Put it in the `<head>` of the HTML the server sends, before any script runs, as 
 | `storage` | A synchronous `StorageLike` (`getItem`, `setItem`, `removeItem`). `localStorage` satisfies it. Grants, accounts, relay tiers and messaging preferences persist here under `kernl:` keys. |
 | `presentConsent(prompt)` | Called when an applet window asks to sign, through `relay.publish` or `outbox.publish`, a destructive change: any replaceable or addressable kind (profile, follows, inbox and outbox, lists, other records), a deletion or a request to vanish. The core looks up the current version first, waiting up to `CURRENT_VERSION_TIMEOUT_MS` for the network, so the prompt can arrive a few seconds after the request. `prompt.summary.event` is the unsigned draft. Show `prompt.summary` (title, lines) and call `prompt.resolve(true \| false)`. `false`, which you also send on dismiss, makes signing fail with `denied:consent`. The core never times out. Routine writes never reach this hook. |
 | `notify(notice)` | Show `{ title, body?, windowId?, tone }`. Applets reach it through the `notify` domain; the guard and revocations use it too. |
-| `openLink(url)` | Open a URL outside the shell. It is called only after the link service allowed the protocol (`https:`, `mailto:`); confirming with the user is your choice. |
+| `openLink(url, options?)` | Open a URL outside the shell. For an applet's link it is called only after the link service allowed the protocol (`https:`, `mailto:`) and the firewall let that exact link through, and then `options.approved` is `true`: the user was already asked, or a rule of theirs allows it, so do not ask again. Without `approved`, for example when a bridge hands a download to an app on the device, confirming with the user is your choice. |
 | `getVisibility(windowId)` | Current visibility for a window, when the core needs it synchronously: return `{ visible, focused, msSinceFocusGain? }`. The guard asks the first time it meets a window you have not reported with `handle.setVisibility`; after that it uses what you report. |
-| `onRevoked(windowId, reason)` | Called after the core removed a frame because its binding was revoked (`quarantine`, `second-load`, …). Update your UI. |
+| `onRevoked(windowId, reason)` | Called after the core removed a frame because its binding was revoked (`quarantine`, `second-load`, `grant-narrowed`, `firewall`, …). Update your UI. |
 
 `fetchBlob` and `now` are optional; without them the core fetches artifact blobs with `defaultFetchBlob` and uses `Date.now`.
 
+`presentApproval(prompt)` is optional too, but a host that shows applets links needs it. kehto's firewall decides every request, and kernl's shipped rules ask the user about each link an applet opens ([Guard](../concepts/guard.md#the-firewall)). The question arrives as a `FirewallPrompt`: show `prompt.summary` (`kind`, the `applet`, the `requests`, each with a `domain`, an `operation` and a `target`), then call `prompt.resolve` with one of `summary.choices`, or with `undefined` on dismiss. Close your dialog when `prompt.signal` aborts. Without `presentApproval`, a request a rule says to ask about is refused, so no applet can open a link.
+
 ```ts
-import { createKernl, type AppletHandle, type ConsentPrompt, type KernlHost } from '@kernlize/core';
+import { createKernl, type AppletHandle, type ConsentPrompt, type FirewallPrompt, type KernlHost } from '@kernlize/core';
 import type { WindowVisibility } from '@kernlize/guard';
 import { ReadonlyAccount } from 'applesauce-accounts/accounts';
 
@@ -48,11 +50,23 @@ function describe(prompt: ConsentPrompt): string {
   return [prompt.summary.title, ...lines].join('\n');
 }
 
+function ask(prompt: FirewallPrompt): void {
+  const { summary } = prompt;
+  const what = summary.requests.map((request) => `${request.operation}: ${request.target}`).join('\n');
+  // The first choice is the narrowest yes: once for a link, while the applet stays open for a start.
+  const yes = summary.choices.find((choice) => choice !== 'deny');
+  prompt.resolve(yes !== undefined && window.confirm(`${summary.applet.title} asks:\n${what}`) ? yes : 'deny');
+}
+
 const host: KernlHost = {
   storage: localStorage,
   presentConsent: (prompt) => prompt.resolve(window.confirm(describe(prompt))),
+  presentApproval: ask,
   notify: (notice) => console.info(`[${notice.tone}] ${notice.title}${notice.body ? `: ${notice.body}` : ''}`),
-  openLink: (url) => void window.open(url, '_blank', 'noopener,noreferrer'),
+  openLink(url, options) {
+    if (!options?.approved && !window.confirm(`Leave this page and open ${url}?`)) return;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  },
   getVisibility: visibilityOf,
   onRevoked(windowId, reason) {
     frames.get(windowId)?.remove();
@@ -106,9 +120,9 @@ export async function openApplet(address: string, container: HTMLElement): Promi
 1. **`decodePointer(address)`** turns the address into a pointer and throws `invalid:pointer` for anything else.
 2. **`resolve(pointer)`** fetches the manifest from the pointer's relay hints plus the `apps` tier and verifies the signature and the artifact bytes. The `AppletSummary` it returns is what you show before running anything; `requires` and `optional` are advisory.
 3. **Grants.** Ask the user, then call `grants.allowDomain(identity, domain)` for what they allowed. Skip domains outside `grants.availableDomains()`, which throw `invalid:domain`, and the baseline ones, which are always on.
-4. **`plan(summary)`** writes the applet's ACL explicitly and returns the `MountPlan`: the srcdoc with the guard's CSP, the environment the applet will see, and `missingRequired`. It throws `denied:blocked` for a blocked applet.
+4. **`plan(summary)`** writes the applet's ACL explicitly and returns the `MountPlan`: the srcdoc with the guard's CSP, the environment the applet will see, and `missingRequired`. Before it returns, the firewall admits the start for the domains the grants leave, which under the shipped rules asks nothing. It throws `denied:blocked` for a blocked applet and `denied:firewall` when the firewall refused a domain the applet requires.
 5. **The frame.** Create the iframe and attach it to the document first: `mount` needs its `contentWindow` and throws `invalid:frame-detached` otherwise. Do not set `src`, `sandbox` or `srcdoc` yourself. Record it under `plan.windowId` so `getVisibility` can answer for it.
-6. **`mount(plan, frame)`** installs the profile's runtime rates, sets the `sandbox` attribute to exactly `allow-scripts` (replacing anything you set) and the controller-denying `allow` policy, registers the window, and only then assigns `srcdoc`. It returns an `AppletHandle`.
+6. **`mount(plan, frame)`** checks that the firewall's admission still stands (`denied:admission-expired` when an answer was taken back since, so mount a plan soon after making it), sets the `sandbox` attribute to exactly `allow-scripts` (replacing anything you set) and the controller-denying `allow` policy, registers the window, and only then assigns `srcdoc`. It returns an `AppletHandle`.
 
 After mount, keep the guard informed: call `handle.setVisibility(...)` whenever a window is shown, hidden, focused or blurred (the sample does it on `visibilitychange` and on pointer focus). A page with more than one applet can leave that to kernl's window manager, which also places the windows: [Write your own window manager](./write-a-window-manager.md#outside-the-shell) shows it outside the shell. `handle.close()` revokes the binding and removes the frame; grants stay, keyed by identity. `kernl.destroy()` closes everything when the page goes away.
 
@@ -117,6 +131,8 @@ After mount, keep the guard informed: call `handle.setVisibility(...)` whenever 
 - Open an applet that `requires` `relay` and decline it: `plan.missingRequired` is `['relay']` and the applet's `shell.init` lacks it.
 - Hide its container and call `setVisibility`: from then on the applet's resource requests count against the hidden allowance, and an overrun quarantines the window and appears on `kernl.guard.events$`.
 - Have the applet publish a profile change: `presentConsent` is called with the title "Update your profile". Answer `false` and the applet's publish fails with `denied:consent`.
+- Grant an applet `link` and have it open a link: `presentApproval` is called with `summary.kind` `'link'` and the choices `allow-once` and `deny`. Answer `allow-once` and `openLink` is called with `{ approved: true }`; the next link asks again.
+- Call `kernl.firewall.setRule({ operation: 'link.open' }, 'allow')`: links open without a question ([Change the firewall rules](./change-firewall-rules.md)).
 - Subscribe to `kernl.guard.events$` and `kernl.session$` and render them; they are the same streams `apps/web` shows in its guard panel and sign-in screen.
 
 ## Related

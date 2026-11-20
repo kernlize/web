@@ -194,8 +194,9 @@ Given('a firewall over a grant store holding a used-once answer, a development a
     grant('net-1', 'network'),
     grant('res-1', 'resource', { lifetime: 'persistent', effect: 'deny' }),
   ];
-  const permissions: Pick<RuntimePermissions, 'grants' | 'revoke' | 'clear' | 'subscribeInvalidation'> = {
+  const permissions: Pick<RuntimePermissions, 'grants' | 'available' | 'revoke' | 'clear' | 'subscribeInvalidation'> = {
     grants,
+    available: true,
     revoke: (id) => (state.revoked.push(id), true),
     clear: () => ((state.cleared += 1), false),
     subscribeInvalidation: () => () => undefined,
@@ -213,6 +214,7 @@ Then('the firewall lists a {string} answer and a {string} answer and nothing els
 
 Then('taking an answer back and taking them all back reach the grant store', (world: CoreWorld) => {
   const firewall = scratch(world).listedFirewall as ReturnType<typeof createFirewall>;
+  expect(firewall.available).toBe(true);
   expect(firewall.forget('net-1')).toBe(true);
   expect(firewall.forgetAll()).toBe(false);
   expect(a(world).revoked).toEqual(['net-1']);

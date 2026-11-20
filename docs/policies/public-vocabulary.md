@@ -49,6 +49,6 @@ Three reasons, in the order `SOUL.md` ranks them.
 | shell | OS, desktop, browser | kernl runs in a browser; it is not one. |
 | grant | permission, capability | A grant is something the user gave and can take back. |
 | provider | protocol | Users choose providers by what they do. |
-| guard | firewall, mitigation | The guard is the set of protections between an applet and the user. |
+| guard | mitigation | The guard is the set of protections between an applet and the user. The firewall is one of them: the rules for what goes ahead without asking. |
 
 Marketing adjectives, filler and hedges that hide a decision are out everywhere, including here.

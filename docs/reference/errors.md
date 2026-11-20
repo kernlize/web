@@ -26,6 +26,10 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 | `denied:blocked` | `@kernlize/core` | `Kernl.plan` | The user blocked this applet identity. |
 | `denied:nested-frame` | `@kernlize/core`, `@kernlize/guard` | `planMount`, so `Kernl.plan`; in the applet's realm, the insertion lock | kehto's `assertNappletHasNoFrame` found an `iframe`, `frame`, `frameset`, `object`, `embed`, `portal` or `fencedframe` element in the verified markup, so the applet is not mounted. Inside a running applet kernl's insertion lock throws it as a `TypeError` when applet code tries to connect a node that is or contains a frame element. A frame created by element factory or HTML string is refused earlier by kehto's nested-context lock, as `TypeError('kehto: napplets may not create nested browsing contexts')` ([D-014](../decisions.md#d-014)). |
 | `unavailable:frame-lock` | `@kernlize/core` | `planMount`, so `Kernl.plan` | The srcdoc kehto prepared does not contain the CSP meta and namespace prelude where kernl expects them, so the insertion lock cannot be placed after kehto's lock and the applet is not mounted. Seen only with a kehto release whose output changed. |
+| `denied:firewall` | `@kernlize/core` | `createAppletAdmissions`, so `Kernl.plan` | The firewall refused a domain the applet requires, by a `deny` rule or by the user's answer, or the user dismissed the question. Nothing runs ([Guard](../concepts/guard.md#the-firewall), [D-050](../decisions.md#d-050)). |
+| `unavailable:firewall` | `@kernlize/core` | `createAppletAdmissions`, so `Kernl.plan` | The firewall could not decide. The usual cause is stored answers that could not be read (`kernl:firewall-decisions:v1`): every start is refused until the user clears them, and the shell says so. |
+| `denied:admission-expired` | `@kernlize/core` | `Kernl.mount` | The firewall's admission for this plan no longer stands: an answer it relied on was taken back, or the plan was the oldest of more than `MAX_UNMOUNTED_PLANS` (16) left unmounted. Plan again. |
+| `invalid:rule` | `@kernlize/core` | `createFirewallRules`'s `set`, so `Kernl.firewall.setRule` | The rule's target is one kehto refuses, for example a domain that is not a domain name. The rules are unchanged. |
 | `invalid:frame-detached` | `@kernlize/core` | `mountApplet`, so `Kernl.mount` | The frame has no `contentWindow`; it is not in the document. |
 | `invalid:domain` | `@kernlize/core` | `Grants.allowDomain` | The shell does not offer this domain in its current configuration. |
 | `denied:baseline-domain` | `@kernlize/core` | `Grants.revokeDomain` | Baseline domains (`shell`, `inc`, `theme`, `storage`) cannot be revoked. |
@@ -72,7 +76,7 @@ The guard reports each non-pass decision as a `GuardEvent` with a `disposition` 
 
 For an applet's port traffic these layers decide each envelope through kehto's `filterNappletMessage` before the runtime sees it ([D-020](../decisions.md#d-020)). A `reject` drops the envelope, and the applet gets no reply. A `defer` with reason `hidden:<class>` holds it until the window is visible; a `flood:burst` `defer` on port traffic drops it. A `quarantine` revokes the binding, which also stops the envelope that crossed the limit and discards what the window held. For the window-level `hello`, `defer` and `reject` hold or drop it.
 
-kehto's runtime firewall refuses what it handles over the per-class rates, the unfocused budget or the startup burst with an error whose message starts `firewall:`, and reports each refusal through `onFirewallEvent`; kernl turns those into guard events with the reasons in the last three rows, without the applet's message.
+kehto's runtime charges what it carries out against the same per-class budgets, at the window's focus, through the rate limiter kernl hands it (`createRuntimeRateLimiter`). A request over its budget is refused with the error `rate limit exceeded`; before [D-050](../decisions.md#d-050) the error started `firewall:`. Each refusal is reported through `permissions.onRateLimit`, and kernl turns it into a guard event with the reasons in the last two rows. The report carries nothing the applet sent.
 
 | Reason | Emitted by | Disposition | Meaning |
 | --- | --- | --- | --- |
@@ -83,16 +87,14 @@ kehto's runtime firewall refuses what it handles over the per-class rates, the u
 | `size:<class>` | ingress guard | `reject` | The envelope is over the size cap for `resource:bytes`, `relay:subscribe` or `outbox:subscribe`. In the composed shell the envelope is dropped before dispatch: nothing is fetched and the applet gets no reply. |
 | `hidden:<class>` | guard pipeline (`pipeline.ts`) | `defer` | A non-control port envelope from a window that is not visible. It is held and handled once the window is visible. |
 | `defer:queue-full` | visibility gate (`visibility-gate.ts`) | `reject` | The hidden window already holds `deferQueue` envelopes; this one is dropped. |
-| `rate:<class>` | focus firewall (`focus-firewall.ts`), or the runtime firewall through `onFirewallEvent` | `reject`, or `flag` when the rate's action is `flag` | kehto's `rate:opclass`, `rate:global` or `rate:default` rule fired; the reason names the class, for example `rate:relay:publish`. From the focus firewall the envelope is dropped; from the runtime it is refused with a `firewall:` error. |
-| `matcher:<id>` | focus firewall | `reject` | A kehto content matcher fired; the rule id is passed through unchanged. The guard's own matchers are `size:resource:bytes`, `size:relay:subscribe` and `size:outbox:subscribe`, and in the composed shell they cannot fire: the ingress guard rejects the same envelopes with `size:<class>` first, and the focus firewall sees only what it passed. A caller that runs the focus firewall alone can see `matcher:size:<class>`. |
-| `policy:deny` | focus firewall | `reject` | The applet's policy in the guard's own firewall configuration is `deny`. kernl sets no policy there, so this appears only if a caller set one. |
-| `prompt:<ruleId>` | focus firewall | `reject` | kehto's engine asked for a prompt (for example `prompt:policy:ask`); the guard has no UI and treats it as a rejection. |
-| `flood:startup` | runtime firewall, through `onFirewallEvent` | `reject` | More operations in a window's first second than the profile's `ingressBurst`; the runtime refuses the excess with a `firewall:` error. |
-| `runtime:<ruleId>` | runtime firewall, through `onFirewallEvent` | `reject`, or `flag` when it passed with a flag | Any other runtime firewall decision, with kehto's rule id, for example `runtime:policy:deny`. |
+| `rate:<class>` | focus-aware rate limiter (`focus-rate-limit.ts`), or kehto's runtime through `permissions.onRateLimit` | `reject`, or `flag` when the budget's action is `flag` or kehto only observes | A class budget is spent; the reason names the class, for example `rate:relay:publish`. From kernl's rate limiter the envelope is dropped; from the runtime the request is refused with `rate limit exceeded`. |
+| `flood:prompts` | kehto's runtime, through `permissions.onRateLimit` | `reject` | The applet asked firewall questions more often than kehto's suggested budget, twelve a minute; the question is not put to the user. |
+
+`flood:startup`, `runtime:<ruleId>`, `matcher:<id>`, `policy:deny` and `prompt:<ruleId>` no longer occur: they came from the rate engine kernl ran before [D-050](../decisions.md#d-050).
 
 ## Revocation reasons
 
-`KernlHost.onRevoked(windowId, reason)` receives kehto's revocation reasons (`window-message`, `second-hello`, `invalid-hello`, `second-load`, `port-closed`, `deferred-overflow`, `host`) or `quarantine` when the guard quarantined the window. See [Architecture](../concepts/architecture.md#the-mount-path).
+`KernlHost.onRevoked(windowId, reason)` receives kehto's revocation reasons (`window-message`, `second-hello`, `invalid-hello`, `second-load`, `port-closed`, `deferred-overflow`, `host`), `quarantine` when the guard quarantined the window, `grant-narrowed` or `blocked` when the user took back a grant the window was started with or blocked the applet ([D-038](../decisions.md#d-038)), or `firewall` when a firewall answer or rule the window ran under was taken back or tightened ([D-050](../decisions.md#d-050)). See [Architecture](../concepts/architecture.md#the-mount-path).
 
 ## Related
 

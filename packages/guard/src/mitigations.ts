@@ -103,7 +103,7 @@ export function describeMitigations(config: GuardConfig): readonly MitigationDes
       'firewall',
       'both',
       'The firewall decides what an applet may ask for',
-      'Every request passes the firewall’s rules. What you granted is allowed; opening a link asks you each time. Change the rules in the firewall panel.',
+      'Every request passes the firewall’s rules. They start by allowing what you granted and asking about each link. Change them in the firewall panel.',
     ),
     mitigation(
       'device-denial',

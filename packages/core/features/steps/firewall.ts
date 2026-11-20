@@ -148,6 +148,10 @@ Then('the firewall holds no answers the person gave', (world: CoreWorld) => {
   expect(decisions(world).filter((decision) => !decision.byRule)).toEqual([]);
 });
 
+Then(/^the firewall is (not )?available$/, (world: CoreWorld, not: string | null | undefined) => {
+  expect(k(world).kernl.firewall.available).toBe(!not);
+});
+
 Then('the firewall holds no answers at all', (world: CoreWorld) => {
   expect(decisions(world)).toEqual([]);
 });

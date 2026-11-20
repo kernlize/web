@@ -43,5 +43,5 @@ Then('the preview kernl firewall keeps its rules, holds no answers and has none 
   const told: unknown[] = [];
   firewall.decisions$.subscribe((decisions) => told.push(decisions)).unsubscribe();
   expect([firewall.decisions(), ...told]).toEqual([[], []]);
-  expect([firewall.forget('any'), firewall.forgetAll()]).toEqual([true, true]);
+  expect([firewall.forget('any'), firewall.forgetAll(), firewall.available]).toEqual([true, true, true]);
 });

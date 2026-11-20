@@ -200,6 +200,11 @@ Feature: The firewall
     When the shell starts planning the applet
     Then planning failed with "unavailable:firewall"
     And the host was told "Firewall: stored answers"
+    And the firewall is not available
+    When the person takes every firewall answer back
+    Then the firewall is available
+    When the shell starts planning the applet
+    Then the plan is ready and offers "relay"
 
   Scenario Outline: the rules decide a request by its strictest requirement
     Given firewall rules over the host storage with '<rules>'

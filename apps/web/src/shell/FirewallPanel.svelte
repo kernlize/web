@@ -26,6 +26,11 @@
   const NOT_LISTED = ['shell', 'link'];
   const domains = $derived(kernl.grants.availableDomains().filter((domain) => !NOT_LISTED.includes(domain)));
   const running = $derived(windows.windows.filter((win) => win.status !== 'revoked'));
+  // Read again whenever the answers change: clearing a damaged store makes the firewall usable.
+  const usable = $derived.by(() => {
+    void decisions.value;
+    return firewall.available;
+  });
   const given = $derived(decisions.value.filter((decision) => !decision.byRule));
   const titleOf = (hash: string): string => windows.windows.find((win) => win.plan.summary.identity.hash === hash)?.plan.summary.title ?? 'An applet that is not open';
 
@@ -119,9 +124,12 @@
     {:else}
       <p class="shell-muted">None. Link answers are not kept.</p>
     {/if}
-    <div class="shell-actions">
-      <button type="button" class="shell-button" onclick={clearAnswers}>Clear all answers</button>
-    </div>
+    {#if !usable}
+      <p class="shell-error" role="alert">Stored answers are unreadable, so applets cannot start.</p>
+      <div class="shell-actions">
+        <button type="button" class="shell-button" onclick={clearAnswers}>Clear stored answers</button>
+      </div>
+    {/if}
   </section>
 </Overlay>
 
@@ -137,7 +145,7 @@
 
   .rule {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 13rem);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 15rem);
     gap: 0.5rem 1rem;
     align-items: center;
     padding: 0.6rem 0;
@@ -179,6 +187,11 @@
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
+  }
+
+  .answer button {
+    flex: none;
+    white-space: nowrap;
   }
 
   .answer p {

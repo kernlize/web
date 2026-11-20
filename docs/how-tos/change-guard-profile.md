@@ -6,7 +6,7 @@ The hosted shell boots in `strict`. In this draft a user can switch the whole sh
 
 1. Open the guard panel from the desktop bar (*Guard · strict · N*).
 2. Under *Profile*, pick `balanced` or `relaxed`. The list of mitigations updates to show the new limit for each one. The CSP does not change; it never does.
-3. The change calls `kernl.guard.setProfile(profile)`. kernl's own counting layers switch to the new limits at once: the ingress guard, visibility gate and focus firewall are rebuilt from the new profile, their counters restart and the window-level messages they held are dropped. kehto's runtime firewall follows too: kernl reinstalls the new rates for every open window and sets the profile's unfocused multiplier and startup burst ([D-020](../decisions.md#d-020)). Requests a hidden window holds stay held. The choice is not persisted: a reload starts in `strict` again.
+3. The change calls `kernl.guard.setProfile(profile)`. kernl's own counting layers switch to the new limits at once: the ingress guard, visibility gate and focus-aware rate limiter are rebuilt from the new profile, their counters restart and the window-level messages they held are dropped. kehto's runtime follows too: the rate limiter kernl hands it reads the profile on every charge, so the new budgets apply to the next request and its counters carry over ([D-050](../decisions.md#d-050)). Requests a hidden window holds stay held. The choice is not persisted: a reload starts in `strict` again.
 
 A quarantined applet stays closed whatever the profile: its binding was revoked and its frame removed when it was quarantined. Its window's grants panel offers **Release from quarantine**, which clears kernl's quarantine record for that window (`kernl.guard.release(windowId)`) and the panel's marker; it does not bring the frame back. To run the applet again, open it again: a new window starts with a fresh budget.
 
@@ -18,7 +18,7 @@ A profile is a `GuardConfig` from `createGuardConfig(profile)`. The three guard 
 
 ```ts
 import {
-  createFocusFirewall,
+  createFocusRateLimiter,
   createGuardConfig,
   createIngressGuard,
   createVisibilityGate,
@@ -32,26 +32,26 @@ function guardFor(profile: GuardProfile, onEvent: (event: GuardEvent) => void) {
     config,
     ingress: createIngressGuard({ config, onEvent }),
     gate: createVisibilityGate({ config, onEvent }),
-    firewall: createFocusFirewall({ config, onEvent }),
+    rateLimiter: createFocusRateLimiter({ config, onEvent }),
   };
 }
 ```
 
 `now` defaults to `Date.now` in all three; inject it in tests. Switching a mounted window from one profile to another means, at the guard level:
 
-1. Build the three layers from the new config. The layers hold no reference to the profile, so there is no in-place update; the old `IngressGuard`, `VisibilityGate` and `FocusFirewall` are replaced.
+1. Build the three layers from the new config. The layers hold no reference to the profile, so there is no in-place update; the old `IngressGuard`, `VisibilityGate` and `FocusRateLimiter` are replaced.
 2. Drain what the old gate and old ingress guard still hold (`drain(windowId)`) and admit it through the new layers, so nothing queued is lost.
 3. Call `release(windowId)` on the old ingress guard, or simply drop it: quarantine lives in the guard instance and does not survive the swap.
-4. If the shell also runs kehto's runtime firewall, hand it the new limits: `setUnfocusedMultiplier` and `setBurstGuard` from `config.firewall`, and the per-applet rates, which are not in a fresh config; `applyNappletRules(config, dTag)` adds them, and the focus firewall does this itself on first observation.
+4. If the shell also hands kehto's runtime a rate limiter, make it read the new `config.rateLimits`. One that reads the configuration on every charge, as `createRuntimeRateLimiter(() => config)` in `@kernlize/core` does, needs nothing more.
 
-`@kernlize/core` does this inside `createGuardPipeline`: `GuardFacade.setProfile(profile)` rebuilds the three layers from `createGuardConfig(profile)`, clears what they held, re-applies the known visibility of every window and emits on `profile$`; `GuardFacade.release(windowId)` clears a quarantine record on its own, which does not bring back a frame that was already removed. `createKernl` follows `profile$`: `applyRuntimeFirewallProfile` sets the runtime's unfocused multiplier and startup burst, and `applyRuntimeFirewallRules` reinstalls the rates of every open window. Applets mounted later get the rates at mount. The [core page](../packages/core.md#the-kernl-surface) documents that surface.
+`@kernlize/core` does this inside `createGuardPipeline`: `GuardFacade.setProfile(profile)` rebuilds the three layers from `createGuardConfig(profile)`, clears what they held, re-applies the known visibility of every window and emits on `profile$`; `GuardFacade.release(windowId)` clears a quarantine record on its own, which does not bring back a frame that was already removed. The runtime's limiter is `createRuntimeRateLimiter(() => pipeline.config)`, so it needs no step of its own. The [core page](../packages/core.md#the-kernl-surface) documents that surface.
 
 ## What a profile cannot change
 
 - The Content Security Policy. `createAppletCsp(profile)` returns the same policy for every profile; see [why](../concepts/guard.md#why-csp-never-loosens) and `csp.feature`, scenario "the relaxed profile does not loosen the CSP".
 - The sandbox, the frame lock and consent. `planMount` passes the profile only to `createAppletCsp`; `sandbox="allow-scripts"`, the nested-frame lock and the destructive-signing gate never read it.
-- Whether a mitigation is enabled. Every profile enables all eleven; `describeMitigations(config)` only changes the `limit` text.
-- Grants. A profile is about rate, not authority. [Grant and revoke](./grant-and-revoke.md) covers authority.
+- Whether a mitigation is enabled. Every profile enables all twelve; `describeMitigations(config)` only changes the `limit` text.
+- Grants and the firewall's rules. A profile is about rate, not authority. [Grant and revoke](./grant-and-revoke.md) covers authority, and [Change the firewall rules](./change-firewall-rules.md) covers what goes ahead without asking.
 
 ## What a profile changes
 

@@ -68,6 +68,7 @@ export const sidebar = [
     items: [
       { text: 'How-to index', link: '/how-tos/' },
       { text: 'Change the guard profile', link: '/how-tos/change-guard-profile' },
+      { text: 'Change the firewall rules', link: '/how-tos/change-firewall-rules' },
       { text: 'Add a messaging provider', link: '/how-tos/add-a-messaging-provider' },
       { text: 'Add a bridge backend', link: '/how-tos/add-a-bridge-backend' },
       { text: 'Add a cache backend', link: '/how-tos/add-a-cache-backend' },

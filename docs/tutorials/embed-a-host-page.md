@@ -171,7 +171,7 @@ async function open(pubkey: string, address: string): Promise<void> {
 }
 ```
 
-`resolve` verifies the manifest's signature and hashes the applet's code before anything runs; a failure is a stable reason such as `invalid:pointer` or `unavailable:manifest` ([Error reasons](../reference/errors.md)). `plan` writes the applet's grants explicitly, so it sees only the baseline domains until you allow more. `mount` sets the frame's `sandbox` attribute to exactly `allow-scripts`, registers the window, and only then assigns the verified `srcdoc`. Do not set `src`, `sandbox` or `srcdoc` yourself.
+`resolve` verifies the manifest's signature and hashes the applet's code before anything runs; a failure is a stable reason such as `invalid:pointer` or `unavailable:manifest` ([Error reasons](../reference/errors.md)). `plan` writes the applet's grants explicitly, so it sees only the baseline domains until you allow more. It also has kehto's firewall admit the start, which under kernl's shipped rules asks nothing ([Guard](../concepts/guard.md#the-firewall)). `mount` sets the frame's `sandbox` attribute to exactly `allow-scripts`, registers the window, and only then assigns the verified `srcdoc`. Do not set `src`, `sandbox` or `srcdoc` yourself.
 
 **Checkpoint.** Paste any public key (64 hex characters) and an applet address, then click **Open**. The address below is a puzzle game published by a third party on napplet.run, not by kernl; it needs no grants:
 
@@ -201,9 +201,10 @@ document.addEventListener('visibilitychange', () => {
 
 ## What you built
 
-A page that is a complete kernl host: it verifies an applet before running it, runs it in a frame with no network of its own, keeps the guard informed, and stops the applet when the guard quarantines it. Two things this page leaves out on purpose:
+A page that is a complete kernl host: it verifies an applet before running it, runs it in a frame with no network of its own, keeps the guard informed, and stops the applet when the guard quarantines it. Three things this page leaves out on purpose:
 
 - **Signing.** A read-only account cannot sign, so the consent prompt never appears. With a signing account, an applet that tries to change your profile, follows, connections or lists, or to delete something, reaches `presentConsent` first, and a "no" fails the write with `denied:consent`.
+- **Firewall questions.** The host has no `presentApproval`, so a request a firewall rule says to ask about is refused. With kernl's shipped rules that is every link an applet opens, which needs the `link` grant this page never gives. [Embed kernl core](../how-tos/embed-kernl-core.md#_2-implement-kernlhost-and-create-the-shell) adds it.
 - **Grants.** The page never calls `kernl.grants.allowDomain`, so applets get only the baseline (`shell`, `inc`, `theme`, `storage`) and are not told who is signed in. [Grant and revoke](../how-tos/grant-and-revoke.md) shows the calls.
 
 ## Where next

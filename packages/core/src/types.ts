@@ -254,6 +254,8 @@ export interface Firewall {
    */
   setRule(target: FirewallRuleTarget, action: PermissionRuleAction | undefined): void;
   restoreDefaults(): void;
+  /** False when the stored answers could not be read: every applet is refused until `forgetAll()` clears them. */
+  readonly available: boolean;
   /** Answers in force, the person's and the rules'. */
   decisions(): readonly FirewallDecision[];
   /** Emits whenever an answer is given, used up or taken back. */
