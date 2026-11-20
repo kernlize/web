@@ -154,6 +154,8 @@ The window-level `hello` is the one message kernl can hold or drop before kehto 
 
 **Reversal cost.** Low; the pipeline sits behind `createGuardPipeline` and shrinks when kehto exposes a hook that can hold or drop an envelope. `refuseCurrentDispatch` goes when kehto offers that hook and its runtime can measure the envelopes and focus it cannot see today.
 
+**Superseded in part by D-056.** The runtime firewall this entry describes is kehto's rate limiter now, and kehto's firewall is an approval authority that kernl configures.
+
 **Superseded in part by D-020.** kehto now offers that hook. Port traffic is decided by `ShellAdapter.filterNappletMessage`: what kernl's guard will not let through is dropped rather than refused, a hidden window's requests are held and released when it is visible, and `refuseCurrentDispatch` is deleted. The runtime firewall now applies the unfocused multiplier and reports its refusals to the guard log. The size, burst, focus and quarantine layers described above remain kernl's.
 
 ## D-013 · The site is served at a domain root
@@ -287,6 +289,8 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Reversal cost.** Low. The decisions sit behind `GuardPipeline.observe` and `createShellAdapter`; the runtime firewall calls sit in one module.
 
 **Superseded in part by D-037.** #336 shipped. kernl now constructs the runtime firewall from `@kehto/rate-limit/legacy` and passes it as `legacyFirewall`; `firewallPersistence` is gone, and the move to `permissions` is still to come.
+
+**Superseded in part by D-056.** kernl configures `permissions`. The legacy gate, `legacyFirewall`, `onFirewallEvent`, `runtime-rules.ts` and `kernl:firewall:v1` are gone; the runtime charges through `permissions.rateLimiter`, and the focus firewall is the focus rate limiter. What kernl puts in front of kehto is unchanged.
 
 ## D-021 · Registry scopes are explicit; package versions have one authority
 
@@ -567,6 +571,8 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Consequences.** Each runtime logs `FW-RUNTIME-LEGACY-GATE-001` once, and each service its `FW-*-LEGACY-001` warning, until `permissions` is configured. A publish whose plan is empty is refused rather than sent nowhere. A refused relay is now dialled twice in total per round, by applesauce, rather than in two rounds by kernl.
 
 **Reversal cost.** Low. The firewall calls stay in `runtime-rules.ts`; the relay planner and stable signers are one function each.
+
+**Superseded in part by D-056.** The stopgap is over: kernl configures `permissions`, and the `FW-*-LEGACY-001` warnings no longer appear.
 
 ## D-038 · Narrowing a running applet's grant stops its window
 
@@ -851,6 +857,26 @@ This amends D-006 and D-031 for the shell only.
 **Consequences.** Applets whose assets sit beside their artifact load them. A reference to a blob on a server nobody named is `not-found`. The loose `blossom:sha256:` form is accepted though BUD-10 does not define it; it is recorded next to the parser. Payloads larger than about 2 MB still fail inside kehto's prelude, whose canonical-base64 pattern exhausts the stack (kehto/web#473), until kernl takes a kehto release with that fix. A host that passes its own `bridges` gets no Blossom bridge unless it registers one.
 
 **Reversal cost.** Low. One bridge, one registry option and one error mapping.
+
+## D-056 · kehto's firewall decides every request, under rules that ask only about links
+
+**Context.** kehto's firewall became an approval authority (`@kehto/firewall` 0.9 to 0.10): scoped grants per applet and artifact, with a lifetime of once, a session, or kept. A host that sets `permissions` has every applet admitted before its code runs, and every request a service carries out put to the firewall, which prompts when nothing covers it. The temporal engine it used to be is `@kehto/rate-limit`, which a host installs itself. D-037 left kernl on the legacy rate gate, which kehto retains for one more minor release. A host that sets `permissions` with no rules asks the person about every domain at start and every destination afterwards.
+
+**Decision.**
+
+- **kernl configures `permissions`.** `createFirewallPermissions` is the host side: time, cancellation, the question, stored answers under `kernl:firewall-decisions:v1`, and the rules as `defaultDecision`. Every applet's session carries a verified principal, its catalogue id and artifact hash, from the manifest kernl verified.
+- **The rules ask only about links.** `defaultFirewallRules` allows everything and asks about `link.open`. The grants layer already decided which domains an applet holds, and the ACL stays restrictive, which under `permissions` is a ceiling no answer exceeds; asking again for each domain would bury the one question no grant describes. A link leaves the shell, so it asks every time: the question offers only "open" and "don't open", and nothing is kept. NAP-LINK leaves prompting to shell policy.
+- **The person can change the rules.** `kernl.firewall.setRule` sets allow, ask or deny for everything, a domain or one request, for every applet or one, kept under `kernl:firewall-rules:v1`. Rules follow an applet across versions; answers stay tied to the exact code. A damaged rules document falls back to the shipped rules, and damaged answers refuse every start until cleared.
+- **Admission happens in `plan`.** `kernl.plan` opens the session, asks the firewall for every domain the grants leave the applet, and narrows the plan's environment to what was admitted, so no code runs with a domain the firewall refused. Required domains refuse the start when refused (`denied:firewall`); others are left out. `mount` checks the admission still stands (`denied:admission-expired`). At most 16 plans may wait unmounted.
+- **Taking an answer back stops the window.** kehto ends the work an answer covered; kernl removes the frame, with reason `firewall`, as it does for a narrowed grant (D-038). Tightening a rule takes back the answers the old rule gave.
+- **Rate limiting is `@kehto/rate-limit`, twice.** `@kernlize/guard`'s focus firewall is `createFocusRateLimiter` over `evaluateRateLimit`, one budget per operation class. `createRuntimeRateLimiter` hands the same budgets to the runtime as `permissions.rateLimiter`, and `onRateLimit` feeds the guard log. Questions have kehto's suggested budget, twelve a minute (`flood:prompts`). The legacy subpath, `legacyFirewall`, `onFirewallEvent` and `kernl:firewall:v1` are gone.
+- **The services meet kehto's planning contracts.** Messages and social actions plan onto the shell's relay tiers as bare origins, since the applet never chooses them. The uploader plans the first file server. The planned outbox publish keeps the any-relay policy (D-028). A download's first origin is put to the firewall. The host's link opener is told a link was already approved, so the person is not asked twice.
+
+**What changed for kernl's own layers.** Nothing in front of kehto moved: the ingress guard, the visibility gate and the rate limiter still judge every envelope in `filterNappletMessage`. The limiter no longer carries policies or content matchers; size caps were already the ingress guard's. The runtime has no startup burst: kernl's ingress guard counts every second, and the runtime's first second would start at plan time.
+
+**Consequences.** A window kehto was handed without `kernl.plan` gets no answer at all, where it used to be served as the shell's own. A refused rate at the runtime reads `rate limit exceeded`, not `firewall:`; the Messages applet retries on either. A `dm` request over the runtime's budget reads `forbidden`, as a refusal does, because kehto's service does not tell the two apart; kernl's own limiter, in front, normally drops it first, which the applet retries. A firewall question times out after ten minutes, not kehto's one. A download is charged once at the runtime, though kehto names two operations for it. Gaps recorded next to the code: the bridge registry follows redirects under its own policy, so only a download's first origin reaches the firewall; the relay plan for messages names every tier, not the recipient's inboxes; mirrors of an upload are not in its plan. `@kernlize/guard` drops `createFocusFirewall`, `applyNappletRules` and `GuardConfig.firewall`; `@kernlize/core` drops the `runtime-rules` exports and adds `Kernl.firewall` and `KernlHost.presentApproval`. Both are minor releases on 0.x.
+
+**Reversal cost.** Medium. The firewall sits behind `createFirewallPermissions`, `createAppletAdmissions` and `createFirewall`; removing `permissions` from the adapter would need the legacy gate back, which kehto is dropping.
 
 ## D-057 · A grant shows its contract beside its plain words
 

@@ -2,13 +2,13 @@ import { BehaviorSubject, type Observable } from 'rxjs';
 import type { NappletMessageDecision } from '@kehto/shell';
 import {
   classifyEnvelope,
-  createFocusFirewall,
+  createFocusRateLimiter,
   createGuardConfig,
   createIngressGuard,
   createVisibilityGate,
   estimateEnvelopeSize,
   type AdmitOptions,
-  type FocusFirewall,
+  type FocusRateLimiter,
   type GuardConfig,
   type GuardDisposition,
   type GuardEnvelope,
@@ -72,7 +72,7 @@ export interface GuardPipeline {
    * window in its first second until that second is over (D-054). `drop` discards an envelope over its
    * size cap, a forwarded key that is a held key's repeat or comes from a
    * window that is not focused (D-054), a burst above the per-second rate, a request over the
-   * focus-aware firewall's budget, a hidden window's envelope past the defer
+   * focus-aware rate limiter's budget, a hidden window's envelope past the defer
    * queue, and the envelope that triggers a quarantine. Control envelopes are
    * dispatched unless the window is quarantined.
    */
@@ -91,7 +91,7 @@ export interface GuardPipeline {
 interface Layers {
   ingress: IngressGuard;
   gate: VisibilityGate;
-  firewall: FocusFirewall;
+  rateLimiter: FocusRateLimiter;
 }
 
 function toEnvelope(data: unknown): GuardEnvelope {
@@ -118,19 +118,19 @@ type HoldPort = (port: PortEnvelope, opClass: OpClass) => NappletMessageDecision
 /**
  * What the pipeline answers for a port envelope once the ingress guard has
  * admitted it. Control envelopes are dispatched; a hidden window's other
- * envelopes are held; the rest go to the firewall.
+ * envelopes are held; the rest go to the rate limiter.
  */
-function judgePort(port: PortEnvelope, admitted: GuardDisposition, firewall: FocusFirewall, hold: HoldPort): NappletMessageDecision {
+function judgePort(port: PortEnvelope, admitted: GuardDisposition, rateLimiter: FocusRateLimiter, hold: HoldPort): NappletMessageDecision {
   const { windowId, napplet, envelope, visibility } = port;
   if (admitted === 'quarantine') return 'drop';
   const opClass = classifyEnvelope(envelope);
   if (opClass === 'control') {
-    if (admitted === 'pass') firewall.observe(windowId, napplet, envelope, visibility);
+    if (admitted === 'pass') rateLimiter.observe(windowId, napplet, envelope, visibility);
     return 'dispatch';
   }
   if (admitted !== 'pass') return 'drop';
   if (!visibility.visible) return hold(port, opClass);
-  return firewall.observe(windowId, napplet, envelope, visibility).decision === 'pass' ? 'dispatch' : 'drop';
+  return rateLimiter.observe(windowId, napplet, envelope, visibility).decision === 'pass' ? 'dispatch' : 'drop';
 }
 
 function push(queue: Map<string, Pending[]>, windowId: string, pending: Pending): void {
@@ -145,10 +145,18 @@ function take(queue: Map<string, Pending[]>, windowId: string, count: number): P
 }
 
 /**
+ * How long a window's keymap waits after the window starts: its first second
+ * (D-054). The wait was the legacy rate gate's startup window, which kehto's
+ * runtime no longer has under the firewall (D-056); one second is what that
+ * window was in every profile, and what the keymap is held for still.
+ */
+const KEYMAP_HOLD_MS = 1000;
+
+/**
  * What the pipeline does with shortcut traffic before the guard counts anything
  * (D-054). A held key is the person's typing, not the applet's traffic, so its
  * repeats are dropped; an applet's keymap arrives as it starts, so it waits out
- * the runtime's startup window.
+ * the window's first second.
  */
 function createKeyTraffic(startupMs: () => number, release: (windowId: string) => void) {
   const forwarded = createForwardedKeys();
@@ -168,7 +176,7 @@ function createKeyTraffic(startupMs: () => number, release: (windowId: string) =
 
 /**
  * Compose the guard: ingress flood control, then the visibility gate, then the
- * focus-aware firewall, then kehto's bridge.
+ * focus-aware rate limiter, then kehto's bridge.
  *
  * What is enforced where (D-020): kehto binds NAP traffic to a `MessagePort`
  * the bridge owns. Window-level messages, of which only `napplet.hello` is
@@ -177,9 +185,9 @@ function createKeyTraffic(startupMs: () => number, release: (windowId: string) =
  * kehto follows: dispatch, hold until `releaseDeferred`, or drop. Hidden
  * windows' envelopes are held and `onRelease` is called when the window is
  * visible again. Quarantine revokes the window inside the filter, and kehto
- * discards what it held. The runtime firewall configured by
- * `applyRuntimeFirewallRules` adds the profile's per-class rates to every
- * envelope it dispatches, held ones included.
+ * discards what it held. kehto's runtime then charges what it
+ * carries out against the same budgets (`createRuntimeRateLimiter`), held
+ * envelopes included, and puts each request to the firewall.
  *
  * @param options - Configuration, clock, event sink and quarantine callback.
  * @returns The pipeline.
@@ -198,7 +206,7 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
   const heldByGate = new Map<string, Pending[]>();
   const handOn = (windowId: string): void => options.onRelease?.(windowId);
   // A hidden window's envelopes stay held; becoming visible hands them on with the keymap.
-  const keys = createKeyTraffic(() => config.firewall.burstGuard.windowMs, (windowId) => visibilityOf(windowId).visible && handOn(windowId));
+  const keys = createKeyTraffic(() => KEYMAP_HOLD_MS, (windowId) => visibilityOf(windowId).visible && handOn(windowId));
   const layerOptions = () => ({
     config,
     ...(options.now ? { now: options.now } : {}),
@@ -209,7 +217,7 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
   const buildLayers = (): Layers => ({
     ingress: createIngressGuard(layerOptions()),
     gate: createVisibilityGate({ ...layerOptions(), nappletFor: () => deferring }),
-    firewall: createFocusFirewall(layerOptions()),
+    rateLimiter: createFocusRateLimiter(layerOptions()),
   });
   let layers = buildLayers();
 
@@ -230,11 +238,11 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
       push(heldByGate, windowId, pending);
       return 'defer';
     }
-    return pastFirewall(windowId, pending);
+    return pastRateLimiter(windowId, pending);
   }
 
-  function pastFirewall(windowId: string, pending: Pending): GuardDisposition {
-    const result = layers.firewall.observe(windowId, pending.napplet, pending.envelope, visibilityOf(windowId));
+  function pastRateLimiter(windowId: string, pending: Pending): GuardDisposition {
+    const result = layers.rateLimiter.observe(windowId, pending.napplet, pending.envelope, visibilityOf(windowId));
     if (result.decision !== 'pass') return 'reject';
     pending.forward(pending.event);
     return 'pass';
@@ -258,7 +266,7 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
     const released = layers.ingress.drain(windowId).length;
     for (const pending of take(heldByIngress, windowId, released)) pastGate(windowId, pending);
     const visible = layers.gate.drain(windowId).length;
-    for (const pending of take(heldByGate, windowId, visible)) pastFirewall(windowId, pending);
+    for (const pending of take(heldByGate, windowId, visible)) pastRateLimiter(windowId, pending);
   }
 
   return {
@@ -292,7 +300,7 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
       if (shortcut) return shortcut;
       const envelope = toEnvelope(message);
       const port: PortEnvelope = { windowId, napplet, envelope, visibility };
-      return judgePort(port, admit(windowId, napplet, envelope, { hold: false }), layers.firewall, holdPort);
+      return judgePort(port, admit(windowId, napplet, envelope, { hold: false }), layers.rateLimiter, holdPort);
     },
     setVisibility(windowId, visibility) {
       known.set(windowId, visibility);
@@ -308,7 +316,7 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
     forget(windowId) {
       layers.ingress.forget(windowId);
       layers.gate.forget(windowId);
-      layers.firewall.forget(windowId);
+      layers.rateLimiter.forget(windowId);
       keys.forget(windowId);
       heldByIngress.delete(windowId);
       heldByGate.delete(windowId);

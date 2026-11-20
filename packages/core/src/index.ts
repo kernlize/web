@@ -95,7 +95,7 @@ export {
   type ResolveAppletOptions,
   type ResolvedApplet,
 } from './applets/resolve.js';
-export { planMount, type PlanMountOptions } from './applets/plan.js';
+export { planMount, resolveAppletEnvironment, type PlanMountOptions } from './applets/plan.js';
 export { CONTROLLER_DENY_POLICY, mountApplet, type MountDeps, type MountGuardHooks, type MountedApplet } from './applets/mount.js';
 
 export {
@@ -105,20 +105,18 @@ export {
   type PipelineDisposition,
   type WindowResolution,
 } from './guard/pipeline.js';
+export { createRuntimeRateLimiter, runtimeOpClass, toGuardEvent } from './guard/runtime-rate-limit.js';
+export { FIREWALL_RULES_STORAGE_KEY, createFirewallRules, defaultFirewallRules, type FirewallRules } from './firewall/rules.js';
+export { answerFor, describeApproval } from './firewall/describe.js';
 export {
-  RUNTIME_FIREWALL_STORAGE_KEY,
-  RUNTIME_OP_CLASSES,
-  applyRuntimeFirewallProfile,
-  applyRuntimeFirewallRules,
-  createRuntimeFirewallHooks,
-  runtimeFirewallRules,
-  toGuardEvent,
-  type RuntimeFirewallHooks,
-  type RuntimeFirewallHooksOptions,
-  type RuntimeFirewallRules,
-  type RuntimeFirewallState,
-  type RuntimeRateRule,
-} from './guard/runtime-rules.js';
+  FIREWALL_DECISIONS_STORAGE_KEY,
+  FIREWALL_PROMPT_TIMEOUT_MS,
+  createFirewallPermissions,
+  permissionPrincipalFor,
+  type FirewallPermissionsOptions,
+} from './firewall/permissions.js';
+export { MAX_UNMOUNTED_PLANS, createAppletAdmissions, type AdmissionRuntime, type AppletAdmissions } from './firewall/admission.js';
+export { createFirewall, type FirewallOptions, type KernlFirewall } from './firewall/firewall.js';
 
 export { BASELINE_DOMAINS, DOMAIN_CAPABILITIES, capabilitiesForDomain, capabilitiesForDomains } from './grants/domain-capabilities.js';
 export { createEnvironmentResolver, createGrants, type GrantsOptions, type KernlGrants } from './grants/grants.js';
@@ -221,12 +219,12 @@ export { createMultiplayerSettings, validFamily, type MultiplayerSettings, type 
 export { discoverToolFamilies, TOOL_DISCOVERY_TIMEOUT_MS, type ToolDiscoveryOptions, type ToolFamilyCandidate } from './multiplayer/tool-discovery.js';
 export { createDirectConnectionsService, describeDirectConnection, directNamespace, type DirectConnectionsOptions } from './multiplayer/direct-connections.js';
 export { createDirectSignaling, DIRECT_MAX_PAYLOAD_BYTES, DIRECT_SIGNAL_KIND, DIRECT_SIGNALING_PROFILE, type DirectSignalingOptions, type SignalRelay, type SignalSigner } from './multiplayer/direct-signaling.js';
-export { LINK_PROTOCOLS, createKernlServices, isTheme, resourceErrorFor, resourceInitFor, type DirectConnectionsDeps, type KernlServiceDeps, type KernlServices } from './kernl-services.js';
+export { LINK_PROTOCOLS, acceptAnyRelay, createKernlServices, fetchThroughFirewall, isTheme, resourceErrorFor, resourceInitFor, shellRelayOrigins, type DirectConnectionsDeps, type KernlServiceDeps, type KernlServices } from './kernl-services.js';
 export { createShellAdapter, type ShellAdapterDeps } from './kernl-adapter.js';
 export { createAppletLifecycle, grantNarrowingReason, resolveWindow, type AppletLifecycle, type LifecycleContext } from './kernl-lifecycle.js';
 export { createKernl, toSession } from './kernl.js';
 export { PERSON_HINT_TIMEOUT_MS, createPeople, parsePerson, type People, type PeopleOptions, type PersonPointer } from './people/person.js';
-export { locateRecipients } from './people/locate-recipients.js';
+export { locateRecipients, locateSendRecipients } from './people/locate-recipients.js';
 export { createProfiles, toProfileCard, type ProfileCard, type ProfileLoader, type ProfilePointer, type Profiles, type ProfilesOptions } from './profiles/profiles.js';
 export { addressOf, newestEntries, toCatalogEntry, type CatalogEntry } from './catalog/entry.js';
 export { CATALOG_EMIT_MS, CATALOG_LIMIT, CATALOG_SETTLE_MS, CATALOG_TIMEOUT_MS, catalogRelays, loadCatalog, streamCatalog, type LoadCatalogOptions } from './catalog/fetch.js';

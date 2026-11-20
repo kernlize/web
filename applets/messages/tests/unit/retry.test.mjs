@@ -60,6 +60,8 @@ test('recognises a refused or dropped request, and nothing else', () => {
   assert.equal(wasDropped(new Error('firewall:rate-limited')), true);
   assert.equal(wasDropped(new Error('dm.status timed out')), true);
   assert.equal(wasDropped('firewall:burst'), true);
+  assert.equal(wasDropped(new Error('rate limit exceeded')), true);
+  assert.equal(wasDropped(new Error('forbidden')), false);
   assert.equal(wasDropped(new Error('not signed in')), false);
   assert.equal(wasDropped(new Error('denied:firewall:x')), false);
   assert.equal(wasDropped(undefined), false);

@@ -1,12 +1,11 @@
 import type { AccountManager } from 'applesauce-accounts';
 import { verifyEvent } from 'applesauce-core/helpers';
 import type { CapabilityHooks, NappletRevocation, ShellAdapter, UnroutedMessageInfo } from '@kehto/shell';
-import type { ServiceRegistry } from '@kehto/runtime';
+import type { PermissionAdapter, ServiceRegistry } from '@kehto/runtime';
 import type { RelayTier, RelayTiers } from './types.js';
 import { createAuthHooks } from './applesauce/auth-hooks.js';
 import type { SigningConsent } from './consent/handler.js';
 import { createRelayPoolHooks, type ApplesaucePool } from './applesauce/relay-hooks.js';
-import type { RuntimeFirewallHooks } from './guard/runtime-rules.js';
 import type { ShortcutKey } from './keys/shortcuts.js';
 
 const TIERS: readonly string[] = ['discovery', 'apps', 'outbox', 'super'];
@@ -25,8 +24,8 @@ export interface ShellAdapterDeps {
   readonly filterNappletMessage: NonNullable<ShellAdapter['filterNappletMessage']>;
   /** Whether a window has focus, as the shell's window manager reports it. */
   readonly getFocusContext: (windowId: string) => { focused: boolean };
-  /** The runtime firewall's persistence and event sink; see `createRuntimeFirewallHooks`. */
-  readonly runtimeFirewall: RuntimeFirewallHooks;
+  /** The firewall's host side: rules, questions, stored answers and the runtime's rate limiter; see `createFirewallPermissions`. */
+  readonly permissions: PermissionAdapter;
   readonly onUnroutedMessage?: (info: UnroutedMessageInfo) => void;
   /** Takes a key an applet had no shortcut for, so the shell's own shortcuts work while an applet has focus (D-054). */
   readonly onShortcut?: (key: ShortcutKey) => void;
@@ -48,8 +47,10 @@ function isTier(tier: string): tier is RelayTier {
  * event source; every signature made for an applet window passes the consent
  * gate; update behaviour is `banner`; event signatures are verified by
  * applesauce; every applet's environment is narrowed by the grants layer; the
- * ACL is restrictive, so an applet holds only what the grants layer wrote; and
- * every port envelope passes kernl's guard before the runtime sees it.
+ * ACL is restrictive, so an applet holds only what the grants layer wrote, and
+ * under `permissions` that is a ceiling no firewall answer can exceed; every
+ * request is decided by the firewall; and every port envelope passes kernl's
+ * guard before the runtime sees it.
  *
  * @param deps - Pool, tiers, accounts, services and the shell's hooks.
  * @returns The adapter for `createShellBridge`.
@@ -93,7 +94,7 @@ export function createShellAdapter(deps: ShellAdapterDeps): ShellAdapter {
     onNappletRevoked: deps.onNappletRevoked,
     filterNappletMessage: deps.filterNappletMessage,
     getFocusContext: deps.getFocusContext,
-    ...deps.runtimeFirewall,
+    permissions: deps.permissions,
     aclDefaultPolicy: 'restrictive',
     ...(deps.onUnroutedMessage ? { onUnroutedMessage: deps.onUnroutedMessage } : {}),
   };

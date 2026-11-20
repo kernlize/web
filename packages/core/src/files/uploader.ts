@@ -28,7 +28,7 @@ export type MultiServerUpload = (
 export interface BlossomUploaderOptions {
   /** The servers this upload goes to, in order. */
   readonly servers: () => Promise<readonly string[]>;
-  readonly signer: () => Pick<ISigner, 'signEvent'> | undefined;
+  readonly signer: () => Pick<ISigner, 'signEvent' | 'getPublicKey'> | undefined;
   /** Asks the person; resolves true only when they allow it. Called once per upload, before anything is signed or sent. */
   readonly ask: (windowId: string, details: UploadDetails) => Promise<boolean>;
   /** The transfer; hzrd149's `Actions.multiServerUpload` by default. */
@@ -157,6 +157,15 @@ function completed(uploadId: string, stored: readonly BlobDescriptor[], mimeType
 export function createBlossomUploader(options: BlossomUploaderOptions): Uploader {
   const transfer: MultiServerUpload = options.transfer ?? Actions.multiServerUpload;
   return {
+    // Under the firewall kehto has the destination approved before any byte leaves. The plan names the
+    // first file server, where the file goes first; the mirrors are the person's own list (D-033).
+    async planUpload(request, ctx) {
+      const signer = options.signer();
+      if (!signer) throw new Error('denied:read-only');
+      const [destination] = await options.servers();
+      if (destination === undefined) throw new Error('unavailable:no-file-server');
+      return { rail: 'blossom', destination, signingPubkey: await signer.getPublicKey(), execute: () => this.upload(request, ctx) };
+    },
     async upload(request, ctx) {
       const signer = options.signer();
       if (!signer) return failed(ctx.uploadId, 'denied:read-only');

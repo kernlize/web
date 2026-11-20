@@ -16,7 +16,7 @@ Feature: The composed shell
     And the shell bridges are "http,blossom,torrent,nzb,soulseek,mail"
     And the frame policy meta locks frame navigation
     And the runtime ACL refuses "relay:read" to an applet the user never granted anything
-    And the runtime firewall scales unfocused budgets by 0.25 and allows 8 operations in a window's first 1000 ms
+    And the runtime charges what it carries out against the guard's budgets, a "resource.bytes" at 120 per 10000 ms
 
   Scenario: the shell's downloads, sharing and mail hand off through the host's link opener
     Given a kernl shell over that host and pool without a blob fetcher
@@ -377,13 +377,12 @@ Feature: The composed shell
   Scenario: held requests meet the runtime's smaller unfocused budget when they are released
     Given a kernl shell over that host and pool with fake bridges and a manual clock
     And a mounted applet granted "resource" that has said hello
-    And the applet's startup window has passed
     When the applet window becomes "hidden"
     And the applet sends 20 "storage.set" requests over its port, 125 ms apart
     Then "storage.set" requests 1 to 20 got no answer
     When the applet window becomes "visible but not focused"
     Then "storage.set" requests 1 to 15 were answered
-    And "storage.set" requests 16 to 20 were refused by the firewall
+    And "storage.set" requests 16 to 20 were refused for the rate limit
     And the shell guard events included "rate:storage:write"
     And no guard event carries the applet's message
 
@@ -395,16 +394,22 @@ Feature: The composed shell
     And the mounted frame was removed
     And the shell has 0 applets
 
-  Scenario: mounting installs the profile's rates without bypassing them, and stores them through the host
-    Given a kernl shell over that host and pool
-    And a mounted applet
-    Then the runtime firewall holds no policy for "chat" and a "resource:fetch" rate of 120 per 10000 ms
-    And the host storage holds the runtime firewall config under "kernl:firewall:v1"
+  Scenario: the retired rate gate's stored configuration is cleared
+    Given the host storage holds "{}" under "kernl:firewall:v1"
+    And a kernl shell over that host and pool
+    Then the host storage no longer holds "kernl:firewall:v1"
 
-  Scenario: messages from windows the shell does not know go to the bridge unguarded
+  Scenario: a window the shell did not plan is never served
     Given a kernl shell over that host and pool with fake bridges
     When a window message with no source reaches the shell
     And a rogue window registered outside the shell is granted "resource", sends its hello, asks "resource.bytes" for "https://files.example/rogue.txt" and floods "storage.get"
+    Then the fake bridges were asked for nothing
+    And the rogue window got no answer
+    And the shell survived and kehto can revoke the rogue window
+
+  Scenario: a window another part of the host admitted is served as the shell's own, and still guarded
+    Given a kernl shell over that host and pool with fake bridges
+    When a rogue window admitted outside the shell is granted "resource", sends its hello, asks "resource.bytes" for "https://files.example/rogue.txt" and floods "storage.get"
     Then the fake bridges were asked for "https://files.example/rogue.txt" by the shell itself
     And the shell survived and kehto can revoke the rogue window
 
@@ -481,10 +486,18 @@ Feature: The composed shell
     And the host was not asked for consent
     And the fake pool published nothing
 
-  Scenario: a destructive publish from a window the shell did not mount is refused without asking
+  Scenario: a destructive publish from a window the shell did not plan goes nowhere
     Given a kernl shell over that host and pool
     And the shell is signed in
     When a rogue window registered outside the shell is granted "relay", sends its hello and publishes a kind 0 event
+    Then the rogue window got no answer
+    And the host was not asked for consent
+    And the fake pool published nothing
+
+  Scenario: a destructive publish from a window another part of the host admitted is refused without asking
+    Given a kernl shell over that host and pool
+    And the shell is signed in
+    When a rogue window admitted outside the shell is granted "relay", sends its hello and publishes a kind 0 event
     Then the applet's publish failed with "denied:unknown-applet"
     And the host was not asked for consent
     And the fake pool published nothing
@@ -521,8 +534,7 @@ Feature: The composed shell
     When the shell guard profile is set to "relaxed"
     Then the shell guard profile is "relaxed" with mitigations described
     And the shell guard profile stream ends with "relaxed"
-    And the runtime firewall scales unfocused budgets by 0.75 and allows 24 operations in a window's first 1000 ms
-    And the runtime firewall holds no policy for "chat" and a "resource:fetch" rate of 360 per 10000 ms
+    And the runtime charges what it carries out against the guard's budgets, a "resource.bytes" at 360 per 10000 ms
     And releasing window "applet-1" from the guard does nothing harmful
 
   Scenario: destroying the shell closes every applet and the bridge

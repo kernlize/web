@@ -16,13 +16,17 @@ const systemTimers: Timers = {
   clear: (handle) => globalThis.clearTimeout(handle as ReturnType<typeof setTimeout>),
 };
 
+/** What a shell's runtime answers when a request is over its rate budget. */
+const OVER_BUDGET = 'rate limit exceeded';
+
 /**
- * True when the shell never dealt with a request: its guard refused it
- * (`firewall:`) or dropped it, which only shows as the binding giving up.
+ * True when the shell never dealt with a request: it was over a rate budget
+ * (`rate limit exceeded`, or `firewall:` from a shell that still runs the
+ * older rate gate) or was dropped, which only shows as the binding giving up.
  */
 export function wasDropped(error: unknown): boolean {
   const reason = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
-  return reason.startsWith('firewall:') || reason.endsWith(' timed out');
+  return reason === OVER_BUDGET || reason.startsWith('firewall:') || reason.endsWith(' timed out');
 }
 
 interface Options<T> {

@@ -3,9 +3,9 @@ import { Given, Then, When } from 'quickpickle';
 import { renderNappletNamespacePrelude, type ShellAdapter, type ShellEnvironment } from '@kehto/shell';
 import type { GuardProfile, WindowVisibility } from '@kernlize/guard';
 import { AccountManager } from 'applesauce-accounts';
-import { createRelayTiers, createRuntimeFirewallHooks, createShellAdapter, mountApplet, planMount, resolveApplet, type AppletStatus, type AppletSummary, type MountDeps, type MountPlan, type MountedApplet } from '@kernlize/core';
+import { createRelayTiers, createShellAdapter, mountApplet, planMount, resolveApplet, type AppletStatus, type AppletSummary, type MountDeps, type MountPlan, type MountedApplet } from '@kernlize/core';
 import { spliceOnce } from '../../src/applets/plan.js';
-import { allowAllSigning, attempt, createFakeFrame, scratch, signManifest, splitList, type CoreWorld, type FakeFrame } from './world.js';
+import { allowAllSigning, attempt, createFakeFrame, quietPermissions, scratch, signManifest, splitList, type CoreWorld, type FakeFrame } from './world.js';
 
 interface MountRecord {
   steps: string[];
@@ -39,7 +39,7 @@ function fakeAdapter(world: CoreWorld, allowed: string[]): ShellAdapter {
     onNappletRevoked: () => undefined,
     filterNappletMessage: () => 'dispatch',
     getFocusContext: () => ({ focused: true }),
-    runtimeFirewall: createRuntimeFirewallHooks({ storage: scratch(world).storage, onEvent: () => undefined }),
+    permissions: quietPermissions(scratch(world).storage),
   });
 }
 

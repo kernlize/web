@@ -8,6 +8,7 @@ import {
   type NappletCspOptions,
   type NappletExperimentalOptions,
   type ShellAdapter,
+  type ShellEnvironment,
 } from '@kehto/shell';
 import { createAppletCsp, renderInsertionLockScript, type GuardProfile } from '@kernlize/guard';
 import { renderRandomUuidFallbackScript } from '../crypto/install.js';
@@ -33,6 +34,8 @@ export interface PlanMountOptions {
   readonly windowId: string;
   /** Domains beyond kehto's own to add to the applet's environment and bind in its namespace. */
   readonly extensions?: PlannedExtensions;
+  /** The domains the firewall admitted the applet with; the environment is narrowed to them. Everything the grants leave when absent. */
+  readonly domains?: readonly string[];
 }
 
 /**
@@ -91,11 +94,35 @@ function bindingsFor(extensions: PlannedExtensions | undefined): Pick<BoundPrelu
 }
 
 /**
+ * The environment an applet is offered before the firewall admits it: kehto's
+ * live domains narrowed by the host's `capabilities.resolveEnvironment`,
+ * which in kernl is the grants layer.
+ *
+ * @param adapter - The shell adapter.
+ * @param summary - The verified applet.
+ * @returns The environment the grants leave the applet.
+ * @example
+ * ```ts
+ * resolveAppletEnvironment(adapter, summary).capabilities.domains; // ['shell', 'identity', 'theme', …]
+ * ```
+ */
+export function resolveAppletEnvironment(adapter: ShellAdapter, summary: Pick<AppletSummary, 'identity'>): ShellEnvironment {
+  return resolveShellEnvironment(adapter, { dTag: summary.identity.dTag, aggregateHash: summary.identity.hash });
+}
+
+/** Keep only the domains the firewall admitted; everything when it was not asked. */
+function narrowEnvironment(environment: ShellEnvironment, domains: readonly string[] | undefined): ShellEnvironment {
+  if (!domains) return environment;
+  const kept = environment.capabilities.domains.filter((domain) => domains.includes(domain));
+  return { ...environment, capabilities: { ...environment.capabilities, domains: kept } };
+}
+
+/**
  * Build everything `mountApplet` needs, without touching the DOM.
  *
  * The environment is kehto's `resolveShellEnvironment`, so it is the live
  * domains narrowed by the host's `capabilities.resolveEnvironment` (kernl's
- * grants). The CSP is the guard's zero-network profile, inserted first in
+ * grants), and then by `domains` when the firewall admitted fewer. The CSP is the guard's zero-network profile, inserted first in
  * `<head>` by `prepareNappletSrcdoc` with kehto's nested-context lock enabled
  * (`experimental.nestedContextLock`): the policy gains kehto's Trusted Types
  * directives and the mandatory namespace prelude installs kehto's creation
@@ -119,7 +146,8 @@ function bindingsFor(extensions: PlannedExtensions | undefined): Pick<BoundPrelu
 export function planMount(options: PlanMountOptions): MountPlan {
   const { summary } = options;
   assertNoFrame(options.indexHtml);
-  const live = resolveShellEnvironment(options.adapter, { dTag: summary.identity.dTag, aggregateHash: summary.identity.hash });
+  // The firewall admitted kehto's domains and the extension domains together; the plan holds only what it admitted (D-056).
+  const live = narrowEnvironment(resolveAppletEnvironment(options.adapter, summary), options.domains);
   const domains = Object.freeze([...live.capabilities.domains, ...(options.extensions?.domains ?? [])]);
   // kehto reads a window's domains from the environment the host sets at mount, so an extension domain is admitted by being in it.
   const environment = Object.freeze({ capabilities: Object.freeze({ domains }), services: live.services });

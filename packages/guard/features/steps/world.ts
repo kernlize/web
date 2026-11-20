@@ -2,32 +2,31 @@ import { expect } from 'vitest';
 import { Then } from 'quickpickle';
 import type {
   AppletCsp,
-  FocusFirewall,
+  FocusRateLimiter,
   GuardConfig,
   GuardDisposition,
   GuardEnvelope,
   GuardEvent,
   IngressGuard,
   MitigationDescription,
+  RateVerdict,
   VisibilityGate,
   WindowVisibility,
 } from '@kernlize/guard';
-import type { EvaluateResult, FirewallConfig } from '@kehto/rate-limit/legacy';
 
 /** Scenario state. quickpickle hands every step the same world object. */
 export interface GuardScratch {
   events: GuardEvent[];
   clock: number;
   config?: GuardConfig;
-  original?: FirewallConfig;
   ingress?: IngressGuard;
   gate?: VisibilityGate;
-  firewall?: FocusFirewall;
+  limiter?: FocusRateLimiter;
   visibility: WindowVisibility;
   dispositions: GuardDisposition[];
   drained?: readonly GuardEnvelope[];
   deferred?: boolean;
-  result?: EvaluateResult;
+  result?: RateVerdict;
   csp?: AppletCsp;
   rendered?: string;
   mitigations?: readonly MitigationDescription[];

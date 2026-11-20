@@ -57,3 +57,6 @@ import './nzb-routing.js';
 import './soulseek-routing.js';
 import './shortcuts.js';
 import './blossom-resources.js';
+import './firewall.js';
+import './firewall-adapters.js';
+import './rogue-window.js';

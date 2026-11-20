@@ -49,7 +49,7 @@ Three reasons, in the order `SOUL.md` ranks them.
 | shell | OS, desktop, browser | kernl runs in a browser; it is not one. |
 | grant | permission, capability | A grant is something the user gave and can take back. |
 | provider | protocol | Users choose providers by what they do. |
-| guard | firewall, mitigation | The guard is the set of protections between an applet and the user. |
+| guard | mitigation | The guard is the set of protections between an applet and the user. The firewall is one of them: the rules for what goes ahead without asking. |
 | relay (in the shell) | server, "servers that introduce you", a role nickname | A relay is a relay, and it is shown by its own host. File servers and connection helpers are different things and keep their names. |
 
 Marketing adjectives, filler and hedges that hide a decision are out everywhere, including here.

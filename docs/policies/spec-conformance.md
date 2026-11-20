@@ -32,7 +32,7 @@ The three domains are not kehto domains. kehto's runtime admits each by the envi
 
 When kernl needs something a specification or an upstream package does not provide, the order is:
 
-1. **Compose it from what exists.** Most of kernl is this: the guard composes `@kehto/rate-limit/legacy`'s `evaluate()` and kehto's `filterNappletMessage`, the restrictive posture composes `aclDefaultPolicy`, `resolveEnvironment` and `aclState.grant`.
+1. **Compose it from what exists.** Most of kernl is this: the guard composes `@kehto/rate-limit`'s `evaluateRateLimit` and kehto's `filterNappletMessage`, the firewall composes kehto's `permissions` and `@kehto/firewall`'s rules, the restrictive posture composes `aclDefaultPolicy`, `resolveEnvironment` and `aclState.grant`.
 2. **Propose it upstream.** An issue or pull request on `kehto/web`, `napplet/naps` or `nostr-protocol/nips`, as appropriate. The first four kehto gaps kernl found, filed as kehto/web #397–#400, are released and in use ([D-020](../decisions.md#d-020)); what is still open is in [Alpha status](../alpha-status.md#upstream-gaps).
 3. **Implement it locally with a recorded gap.** Only when 1 is impossible and 2 is pending. The local implementation sits behind an interface, cites the upstream issue, and is removed when upstream lands.
 

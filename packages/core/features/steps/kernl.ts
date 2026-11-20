@@ -58,7 +58,7 @@ export function k(world: CoreWorld): KernlScratch {
   return value;
 }
 
-function vector(world: CoreWorld): ManifestVector {
+export function vector(world: CoreWorld): ManifestVector {
   return scratch(world).manifest as ManifestVector;
 }
 
@@ -486,20 +486,6 @@ When('a window message with no source reaches the shell', (world: CoreWorld) => 
   k(world).kernl.handleWindowMessage(windowMessage(null, { type: 'napplet.hello' }, []));
 });
 
-When('a rogue window registered outside the shell is granted {string}, sends its hello, asks {string} for {string} and floods {string}', async (world: CoreWorld, domain: string, ask: string, url: string, type: string) => {
-  const win = {} as Window;
-  const windowId = 'rogue-1';
-  const identity = { dTag: 'rogue', hash: 'cd'.repeat(32) };
-  k(world).kernl.grants.allowDomain(identity, domain);
-  originRegistry.register(win, windowId, { dTag: identity.dTag, aggregateHash: identity.hash });
-  const channel = hello(world, win);
-  channel.port1.postMessage({ type: ask, id: 'rogue-ask', url });
-  await settle();
-  for (let i = 0; i < 320; i += 1) channel.port1.postMessage({ type, id: `rogue-${i}`, key: 'k' });
-  await settle();
-  k(world).rogue = { windowId, channel };
-});
-
 Then('the fake bridges were asked for {string} by the shell itself', (world: CoreWorld, uri: string) => {
   expect(k(world).bridgeCalls).toEqual([{ uri, requester: 'shell' }]);
 });
@@ -594,19 +580,6 @@ When('the applet sends {string} for a kind {int} event over its port', async (wo
 
 When('the applet sends {string} without an id or an event over its port', async (world: CoreWorld, type: string) => {
   k(world).channel?.port1.postMessage({ type });
-  await settle();
-});
-
-When('a rogue window registered outside the shell is granted {string}, sends its hello and publishes a kind {int} event', async (world: CoreWorld, domain: string, kind: number) => {
-  const win = {} as Window;
-  const windowId = 'rogue-publisher';
-  const identity = { dTag: 'rogue', hash: 'ce'.repeat(32) };
-  k(world).kernl.grants.allowDomain(identity, domain);
-  originRegistry.register(win, windowId, { dTag: identity.dTag, aggregateHash: identity.hash });
-  const channel = hello(world, win);
-  k(world).rogue = { windowId, channel };
-  channel.port1.postMessage({ type: 'shell.ready', id: 'ready-1' });
-  channel.port1.postMessage({ type: 'relay.publish', id: 'publish-1', event: { kind, content: '{"name":"rogue"}', tags: [], created_at: Math.floor(Date.now() / 1000) } });
   await settle();
 });
 
