@@ -80,6 +80,7 @@ async function build(world: CoreWorld, options: { signer?: boolean; theme?: Reco
     messaging,
     ...(isTheme(theme) ? { theme } : {}),
     ...(options.remoteTools ? { remoteTools: options.remoteTools } : {}),
+    shortcuts: { isFocused: () => true },
     resolveIdentity: (windowId) => (windowId === 'w1' ? IDENTITY : null),
   });
   s.services = { services, sent: [], notices, links, bridgeCalls, pubkey, bridges, signer } satisfies ServicesScratch;
@@ -245,7 +246,7 @@ function adapter(world: CoreWorld): ShellAdapter {
   return scratch(world).adapter as ShellAdapter;
 }
 
-Then('the adapter creates no windows, has no worker relay, forwards no hotkeys and shows update banners', (world: CoreWorld) => {
+Then('the adapter creates no windows, has no worker relay, drops a forwarded key nobody takes and shows update banners', (world: CoreWorld) => {
   const a = adapter(world);
   expect(a.windowManager.createWindow({ title: 'x', class: 'y' })).toBeNull();
   expect(a.workerRelay.getWorkerRelay()).toBeNull();

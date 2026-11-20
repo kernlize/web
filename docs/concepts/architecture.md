@@ -86,9 +86,10 @@ An applet reaches the shell through the NAP domains in `window.napplet`. `create
 | `config` | `createConfigService` | `createAppletConfig` over `host.presentSettings`; offered only when the host has it ([D-036](../decisions.md#d-036)) | grant (`config:read`) |
 | `common` | `createCommonService` | `commonActionsFor`: profiles, follows through the signing gate, reactions and reports ([D-035](../decisions.md#d-035)) | grant |
 | `upload` | `createUploadService` | `createBlossomUploader` over the account's file servers, asking once per file ([D-033](../decisions.md#d-033)) | grant (`upload:write`); consent per file |
-| `keys`, `media` | kehto runtime | nothing: hotkeys are not forwarded and no media hook is wired | grant |
+| `keys` | `createShortcutsService` over kehto's `createKeysService` | a key listener on the page's `document` that passes on only the presses the shell did not use; `keys.action` only to the focused window; the host's reserved chords are never bound; `keys.forward` goes to `host.onShortcut` ([D-054](../decisions.md#d-054)) | baseline (`keys:bind`, `keys:forward`); `GuardPipeline.observe` drops a held key's repeats and an unfocused window's forwards, and holds registrations through a window's first second |
+| `media` | kehto runtime | nothing: no media hook is wired | grant |
 
-So the shell offers the baseline `shell`, `inc`, `theme` and `storage`, and `identity`, `relay`, `outbox`, `resource`, `cvm`, `upload`, `common`, `dm`, `notify`, `link`, `intent`, `keys` and `media` behind a grant, with `config` too when the host draws settings forms and `webrtc` where the page can make peer connections. Domains kernl does not serve (`fs`, `llm`, `cache`) have a row in `DOMAIN_CAPABILITIES` so a grant can be expressed, but the shell does not offer them and `grants.allowDomain` refuses them with `invalid:domain`. [Identity and grants](./identity-and-grants.md) explains how the set is narrowed.
+So the shell offers the baseline `shell`, `inc`, `theme`, `storage` and `keys`, and `identity`, `relay`, `outbox`, `resource`, `cvm`, `upload`, `common`, `dm`, `notify`, `link`, `intent` and `media` behind a grant, with `config` too when the host draws settings forms and `webrtc` where the page can make peer connections. Domains kernl does not serve (`fs`, `llm`, `cache`) have a row in `DOMAIN_CAPABILITIES` so a grant can be expressed, but the shell does not offer them and `grants.allowDomain` refuses them with `invalid:domain`. [Identity and grants](./identity-and-grants.md) explains how the set is narrowed.
 
 ## The mount path
 

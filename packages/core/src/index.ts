@@ -214,6 +214,9 @@ export { createCommonActions, type CommonActionsOptions } from './social/common-
 export { commonActionsFor, createKernlNetwork, type KernlNetwork, type KernlNetworkParts } from './kernl-network.js';
 export { createCvmRelayPool, createRemoteToolsService, mergeFamilies, type RemoteToolsOptions } from './multiplayer/remote-tools.js';
 export { createWindowIdentities, type WindowIdentities } from './multiplayer/window-identities.js';
+export { KEY_REPEAT_WINDOW_MS, createForwardedKeys, type ForwardedKeys } from './keys/forwarded-keys.js';
+export { createKeymapHold, type KeymapHold, type KeymapHoldOptions } from './keys/keymap-hold.js';
+export { createShortcutsService, type ShortcutKey, type ShortcutSettings, type ShortcutsOptions, type ShortcutsService } from './keys/shortcuts.js';
 export { createMultiplayerSettings, validFamily, type MultiplayerSettings, type MultiplayerState } from './multiplayer/settings.js';
 export { discoverToolFamilies, TOOL_DISCOVERY_TIMEOUT_MS, type ToolDiscoveryOptions, type ToolFamilyCandidate } from './multiplayer/tool-discovery.js';
 export { createDirectConnectionsService, describeDirectConnection, directNamespace, type DirectConnectionsOptions } from './multiplayer/direct-connections.js';

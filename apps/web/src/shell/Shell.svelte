@@ -18,6 +18,7 @@
   import { NoticeStore } from './notice-store.svelte';
   import ReplyChooser from './ReplyChooser.svelte';
   import { shellTheme } from './shell-theme';
+  import { shellShortcut, type ShortcutRunner } from './shortcuts';
   import { ReplyQueue } from './reply-queue.svelte';
   import { SettingsQueue } from './settings-queue.svelte';
   import SignIn from './SignIn.svelte';
@@ -34,7 +35,8 @@
   const replies = new ReplyQueue();
   const settings = new SettingsQueue();
   const opener: AppletOpener = {};
-  const host = createHost({ storage, consent, settings, notices, windows, handlers, replies, opener });
+  const shortcuts: ShortcutRunner = {};
+  const host = createHost({ storage, consent, settings, notices, windows, handlers, replies, opener, shortcuts });
 
   let booted = $state.raw<Booted | null>(null);
   let session = $state.raw<Session | null>(null);
@@ -80,19 +82,33 @@
     };
   });
 
+  /** Close the topmost thing the shell has open; false when nothing was. */
+  function dismiss(): boolean {
+    if (consent.current) consent.answer(false);
+    else if (replies.current) replies.answer(undefined);
+    else if (settings.current) settings.close();
+    else if (handlers.current) handlers.answer(undefined);
+    else if (desktop?.closeTopOverlay()) root?.focus();
+    else return false;
+    return true;
+  }
+
+  /** Run one of the shell's own shortcuts; false when the key is not one, or had nothing to do. */
+  function runShortcut(key: Parameters<typeof shellShortcut>[0]): boolean {
+    const shortcut = shellShortcut(key);
+    if (shortcut === 'dismiss') return dismiss();
+    if (shortcut === 'launcher') desktop?.openLauncher();
+    return shortcut !== undefined;
+  }
+
+  // A key an applet had no shortcut for comes back through the core, so these work while an applet has focus.
+  // A dialog holds the keyboard while it is open, so a key an applet sends then was not typed by the person (D-054).
+  shortcuts.run = (key) => {
+    if (!(consent.current || replies.current || settings.current || handlers.current)) runShortcut(key);
+  };
+
   function onKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape') {
-      if (consent.current) consent.answer(false);
-      else if (replies.current) replies.answer(undefined);
-      else if (settings.current) settings.close();
-      else if (handlers.current) handlers.answer(undefined);
-      else if (desktop?.closeTopOverlay()) root?.focus();
-      else return;
-      event.preventDefault();
-    } else if (event.altKey && event.key === '/') {
-      desktop?.openLauncher();
-      event.preventDefault();
-    }
+    if (runShortcut(event)) event.preventDefault();
   }
 
   async function signOut(): Promise<void> {

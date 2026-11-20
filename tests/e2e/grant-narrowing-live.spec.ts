@@ -24,7 +24,7 @@ async function openMessages(page: Page): Promise<void> {
 
 test('taking back a domain a running applet uses stops it, and granting one does not', async ({ page }) => {
   await openMessages(page);
-  await page.getByRole('checkbox', { name: /keyboard shortcuts/ }).check();
+  await page.getByRole('checkbox', { name: /^notifications/ }).check();
   await expect(page.locator('section.window')).toHaveAttribute('data-status', 'running');
   await page.getByRole('checkbox', { name: /^messages/ }).uncheck();
   await page.keyboard.press('Escape');

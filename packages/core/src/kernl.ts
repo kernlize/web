@@ -248,6 +248,7 @@ interface ShellParts {
   readonly intents: { close(): void };
   readonly dm: { dispose(): void };
   readonly downloads: { dispose(): void };
+  readonly keys: { destroy(): void };
   readonly bridge: ShellBridge;
   /** Closed only when the shell created it. */
   readonly messaging?: MessagingRegistry;
@@ -264,6 +265,7 @@ function tearDown(parts: ShellParts): void {
   parts.intents.close();
   parts.dm.dispose();
   parts.downloads.dispose();
+  parts.keys.destroy();
   parts.bridge.destroy();
   parts.messaging?.close();
   parts.pool?.close();
@@ -342,6 +344,7 @@ export function createKernl(options: KernlOptions): Kernl {
     uploader: uploaderFor(host, files, signer, identityOf),
     ...(isTheme(options.theme) ? { theme: options.theme } : {}),
     ...meeting.deps,
+    shortcuts: { ...options.shortcuts, isFocused: (windowId) => pipeline.getVisibility(windowId).focused },
     resolveIdentity(windowId) {
       const identity = identityOf(windowId);
       return identity ? { dTag: identity.dTag, aggregateHash: identity.hash } : null;
@@ -366,6 +369,7 @@ export function createKernl(options: KernlOptions): Kernl {
     filterNappletMessage: (windowId, message) => pipeline.observe(windowId, identityOf(windowId)?.dTag ?? 'unknown', message),
     getFocusContext: (windowId) => ({ focused: pipeline.getVisibility(windowId).focused }),
     runtimeFirewall,
+    ...(host.onShortcut ? { onShortcut: host.onShortcut.bind(host) } : {}),
   });
   const bridge = createShellBridge(adapter);
   grants = createGrants({ acl: bridge.runtime.aclState, storage: host.storage, availableDomains: () => [...buildShellCapabilities(adapter).domains, ...(downloads.extensions?.domains ?? [])] });
@@ -419,6 +423,6 @@ export function createKernl(options: KernlOptions): Kernl {
     decodePointer,
     ...lifecycle,
     destroy: () =>
-      tearDown({ handles, subscriptions, destroyed$, network: { directory, eventCache }, intents, dm: services.dm, downloads, bridge, ...(ownsMessaging ? { messaging } : {}), ...(ownsPool ? { pool } : {}) }),
+      tearDown({ handles, subscriptions, destroyed$, network: { directory, eventCache }, intents, dm: services.dm, downloads, keys: services.keys, bridge, ...(ownsMessaging ? { messaging } : {}), ...(ownsPool ? { pool } : {}) }),
   };
 }

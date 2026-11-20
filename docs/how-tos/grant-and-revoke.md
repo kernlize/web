@@ -33,7 +33,7 @@ kernl.grants.block(identity);
 kernl.grants.unblock(identity);
 kernl.grants.setStateQuota(identity, 4096);
 kernl.grants.availableDomains(); // what buildShellCapabilities(adapter) offers
-kernl.grants.baselineDomains(); // ['shell', 'inc', 'theme', 'storage']
+kernl.grants.baselineDomains(); // ['shell', 'inc', 'theme', 'storage', 'keys']
 
 const subscription = kernl.grants.changes$.subscribe((record) => console.log(record.identity.dTag, record.domains));
 subscription.unsubscribe();

@@ -11,7 +11,7 @@ Feature: Shell services and adapter
     And kernl services with a signing account and a fake bridge registry
 
   Scenario: the registry covers the domains kernl serves
-    Then the service registry has "relay,identity,theme,notify,link,resource,dm,outbox,cvm"
+    Then the service registry has "relay,identity,theme,keys,notify,link,resource,dm,outbox,cvm"
 
   Scenario: remote tools look for servers on the general relays when the host names none
     When service "cvm" handles '{"type":"cvm.discover","id":"d1"}' from window "w1"
@@ -92,7 +92,7 @@ Feature: Shell services and adapter
 
   Scenario: the shell adapter decides what kehto left open
     Given a kernl shell adapter
-    Then the adapter creates no windows, has no worker relay, forwards no hotkeys and shows update banners
+    Then the adapter creates no windows, has no worker relay, drops a forwarded key nobody takes and shows update banners
     And the adapter verifies a signed event and rejects a forged one
     And the adapter advertises the link domain and its services
     And the adapter keeps a restrictive ACL, hands the runtime a firewall and asks the shell about focus and every port message
