@@ -391,6 +391,22 @@ function previewDocument({ summary, shipped, profile, domains, baseline }: Previ
   });
 }
 
+/** Requests between the preview's applets, delivered only to a running applet that holds the grant, as the live runtime does. */
+function previewIntentsFor(host: KernlHost, mounted: ReadonlyMap<string, Mounted>, retry: PreviewIntentDeps['retry']): PreviewIntents {
+  return createPreviewIntents({
+    storage: host.storage,
+    host,
+    findWindow: (catalogId) => [...mounted.values()].find((entry) => entry.plan.summary.manifest.catalogId === catalogId)?.plan.windowId,
+    deliver(windowId, text) {
+      const entry = mounted.get(windowId);
+      if (!entry || entry.status$.value !== 'running' || !entry.plan.environment.capabilities.domains.includes('intent')) return false;
+      entry.frame.contentWindow?.postMessage({ kernlPreview: 'delivery', text }, '*');
+      return true;
+    },
+    retry,
+  });
+}
+
 /**
  * The shell with nothing behind it: real guard, grants, messaging, bridge
  * and intent-routing packages over in-memory state, a store that lists the
@@ -424,19 +440,7 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
     return domainsInForce(granted, baselineDomains()).filter((domain) => domain !== 'keys' && (config !== undefined || domain !== 'config'));
   };
 
-  const intents = createPreviewIntents({
-    storage: host.storage,
-    host,
-    findWindow: (catalogId) => [...mounted.values()].find((entry) => entry.plan.summary.manifest.catalogId === catalogId)?.plan.windowId,
-    deliver(windowId, text) {
-      const entry = mounted.get(windowId);
-      // Like the live runtime: only a running applet that holds the grant receives a request.
-      if (!entry || entry.status$.value !== 'running' || !entry.plan.environment.capabilities.domains.includes('intent')) return false;
-      entry.frame.contentWindow?.postMessage({ kernlPreview: 'delivery', text }, '*');
-      return true;
-    },
-    retry: intentRetry,
-  });
+  const intents = previewIntentsFor(host, mounted, intentRetry);
   const pubkey = (): string => session$.value?.pubkey ?? PREVIEW_OWNER;
   const { perform, firewall } = createActions({ host, bridges, pubkeyOf: pubkey, intents, config });
   const mount = createMounter(host, guard, mounted, config);

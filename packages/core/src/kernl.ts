@@ -44,7 +44,7 @@ import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { createShellAdapter } from './kernl-adapter.js';
 import { createAppletLifecycle } from './kernl-lifecycle.js';
 import { createKernlIntents } from './kernl-intents.js';
-import { loadCatalog, streamCatalog } from './catalog/fetch.js';
+import { loadCatalog, streamCatalog, type LoadCatalogOptions } from './catalog/fetch.js';
 
 /**
  * Describe an account as a session the UI can show.
@@ -282,6 +282,30 @@ function tearDown(parts: ShellParts): void {
   parts.pool?.close();
 }
 
+/** The guard in front of kehto's bridge, which quarantines and releases through it. */
+function pipelineFor(options: KernlOptions, parts: { readonly handles: ReadonlyMap<string, MountedApplet>; readonly guardEvents$: Subject<GuardEvent>; readonly bridge: () => ShellBridge }): GuardPipeline {
+  const { host } = options;
+  return createGuardPipeline({
+    config: createGuardConfig(options.guard?.profile ?? 'strict'),
+    ...(host.now ? { now: host.now.bind(host) } : {}),
+    onEvent: (event) => parts.guardEvents$.next(event),
+    onQuarantine: (windowId) => {
+      parts.handles.get(windowId)?.revoked('quarantine');
+      parts.bridge().revokeNapplet(windowId, 'host');
+    },
+    getVisibility: (windowId) => host.getVisibility(windowId),
+    onRelease: (windowId) => parts.bridge().releaseDeferred(windowId),
+  });
+}
+
+/** The applet store's catalogue over the shell's pool, tiers and event cache. */
+function catalogFor(pool: RelayPool, tiers: RelayTiers, cached: Required<Pick<LoadCatalogOptions, 'cache' | 'store'>>): Kernl['catalog'] {
+  return {
+    load: (loadOptions) => loadCatalog(pool, tiers, { ...cached, ...loadOptions }),
+    stream: (streamOptions) => streamCatalog(pool, tiers, { ...cached, ...streamOptions }),
+  };
+}
+
 /**
  * Compose the shell: one `EventStore`, one `RelayPool`, one `AccountManager`,
  * the relay tiers, the guard pipeline, the grants layer, the messaging and
@@ -321,17 +345,7 @@ export function createKernl(options: KernlOptions): Kernl {
   const subscriptions = new Subscription();
   let grants: KernlGrants;
 
-  const pipeline = createGuardPipeline({
-    config: createGuardConfig(options.guard?.profile ?? 'strict'),
-    ...(host.now ? { now: host.now.bind(host) } : {}),
-    onEvent: (event) => guardEvents$.next(event),
-    onQuarantine: (windowId) => {
-      handles.get(windowId)?.revoked('quarantine');
-      bridge.revokeNapplet(windowId, 'host');
-    },
-    getVisibility: (windowId) => host.getVisibility(windowId),
-    onRelease: (windowId) => bridge.releaseDeferred(windowId),
-  });
+  const pipeline = pipelineFor(options, { handles, guardEvents$, bridge: () => bridge });
 
   const identityOf = (windowId: string): AppletIdentity | undefined => handles.get(windowId)?.summary.identity;
   const { eventCache, replaceableLoader, profiles, people, directory, mailboxes, files, signer } = createKernlNetwork(options, { eventStore, pool, tiers, accounts, destroyed$ });
@@ -414,10 +428,7 @@ export function createKernl(options: KernlOptions): Kernl {
     relays: tiers,
     messaging,
     bridges,
-    catalog: {
-      load: (loadOptions) => loadCatalog(pool, tiers, { cache: eventCache.cacheRequest, store: eventStore, ...loadOptions }),
-      stream: (streamOptions) => streamCatalog(pool, tiers, { cache: eventCache.cacheRequest, store: eventStore, ...streamOptions }),
-    },
+    catalog: catalogFor(pool, tiers, { cache: eventCache.cacheRequest, store: eventStore }),
     profiles,
     people,
     mailboxes,

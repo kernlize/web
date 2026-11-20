@@ -3,7 +3,6 @@ import { After, Given, Then, When, type DataTable } from 'quickpickle';
 import { EventStore } from 'applesauce-core';
 import { AccountManager, type IAccount } from 'applesauce-accounts';
 import { ReadonlyAccount, registerCommonAccountTypes } from 'applesauce-accounts/accounts';
-import { originRegistry } from '@kehto/shell';
 import type { BridgeContext, BridgeRegistry } from '@kernlize/bridges';
 import { createMemoryBackend, createMessagingRegistry } from '@kernlize/messaging';
 import type { GuardEvent, GuardProfile } from '@kernlize/guard';
