@@ -56,3 +56,4 @@ import './torrent-routing.js';
 import './nzb-routing.js';
 import './soulseek-routing.js';
 import './shortcuts.js';
+import './blossom-resources.js';

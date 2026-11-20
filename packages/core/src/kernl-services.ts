@@ -12,6 +12,7 @@ import {
   createOutboxService,
   createRelayPoolOutboxRouter,
   createResourceService,
+  ResourceServiceError,
   createThemeService,
   createUploadService,
   type CommonServiceOptions,
@@ -19,6 +20,7 @@ import {
   type DmService,
   type OutboxRouter,
   type RelayListEntry,
+  type ResourceErrorCode,
   type ResourceFetchInit,
   type ThemeService,
   type Uploader,
@@ -184,6 +186,37 @@ export function resourceInitFor(deps: Pick<KernlServiceDeps, 'resolveIdentity'>,
   return init.headers ? { signal: init.signal, requester, headers: init.headers } : { signal: init.signal, requester };
 }
 
+/** NAP-RESOURCE codes for the bridges' reasons, most specific first; the rest of a family takes its prefix's code. */
+const RESOURCE_CODES: readonly (readonly [prefix: string, code: ResourceErrorCode])[] = [
+  ['unavailable:no-bridge', 'unsupported-scheme'],
+  ['unavailable:not-found', 'not-found'],
+  ['unavailable:no-servers', 'not-found'],
+  ['unavailable:timeout', 'timeout'],
+  ['denied:too-large', 'too-large'],
+  ['invalid:', 'invalid-request'],
+  ['denied:', 'blocked-by-policy'],
+];
+
+/**
+ * The NAP-RESOURCE error a bridge failure becomes. The bridges reject with
+ * prefixed reasons; kehto's resource service reports any error that is not a
+ * `ResourceServiceError` as `network-error`, so without this an applet could
+ * not tell a missing blob or an unsupported scheme from a dead network (D-055).
+ *
+ * @param error - What the bridge registry rejected with.
+ * @returns The error to throw to the resource service, carrying the bridge's reason as its message.
+ * @example
+ * ```ts
+ * resourceErrorFor(new Error('unavailable:not-found')).code; // 'not-found'
+ * resourceErrorFor(new Error('unavailable:network Failed to fetch')).code; // 'network-error'
+ * ```
+ */
+export function resourceErrorFor(error: unknown): ResourceServiceError {
+  const reason = error instanceof Error ? error.message : String(error);
+  const code = RESOURCE_CODES.find(([prefix]) => reason.startsWith(prefix))?.[1] ?? 'network-error';
+  return new ResourceServiceError(code, reason);
+}
+
 /**
  * The signer the identity service reads the account from. A read-only account
  * has no signer, yet which account is signed in is exactly what it exists to
@@ -310,7 +343,10 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
       },
     }),
     resource: createResourceService({
-      fetch: (url, init) => resolve(url, resourceInitFor(deps, init)),
+      fetch: (url, init) =>
+        resolve(url, resourceInitFor(deps, init)).catch((error: unknown) => {
+          throw resourceErrorFor(error);
+        }),
     }),
     dm,
     outbox: gateOutboxPublish(createOutbox(deps, identity), deps.consent),

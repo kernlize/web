@@ -124,7 +124,7 @@ Feature: Shell services and adapter
 
   Scenario: the default bridges are the web bridge plus four honest placeholders
     Given the default bridge registry
-    Then the bridges are "http,torrent,nzb,soulseek,mail"
+    Then the bridges are "http,blossom,torrent,nzb,soulseek,mail"
     And bridge for scheme "magnet" is unavailable because "no-backend"
     And bridge for scheme "https" is available
 

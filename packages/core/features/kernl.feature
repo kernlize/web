@@ -13,7 +13,7 @@ Feature: The composed shell
     And the shell guard profile is "strict" with mitigations described
     And the shell relays "apps" tier is "wss://relay.napplet.soy,wss://relay.ditto.pub,wss://relay.nostr.com"
     And the shell messaging provider "private" is unavailable
-    And the shell bridges are "http,torrent,nzb,soulseek,mail"
+    And the shell bridges are "http,blossom,torrent,nzb,soulseek,mail"
     And the frame policy meta locks frame navigation
     And the runtime ACL refuses "relay:read" to an applet the user never granted anything
     And the runtime firewall scales unfocused budgets by 0.25 and allows 8 operations in a window's first 1000 ms

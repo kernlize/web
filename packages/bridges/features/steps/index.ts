@@ -13,3 +13,4 @@ import './nzbget-client';
 import './sabnzbd-client';
 import './slskd-client';
 import './client-endpoint';
+import './blossom-bridge';

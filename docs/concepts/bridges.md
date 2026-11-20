@@ -215,3 +215,10 @@ An applet could, in principle, be given a WebRTC or WebSocket path and speak the
 - [`@kernlize/bridges`](../packages/bridges.md)
 - [Connected programs](./download-programs.md): how applets download through programs the person runs.
 - [Security posture](../policies/security-posture.md)
+
+## The Blossom bridge
+
+A `blossom:` reference names a blob by its SHA-256. `createDefaultBridges` registers `createBlossomBridge`, and `createKernl` gives it the running applet's manifest `server` tags as the place to look when the reference names none, which is how published applets ship their assets: beside their artifact, referenced as `blossom:sha256:<hash>` with no hint. The bridge asks the reference's `xs` hints first, then those servers, through the web bridge's policy, and hands back only bytes whose hash matches; a server is an accelerator, never the identity of what it serves. No other server is asked, so an applet's hash is not revealed to a server neither it nor its publisher named. kehto's resource service does not pass a request's advisory `servers` to the resolver, so they are not used ([D-055](../decisions.md#d-055)).
+
+A rejection reaches the applet as the NAP-RESOURCE error it is, through `resourceErrorFor`: a blob nobody named holds is `not-found`, a scheme no bridge serves is `unsupported-scheme`, and only a failure of the network itself is `network-error`.
+

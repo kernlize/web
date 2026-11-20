@@ -76,6 +76,15 @@ The download program adapters are a separate surface. They serve no locator and 
 | `isPrivateAddress` | `(ip: string) => boolean` | True for literal IPv4 or IPv6 addresses in the unspecified, loopback, private, shared, link-local, IETF protocol assignment, benchmarking, multicast or reserved IPv4 ranges, and the link-local, site-local, unique-local, multicast, discard, local NAT64, 6to4 or Teredo IPv6 ranges. IPv6 is parsed to its full 128 bits (brackets and zone suffix stripped); an address that embeds an IPv4 destination (mapped, compatible, translated, NAT64 `64:ff9b::/96`) is judged by that destination. False for public addresses and for strings that are not an IP. Ranges are listed in [Bridges](../concepts/bridges.md#the-http-bridge). |
 | `isBlockedHostname` | `(host: string) => boolean` | True for `localhost` and names under `.localhost`, `.local` or `.internal`, in any case, with or without a trailing dot. |
 
+### Blossom bridge
+
+| Export | Signature | Description |
+| --- | --- | --- |
+| `createBlossomBridge` | `(options?: BlossomBridgeOptions) => Bridge` | Id `blossom`, label `files`, scheme `blossom`. Asks the reference's `xs` hints, then `serversFor(requester)`, in order, each once, through a web bridge built from `options.http`, and returns the first blob whose SHA-256 matches the reference; a server that answers with other bytes, a 404, an unreachable or private server is passed over. The content type comes from the reference's extension, else `application/octet-stream`; the server's header is not trusted. No other server is asked. Rejects with `unavailable:no-servers` when there is nowhere to ask, `unavailable:not-found` when no server gave the blob, and the web bridge's `unavailable:aborted` when the caller gave up ([D-055](../decisions.md#d-055)). Exposure: reveals address, encrypted, not public activity. |
+| `BlossomBridgeOptions` | interface | `{ http?: HttpBridgeOptions; serversFor?: (requester: BridgeContext['requester']) => readonly string[] }`. |
+| `parseBlossomReference` | `(uri: string) => BlossomReference` | Reads BUD-10's `blossom:<sha256>.<ext>?xs=…` and the `blossom:sha256:<sha256>` form published applets also send, with or without an extension. Hints that are not `https:` are dropped. Throws `invalid:blossom` otherwise. |
+| `BlossomReference` | interface | `{ sha256: string; extension: string; servers: readonly string[] }`: lowercase hex, the extension with its dot or empty, and the hints as `https://` origins. |
+
 ### Backend-driven bridges
 
 | Export | Signature | Description |
