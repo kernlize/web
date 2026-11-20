@@ -369,7 +369,7 @@ Feature: Shell words
       | allow-once    | link    | Open link              |
       | deny          | link    | Don’t open             |
       | allow-once    | request | Allow once             |
-      | allow-session | access  | Allow while it is open |
+      | allow-session | access  | Allow while open       |
       | allow-always  | access  | Always allow           |
       | deny          | access  | Don’t allow            |
 
@@ -388,15 +388,15 @@ Feature: Shell words
 
     Examples:
       | rules                                                                                               | target                                    | own     | in force | inherit                                        |
-      | {"default":"allow","operations":{"link.open":"ask"}}                                                | {}                                        | allow   | allow    | Follow the wider rule (allow without asking)   |
-      | {"default":"allow","operations":{"link.open":"ask"}}                                                | {"operation":"link.open"}                 | ask     | ask      | Follow the wider rule (allow without asking)   |
-      | {"default":"allow","domains":{"link":"deny"}}                                                       | {"operation":"link.open"}                 | inherit | deny     | Follow the wider rule (refuse)                 |
-      | {"default":"ask"}                                                                                   | {"domain":"relay"}                        | inherit | ask      | Follow the wider rule (ask me every time)      |
-      | {"default":"allow","operations":{"link.open":"ask"}}                                                | {"applet":"a1","operation":"link.open"}   | inherit | ask      | Follow the wider rule (ask me every time)      |
-      | {"default":"allow","operations":{"link.open":"ask"},"napplets":{"a1":{"domains":{},"operations":{"link.open":"allow"}}}} | {"applet":"a1","operation":"link.open"} | allow | allow | Follow the wider rule (ask me every time) |
-      | {"default":"allow","napplets":{"a1":{"default":"deny","domains":{"relay":"ask"},"operations":{}}}}  | {"applet":"a1","domain":"relay"}          | ask     | ask      | Follow the wider rule (refuse)                 |
-      | {"default":"allow","napplets":{"a1":{"default":"deny","domains":{},"operations":{}}}}               | {"applet":"a1"}                           | deny    | deny     | Follow the wider rule (allow without asking)   |
-      | {"default":"allow","napplets":{"a1":{"domains":{"relay":"ask"},"operations":{}}}}                   | {"applet":"a1"}                           | inherit | allow    | Follow the wider rule (allow without asking)   |
+      | {"default":"allow","operations":{"link.open":"ask"}}                                                | {}                                        | allow   | allow    | Default (allow)   |
+      | {"default":"allow","operations":{"link.open":"ask"}}                                                | {"operation":"link.open"}                 | ask     | ask      | Default (allow)   |
+      | {"default":"allow","domains":{"link":"deny"}}                                                       | {"operation":"link.open"}                 | inherit | deny     | Default (refuse)                 |
+      | {"default":"ask"}                                                                                   | {"domain":"relay"}                        | inherit | ask      | Default (ask every time)      |
+      | {"default":"allow","operations":{"link.open":"ask"}}                                                | {"applet":"a1","operation":"link.open"}   | inherit | ask      | Default (ask every time)      |
+      | {"default":"allow","operations":{"link.open":"ask"},"napplets":{"a1":{"domains":{},"operations":{"link.open":"allow"}}}} | {"applet":"a1","operation":"link.open"} | allow | allow | Default (ask every time) |
+      | {"default":"allow","napplets":{"a1":{"default":"deny","domains":{"relay":"ask"},"operations":{}}}}  | {"applet":"a1","domain":"relay"}          | ask     | ask      | Default (refuse)                 |
+      | {"default":"allow","napplets":{"a1":{"default":"deny","domains":{},"operations":{}}}}               | {"applet":"a1"}                           | deny    | deny     | Default (allow)   |
+      | {"default":"allow","napplets":{"a1":{"domains":{"relay":"ask"},"operations":{}}}}                   | {"applet":"a1"}                           | inherit | allow    | Default (allow)   |
 
   Scenario: a rule select's value becomes an action, or nothing for the wider rule
     Then the rule choices "allow,ask,deny,inherit,anything" become "allow,ask,deny,none,none"

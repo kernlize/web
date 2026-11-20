@@ -55,7 +55,7 @@
   </select>
 {/snippet}
 
-<Overlay title="Firewall" {onclose} wide>
+<Overlay title="Firewall" {onclose}>
   <p class="shell-muted lead">What applets may do without asking you.</p>
 
   <section class="shell-section">
@@ -137,7 +137,7 @@
 
   .rule {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 16rem);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 13rem);
     gap: 0.5rem 1rem;
     align-items: center;
     padding: 0.6rem 0;

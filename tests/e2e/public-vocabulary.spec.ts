@@ -63,6 +63,14 @@ test('every shell surface names no protocol', async ({ page }) => {
   await page.getByRole('button', { name: /^Guard/ }).first().click();
   await expectClean(page, 'guard panel');
   await page.keyboard.press('Escape');
+  await applet.getByRole('button', { name: 'Open a link' }).click();
+  await expect(page.getByRole('heading', { name: 'Open a link outside kernl' })).toBeVisible();
+  await expectClean(page, 'firewall question');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Firewall' }).first().click();
+  await page.getByRole('dialog', { name: 'Firewall' }).locator('details').evaluateAll((all) => all.forEach((d) => d.setAttribute('open', '')));
+  await expectClean(page, 'firewall panel');
+  await page.keyboard.press('Escape');
   // Messages is an applet in its own frame, and every frame is read.
   await page.getByRole('button', { name: /^Messages/ }).first().click();
   const messages = page.frameLocator('iframe[data-window-id]').nth(1);

@@ -125,7 +125,7 @@ test('the firewall panel loosens links, and a stricter rule stops the applet and
   await page.getByRole('region', { name: 'Applets window' }).getByRole('button', { name: 'Run' }).click();
   const question = firewallQuestion(page);
   await expect(question.getByRole('heading', { name: 'Use its own storage' })).toBeVisible();
-  await expect(question.getByRole('button')).toHaveText(['Don’t allow', 'Allow while it is open', 'Always allow']);
+  await expect(question.getByRole('button')).toHaveText(['Don’t allow', 'Allow while open', 'Always allow']);
   await question.getByRole('button', { name: 'Always allow' }).click();
   await expect(page.locator('section.window')).toHaveAttribute('data-status', 'running');
 

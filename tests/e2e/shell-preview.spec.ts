@@ -30,7 +30,7 @@ test('the preview shell signs in, runs a sample applet, shows the guard and open
   await expect(page.locator('section.window')).toHaveAttribute('data-status', 'running');
 
   await page.getByRole('button', { name: /^Guard/ }).click();
-  await expect(page.getByTestId('mitigations').getByRole('listitem')).toHaveCount(11);
+  await expect(page.getByTestId('mitigations').getByRole('listitem')).toHaveCount(12);
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
@@ -243,6 +243,45 @@ async function openSettings(page: Page): Promise<void> {
   await page.locator('details.account summary').click();
   await page.getByRole('button', { name: 'Settings' }).click();
 }
+
+test('a sample applet\'s link asks through the firewall, and the firewall panel can let links through', async ({ page, context }) => {
+  // The link's destination is answered here, never by the real network.
+  await context.route('https://kernl.run/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<title>Docs</title>' }));
+  const tabs: string[] = [];
+  context.on('page', (opened) => void opened.waitForURL(/kernl\.run/).then(() => tabs.push(opened.url()), () => undefined));
+  const applet = await runPulse(page);
+
+  await applet.getByRole('button', { name: 'Open a link' }).click();
+  const question = page.getByRole('dialog').filter({ hasText: 'firewall' });
+  await expect(question.getByRole('heading', { name: 'Open a link outside kernl' })).toBeVisible();
+  await expect(question).toContainText('Pulse wants to');
+  await expect(question).toContainText('https://kernl.run/docs/');
+  await question.getByRole('button', { name: 'Don’t open' }).click();
+  await expect(applet.locator('#log li').first()).toContainText('You did not open the link.');
+  expect(tabs).toEqual([]);
+
+  await applet.getByRole('button', { name: 'Open a link' }).click();
+  await question.getByRole('button', { name: 'Open link' }).click();
+  await expect(applet.locator('#log li').first()).toContainText('The link was opened.');
+  await expect.poll(() => tabs).toEqual(['https://kernl.run/docs/']);
+
+  // Letting links through in the panel is remembered across a reload, and nothing asks any more.
+  await page.getByRole('button', { name: 'Firewall' }).click();
+  const panel = page.getByRole('dialog', { name: 'Firewall' });
+  await panel.getByLabel('Opening links', { exact: true }).selectOption('allow');
+  await panel.getByRole('button', { name: 'Close Firewall' }).click();
+  await applet.getByRole('button', { name: 'Open a link' }).click();
+  await expect(applet.locator('#log li').first()).toContainText('The link was opened.');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect.poll(() => tabs).toHaveLength(2);
+
+  await page.reload();
+  await page.getByRole('button', { name: 'Try the preview' }).click();
+  await page.getByRole('button', { name: 'Firewall' }).click();
+  await expect(panel.getByLabel('Opening links', { exact: true })).toHaveValue('allow');
+  await panel.getByRole('button', { name: 'Back to the starting rules' }).click();
+  await expect(panel.getByLabel('Opening links', { exact: true })).toHaveValue('ask');
+});
 
 test('a shared download joins the Downloads panel, fills in and can be saved', async ({ page }) => {
   const applet = await runPulse(page);

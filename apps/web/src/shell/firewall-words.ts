@@ -11,8 +11,8 @@ export type RuleChoice = RuleAction | 'inherit';
 export const RULE_ACTIONS: readonly RuleAction[] = ['allow', 'ask', 'deny'];
 
 const ACTION_WORDS: Readonly<Record<RuleAction, string>> = {
-  allow: 'Allow without asking',
-  ask: 'Ask me every time',
+  allow: 'Allow',
+  ask: 'Ask every time',
   deny: 'Refuse',
 };
 
@@ -76,7 +76,7 @@ export const firewallNote = (kind: FirewallSummary['kind']): string => NOTES[kin
 
 const CHOICE_WORDS: Readonly<Record<FirewallChoice, string>> = {
   'allow-once': 'Allow once',
-  'allow-session': 'Allow while it is open',
+  'allow-session': 'Allow while open',
   'allow-always': 'Always allow',
   deny: 'Don’t allow',
 };
@@ -139,7 +139,7 @@ function decided(rules: Rules, target: FirewallRuleTarget, skipOwn: boolean): Ru
 export const ruleInForce = (rules: Rules, target: FirewallRuleTarget): RuleAction => decided(rules, target, false);
 
 /** What the "no rule of its own" option says, naming what applies in its place. */
-export const inheritWords = (rules: Rules, target: FirewallRuleTarget): string => `Follow the wider rule (${actionWords(decided(rules, target, true)).toLowerCase()})`;
+export const inheritWords = (rules: Rules, target: FirewallRuleTarget): string => `Default (${actionWords(decided(rules, target, true)).toLowerCase()})`;
 
 /** The value a rule select hands back, as the action to set or `undefined` to remove the rule. */
 export const toRuleAction = (choice: string): RuleAction | undefined => (RULE_ACTIONS as readonly string[]).includes(choice) ? (choice as RuleAction) : undefined;
