@@ -64,8 +64,9 @@
   }
 </script>
 
-<section class="shell-section" aria-labelledby="messaging-settings" bind:this={section}>
-  <h3 id="messaging-settings">Messages</h3>
+<div bind:this={section}>
+<section class="shell-section" aria-labelledby="messaging-settings">
+  <h3 id="messaging-settings">Providers</h3>
   <p class="shell-muted small">
     A message to someone new leaves through the first provider on this list that is switched on and can reach them. Each provider states what it protects. None is recommended over another: you put them in order.
   </p>
@@ -112,9 +113,11 @@
   </ol>
   <p class="visually-hidden" role="status">{moveNote}</p>
   {#if error}<p class="shell-error" role="alert">{error}</p>{/if}
-
+</section>
+<section class="shell-section" aria-labelledby="reply-settings">
+  <h3 id="reply-settings">Replies</h3>
   <fieldset class="rules">
-    <legend>When someone last wrote to you through a provider that is not first in your order</legend>
+    <legend class="shell-muted small">When someone last wrote to you through a provider that is not first in your order.</legend>
     {#each REPLY_RULES as rule (rule.id)}
       <label class="shell-card rule" class:active={preferences.reply === rule.id}>
         <input type="radio" name="reply-rule" value={rule.id} checked={preferences.reply === rule.id} onchange={() => apply(() => messaging.setReplyRule(rule.id as ReplyRule))} />
@@ -130,6 +133,7 @@
     </div>
   {/if}
 </section>
+</div>
 
 <style>
   .small {
@@ -186,13 +190,13 @@
   .rules {
     border: 0;
     padding: 0;
-    margin: 0.5rem 0 0;
+    margin: 0;
     display: grid;
     gap: 0.5rem;
   }
 
   .rules legend {
-    font-size: 0.9rem;
+    padding: 0;
     margin-bottom: 0.5rem;
   }
 

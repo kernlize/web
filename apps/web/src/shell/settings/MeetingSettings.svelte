@@ -177,4 +177,10 @@
     align-items: end;
     gap: 0.5rem;
   }
+
+  /* One text size for the three fields, so their labels sit on one line. */
+  .helper .shell-input {
+    font-size: 0.85rem;
+    line-height: 1.4;
+  }
 </style>

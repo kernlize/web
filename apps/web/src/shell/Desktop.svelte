@@ -11,11 +11,13 @@
   import { explainOpenFailure } from './launcher-reasons';
   import { openMessages } from './messages-applet';
   import { observe } from './observe.svelte';
-  import SettingsPanel from './SettingsPanel.svelte';
+  import { readSettingsSection, rememberSettingsSection, type SettingsSectionId } from './settings/sections';
+  import SettingsWindow from './settings/SettingsWindow.svelte';
   import StatusBar from './StatusBar.svelte';
   import { UnreadMessages } from './unread-messages.svelte';
   import WindowLayer from './WindowLayer.svelte';
   import { panelWindowId, type WindowStore } from './window-store.svelte';
+  import { panelToClose } from './windows';
 
   interface Props {
     booted: Booted;
@@ -32,13 +34,17 @@
   const { booted, session, storage, windows, guardLog, opener, onproblem, onsignout }: Props = $props();
   const kernl = $derived(booted.kernl);
 
-  type Overlay = { kind: 'grants'; windowId: string } | { kind: 'guard' } | { kind: 'settings' } | { kind: 'downloads' };
+  type Overlay = { kind: 'grants'; windowId: string } | { kind: 'guard' } | { kind: 'downloads' };
 
   let overlay = $state.raw<Overlay | null>(null);
   /** The store is a window like any other (D-048); it is opened at an address when one was shared. */
   const LAUNCHER = 'launcher';
   let launcherAddress = $state('');
   let launcherOpened = $state(0);
+  /** Settings is a window too, with one section showing; the shell remembers which (D-049). */
+  const SETTINGS = 'settings';
+  let settingsSection = $state<SettingsSectionId>(readSettingsSection(storage));
+  let settingsOpened = $state(0);
   const unread = new UnreadMessages();
   // Messages are read only once the user has asked for them: watching from sign-in would have a signer asked to open mail nobody looked for.
   let asked = $state(false);
@@ -55,14 +61,27 @@
     windows.openPanel(LAUNCHER, 'Applets');
   }
 
-  /** Close the top-most overlay; false when nothing was open. */
+  function chooseSettingsSection(section: SettingsSectionId): void {
+    settingsSection = rememberSettingsSection(storage, section);
+  }
+
+  /** Open Settings, or bring it forward: at `section` when given, at the one the person was last in otherwise. */
+  export function openSettings(section?: SettingsSectionId): void {
+    overlay = null;
+    if (section) chooseSettingsSection(section);
+    settingsOpened += 1;
+    windows.openPanel(SETTINGS, 'Settings');
+  }
+
+  /** Close the sheet that is open, or else the store or Settings window Escape is meant for; false when there was nothing to close. */
   export function closeTopOverlay(): boolean {
     if (overlay) {
       overlay = null;
       return true;
     }
-    if (!windows.hasPanel(LAUNCHER)) return false;
-    windows.close(panelWindowId(LAUNCHER));
+    const target = panelToClose(windows.panels);
+    if (!target) return false;
+    windows.close(target.id);
     return true;
   }
 
@@ -82,6 +101,7 @@
   const reading = $derived(windows.windows.some((win) => win.focused && showsMessages(win)));
 
   function panel(kind: 'guard' | 'messages' | 'settings' | 'downloads'): void {
+    if (kind === 'settings') return openSettings();
     if (kind !== 'messages') return open(kind);
     overlay = null;
     asked = true;
@@ -93,8 +113,11 @@
     }).catch((reason: unknown) => onproblem('Messages could not be opened', explainOpenFailure(reason)));
   }
 
-  // Counted again whenever a panel closes: Settings may have switched a provider on or off.
+  const inSettings = $derived(windows.panels.some((win) => win.panel === SETTINGS && win.focused));
+
+  // Counted again whenever a sheet closes or Settings is left: Settings may have switched a provider on or off.
   $effect(() => {
+    void inSettings;
     if (overlay !== null || !asked) return;
     return unread.watch(kernl.messaging.composite(), () => reading);
   });
@@ -151,10 +174,14 @@
   <div class="desk" bind:this={desk} role="presentation">
     <div class="wallpaper" onpointerdown={() => windows.blur()}></div>
     <WindowLayer {windows} ongrants={(windowId) => (overlay = { kind: 'grants', windowId })}>
-      {#snippet panel()}
-        {#key launcherOpened}
-          <Launcher {kernl} mode={booted.mode} {storage} initialAddress={launcherAddress} onopen={openPlan} />
-        {/key}
+      {#snippet panel(win)}
+        {#if win.panel === SETTINGS}
+          <SettingsWindow {kernl} mode={booted.mode} downloads={booted.downloads} section={settingsSection} opened={settingsOpened} onsection={chooseSettingsSection} />
+        {:else}
+          {#key launcherOpened}
+            <Launcher {kernl} mode={booted.mode} {storage} initialAddress={launcherAddress} onopen={openPlan} />
+          {/key}
+        {/if}
       {/snippet}
     </WindowLayer>
     <IframeLayer {kernl} {windows} />
@@ -169,10 +196,8 @@
       <GrantsPanel {kernl} win={grantsWindow} {guardLog} onclose={() => (overlay = null)} />
     {:else if overlay?.kind === 'guard'}
       <GuardPanel {kernl} {guardLog} {windows} onclose={() => (overlay = null)} />
-    {:else if overlay?.kind === 'settings'}
-      <SettingsPanel {kernl} mode={booted.mode} downloads={booted.downloads} onclose={() => (overlay = null)} />
     {:else if overlay?.kind === 'downloads'}
-      <DownloadsPanel {kernl} downloads={booted.downloads} onclose={() => (overlay = null)} onsettings={() => open('settings')} />
+      <DownloadsPanel {kernl} downloads={booted.downloads} onclose={() => (overlay = null)} onsettings={() => openSettings('downloads')} />
     {/if}
   </div>
 </div>

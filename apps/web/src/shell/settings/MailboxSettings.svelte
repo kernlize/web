@@ -161,7 +161,8 @@
     gap: 0.75rem;
   }
 
-  @media (min-width: 760px) {
+  /* The window's own width, not the page's: Settings is resized and tiled on its own (D-049). */
+  @container (min-width: 36rem) {
     .sides {
       grid-template-columns: 1fr 1fr;
     }
