@@ -1,5 +1,19 @@
 # @kernlize/guard
 
+## 0.3.0
+
+### Minor Changes
+
+- 4d19b2a: kehto's firewall is now an approval authority and its temporal engine moved to `@kehto/rate-limit`; kernl adopts both (D-056).
+
+  `@kernlize/guard`: `createFocusFirewall` is `createFocusRateLimiter`, over `@kehto/rate-limit`'s `evaluateRateLimit` with one budget per operation class in `GuardConfig.rateLimits`. `applyNappletRules`, `GuardConfig.firewall` and the legacy engine are gone. A `firewall` mitigation is described.
+
+  `@kernlize/core`: the shell configures kehto's `permissions`. Every applet is admitted by the firewall in `plan`, and every request is put to it. `defaultFirewallRules` allows what the person granted and asks about every link. `Kernl.firewall` sets rules and takes answers back; `KernlHost.presentApproval` shows a question; `KernlHost.openLink` is told when a link was already approved. `createRuntimeRateLimiter` replaces the legacy rate gate, and the `runtime-rules` exports are removed.
+
+### Patch Changes
+
+- 6bc9b41: Keyboard shortcuts work for every applet. `keys` is now a baseline domain served by `createShortcutsService`: an applet gets the key it asks for, is told its bindings, and has its action run in the focused window. A keymap registered as an applet starts is held through the startup window instead of being refused, a held key's repeats no longer count as a flood, and the guard classifies `keys.*` as `control`. `createKernlServices` requires `shortcuts`, `KernlOptions.shortcuts` reserves the host's own chords, and `KernlHost.onShortcut` receives the keys an applet forwards.
+
 ## 0.2.1
 
 ### Patch Changes
