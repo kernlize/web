@@ -12,6 +12,14 @@
 
   const { win, traffic, onclose }: Props = $props();
   let problemsOnly = $state(false);
+  // A payload is formatted only once its row is opened: 200 at once would stall the page.
+  let open = $state.raw<ReadonlySet<number>>(new Set());
+  const toggle = (id: number, isOpen: boolean): void => {
+    const next = new Set(open);
+    if (isOpen) next.add(id);
+    else next.delete(id);
+    open = next;
+  };
   const rows = $derived(traffic.forWindow(win.id));
   const shown = $derived(problemsOnly ? rows.filter((row) => row.mark) : rows);
   const marks = $derived(describeMarks(traffic.marks(win.id)));
@@ -29,7 +37,7 @@
     <ol class="log" aria-label="Messages, newest first">
       {#each shown as row (row.id)}
         <li class="row" data-mark={row.mark ?? 'none'}>
-          <details>
+          <details ontoggle={(event) => toggle(row.id, event.currentTarget.open)}>
             <summary>
               <time datetime={new Date(row.at).toISOString()}>{timeOf(row.at)}</time>
               <span class="direction">{directionLabel(row)}</span>
@@ -37,7 +45,7 @@
               {#if row.mark}<span class="shell-badge mark {row.mark}">{row.mark}</span>{/if}
               {#if row.note}<span class="row-note">{row.note}</span>{/if}
             </summary>
-            {#if row.payload !== undefined}
+            {#if row.payload !== undefined && open.has(row.id)}
               <pre>{formatPayload(row.payload)}</pre>
             {/if}
           </details>

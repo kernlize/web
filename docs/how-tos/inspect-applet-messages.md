@@ -8,7 +8,7 @@ Every applet window keeps what it sent to the shell and what the shell sent back
 2. The list is newest first. Each row shows the time, the direction (`applet → shell`, `shell → applet`, or `guard`), the message type, and a mark:
    - **error**: the message reports a failure. That is a non-empty `error` string, as kehto's runtime puts on a failed `*.result`, or a `*.error` type. The note is what failed, for example `denied: relay:read`.
    - **warning**: the guard refused, limited, flagged or quarantined it. Requests held while the window is minimised or hidden are shown too, without a mark: holding them is normal.
-3. Open a row to read the message itself. A string longer than 512 characters, such as a fetched file, keeps its first 64 and says how long it was, and bytes say only how many there were. **Problems only** hides everything without a mark.
+3. Open a row to read the message itself. A string longer than 512 characters, such as a fetched file, keeps its first 64 and says how long it was, bytes say only how many there were, and a list or object keeps its first 50 entries. The log never keeps more than 2000 values of one message. **Problems only** hides everything without a mark.
 
 The log keeps the last 200 rows per window; the counts on the button cover the whole time the window has been open. A stopped window keeps its log until it is closed, so the message that stopped it can still be read ([D-058](../decisions.md#d-058)).
 

@@ -55,6 +55,11 @@ const nested = (depth: number, wrap: (inner: unknown) => unknown): unknown => (d
 const selfish: Record<string, unknown> = { name: 'loop' };
 selfish.again = selfish;
 const LONG = 'A'.repeat(4000);
+const SHARED = { n: 1 };
+const WIDE: Record<string, number> = Object.fromEntries(Array.from({ length: 60 }, (_, index) => [`k${index}`, index]));
+// Each row costs 51 values of the 2000: rows 0 to 39 fit, and the rows after them are cut short.
+const GRID = Array.from({ length: 50 }, () => Array.from({ length: 50 }, (_, index) => index));
+const GRID_KEPT = GRID.map((row, index) => (index < 40 ? row : '<array>'));
 const KEPT: Readonly<Record<string, [unknown, unknown]>> = {
   'a 4000-character string': [{ blob: LONG }, { blob: `${'A'.repeat(64)}… (4000 characters)` }],
   'a 512-character string': ['B'.repeat(512), 'B'.repeat(512)],
@@ -65,6 +70,12 @@ const KEPT: Readonly<Record<string, [unknown, unknown]>> = {
   'nesting eight objects deep': [nested(8, (inner) => ({ inner })), { inner: { inner: { inner: { inner: { inner: { inner: '<object>' } } } } } }],
   'nesting eight arrays deep': [nested(8, (inner) => [inner]), [[[[[['<array>']]]]]]],
   'a number': [42, 42],
+  'a shared value used twice': [{ a: SHARED, b: SHARED }, { a: { n: 1 }, b: { n: 1 } }],
+  'a million-item array': [Array.from({ length: 1_000_000 }).fill(0), [...Array.from({ length: 50 }).fill(0), '<999950 more>']],
+  'an object with an inherited key': [Object.assign(Object.create({ inherited: 1 }), { own: 2 }), { own: 2 }],
+  'an object with 60 keys': [WIDE, { ...Object.fromEntries(Object.entries(WIDE).slice(0, 50)), '…': 'more keys' }],
+  'a big integer': [12345678901234567890n, '12345678901234567890n'],
+  '50 arrays of 50 numbers': [GRID, GRID_KEPT],
 };
 
 Then('the inspector keeps {} as {}', (_world: TrafficWorld, payload: string) => {
