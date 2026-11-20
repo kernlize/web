@@ -1,10 +1,10 @@
 <script lang="ts">
   import type { MultiplayerState, ToolFamilyCandidate } from '@kernlize/core';
-  import type { ShellKernl } from './contract';
-  import { abbreviate } from './contract';
-  import { helperFrom, toolSearchWords } from './meeting-words';
-  import { observe } from './observe.svelte';
-  import { serverAddress, serverLabel } from './servers';
+  import type { ShellKernl } from '../contract';
+  import { abbreviate } from '../contract';
+  import { helperFrom, toolSearchWords } from '../meeting-words';
+  import { observe } from '../observe.svelte';
+  import { serverAddress, serverLabel } from '../servers';
 
   interface Props {
     kernl: ShellKernl;

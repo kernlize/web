@@ -5,10 +5,10 @@
   import type { BootMode, RelayTier, ShellKernl } from './contract';
   import type { DownloadMode, ShellDownloads } from './downloads';
   import { toggleTheme } from '../lib/theme';
-  import FileServerSettings from './FileServerSettings.svelte';
-  import MeetingSettings from './MeetingSettings.svelte';
-  import MailboxSettings from './MailboxSettings.svelte';
-  import MessagingSettings from './MessagingSettings.svelte';
+  import FileServerSettings from './settings/FileServerSettings.svelte';
+  import MeetingSettings from './settings/MeetingSettings.svelte';
+  import MailboxSettings from './settings/MailboxSettings.svelte';
+  import MessagingSettings from './settings/MessagingSettings.svelte';
   import { observe } from './observe.svelte';
   import Overlay from './Overlay.svelte';
   import { serverAddress, serverLabel } from './servers';

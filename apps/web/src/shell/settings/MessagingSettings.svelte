@@ -1,9 +1,9 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { describeProvider, type ProviderEntry, type ReplyRule } from '@kernlize/messaging';
-  import type { ShellKernl } from './contract';
-  import { messagingError, unavailableWhy } from './messaging-reasons';
-  import { REPLY_RULES, moved, settledWords } from './reply-words';
+  import type { ShellKernl } from '../contract';
+  import { messagingError, unavailableWhy } from '../messaging-reasons';
+  import { REPLY_RULES, moved, settledWords } from '../reply-words';
 
   interface Props {
     kernl: ShellKernl;

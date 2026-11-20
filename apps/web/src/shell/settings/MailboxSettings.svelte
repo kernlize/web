@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { MailboxState, PublishOutcome } from '@kernlize/core';
-  import type { BootMode, ShellKernl } from './contract';
-  import { completionsFor, draftChanged, draftOf, progressWords, savedWords, suggestionsFor, withoutServer, withServer, type MailboxDraft, type MailboxSide } from './mailbox-draft';
-  import { observe } from './observe.svelte';
-  import { serverName } from './servers';
+  import type { BootMode, ShellKernl } from '../contract';
+  import { completionsFor, draftChanged, draftOf, progressWords, savedWords, suggestionsFor, withoutServer, withServer, type MailboxDraft, type MailboxSide } from '../mailbox-draft';
+  import { observe } from '../observe.svelte';
+  import { serverName } from '../servers';
 
   interface Props {
     kernl: ShellKernl;

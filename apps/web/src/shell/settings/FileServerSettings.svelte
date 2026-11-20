@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { FileServerState } from '@kernlize/core';
-  import type { ShellKernl } from './contract';
-  import { observe } from './observe.svelte';
-  import { serverLabel } from './servers';
+  import type { ShellKernl } from '../contract';
+  import { observe } from '../observe.svelte';
+  import { serverLabel } from '../servers';
 
   interface Props {
     kernl: ShellKernl;
