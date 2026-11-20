@@ -6,3 +6,4 @@ import './resource-resolver';
 import './describe';
 import './handoff-backends';
 import './webtorrent-backend';
+import './blossom-bridge';
