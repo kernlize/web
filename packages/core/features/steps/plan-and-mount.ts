@@ -272,6 +272,10 @@ When('the bridge reports the applet revoked for {string}', (world: CoreWorld, re
   handle(world).revoked(reason);
 });
 
+Then('the guard was told nothing about {string}', (world: CoreWorld, windowId: string) => {
+  expect(record(world).visibility.filter((entry) => entry.windowId === windowId)).toEqual([]);
+});
+
 When('the shell marks the applet hidden', (world: CoreWorld) => {
   handle(world).setVisibility({ visible: false, focused: false });
 });

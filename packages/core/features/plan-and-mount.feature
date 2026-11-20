@@ -111,3 +111,16 @@ Feature: Planning and mounting an applet
     And the shell mounts the plan into the frame
     When the shell marks the applet hidden
     Then the guard saw "w1" become hidden
+
+  Scenario Outline: a closed or stopped applet's visibility no longer reaches the guard
+    Given a plan for window "w1"
+    And a fake frame
+    And the shell mounts the plan into the frame
+    When <ending>
+    And the shell marks the applet hidden
+    Then the guard was told nothing about "w1"
+
+    Examples:
+      | ending                                              |
+      | the shell closes the applet                         |
+      | the bridge reports the applet revoked for "host"    |
