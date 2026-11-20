@@ -290,6 +290,10 @@ Then('the slskd daemon was asked {string} {int} time(s)', (world: SlskdWorld, re
   expect(asked).toHaveLength(times);
 });
 
+Then('the slskd daemon still holds the transfer, marked removed', (world: SlskdWorld) => {
+  expect(daemon(world).transfers.get(transfer(world).id)?.removed).toBe(true);
+});
+
 Then('every slskd request carried {string} as {string} and nothing else that opens the daemon', (world: SlskdWorld, value: string, header: string) => {
   const other = header === 'x-api-key' ? 'authorization' : 'x-api-key';
   expect(daemon(world).requests.length).toBeGreaterThan(0);
