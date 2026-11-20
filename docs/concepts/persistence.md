@@ -33,7 +33,7 @@ The prefix keeps kernl's keys apart from kehto's and from the host app's in the 
 | `kernl:firewall-rules:v1` | `createFirewallRules` | The user's firewall rules, in kehto's serialised form: `allow`, `ask` or `deny` for everything, per domain and per request, for every applet and per catalogue id. Absent until the user changes a rule; a damaged value reads as the shipped rules. The string is kehto's format and is written as is, not through `createNamespacedStore`. See [Guard](./guard.md#the-firewall). |
 | `kernl:firewall-decisions:v1` | `createFirewallPermissions`, as kehto's `permissions.persistence` | The firewall answers the user asked to keep ("always"), in kehto's serialised form, each tied to an applet's catalogue id and the hash of the exact code. Answers for one opening or one session are never stored. A damaged value refuses every applet start with `unavailable:firewall` until the user clears the answers. Written as is. |
 
-`kernl:firewall:v1`, where earlier builds kept the configuration of kehto's former rate gate, is retired: `createKernl` removes it on boot ([D-050](../decisions.md#d-050)). The rate limiter that replaced it stores nothing.
+`kernl:firewall:v1`, where earlier builds kept the configuration of kehto's former rate gate, is retired: `createKernl` removes it on boot ([D-056](../decisions.md#d-056)). The rate limiter that replaced it stores nothing.
 
 On boot, `createKernlAccounts` restores the accounts and makes the stored id active if that account still exists. `createGrants` loads its records, and `createRelayTiers` and `createDefaultMessaging` start from the stored value when there is one.
 

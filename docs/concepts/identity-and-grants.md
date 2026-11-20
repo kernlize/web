@@ -46,7 +46,7 @@ The practical effect for an applet: `requires` in the manifest is honoured as a 
 
 ## The firewall inside the grants
 
-Grants decide which domains an applet holds. kehto's firewall decides, inside those, what goes ahead without asking, what asks the user, and what is refused ([D-050](../decisions.md#d-050)). The restrictive ACL is its ceiling: no firewall answer gives an applet a domain its grant does not.
+Grants decide which domains an applet holds. kehto's firewall decides, inside those, what goes ahead without asking, what asks the user, and what is refused ([D-056](../decisions.md#d-056)). The restrictive ACL is its ceiling: no firewall answer gives an applet a domain its grant does not.
 
 kernl ships rules that allow everything and ask about every link opened outside the shell, so the firewall adds one question to what the grants already settled. `kernl.plan` has each start admitted by the firewall after the grants narrowed it: a required domain the firewall refuses fails the plan with `denied:firewall`, and any other refused domain is left out of the environment. The user changes the rules through `kernl.firewall`, and taking back an answer an applet runs under stops its window, as narrowing its grant does. Grants are tied to the exact code; firewall rules follow an applet across versions, and stored firewall answers are tied to the exact code again.
 
@@ -82,7 +82,7 @@ Three limits are deliberate:
 - **Answers are not remembered.** Each destructive write asks again; `ConsentPrompt` has no "always allow" switch.
 - **The user never approves raw JSON.** The unsigned draft (empty `id` and `sig`) is on `ConsentSummary.event` for an "advanced" disclosure.
 
-kehto's own `ConsentRequest` is a different thing: the runtime's former rate gate raised it, without an event, for a `prompt` policy. kernl no longer runs that gate ([D-050](../decisions.md#d-050)), so the request is not expected. `createConsentHandler` stays registered for it and refuses one without an event; a request that carries an event, from a window the shell can name, would be described and put to the user. A firewall question is separate again: it reaches the host through `presentApproval`, not through consent ([Guard](./guard.md#the-firewall)).
+kehto's own `ConsentRequest` is a different thing: the runtime's former rate gate raised it, without an event, for a `prompt` policy. kernl no longer runs that gate ([D-056](../decisions.md#d-056)), so the request is not expected. `createConsentHandler` stays registered for it and refuses one without an event; a request that carries an event, from a window the shell can name, would be described and put to the user. A firewall question is separate again: it reaches the host through `presentApproval`, not through consent ([Guard](./guard.md#the-firewall)).
 
 Deletions have their own, tighter budget only in kernl's rate limiter, which drops a deletion over it before dispatch with a `rate:relay:publish:delete` guard event. In kehto's runtime, kind 5 shares the `relay:publish` budget with other publishes ([Guard](./guard.md#where-enforcement-happens)). The rate is not what stops an unwanted deletion; consent is.
 

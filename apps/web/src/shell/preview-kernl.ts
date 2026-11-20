@@ -285,7 +285,7 @@ function createActions({ host, bridges, pubkeyOf, intents, config }: ActionParts
         if (needs('config')) config?.open(entry.plan.windowId, (words) => reply(entry, true, words));
         return;
       case 'link':
-        // The firewall's rules decide a link, as in the live shell: to begin with it asks every time (D-050).
+        // The firewall's rules decide a link, as in the live shell: to begin with it asks every time (D-056).
         if (message.url?.startsWith('https://')) void firewall.openLink(entry.plan.summary, message.url).then((result) => reply(entry, result.ok, result.text));
         return;
       case 'download':

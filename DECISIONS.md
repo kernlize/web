@@ -154,7 +154,7 @@ The window-level `hello` is the one message kernl can hold or drop before kehto 
 
 **Reversal cost.** Low; the pipeline sits behind `createGuardPipeline` and shrinks when kehto exposes a hook that can hold or drop an envelope. `refuseCurrentDispatch` goes when kehto offers that hook and its runtime can measure the envelopes and focus it cannot see today.
 
-**Superseded in part by D-050.** The runtime firewall this entry describes is kehto's rate limiter now, and kehto's firewall is an approval authority that kernl configures.
+**Superseded in part by D-056.** The runtime firewall this entry describes is kehto's rate limiter now, and kehto's firewall is an approval authority that kernl configures.
 
 **Superseded in part by D-020.** kehto now offers that hook. Port traffic is decided by `ShellAdapter.filterNappletMessage`: what kernl's guard will not let through is dropped rather than refused, a hidden window's requests are held and released when it is visible, and `refuseCurrentDispatch` is deleted. The runtime firewall now applies the unfocused multiplier and reports its refusals to the guard log. The size, burst, focus and quarantine layers described above remain kernl's.
 
@@ -290,7 +290,7 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 
 **Superseded in part by D-037.** #336 shipped. kernl now constructs the runtime firewall from `@kehto/rate-limit/legacy` and passes it as `legacyFirewall`; `firewallPersistence` is gone, and the move to `permissions` is still to come.
 
-**Superseded in part by D-050.** kernl configures `permissions`. The legacy gate, `legacyFirewall`, `onFirewallEvent`, `runtime-rules.ts` and `kernl:firewall:v1` are gone; the runtime charges through `permissions.rateLimiter`, and the focus firewall is the focus rate limiter. What kernl puts in front of kehto is unchanged.
+**Superseded in part by D-056.** kernl configures `permissions`. The legacy gate, `legacyFirewall`, `onFirewallEvent`, `runtime-rules.ts` and `kernl:firewall:v1` are gone; the runtime charges through `permissions.rateLimiter`, and the focus firewall is the focus rate limiter. What kernl puts in front of kehto is unchanged.
 
 ## D-021 · Registry scopes are explicit; package versions have one authority
 
@@ -572,7 +572,7 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 
 **Reversal cost.** Low. The firewall calls stay in `runtime-rules.ts`; the relay planner and stable signers are one function each.
 
-**Superseded in part by D-050.** The stopgap is over: kernl configures `permissions`, and the `FW-*-LEGACY-001` warnings no longer appear.
+**Superseded in part by D-056.** The stopgap is over: kernl configures `permissions`, and the `FW-*-LEGACY-001` warnings no longer appear.
 
 ## D-038 · Narrowing a running applet's grant stops its window
 
@@ -734,7 +734,7 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 
 **Reversal cost.** Low. One store method and one snippet.
 
-## D-050 · kehto's firewall decides every request, under rules that ask only about links
+## D-056 · kehto's firewall decides every request, under rules that ask only about links
 
 **Context.** kehto's firewall became an approval authority (`@kehto/firewall` 0.9 to 0.10): scoped grants per applet and artifact, with a lifetime of once, a session, or kept. A host that sets `permissions` has every applet admitted before its code runs, and every request a service carries out put to the firewall, which prompts when nothing covers it. The temporal engine it used to be is `@kehto/rate-limit`, which a host installs itself. D-037 left kernl on the legacy rate gate, which kehto retains for one more minor release. A host that sets `permissions` with no rules asks the person about every domain at start and every destination afterwards.
 

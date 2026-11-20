@@ -2,7 +2,7 @@ Feature: The firewall
   kehto's firewall decides every request an applet makes. kernl gives it rules,
   so the person is not asked about each one: what they granted is allowed, and
   opening a link outside the shell asks every time. The person can change the
-  rules and take back the answers they gave (D-050).
+  rules and take back the answers they gave (D-056).
 
   Background:
     Given a kernl host over empty storage

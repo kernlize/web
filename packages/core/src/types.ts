@@ -240,7 +240,7 @@ export interface FirewallRuleTarget {
 }
 
 /**
- * The firewall: what happens to a request no stored answer covers, and the answers in force (D-050).
+ * The firewall: what happens to a request no stored answer covers, and the answers in force (D-056).
  * Grants decide which domains an applet holds; the firewall decides, inside those, what goes ahead
  * without asking, what asks, and what is refused.
  */
@@ -367,7 +367,7 @@ export interface KernlHost {
   chooseReply?(prompt: ReplyPrompt): Promise<ReplyAnswer | undefined>;
   /**
    * Put a firewall question to the person: a request a rule says to ask about, such as opening a link.
-   * Close the prompt when `signal` aborts. Without it, such a request is refused (D-050).
+   * Close the prompt when `signal` aborts. Without it, such a request is refused (D-056).
    */
   presentApproval?(prompt: FirewallPrompt): void;
   /** Verify an artifact blob. Defaults to `fetch` over the manifest's servers. */

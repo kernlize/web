@@ -59,7 +59,7 @@ let hostHtml = '';
 const adapter = { capabilities: { resolveEnvironment: () => ({ domains: ['shell'], services: [] }) } };
 
 function summaryFor(dTag: string): AppletSummary {
-  // `mountApplet` registers the firewall principal, which names the applet by its catalogue id (D-050).
+  // `mountApplet` registers the firewall principal, which names the applet by its catalogue id (D-056).
   return { identity: { dTag, hash: 'ab'.repeat(32), pubkey: 'cd'.repeat(32) }, requires: [], manifest: { catalogId: `nip5d:35129:${'cd'.repeat(32)}:${dTag}` } } as unknown as AppletSummary;
 }
 

@@ -79,7 +79,7 @@ export function mountApplet(plan: MountPlan, frame: FrameLike, deps: MountDeps):
 
   harden(frame);
   const { identity } = plan.summary;
-  // The principal is what kehto's firewall knows the applet by; it comes from the verified manifest (D-050).
+  // The principal is what kehto's firewall knows the applet by; it comes from the verified manifest (D-056).
   deps.originRegistry.register(win, windowId, { dTag: identity.dTag, aggregateHash: identity.hash, permissionPrincipal: permissionPrincipalFor(plan.summary) });
   deps.originRegistry.setEnvironment(win, plan.environment);
   const stopObserving = deps.bridge.observeFrame(frame, windowId);

@@ -11,7 +11,7 @@ import { createFirewall, type KernlFirewall } from './firewall/firewall.js';
 import { createFirewallPermissions } from './firewall/permissions.js';
 import { createFirewallRules } from './firewall/rules.js';
 
-/** The legacy rate gate's stored configuration; nothing reads it since the firewall took over (D-050). */
+/** The legacy rate gate's stored configuration; nothing reads it since the firewall took over (D-056). */
 const RETIRED_STORAGE_KEYS: readonly string[] = ['kernl:firewall:v1'];
 
 /** What the shell's firewall needs from the rest of the shell. */
@@ -40,7 +40,7 @@ function plannedKey(subject: string, hash: string): string {
 }
 
 /**
- * Assemble one shell's firewall (D-050): the person's rules, their stored
+ * Assemble one shell's firewall (D-056): the person's rules, their stored
  * answers, the question put through the host, and the guard profile's budgets
  * for what the runtime carries out.
  *

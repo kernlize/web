@@ -61,7 +61,7 @@ The shell boots in `strict`. The numbers are in [Guard](./guard.md#profiles); th
 
 ## The firewall and your applet
 
-Grants decide which domains your applet holds. kehto's firewall decides, inside those, what goes ahead without asking, what asks the user, and what is refused ([Guard](./guard.md#the-firewall), [D-050](../decisions.md#d-050)). With the rules kernl ships you meet it in one place:
+Grants decide which domains your applet holds. kehto's firewall decides, inside those, what goes ahead without asking, what asks the user, and what is refused ([Guard](./guard.md#the-firewall), [D-056](../decisions.md#d-056)). With the rules kernl ships you meet it in one place:
 
 - **`link.open` asks every time.** The user sees the link and where it leads and chooses "Open link" or "Don't open". Nothing is remembered, so the next link asks again. Expect the result to take as long as a person takes to read, and handle `denied`: the user said no, dismissed the question, or the shell they run cannot ask. Open links on a click, one at a time; an applet that asks more than twelve questions a minute has the rest dropped.
 

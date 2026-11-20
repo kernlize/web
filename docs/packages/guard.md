@@ -30,7 +30,7 @@ Neither registry has a release yet, so both commands fail. During the alpha the 
 
 ## Purpose
 
-The guard is the set of protections between an applet and the user. kehto's `@kehto/rate-limit` supplies a pure evaluator, `evaluateRateLimit`; this package gives its opaque operation classes meaning, adds the layers that run in front of kehto's bridge (ingress flood control, the visibility gate, focus supplied by the shell's window manager), fixes the CSP, adds an insertion lock on top of kehto's nested-context lock ([D-014](../decisions.md#d-014)), and describes every mitigation for the UI. It is temporal protection only: whether an applet may do something at all is decided by its grants and by the firewall in [`@kernlize/core`](./core.md#the-firewall) ([D-050](../decisions.md#d-050)). The concepts and the numbers are in [Guard](../concepts/guard.md).
+The guard is the set of protections between an applet and the user. kehto's `@kehto/rate-limit` supplies a pure evaluator, `evaluateRateLimit`; this package gives its opaque operation classes meaning, adds the layers that run in front of kehto's bridge (ingress flood control, the visibility gate, focus supplied by the shell's window manager), fixes the CSP, adds an insertion lock on top of kehto's nested-context lock ([D-014](../decisions.md#d-014)), and describes every mitigation for the UI. It is temporal protection only: whether an applet may do something at all is decided by its grants and by the firewall in [`@kernlize/core`](./core.md#the-firewall) ([D-056](../decisions.md#d-056)). The concepts and the numbers are in [Guard](../concepts/guard.md).
 
 ## Exports
 
@@ -83,7 +83,7 @@ The guard is the set of protections between an applet and the user. kehto's `@ke
 | `FocusRateLimiter` | interface | `observe(windowId, napplet, envelope, visibility): RateVerdict`, `forget(windowId): void`. Budgets are kept per applet and class, so `forget` also resets the budget of another window running the same applet. |
 | `RateVerdict` | interface | `{ decision: 'pass' \| 'reject'; action: RateLimitAction; reason: 'within-budget' \| 'rate-exceeded' }`. `reject` only when the budget is spent and its action is `block`; `action` is `ignore` while within budget. |
 
-Removed ([D-050](../decisions.md#d-050)): `createFocusFirewall`, `FocusFirewall` and `FocusFirewallOptions` (renamed as above), `applyNappletRules`, and `GuardConfig.firewall`. Policies (`allow`, `ask`, `deny`) and content matchers no longer exist in this package.
+Removed ([D-056](../decisions.md#d-056)): `createFocusFirewall`, `FocusFirewall` and `FocusFirewallOptions` (renamed as above), `applyNappletRules`, and `GuardConfig.firewall`. Policies (`allow`, `ask`, `deny`) and content matchers no longer exist in this package.
 
 ### CSP
 

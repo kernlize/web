@@ -1,6 +1,6 @@
 # Change the firewall rules
 
-Grants decide which domains an applet holds. The firewall decides, inside those, what goes ahead without asking, what asks the user, and what is refused ([Guard](../concepts/guard.md#the-firewall), [D-050](../decisions.md#d-050)). The shell starts with two rules: everything the user granted is allowed, and opening a link outside the shell asks every time. This page changes them, in the shell and in code.
+Grants decide which domains an applet holds. The firewall decides, inside those, what goes ahead without asking, what asks the user, and what is refused ([Guard](../concepts/guard.md#the-firewall), [D-056](../decisions.md#d-056)). The shell starts with two rules: everything the user granted is allowed, and opening a link outside the shell asks every time. This page changes them, in the shell and in code.
 
 ## In the shell
 

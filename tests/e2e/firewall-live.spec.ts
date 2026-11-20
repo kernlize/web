@@ -3,7 +3,7 @@ import { expect, test } from './fixtures';
 import { fakeNetwork, signApplet } from './live-network';
 
 /**
- * The live shell's firewall (D-050): the real core and kehto's approval authority, against a
+ * The live shell's firewall (D-056): the real core and kehto's approval authority, against a
  * network that exists only in this browser. An applet that asks the shell to open a link is put
  * to the person every time; nothing else asks until they change a rule.
  */

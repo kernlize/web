@@ -357,7 +357,7 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
     }),
     link: createLinkService({
       allowedProtocols: LINK_PROTOCOLS,
-      // kehto calls this only after the firewall let this exact link through, so the host need not ask again (D-050).
+      // kehto calls this only after the firewall let this exact link through, so the host need not ask again (D-056).
       open: ({ url }) => {
         deps.host.openLink(url.href, { approved: true });
         return { status: 'opened' };

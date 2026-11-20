@@ -3,7 +3,7 @@
 '@kernlize/core': minor
 ---
 
-kehto's firewall is now an approval authority and its temporal engine moved to `@kehto/rate-limit`; kernl adopts both (D-050).
+kehto's firewall is now an approval authority and its temporal engine moved to `@kehto/rate-limit`; kernl adopts both (D-056).
 
 `@kernlize/guard`: `createFocusFirewall` is `createFocusRateLimiter`, over `@kehto/rate-limit`'s `evaluateRateLimit` with one budget per operation class in `GuardConfig.rateLimits`. `applyNappletRules`, `GuardConfig.firewall` and the legacy engine are gone. A `firewall` mitigation is described.
 

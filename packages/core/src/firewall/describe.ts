@@ -30,7 +30,7 @@ function isLink(requests: readonly FirewallRequest[]): boolean {
  * The summary carries no copy. Domains and requests are named by their
  * identifiers and the host words them, as it already words grants. A link is
  * answered for that one opening only, whatever lifetimes kehto offers, because
- * the shell asks about every link (D-050). Anything else offers each lifetime
+ * the shell asks about every link (D-056). Anything else offers each lifetime
  * kehto allows: once, while the applet stays open, and always when answers
  * can be stored. An applet starting up is never offered `once`, because kehto
  * admits a start for the whole run.

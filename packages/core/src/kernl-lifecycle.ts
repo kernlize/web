@@ -166,7 +166,7 @@ export function createAppletLifecycle(context: LifecycleContext): AppletLifecycl
       windowCounter += 1;
       const windowId = `applet-${windowCounter}`;
       context.remember(summary);
-      // The firewall admits the applet before a plan exists, so no code runs with a domain it refused (D-050).
+      // The firewall admits the applet before a plan exists, so no code runs with a domain it refused (D-056).
       const domains = await admissions.admit(windowId, summary, resolveAppletEnvironment(context.adapter, summary));
       return planMount({ summary, indexHtml, adapter: context.adapter, guardProfile: pipeline.config.profile, windowId, domains });
     },
