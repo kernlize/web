@@ -65,7 +65,7 @@ export interface EventDetail {
  * @example
  * eventDetails(summary.event, session.pubkey).map((row) => `${row.label}: ${row.value}`);
  */
-export function eventDetails(event: ConsentSummary['event'], accountKey?: string): readonly EventDetail[] {
+export function eventDetails(event: NonNullable<ConsentSummary['event']>, accountKey?: string): readonly EventDetail[] {
   const rows: EventDetail[] = [
     { label: 'Type', value: `${kindName(event.kind)} (${event.kind})` },
     { label: 'Signed by', value: signerText(event.pubkey, accountKey) },

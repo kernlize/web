@@ -78,11 +78,12 @@
           {@const info = DOWNLOAD_PROGRAMS[id]}
           {@const connection = saved.value.connections[id]}
           {@const outcome = outcomes[id]}
-          <form class="shell-card program" aria-label={info.name} data-program={id} onsubmit={(event) => (event.preventDefault(), void connect(id))}>
-            <header>
-              <h5>{info.name}</h5>
+          <details class="shell-card program" data-program={id}>
+            <summary>
+              <span class="name">{info.name}</span>
               <span class="shell-badge" class:on={connection !== undefined}>{programStatus(connection, versions[id], saved.value.locked.includes(id))}</span>
-            </header>
+            </summary>
+            <form aria-label={info.name} onsubmit={(event) => (event.preventDefault(), void connect(id))}>
             <label class="shell-field">
               <span>Address</span>
               <input class="shell-input mono" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" bind:value={drafts[id].url} placeholder={info.example} />
@@ -109,7 +110,8 @@
               <p class={outcome.tone === 'error' ? 'shell-error' : 'small'} role={outcome.tone === 'error' ? 'alert' : 'status'}>{outcome.text}</p>
               {#each outcome.notes as note (note)}<p class="shell-muted small note">{note}</p>{/each}
             {/if}
-          </form>
+            </form>
+          </details>
         {/each}
       </div>
     </div>
@@ -134,26 +136,31 @@
 
   .cards {
     display: grid;
-    gap: 0.75rem;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+    gap: 0.5rem;
+    grid-template-columns: 1fr;
   }
 
-  .program {
-    display: grid;
-    gap: 0.6rem;
-    align-content: start;
-  }
-
-  .program header {
+  .program summary {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 0.5rem;
+    cursor: pointer;
+    list-style: none;
   }
 
-  .program h5 {
-    margin: 0;
-    font-size: 1rem;
+  .program summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .program .name {
+    font-weight: 600;
+  }
+
+  .program form {
+    display: grid;
+    gap: 0.6rem;
+    margin-top: 0.75rem;
   }
 
   .choice {
