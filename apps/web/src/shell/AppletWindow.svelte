@@ -2,6 +2,7 @@
   import { shortId } from './contract';
   import WindowFrame from './WindowFrame.svelte';
   import { describeMarks, type TrafficMarks } from './traffic-words';
+  import type { StopCause } from './stop-words';
   import type { ShellWindow, WindowStore } from './window-store.svelte';
 
   interface Props {
@@ -17,6 +18,7 @@
   const title = $derived(win.plan.summary.title);
   const problems = $derived(marks.errors + marks.warnings);
   const problemWords = $derived(describeMarks(marks));
+  const BY: Readonly<Record<StopCause, string>> = { applet: 'The applet', you: 'You', shell: 'The shell' };
 </script>
 
 <WindowFrame {win} {windows} {title} status={win.status} revoked={Boolean(win.revoked)}>
@@ -28,10 +30,22 @@
     <button type="button" class="shell-button quiet" onclick={() => ongrants(win.id)} aria-label="Grants for {title}">Grants</button>
   {/snippet}
   {#if win.revoked}
+    {@const stop = win.revoked}
     <div class="stopped">
       <p><strong>This applet was stopped.</strong></p>
-      <p class="shell-muted">{win.revoked}</p>
+      <p class="shell-muted" data-testid="stop-words">{stop.words}</p>
       <button type="button" class="shell-button" onclick={() => windows.close(win.id)}>Close window</button>
+      <details class="why">
+        <summary>Details</summary>
+        <dl>
+          {#if stop.by}<dt>By</dt><dd>{BY[stop.by]}</dd>{/if}
+          {#if stop.limit}<dt>Limit</dt><dd>{stop.limit}</dd>{/if}
+          <dt>Next</dt><dd>{stop.next}</dd>
+          <dt>Code</dt><dd><code>{stop.code}</code></dd>
+          {#if stop.detail}<dt>Detail</dt><dd><code>{stop.detail}</code></dd>{/if}
+          <dt>At</dt><dd><time datetime={new Date(stop.at).toISOString()}>{new Date(stop.at).toLocaleTimeString()}</time></dd>
+        </dl>
+      </details>
     </div>
   {:else if win.status === 'mounting'}
     <p class="shell-muted starting">Starting {title}…</p>
@@ -41,6 +55,7 @@
 <style>
   .stopped {
     display: grid;
+    justify-items: center;
     gap: 0.4rem;
     text-align: center;
     padding: 1rem;
@@ -61,6 +76,35 @@
 
   .inspect.errors .count {
     background: #e07a5f;
+  }
+
+  .why {
+    max-width: 32rem;
+    text-align: left;
+    font-size: 0.85rem;
+  }
+
+  .why summary {
+    cursor: pointer;
+    color: var(--ink-muted);
+    text-align: center;
+  }
+
+  .why dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.25rem 0.75rem;
+    margin: 0.5rem 0 0;
+    user-select: text;
+  }
+
+  .why dt {
+    color: var(--ink-muted);
+  }
+
+  .why dd {
+    margin: 0;
+    overflow-wrap: anywhere;
   }
 
   .starting {

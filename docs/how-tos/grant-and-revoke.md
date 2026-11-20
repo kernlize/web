@@ -57,7 +57,7 @@ Every change commits the record, which does three things in order: persist it to
 
 ## Closing and quarantine
 
-Closing a window is `handle.close()`: `bridge.revokeNapplet(windowId, 'host')`, which closes the port and drops kehto's sessions for the frame, then the frame is removed and the guard forgets the window. Grants are untouched. When the guard quarantines a window, `createKernl`'s `onQuarantine` does the same and tells `host.onRevoked(windowId, 'quarantine')`; the grants panel's control for a quarantined window calls `kernl.guard.release(windowId)`.
+Closing a window is `handle.close()`: `bridge.revokeNapplet(windowId, 'host')`, which closes the port and drops kehto's sessions for the frame, then the frame is removed and the guard forgets the window. Grants are untouched. When the guard quarantines a window, `createKernl`'s `onQuarantine` does the same and tells `host.onRevoked(windowId, 'quarantine', { limit })`, where `limit` names the guard limit crossed; the grants panel's control for a quarantined window calls `kernl.guard.release(windowId)`.
 
 ## Bridges
 

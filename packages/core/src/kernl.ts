@@ -6,9 +6,9 @@ import type { ISigner } from 'applesauce-signers';
 import type { MessagingRegistry } from '@kernlize/messaging';
 import type { BridgeContext } from '@kernlize/bridges';
 import { buildShellCapabilities, createShellBridge, type ShellAdapter, type ShellBridge } from '@kehto/shell';
-import { createGuardConfig, describeMitigations, type GuardEvent } from '@kernlize/guard';
+import { QUARANTINE_WINDOW_MS, createGuardConfig, describeMitigations, type GuardConfig, type GuardEvent } from '@kernlize/guard';
 import type { AccountFileServers } from './files/file-servers.js';
-import type { AppletIdentity, AppletSummary, Grants, GuardFacade, Kernl, KernlHost, KernlMultiplayer, KernlOptions, RelayTiers, Session } from './types.js';
+import type { AppletIdentity, AppletStopLimit, AppletSummary, Grants, GuardFacade, Kernl, KernlHost, KernlMultiplayer, KernlOptions, RelayTiers, Session } from './types.js';
 import { createKernlDownloads, type KernlDownloads } from './kernl-downloads.js';
 import { createMultiplayerSettings } from './multiplayer/settings.js';
 import { createStorageSecrets, type SecretsProvider } from './secrets/secrets.js';
@@ -285,20 +285,28 @@ function tearDown(parts: ShellParts): void {
   parts.pool?.close();
 }
 
+/** The limit behind a quarantine, read from the profile in force as the applet crossed it. */
+function quarantineLimit(reason: string, config: GuardConfig): AppletStopLimit {
+  const { limits, profile } = config;
+  if (reason === 'flood:hidden-resource') return { cause: 'hidden-resource', count: limits.hiddenResourceAllowance, profile };
+  return { cause: 'flood', count: limits.quarantineThreshold, windowMs: QUARANTINE_WINDOW_MS, profile };
+}
+
 /** The guard in front of kehto's bridge, which quarantines and releases through it. */
 function pipelineFor(options: KernlOptions, parts: { readonly handles: ReadonlyMap<string, MountedApplet>; readonly guardEvents$: Subject<GuardEvent>; readonly bridge: () => ShellBridge }): GuardPipeline {
   const { host } = options;
-  return createGuardPipeline({
+  const pipeline: GuardPipeline = createGuardPipeline({
     config: createGuardConfig(options.guard?.profile ?? 'strict'),
     ...(host.now ? { now: host.now.bind(host) } : {}),
     onEvent: (event) => parts.guardEvents$.next(event),
-    onQuarantine: (windowId) => {
-      parts.handles.get(windowId)?.revoked('quarantine');
+    onQuarantine: (windowId, _napplet, reason) => {
+      parts.handles.get(windowId)?.revoked('quarantine', { limit: quarantineLimit(reason, pipeline.config) });
       parts.bridge().revokeNapplet(windowId, 'host');
     },
     getVisibility: (windowId) => host.getVisibility(windowId),
     onRelease: (windowId) => parts.bridge().releaseDeferred(windowId),
   });
+  return pipeline;
 }
 
 /** The applet store's catalogue over the shell's pool, tiers and event cache. */
@@ -390,7 +398,7 @@ export function createKernl(options: KernlOptions): Kernl {
     consent,
     services: services.registry,
     resolveEnvironment: (identity, available) => createEnvironmentResolver(grants)(identity, available),
-    onNappletRevoked: ({ windowId, reason }) => handles.get(windowId)?.revoked(reason),
+    onNappletRevoked: ({ windowId, reason, detail }) => handles.get(windowId)?.revoked(reason, { detail }),
     onNappletMessage: (windowId, message) => traffic.fromApplet(windowId, 'port', message),
     filterNappletMessage: (windowId, message) => pipeline.observe(windowId, identityOf(windowId)?.dTag ?? 'unknown', message),
     getFocusContext: (windowId) => ({ focused: pipeline.getVisibility(windowId).focused }),

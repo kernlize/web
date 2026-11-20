@@ -98,6 +98,25 @@ export interface MountPlan {
 }
 
 /** Lifecycle of one mounted applet. */
+/** A guard limit an applet crossed and was quarantined for. */
+export interface AppletStopLimit {
+  /** `flood`: too many messages inside the quarantine window. `hidden-resource`: too many web fetches while hidden. */
+  readonly cause: 'flood' | 'hidden-resource';
+  /** The limit itself, from the profile in force when the applet was stopped. */
+  readonly count: number;
+  /** The span `count` is measured over, in milliseconds; absent for `hidden-resource`. */
+  readonly windowMs?: number;
+  readonly profile: GuardProfile;
+}
+
+/** What is known about why an applet was stopped, beyond its reason code. */
+export interface AppletStopDetails {
+  /** kehto's own diagnostic line, for a reason kehto observed. Never carries a message payload. */
+  readonly detail?: string;
+  /** The guard limit crossed, for a quarantine. */
+  readonly limit?: AppletStopLimit;
+}
+
 export type AppletStatus = 'mounting' | 'running' | 'revoked' | 'closed';
 
 /** The structural subset of an iframe element `mountApplet` needs. Lets the core stay DOM-free in tests. */
@@ -352,8 +371,12 @@ export interface KernlHost {
   openLink(url: string, options?: { readonly approved?: boolean }): void;
   /** Current visibility for a window, when the core needs it synchronously. */
   getVisibility(windowId: string): WindowVisibility;
-  /** Called after the core removed a frame because its binding was revoked. */
-  onRevoked(windowId: string, reason: string): void;
+  /**
+   * Called after the core removed a frame because its binding was revoked. `reason` is a stable
+   * code: one of kehto's revocation reasons, or kernl's own (`quarantine`, `host`, `grant-narrowed`,
+   * `blocked`, `firewall`). `details` carries what else is known about the stop.
+   */
+  onRevoked(windowId: string, reason: string, details?: AppletStopDetails): void;
   /**
    * Ask the user which applet should take a request. Resolve `undefined` on
    * dismiss. Without it, requests with several handlers and no default are refused.

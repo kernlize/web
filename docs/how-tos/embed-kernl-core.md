@@ -25,7 +25,7 @@ Put it in the `<head>` of the HTML the server sends, before any script runs, as 
 | `notify(notice)` | Show `{ title, body?, windowId?, tone }`. Applets reach it through the `notify` domain; the guard and revocations use it too. |
 | `openLink(url, options?)` | Open a URL outside the shell. For an applet's link it is called only after the link service allowed the protocol (`https:`, `mailto:`) and the firewall let that exact link through, and then `options.approved` is `true`: the user was already asked, or a rule of theirs allows it, so do not ask again. Without `approved`, for example when a bridge hands a download to an app on the device, confirming with the user is your choice. |
 | `getVisibility(windowId)` | Current visibility for a window, when the core needs it synchronously: return `{ visible, focused, msSinceFocusGain? }`. The guard asks the first time it meets a window you have not reported with `handle.setVisibility`; after that it uses what you report. |
-| `onRevoked(windowId, reason)` | Called after the core removed a frame because its binding was revoked (`quarantine`, `second-load`, `grant-narrowed`, `firewall`, …). Update your UI. |
+| `onRevoked(windowId, reason, details?)` | Called after the core removed a frame because its binding was revoked (`quarantine`, `second-load`, `grant-narrowed`, `firewall`, …). `details` carries kehto's diagnostic line and, for a quarantine, the limit crossed. Update your UI. |
 
 `fetchBlob` and `now` are optional; without them the core fetches artifact blobs with `defaultFetchBlob` and uses `Date.now`.
 

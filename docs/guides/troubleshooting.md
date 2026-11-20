@@ -69,8 +69,16 @@ To check a published applet end to end, the way a person would open it, run `KER
 
 ## An applet was quarantined
 
-**Symptom.** A notice says "… was stopped", the window shows "This applet was stopped." with the reason `quarantine`, and the guard panel (*Guard · strict · N*) lists "Applet … was quarantined: it kept flooding the shell" (`flood:quarantine`) or "…: too many web fetches while hidden" (`flood:hidden-resource`).
+**Symptom.** A notice says "… was stopped", the window shows "This applet was stopped." with "It sent too many messages." or "It kept fetching from the web while hidden.", its **Details** name the limit crossed (for example "300 messages in 10 s · strict") and the code `quarantine`, and the guard panel (*Guard · strict · N*) lists "Applet … was quarantined: it kept flooding the shell" (`flood:quarantine`) or "…: too many web fetches while hidden" (`flood:hidden-resource`).
 
 **Cause.** The applet sent more messages than the profile allows in the rolling window, or used up its `resource.*` allowance while hidden. The guard revokes the applet's binding and removes its frame; the guard state for that window is dropped.
 
 **Fix.** A stopped window does not restart. The window's **Grants** panel offers **Release from quarantine**, which calls `kernl.guard.release(windowId)` and clears the window's quarantine mark; to run the applet again, close the stopped window and open the applet again. It gets a fresh window and fresh guard counters, and its grants are unchanged, because quarantine does not block. If it floods again, either block it (**Block applet**) or, for an applet you trust, switch the guard panel's profile; that applies to every window and resets to `strict` on reload ([Change the guard profile](../how-tos/change-guard-profile.md)).
+
+## An applet stopped because of something it sent
+
+**Symptom.** The window shows "This applet was stopped." with "It sent a message outside its channel.", "It tried to connect to the shell twice." or "It connected to the shell the wrong way." Its **Details** show the code `window-message`, `second-hello` or `invalid-hello`, and kehto's own line.
+
+**Cause.** NIP-5D allows exactly one window-level message from an applet, the `napplet.hello` that hands the shell its port. Everything after that goes over the port. Any other `postMessage` to the parent window ends the applet's binding, and kehto removes the frame. The message can come from the applet's own code or from a library it bundles.
+
+**Fix.** Open the applet again. If it stops the same way, the applet has a bug: report the code and the detail line to its author.
