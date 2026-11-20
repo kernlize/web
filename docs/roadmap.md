@@ -14,16 +14,19 @@ The four gaps filed as [kehto/web #397](https://github.com/kehto/web/issues/397)
 
 ## 2. Bridge backends
 
-Magnet links download inside the shell page through WebTorrent, with the device app as a choice in Settings ([D-017](./decisions.md#d-017)). The NZB, Soulseek and mail bridges still hand the locator to an app on the user's device ([Bridges](./concepts/bridges.md#hand-off-backends)), because each of their protocols runs over raw TCP sockets and a browser page cannot open one ([Why they still hand off](./concepts/bridges.md#why-nzb-soulseek-and-mail-still-hand-off)).
+Applets download through the programs the person already runs: Transmission or uTorrent, NZBGet or SABnzbd, and slskd, each driven over its own HTTP API behind the `torrent`, `nzb` and `soulseek` domains ([D-050](./decisions.md#d-050), [Download programs](./concepts/download-programs.md)). This overtakes most of what this section used to plan, a companion service that would open sockets for the shell: for downloads, those programs already open them. What is left, in order:
 
-The next step is a **companion service**: a small program the user runs on their own device, or a service they choose, that opens those sockets on the user's behalf and that the shell reaches over a WebSocket. Each bridge then gets an in-shell backend that talks to it. In-shell transfers put the traffic under the shell's grants, guard and revocation, and make it the shell's to expose, so each needs its exposure description checked. Order reflects how much of the user's exposure each one changes.
+- **A kehto release that lets the domains be offered.** The three are offered only when the installed `@kehto/shell` prelude renders a binding table ([kehto/web#413](https://github.com/kehto/web/pull/413)), which 0.35 does not. Until then the settings exist and no applet can call the services. When it ships, kernl takes the binding types from kehto and drops its local declaration.
+- **File reads and saves.** The services are remote controls. `torrent.read`, `exportMetainfo`, `saveFile` and `openFile`, `nzb.files` and `nzb.read`, and `soulseek.read` and `soulseek.save` are refused, because the files are on the program's disk and kernl cannot reach them. Serving them needs a keeper with file access: a service on the person's device, or a native host.
+- **Links the person opens.** The Downloads panel and the locator bridges do not use the programs yet. A magnet link still downloads in the page through WebTorrent, which reaches browser peers only, or is handed to an app on the device ([D-017](./decisions.md#d-017)); an NZB or Soulseek link is still handed off ([Bridges](./concepts/bridges.md#hand-off-backends)). A `TorrentBackend`, `NzbBackend` and `SoulseekBackend` over the same clients would give those links a job the panel can track, and reach peers a page cannot.
+- **Verification.** The uTorrent adapter follows the documented WebUI API and has not been run against the program. slskd's search results and transfers were not observed with a network login.
+- **Secrets.** Move the connection helpers' credentials, which `kernl:multiplayer:v1` holds as typed ([D-043](./decisions.md#d-043)), behind the secrets provider. Ship a provider that protects what it keeps, so the default on kernl.run is no longer the browser's storage as typed ([D-052](./decisions.md#d-052), [Secrets](./concepts/secrets.md)).
+
+Mail is unchanged:
 
 | Backend | Interface | Notes |
 | --- | --- | --- |
-| Mail | `MailBackend` | Opens or creates a conversation for a `mailto:` locator inside the shell. Needs the companion service for IMAP and SMTP, or a provider with a JMAP endpoint that allows cross-origin requests. Today the device's mail program opens. |
-| NZB | `NzbBackend` | Hands an `nzb:` locator to the companion service, which fetches from the user's news server; the bridge reports job state in the Downloads panel. Today the `https` document URL opens on the device. |
-| Soulseek | `SoulseekBackend` | Requests one file from one peer through the companion service; the bridge reports job state. Today the `slsk://` address opens on the device. |
-| Torrent | `TorrentBackend` | Done for browser peers ([Downloads inside kernl](./concepts/bridges.md#downloads-inside-kernl)). A companion service could also reach peers that only speak TCP and UDP, which browser peers cannot. |
+| Mail | `MailBackend` | Opens or creates a conversation for a `mailto:` locator inside the shell. Needs a service that speaks IMAP and SMTP for the person, or a provider with a JMAP endpoint that allows cross-origin requests. Today the device's mail program opens. |
 
 The Downloads panel shows in-kernl jobs only; a hand-off job cannot be tracked, because the transfer belongs to the device app. Downloads live in memory and end when the tab closes; keeping them across reloads is open.
 

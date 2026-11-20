@@ -41,6 +41,8 @@ kehto's runtime ACL is permissive unless the host says otherwise: a capability w
 
 The baseline is `BASELINE_DOMAINS`: `shell`, `inc`, `theme` and `storage`. It has no network, and it is not read-only: the handshake, in-shell messaging, the theme, and the applet's own scoped storage, which it reads and writes within its state quota. Who the user is, is not in it. `identity` is a grant like any other ("your account" in the shell): until the user grants it, the shell does not tell an applet which account is signed in, its public key or its profile (SOUL opinion 2). Other grants can reveal the account indirectly, and the shell does not hide that: an applet granted `relay` that publishes gets the signed event back in `relay.publish.result`, and a signed event carries the author's public key. `grants.revokeDomain` refuses a baseline domain with `denied:baseline-domain`; `grants.allowDomain` refuses a domain the shell does not offer with `invalid:domain`, and is a no-op for a baseline domain.
 
+`torrent`, `nzb` and `soulseek` are grants too, off until the user switches each on for that applet, and each still asks before a download is added, before a window first uses the sharing program and before anything is deleted ([Download programs](./download-programs.md#what-the-person-controls)). They are not kehto domains and need no capability; kernl narrows them with the same rule as every other domain and adds the granted ones to the environment a window is mounted with ([D-050](../decisions.md#d-050)). The shell offers them only when an applet can call them ([When the domains are offered](./download-programs.md#when-the-domains-are-offered)). An applet that holds the `dm` grant is sealed and holds none of the three, whatever was granted: a search term, a file name or an NZB is a way out ([D-046](../decisions.md#d-046)).
+
 The practical effect for an applet: `requires` in the manifest is honoured as a question, not a demand. `MountPlan.missingRequired` lists the required domains the environment does not include, and the host decides what to do before mounting; the web shell's launcher shows the required and optional domains as choices and calls `grants.allowDomain` for the ones the user turns on before it calls `kernl.plan`.
 
 ## Consent for destructive writes
@@ -86,3 +88,4 @@ The applet learns its own narrowed environment through `shell.init`. Without the
 - [Guard](./guard.md): the behavioural limits that apply once a grant exists.
 - [Grant and revoke](../how-tos/grant-and-revoke.md): the shell-side calls.
 - [Security posture](../policies/security-posture.md): the mount rules this page relies on.
+- [Download programs](./download-programs.md): the three download grants and what each asks.

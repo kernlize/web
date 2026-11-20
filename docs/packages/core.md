@@ -63,8 +63,9 @@ if (plan.missingRequired.length === 0) kernl.mount(plan, iframe);
 10. **Session.** `accounts.active$` drives `session$` (`toSession(account)` or null) and calls `bridge.publishIdentityChanged(pubkey)` with the active pubkey or `''` on sign-out, so bound applets hear every identity change through kehto's live port.
 11. **Lifecycle.** `createAppletLifecycle` with `options.artifactCache ?? openDefaultArtifactCache` and `host.fetchBlob ?? defaultFetchBlob`.
 12. **Events.** `connectEventCache(eventStore, options.eventCache)` opens the event cache in the background; the replaceable loader, the profiles and the catalogue ask it first (D-030). `kernl.mailboxes` follows the active account's kind 10002 and sets the `outbox` tier from it; `kernl.directory` waits for `start()` (D-029).
+13. **Download programs.** After the registries, `options.secrets ?? createStorageSecrets(host.storage)` is the secrets provider and `createKernlDownloads` builds `kernl.downloads` over it. When the installed `@kehto/shell` prelude renders a binding table (`supportsDomainBindings()`), or `options.downloads.offer` says the host's own does, the `torrent`, `nzb` and `soulseek` handlers are added to the service registry in step 5, the three domains are added to what step 8's `availableDomains` reports, and the lifecycle of step 11 is handed `DOWNLOAD_BINDINGS`; otherwise only the settings exist. An NZB an applet names by address is fetched with `bridges.resolve(url, { requester: 'shell' })`, so it meets the HTTP bridge's policy ([Download programs](#download-programs-and-secrets), [D-050](../decisions.md#d-050), [D-052](../decisions.md#d-052)).
 
-`destroy()` closes every open applet, unsubscribes the session subscription, disposes the dm service, destroys the bridge and closes the pool if the shell owns it.
+`destroy()` closes every open applet, unsubscribes the session subscription, disposes the dm service and the download services, destroys the bridge and closes the pool if the shell owns it.
 
 ### The `KernlHost` contract
 
@@ -72,8 +73,8 @@ The host is the only way the core reaches the user or the page. Applets never re
 
 | Member | Called when |
 | --- | --- |
-| `storage: StorageLike` | Every persisted value: accounts (`kernl:accounts:v1`, `kernl:active-account:v1`), relay tiers (`kernl:relays:v1`), grants (`kernl:grants:v1`), messaging preferences (`kernl:messaging:v1`), installed applets (`kernl:installed:v1`), handler choices (`kernl:intent-defaults:v1`, `kernl:intent-sync:v1`) and applet settings (`kernl:applet-config:v1`). `localStorage` satisfies it; tests use a `Map`. |
-| `presentConsent(prompt)` | An applet window asked the shell to sign, through `relay.publish` or `outbox.publish`, an event whose kind is destructive. `prompt.summary` is a `ConsentSummary` whose `event` is the unsigned draft (empty `id` and `sig`); `prompt.resolve(true)` signs, `prompt.resolve(false)` (also on dismiss) makes the signer throw `denied:consent`. The core never times a prompt out. |
+| `storage: StorageLike` | Every persisted value: accounts (`kernl:accounts:v1`, `kernl:active-account:v1`), relay tiers (`kernl:relays:v1`), grants (`kernl:grants:v1`), messaging preferences (`kernl:messaging:v1`), installed applets (`kernl:installed:v1`), handler choices (`kernl:intent-defaults:v1`, `kernl:intent-sync:v1`) applet settings (`kernl:applet-config:v1`) and the download programs with what applets started in them (`kernl:download-programs:v1`, `kernl:torrent-jobs:v1`, `kernl:nzb-handles:v1`, `kernl:nzb-replay:v1`; with the default secrets provider, `kernl:secrets:v1:<name>` too). `localStorage` satisfies it; tests use a `Map`. |
+| `presentConsent(prompt)` | An applet window asked the shell to sign, through `relay.publish` or `outbox.publish`, an event whose kind is destructive. `prompt.summary` is a `ConsentSummary` whose `event` is the unsigned draft (empty `id` and `sig`); `prompt.resolve(true)` signs, `prompt.resolve(false)` (also on dismiss) makes the signer throw `denied:consent`. The core never times a prompt out. The same hook carries the questions of an upload, a direct connection and a download service; those summaries have no `event`. |
 | `notify(notice)` | An applet calls `notify.send`, or the guard has something to say. `notice.tone` is `info` or `warning`; `windowId` names the applet when there is one. |
 | `openLink(url)` | An applet's `link.open` passed the link policy (`LINK_PROTOCOLS`: `https:` and `mailto:` only). |
 | `getVisibility(windowId)` | Current visibility for a window, when the core needs it synchronously: the guard asks the first time it meets a window that `handle.setVisibility` has not reported on yet, and keeps that answer until the next `setVisibility`. |
@@ -96,6 +97,8 @@ The host is the only way the core reaches the user or the page. Applets never re
 | `relays: RelayTiers` | `get()`, `add(tier, url)`, `remove(tier, url)`, `set(tier, urls)`, `changes$`. `add` and `set` throw `invalid:relay-url` for anything that is not `ws://` or `wss://`; `set` with an unchanged list emits nothing. |
 | `files: AccountFileServers` | Where the account's uploads go; the `upload` domain is offered and every upload is asked about (D-033). |
 | `multiplayer: KernlMultiplayer` | The person's servers, connection helpers and trusted tool families for direct connections and remote tools, kept on this device and coming before the host's; `discover(input)` finds families to trust ([Your own settings](#your-own-settings), D-043). |
+| `downloads: DownloadClients` | The download programs the person set up on this device: `state$`, `state()`, `ready`, `check(program, typed)`, `save(program, signIn)`, `remove(program)`, `chooseTorrent(program)` and the live clients the services call ([Download programs and secrets](#download-programs-and-secrets), D-050). |
+| `secrets: SecretsDescription` | `{ label, keeps }`: how the secrets provider in use keeps a password or key, so a settings screen can say so. The provider itself is not exposed (D-052). |
 | `mailboxes: AccountMailboxes` | The signed-in account's published inbox and outbox (kind 10002, D-029). While a list is `found`, the `outbox` tier follows its outboxes, so every publish goes where the account says it writes. `save` signs with the active account and refuses `denied:read-only` for a read-only or signed-out session. |
 | `directory: RelayDirectory` | Monitored servers (kind 30166) from `DEFAULT_MONITOR_RELAYS`, idle until `start()`; `search` completes an address and `suggest` proposes servers. Settings starts it while open. |
 | `messaging`, `bridges` | The registries the services read. |
@@ -244,6 +247,7 @@ legacyMessages.subscribe({}, (message) => console.log(message.content));
 | `llm` | `llm:generate` |
 | `cache` | `cache:read`, `cache:write` |
 | `webrtc` | none: kehto's ACL has no capability for it, so the `webrtc` service checks the grant itself ([D-042](../decisions.md#d-042)) |
+| `torrent`, `nzb`, `soulseek` | none: they are not kehto domains. The runtime admits each by the environment the window was mounted with and the service's own message list ([D-050](../decisions.md#d-050)) |
 
 Unknown domains need no capability (`capabilitiesForDomain('made-up')` is `[]`). `createGrants` keeps a per-identity record `{ dTag, hash, domains, blocked }` at `kernl:grants:v1` and, on every commit, writes it into kehto's ACL, which is restrictive (`aclDefaultPolicy`, [D-020](../decisions.md#d-020)): every capability a baseline or allowed domain needs is granted, whatever the applet's stored entry holds beyond that is revoked, then `block`/`unblock` is applied and the ACL persisted. `KernlGrants.ensure(identity)` does this for an applet that has no record yet; `plan` calls it. `createEnvironmentResolver(grants)` is the `capabilities.resolveEnvironment` hook: each applet sees the baseline plus its allowed domains, intersected with what the shell offers; a blocked applet sees only `shell`. The calls are in [Grant and revoke](../how-tos/grant-and-revoke.md).
 
@@ -266,7 +270,7 @@ Unknown domains need no capability (`capabilitiesForDomain('made-up')` is `[]`).
 
 `LookupBefore` is `(kind, pubkey, identifier?) => Promise<NostrEvent | undefined>`. `lookupReplaceable(store, options?)` builds one: the store answers first; on a miss, and only when `options.loader` is given, the applesauce address loader asks `options.relays()` and the lookup waits at most `options.timeoutMs` (default `CURRENT_VERSION_TIMEOUT_MS`, 4000 ms) and takes the newest version that arrived. A loader that fails or stays silent yields `undefined`. When a replaceable or addressable write is described and no current version was found, the summary's first line is `UNKNOWN_CURRENT_VERSION`, "Current version: could not be loaded; this replaces it entirely", so it never reads as a first version that removes nothing.
 
-Two summaries come from elsewhere: an upload is `public` (`describeUpload`, [D-033](../decisions.md#d-033)) and a direct session is `direct` (`describeDirectConnection`, [D-042](../decisions.md#d-042)); both are always asked about.
+Three summaries come from elsewhere: an upload is `public` (`describeUpload`, [D-033](../decisions.md#d-033)), a direct session is `direct` (`describeDirectConnection`, [D-042](../decisions.md#d-042)), and a download service's question (`describeDownloadQuestion`, [D-050](../decisions.md#d-050)) is `destructive` when it erases files, `direct` when what it starts shows peers a network address (`torrent`, `soulseek`) and `routine` otherwise (`nzb`). All are always asked about. None of them is about an event, so `ConsentSummary.event` is optional and absent on these.
 
 `createSigningConsent(options)` returns the `SigningConsent` gate, `(windowId, template) => Promise<void>`: it resolves at once for a routine kind; for a destructive one it builds an unsigned draft (empty `id` and `sig`; this draft is the summary's `event`), describes it against `lookupBefore`, and resolves only when `host.presentConsent` answers yes. It rejects with `denied:consent` when the user refuses, `denied:unknown-applet` for a destructive write from a window the shell did not mount, `denied:signed-out` for a destructive write while nobody is signed in, and `invalid:event-kind` when the kind is not a number.
 
@@ -302,6 +306,27 @@ An applet with the `webrtc` grant ("direct connections") opens a session with ot
 - `discover(input)`, over the servers in use: `discoverToolFamilies` reads a reference to a server's or tool list's announcement (kinds 11316 and 11317), a tool's schema hash, or a website's `/.well-known/napplet.json` (at most 1 MB, no credentials), within `TOOL_DISCOVERY_TIMEOUT_MS` (15 s). Only signed announcements count, the newest inventory of each provider is used, and every tool's hash is computed again with kehto's `computeCvmToolSchemaHash`. It returns `ToolFamilyCandidate`s for the person to name; refusals are `invalid:tool-reference`, `unavailable:website`, `invalid:tool-inventory` and `unavailable:no-tools`.
 
 Values are validated going in and coming out of storage; a stored value that fails is read as unset. The services read the settings each time a window starts using remote tools or direct connections.
+
+### Download programs and secrets
+
+`kernl.downloads` is `createDownloadClients` over `host.storage` and the secrets provider ([D-050](../decisions.md#d-050), [D-052](../decisions.md#d-052)). It keeps, per program, `{ url, username?, hasPassword, hasApiKey }` at `kernl:download-programs:v1` and builds the `@kernlize/bridges` client each service calls. `DOWNLOAD_PROGRAMS` lists the five programs:
+
+| Program | Domain | Sign-in fields | Example address |
+| --- | --- | --- | --- |
+| `transmission` | `torrent` | `username`, `password` | `http://localhost:9091` |
+| `utorrent` | `torrent` | `username`, `password` | `http://localhost:8080` |
+| `nzbget` | `nzb` | `username`, `password` | `http://localhost:6789` |
+| `sabnzbd` | `nzb` | `apiKey` | `http://localhost:8080` |
+| `slskd` | `soulseek` | `apiKey`, `username`, `password` | `http://localhost:5030` |
+
+- `check(program, typed)` waits for `ready`, works out the scheme when none was typed (`detectClientEndpoint`), fills a password or key left empty from the kept one when the address is the one it was kept for, and asks the program for its version. It resolves `{ signIn, notes, probe }` and saves nothing. It rejects with the address's `invalid:` reason, `invalid:sign-in` for a field that is not text of at most 512 characters, or the adapter's reason.
+- `save(program, signIn)` checks the address with `checkClientEndpoint` (it must carry a scheme), hands the password and key to the secrets provider, and only then writes the settings record. A field left empty keeps the secret for the same address and deletes it for a new one. When the provider rejects, nothing is saved and the rejection is passed on.
+- `remove(program)` deletes the program's secrets from the provider and its record from settings.
+- `chooseTorrent(program)` picks which torrent program serves applets when both are set up; `invalid:program` when that one is not. The first set up serves until the person chooses.
+- `torrent()`, `nzb()` and `soulseek()` are the live clients, read by the services on every request: undefined or empty until `ready` has settled, for a program that is not set up, and for one that is `locked`.
+- `state().locked` lists the programs whose kept sign-in the provider would not hand over when the shell started. A locked program serves no applet until it is saved again.
+
+The three services are kehto `ServiceHandler`s. Each takes `appletOf`, `ask`, `storage` and `now` (`DownloadServiceDeps`) and its client as a function read on every request, so a program set up or removed while an applet runs is seen at once. What each answers is in [Download programs](../concepts/download-programs.md) and [Error reasons](../reference/errors.md#download-programs). The `secrets` contract is in [Secrets](../concepts/secrets.md).
 
 ### Layouts and the window manager
 
@@ -620,6 +645,51 @@ Not yet composed by `createKernl`; [Inbox, outbox and finding servers](../concep
 | `mailboxesFromEvent` | `(event: NostrEvent \| undefined) => Mailboxes` | `{ inboxes, outboxes }`; an unmarked `r` tag is both. |
 | `mailboxTags` | `(mailboxes: Mailboxes, previous?: NostrEvent) => string[][]` | `r` tags, unmarked for a relay in both lists, then the previous list's other tags. |
 | `PublishOutcome`, `PublishAnswer`, `RelayDirectory`, `RelayDirectoryOptions`, `RelayListing`, `SuggestOptions`, `SuggestPurpose`, `DirectoryPool`, `AccountMailboxes`, `AccountMailboxesOptions`, `MailboxState`, `Mailboxes`, `MailboxPool`, `MailboxSigner` | types | `RelayListing` is `{ url, monitors, lastSeen, rttOpen?, rttRead?, rttWrite?, network?, nips, types, requiresAuth, requiresPayment, restrictedWrites }`. |
+
+### Download programs and secrets
+
+| Export | Signature | Description |
+| --- | --- | --- |
+| `createDownloadClients` | `(options: DownloadClientsOptions) => DownloadClients` | The person's download programs and the live clients built from them, described above. |
+| `DownloadClientsOptions` | interface | `{ storage: StorageLike; secrets?: SecretsProvider; pageScheme?: () => PageScheme; fetch?: ClientFetch }`. `secrets` is `createStorageSecrets(storage)` by default, `pageScheme` is `currentPageScheme`, `fetch` is the global one. |
+| `DownloadClients` | interface | `state$`, `state()`, `ready`, `check`, `save`, `remove`, `chooseTorrent`, `torrent()`, `nzb()`, `soulseek()`. `save` and `remove` return promises. |
+| `DownloadClientsState` | interface | `{ connections: Partial<Record<DownloadProgram, DownloadConnection>>; torrentProgram?: TorrentProgram; locked: readonly DownloadProgram[] }`. `locked` is not persisted. |
+| `DownloadConnection` | interface | `{ url: string; username?: string; hasPassword: boolean; hasApiKey: boolean }`: what settings hold and show. Never a secret. |
+| `DownloadSignIn` | type | `ClientEndpoint` from `@kernlize/bridges`, `{ url, username?, password?, apiKey? }`: what the person types. |
+| `CheckedConnection` | interface | `{ signIn: DownloadSignIn; notes: readonly EndpointNote[]; probe: ClientProbe }`: what `check` resolves with. `signIn.url` has its scheme worked out. |
+| `DOWNLOAD_PROGRAMS` | `Readonly<Record<DownloadProgram, DownloadProgramInfo>>` | The table above. |
+| `DownloadProgram`, `TorrentProgram` | types | `'transmission' \| 'utorrent' \| 'nzbget' \| 'sabnzbd' \| 'slskd'`, and the first two of them. |
+| `DownloadProgramInfo` | interface | `{ domain: 'torrent' \| 'nzb' \| 'soulseek'; name: string; signIn: readonly ('username' \| 'password' \| 'apiKey')[]; example: string }`. |
+| `currentPageScheme` | `() => PageScheme` | `'https'` when `location.protocol` is `https:`, otherwise `'http'`, which is also the answer where there is no page. |
+| `createTorrentService` | `(options: TorrentServiceOptions) => DownloadService` | The `torrent` service (NAP-TORRENT) over a `TorrentClient`. Asks before every add and before data is deleted; a session job is paused in the program when its window ends; persistent jobs are kept at `kernl:torrent-jobs:v1`; calls to the program run one after another. |
+| `TorrentServiceOptions` | interface | `DownloadServiceDeps` plus `{ client: () => TorrentClient \| undefined; pollMs?: number }`. `pollMs` is 2000 by default. |
+| `createNzbService` | `(options: NzbServiceOptions) => DownloadService` | The `nzb` service (NAP-NZB) over the person's downloaders. Validates the document before a downloader sees it, asks before every add and every delete, and carries out `add` and `control` once per operation key on a record kept at `kernl:nzb-replay:v1`. |
+| `NzbServiceOptions` | interface | `DownloadServiceDeps` plus `{ downloaders: () => readonly NzbDownloader[]; fetchDocument?: (url: string, signal: AbortSignal) => Promise<Uint8Array> }`. Without `fetchDocument` only `bytes` sources are offered. |
+| `NzbDownloader` | interface | `{ key: string; label: string; client: NzbClient }`. `key` is never sent to an applet. |
+| `readNzbDocument` | `(bytes: Uint8Array) => NzbDocument` | Validates one NZB document with a strict scanner, no XML library: well-formed, within the shell's bounds, root `nzb` in the NZB namespace, at least one file with a segment. An external doctype is read past and never fetched; an internal subset, any entity beyond XML's five and any processing instruction are refused. Throws `invalid:nzb` followed by plain words. |
+| `NzbDocument` | interface | `{ files: number; name: string }`: how many files the document lists, and its own title tidied for display. |
+| `createSoulseekService` | `(options: SoulseekServiceOptions) => DownloadService` | The `soulseek` service (NAP-SOULSEEK) over a `SoulseekClient`. Asks once per window before it first reaches the network; every handle belongs to the window it was issued to; closing the window or revoking the grant stops its searches and unfinished downloads in the daemon. |
+| `SoulseekServiceOptions` | interface | `DownloadServiceDeps` plus `{ client: () => SoulseekClient \| undefined; limits?: Partial<SoulseekLimits> }`. |
+| `SoulseekLimits` | interface | `{ maxQueries, maxTransfers, maxResults, maxPageSize, maxReadBytes, maxTextBytes, queryTimeoutMs, pollIntervalMs }`, reported by `soulseek.info`. |
+| `DEFAULT_SOULSEEK_LIMITS` | `SoulseekLimits` | `{ maxQueries: 4, maxTransfers: 16, maxResults: 500, maxPageSize: 100, maxReadBytes: 65536, maxTextBytes: 1024, queryTimeoutMs: 30000, pollIntervalMs: 1000 }`. |
+| `SOULSEEK_SESSION_QUESTION` | `DownloadQuestion` | What the person is asked before a window first searches or downloads: who sees what, that nothing is encrypted end to end, and that downloads stop when the window closes. |
+| `DownloadService` | interface | `{ handler: ServiceHandler; dispose(): void }`. `dispose` stops every timer and ends every window's work. |
+| `DownloadServiceDeps` | interface | `{ appletOf: (windowId) => AppletIdentity \| undefined; ask: (windowId, question) => Promise<boolean>; storage: StorageLike; now?: () => number }`. |
+| `DownloadQuestion`, `DownloadQuestionLine` | interfaces | `{ kind: 'add' \| 'session' \| 'delete'; title; lines }` with lines of `{ label, value }`. Words only: no address, path, credential or backend id belongs in a line. |
+| `describeDownloadQuestion` | `(question: DownloadQuestion, applet: AppletIdentity, exposesAddress: boolean) => ConsentSummary` | The question as `host.presentConsent` takes it: `destructive` for `delete`, otherwise `direct` when `exposesAddress`, else `routine`. The summary has no `event`. |
+| `createKernlDownloads` | `(deps: KernlDownloadsDeps) => KernlDownloads` | The composition `createKernl` uses: the settings always, and the three handlers, the planning extension and their teardown when the domains can be offered. A question from a window that is no longer a live applet is answered no without asking. |
+| `KernlDownloadsDeps` | interface | `{ host: Pick<KernlHost, 'storage' \| 'presentConsent' \| 'now'>; options: DownloadsOptions \| undefined; secrets: SecretsProvider; identityOf; fetchDocument }`. |
+| `KernlDownloads` | interface | `{ programs: DownloadClients; services: ServiceRegistry; extensions: PlannedExtensions \| undefined; dispose(): void }`. `services` is empty and `extensions` undefined when the domains cannot be offered. |
+| `DownloadsOptions` | interface | `KernlOptions.downloads`: `{ pageScheme?: () => PageScheme; fetch?: ClientFetch; offer?: boolean }`. `offer` overrides `supportsDomainBindings()`. |
+| `DOWNLOAD_DOMAINS` | `readonly string[]` | `['torrent', 'nzb', 'soulseek']`. |
+| `DOWNLOAD_BINDINGS` | `Readonly<Record<string, DomainBinding>>` | The applet-side binding table for the three domains, one row per operation of each draft's wire table, handed to kehto's namespace prelude. |
+| `supportsDomainBindings` | `(render?) => boolean` | Whether the installed `@kehto/shell` prelude renders a binding it is given ([kehto/web#413](https://github.com/kehto/web/pull/413)). False on `@kehto/shell` 0.35. |
+| `DomainBinding`, `DomainBindingMethod`, `BoundPreludeOptions` | types | `{ methods; events?; handlers? }`, `{ type; params; reply; result? }`, and kehto's prelude options with `bindings`. Declared here until a released `@kehto/shell` exports the shape. |
+| `PlannedExtensions` | interface | `{ domains: readonly string[]; bindings: Readonly<Record<string, DomainBinding>> }`: domains kernl serves beyond kehto's list, as `PlanMountOptions.extensions` and `LifecycleContext.extensions` take them. |
+| `createStorageSecrets` | `(storage: StorageLike) => SecretsProvider` | The default provider: each secret is one key under `kernl:secrets:v1:`, as typed. `description` is `{ label: 'this device', keeps: 'plain' }`. |
+| `createMemorySecrets` | `() => SecretsProvider` | Keeps secrets in memory only. `description` is `{ label: 'this session', keeps: 'session' }`. |
+| `SecretsProvider` | interface | `{ description: SecretsDescription; get(name): Promise<string \| undefined>; set(name, value): Promise<void>; delete(name): Promise<void> }`. A method may reject `unavailable:secrets` or `denied:secrets`. `KernlOptions.secrets` takes one. |
+| `SecretsDescription` | interface | `{ label: string; keeps: 'plain' \| 'protected' \| 'session' }`. |
 
 ### Registries, layouts and persistence
 

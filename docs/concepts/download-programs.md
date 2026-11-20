@@ -38,11 +38,21 @@ Each domain says this in its discovery call (`torrent.capabilities`, `nzb.downlo
 - **Which applets.** Each domain is a grant like any other, off until the person switches it on for that applet. An applet that can read messages holds none of the three ([D-046](../decisions.md#d-046)).
 - **Each download.** The person is asked before every torrent or NZB an applet adds, before a window's first search or download through the sharing daemon, and before anything is deleted. The prompt says what peers or servers will see.
 - **What an applet sees.** Only what it started. A torrent the person added themselves, or one another applet added, does not exist as far as it can tell. Handles are the shell's own; an applet never sees the program's ids, its address or its category names.
-- **What happens when an applet closes.** A torrent added for the session is paused in the program, not removed. A torrent or NZB the applet asked to keep, and any NZB, carries on in the program, and the prompt said so. Searches and unfinished transfers through the sharing daemon are stopped, as that draft requires. kernl never deletes a finished file, and never removes something it was not asked to.
+- **What happens when an applet closes.** A torrent added for the session is paused in the program, not removed. A torrent the applet asked to keep, and every NZB, carries on in the program, and the prompt said so. Searches and unfinished transfers through the sharing daemon are stopped, as that draft requires, and finished files stay where the daemon put them. Closing an applet deletes nothing, and kernl never removes from the person's program something it was not asked to.
 
 ## Connection settings
 
-`kernl.downloads` (`createDownloadClients`) holds, per program, an address and a sign-in, on this device at `kernl:download-programs:v1`. [Connect a download program](../how-tos/connect-a-download-program.md) is the walk-through.
+`kernl.downloads` (`createDownloadClients`) holds what the person set up. Per program, the settings record at `kernl:download-programs:v1` is `{ url, username?, hasPassword, hasApiKey }`: the address, the name, and whether a password or a key is kept. The password and the key themselves are not in it. They go to the [secrets provider](./secrets.md), are read from it once when the shell starts, and are held in memory for the client that signs in with them and for nothing else ([D-052](../decisions.md#d-052)). [Connect a download program](../how-tos/connect-a-download-program.md) is the walk-through.
+
+| Call | What it does |
+| --- | --- |
+| `check(program, typed)` | Works out the scheme, checks the address, asks the program for its version. Resolves `{ signIn, notes, probe }`; saves nothing. A password or key left empty is the kept one, when the address is the one it was kept for. |
+| `save(program, signIn)` | Hands the secrets to the provider, then writes the record. Resolves when both are done; rejects, with nothing saved, when the address may not be used or the provider will not keep the secret. |
+| `remove(program)` | Deletes the program's secrets from the provider and its record. |
+| `chooseTorrent(program)` | Picks which of the two torrent programs serves applets. The first one set up serves until the person chooses. |
+| `state()`, `state$` | `{ connections, torrentProgram?, locked }`. |
+
+`locked` lists the programs whose kept sign-in the provider would not hand over when the shell started. A locked program serves no applet until the person saves its sign-in again; a provider that says no is never read as "there is no password".
 
 ### The address is checked against how kernl was loaded
 
@@ -65,13 +75,23 @@ The scheme check is not the browser's only rule. A page on one origin may call a
 
 | Program | From a page on another origin |
 | --- | --- |
-| SABnzbd | Works. Its API answers allow any origin. |
-| NZBGet | Works. It allows the calling origin, with its sign-in header. |
+| SABnzbd | Works. Its API answers allow any origin (`Access-Control-Allow-Origin: *`). |
+| NZBGet | Works with the right sign-in. A wrong password is answered without the headers, so the browser hides the answer and the failure reads as "could not be reached" (`unavailable:unreachable`), not as a refused sign-in. |
 | slskd | Works. It allows the calling origin and its key header. |
 | Transmission | Blocked. Its API sends no such headers. Put a reverse proxy in front that adds them. |
 | uTorrent | Blocked, and it signs in with a cookie a page on another site does not send. Serve it through a reverse proxy on the same site as kernl. |
 
 A host that embeds `@kernlize/core` outside a browser has neither rule: it passes its own `fetch` as `KernlOptions.downloads.fetch`.
+
+### What was run against the real programs
+
+| Program | Version | Checked |
+| --- | --- | --- |
+| Transmission | 4.1.4 | The adapter against the daemon, and the reverse proxy in the how-to in front of it. |
+| NZBGet | 26.3 | The adapter against the program, and its answers to a page on another origin. |
+| SABnzbd | 5.1.3 | The same. |
+| slskd | 0.26.2 | The adapter against the daemon and its answers to a page on another origin. Search results and transfers could not be observed without a network login. |
+| uTorrent | not run | The adapter follows the documented WebUI API. |
 
 ## When the domains are offered
 
@@ -82,6 +102,7 @@ When they are offered, kernl adds the granted ones to the environment it sets fo
 ## Related
 
 - [Connect a download program](../how-tos/connect-a-download-program.md)
+- [Secrets](./secrets.md)
 - [Bridges](./bridges.md)
 - [Identity and grants](./identity-and-grants.md)
 - [`@kernlize/bridges`](../packages/bridges.md), [`@kernlize/core`](../packages/core.md)
