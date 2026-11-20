@@ -59,6 +59,20 @@ Feature: Applets the preview ships
     And the shipped applet asks "dm.status" over its port
     Then the shipped applet is answered "dm.status.result" with error "unavailable"
 
+  Scenario: what the applet sends and gets back is reported, as the live shell reports it
+    Given the preview's traffic is watched
+    And the shipped applet is mounted and has said hello
+    When the shipped applet asks "dm.status" over its port
+    Then the preview reported "from-applet window napplet.hello, from-applet port dm.status, to-applet port dm.status.result"
+
+  Scenario: an answer the preview cannot give is reported as a failure
+    Given the preview's traffic is watched
+    When the preview resolves the address "kernl:messages"
+    And the preview user withdraws "dm" from that applet
+    And the shipped applet is mounted and has said hello
+    And the shipped applet asks "dm.status" over its port
+    Then the preview reported the failure "unavailable" on "dm.status.result"
+
   Scenario: what is not an envelope is ignored
     Given the shipped applet is mounted and has said hello
     When the shipped applet sends "not an envelope" over its port

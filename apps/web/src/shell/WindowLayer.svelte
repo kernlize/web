@@ -2,21 +2,24 @@
   import type { Snippet } from 'svelte';
   import AppletWindow from './AppletWindow.svelte';
   import WindowFrame from './WindowFrame.svelte';
+  import type { TrafficLog } from './traffic-log.svelte';
   import type { PanelWindow, WindowStore } from './window-store.svelte';
 
   interface Props {
     windows: WindowStore;
     ongrants: (windowId: string) => void;
+    oninspect: (windowId: string) => void;
+    traffic: TrafficLog;
     /** What goes inside a window the shell draws itself. */
     panel: Snippet<[PanelWindow]>;
   }
 
-  const { windows, ongrants, panel }: Props = $props();
+  const { windows, ongrants, oninspect, traffic, panel }: Props = $props();
 </script>
 
 <div class="chrome">
   {#each windows.windows as win (win.id)}
-    <AppletWindow {win} {windows} {ongrants} />
+    <AppletWindow {win} {windows} {ongrants} {oninspect} marks={traffic.marks(win.id)} />
   {/each}
   {#each windows.panels as win (win.id)}
     <WindowFrame {win} {windows} title={win.title} scrolls>

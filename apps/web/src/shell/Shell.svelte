@@ -13,6 +13,7 @@
   import FirewallDialog from './FirewallDialog.svelte';
   import { FirewallQueue } from './firewall-queue.svelte';
   import { GuardLog } from './guard-log.svelte';
+  import { TrafficLog } from './traffic-log.svelte';
   import HandlerChooser from './HandlerChooser.svelte';
   import { HandlerQueue } from './handler-queue.svelte';
   import { createHost, pickStorage, PREVIEW_STORAGE_PREFIX, scopedStorage, type AppletOpener } from './host';
@@ -34,6 +35,7 @@
   const firewall = new FirewallQueue();
   const windows = new WindowStore(createShellWindowManager(storage));
   const guardLog = new GuardLog();
+  const traffic = new TrafficLog();
   const handlers = new HandlerQueue();
   const replies = new ReplyQueue();
   const settings = new SettingsQueue();
@@ -67,8 +69,13 @@
           session = next;
         }).unsubscribe,
       );
-      const events = kernl.guard.events$.subscribe((event) => guardLog.push(event));
+      const events = kernl.guard.events$.subscribe((event) => {
+        guardLog.push(event);
+        traffic.guard(event);
+      });
       cleanups.push(() => events.unsubscribe());
+      const messages = kernl.traffic$.subscribe((message) => traffic.message(message));
+      cleanups.push(() => messages.unsubscribe());
       const onMessage = (event: MessageEvent): void => kernl.handleWindowMessage(event);
       window.addEventListener('message', onMessage);
       cleanups.push(() => window.removeEventListener('message', onMessage));
@@ -133,7 +140,7 @@
   {:else if booted && phase === 'signin'}
     <SignIn kernl={booted.kernl} mode={booted.mode} />
   {:else if booted && session}
-    <Desktop bind:this={desktop} {booted} {session} {storage} {windows} {guardLog} {opener} onproblem={(title, body) => notices.push({ title, body, tone: 'warning' })} onsignout={signOut} />
+    <Desktop bind:this={desktop} {booted} {session} {storage} {windows} {guardLog} {traffic} {opener} onproblem={(title, body) => notices.push({ title, body, tone: 'warning' })} onsignout={signOut} />
   {/if}
 
   {#if booted && session && handlers.current}
