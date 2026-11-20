@@ -170,7 +170,7 @@ interface Transport {
 function createTransport(options: ClientOptions): Transport {
   const base = `${options.endpoint.url.replace(/\/+$/, '').replace(/\/gui$/, '')}/gui/`;
   const authorization = basicAuthorization(options.endpoint);
-  const credentials = authorization === undefined ? {} : { authorization };
+  const credentials: Record<string, string> = authorization === undefined ? {} : { authorization };
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   let current: Session | undefined;
 
@@ -188,7 +188,7 @@ function createTransport(options: ClientOptions): Transport {
 
   async function attempt(query: string, init: RequestInit, limitMs: number): Promise<Response> {
     current ??= await openSession(limitMs);
-    const headers = { ...credentials, ...(current.cookie === '' ? {} : { cookie: current.cookie }) };
+    const headers: Record<string, string> = current.cookie === "" ? { ...credentials } : { ...credentials, cookie: current.cookie };
     const url = `${base}?token=${encodeURIComponent(current.token)}&${query}`;
     return requestClient({ ...options, timeoutMs: limitMs }, url, { ...init, headers, credentials: 'include' });
   }
