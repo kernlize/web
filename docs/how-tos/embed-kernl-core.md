@@ -29,6 +29,8 @@ Put it in the `<head>` of the HTML the server sends, before any script runs, as 
 
 `fetchBlob` and `now` are optional; without them the core fetches artifact blobs with `defaultFetchBlob` and uses `Date.now`.
 
+If your shell has keyboard shortcuts of its own, name them in `createKernl({ shortcuts: { reserved: ['Alt+/'] } })` so no applet is given them, and implement `onShortcut(key)`: a key pressed inside an applet that holds no binding for it arrives there, and without it your shortcuts stop working whenever an applet has focus.
+
 ```ts
 import { createKernl, type AppletHandle, type ConsentPrompt, type KernlHost } from '@kernlize/core';
 import type { WindowVisibility } from '@kernlize/guard';

@@ -28,7 +28,7 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 | `unavailable:frame-lock` | `@kernlize/core` | `planMount`, so `Kernl.plan` | The srcdoc kehto prepared does not contain the CSP meta and namespace prelude where kernl expects them, so the insertion lock cannot be placed after kehto's lock and the applet is not mounted. Seen only with a kehto release whose output changed. |
 | `invalid:frame-detached` | `@kernlize/core` | `mountApplet`, so `Kernl.mount` | The frame has no `contentWindow`; it is not in the document. |
 | `invalid:domain` | `@kernlize/core` | `Grants.allowDomain` | The shell does not offer this domain in its current configuration. |
-| `denied:baseline-domain` | `@kernlize/core` | `Grants.revokeDomain` | Baseline domains (`shell`, `inc`, `theme`, `storage`) cannot be revoked. |
+| `denied:baseline-domain` | `@kernlize/core` | `Grants.revokeDomain` | Baseline domains (`shell`, `inc`, `theme`, `storage`, `keys`) cannot be revoked. |
 | `denied:plaintext-key-persistence` | `@kernlize/core` | `KernlAccountManager.addAccount` | The account type stores a raw secret key (`PLAINTEXT_KEY_ACCOUNT_TYPES`). |
 | `invalid:relay-url` | `@kernlize/core` | `RelayTiers.add`; `mailboxTags`, so `AccountMailboxes.save` | The URL is not `ws://` or `wss://`. A save refused this way signs and publishes nothing. |
 | `denied:read-only` | `@kernlize/core` | the outbox service's signer; `AccountMailboxes.save` | The session cannot sign, so an outbox publish or a new inbox and outbox list is refused. |

@@ -204,7 +204,7 @@ document.addEventListener('visibilitychange', () => {
 A page that is a complete kernl host: it verifies an applet before running it, runs it in a frame with no network of its own, keeps the guard informed, and stops the applet when the guard quarantines it. Two things this page leaves out on purpose:
 
 - **Signing.** A read-only account cannot sign, so the consent prompt never appears. With a signing account, an applet that tries to change your profile, follows, connections or lists, or to delete something, reaches `presentConsent` first, and a "no" fails the write with `denied:consent`.
-- **Grants.** The page never calls `kernl.grants.allowDomain`, so applets get only the baseline (`shell`, `inc`, `theme`, `storage`) and are not told who is signed in. [Grant and revoke](../how-tos/grant-and-revoke.md) shows the calls.
+- **Grants.** The page never calls `kernl.grants.allowDomain`, so applets get only the baseline (`shell`, `inc`, `theme`, `storage`, `keys`) and are not told who is signed in. [Grant and revoke](../how-tos/grant-and-revoke.md) shows the calls.
 
 ## Where next
 
