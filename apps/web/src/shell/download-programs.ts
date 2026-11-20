@@ -69,7 +69,8 @@ const REASON_WORDS: Readonly<Record<string, string>> = {
 /** A refused or failed connection in plain words. The raw reason is never shown, and no reason carries a secret. */
 export function programError(reason: unknown): string {
   const message = reason instanceof Error ? reason.message : String(reason);
-  const [code = ''] = message.split(' ');
+  // An adapter may add a detail after the reason (`unavailable:bad-response: HTTP 404`); only the reason picks the words.
+  const code = /^(?:denied|invalid|unavailable):[a-z-]+/.exec(message)?.[0] ?? '';
   return REASON_WORDS[code] ?? 'That did not work. Check the address.';
 }
 

@@ -76,7 +76,7 @@ export interface DownloadClientsState {
   readonly connections: Readonly<Partial<Record<DownloadProgram, DownloadConnection>>>;
   /** Which torrent program serves applets when both are set up; the only one set up otherwise. */
   readonly torrentProgram?: TorrentProgram;
-  /** Programs whose kept sign-in the secrets provider would not hand over; they serve nobody until it does. */
+  /** Programs whose kept sign-in the secrets provider would not hand over, or no longer has; they serve nobody until signed in to again. */
   readonly locked: readonly DownloadProgram[];
 }
 
@@ -267,6 +267,8 @@ export function createDownloadClients(options: DownloadClientsOptions): Download
   async function load(program: DownloadProgram, connection: DownloadConnection): Promise<void> {
     try {
       const [password, apiKey] = await Promise.all([connection.hasPassword ? secrets.get(secretName(program, 'password')) : undefined, connection.hasApiKey ? secrets.get(secretName(program, 'apiKey')) : undefined]);
+      // A secret settings say is kept and the provider no longer has is gone, not empty: signing in without it would only be refused.
+      if ((connection.hasPassword && !password) || (connection.hasApiKey && !apiKey)) throw new Error('unavailable:secrets');
       held.set(program, { ...(password ? { password } : {}), ...(apiKey ? { apiKey } : {}) });
     } catch {
       state$.next({ ...state$.value, locked: [...state$.value.locked, program] });

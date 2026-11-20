@@ -42,7 +42,7 @@ const STORAGE_PREFIX = 'kernl:secrets:v1:';
  * better passes its own provider as `KernlOptions.secrets`.
  *
  * @param storage - The host's storage; each secret is one key under `kernl:secrets:v1:`.
- * @returns A provider over that storage.
+ * @returns A provider over that storage; `set` rejects `unavailable:secrets` when the storage refuses the write.
  * @example
  * ```ts
  * const secrets = createStorageSecrets(localStorage);
@@ -54,7 +54,14 @@ export function createStorageSecrets(storage: StorageLike): SecretsProvider {
   return {
     description: { label: 'this device', keeps: 'plain' },
     get: async (name) => storage.getItem(STORAGE_PREFIX + name) ?? undefined,
-    set: async (name, value) => storage.setItem(STORAGE_PREFIX + name, value),
+    async set(name, value) {
+      try {
+        storage.setItem(STORAGE_PREFIX + name, value);
+      } catch {
+        // Storage that is full or switched off refuses the write; the reason says only that, never the value.
+        throw new Error('unavailable:secrets');
+      }
+    },
     delete: async (name) => storage.removeItem(STORAGE_PREFIX + name),
   };
 }

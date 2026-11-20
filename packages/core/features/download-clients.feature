@@ -146,7 +146,10 @@ Feature: The download programs the person set up
     Given a stored download programs record that reads "{"connections":{"sabnzbd":{"url":"http://localhost:8080","hasApiKey":true,"hasPassword":true}}}"
     And download program settings on a page loaded over "http"
     When the download program settings are opened again
-    Then 1 archive downloader is offered, called "SABnzbd"
+    Then the "sabnzbd" program is locked and no archive downloader is offered
+
+  Scenario: storage that refuses a write keeps no secret and says so
+    Then the storage provider answers "unavailable:secrets" when its storage refuses the write
 
   Scenario: the built-in providers say how they keep a secret, and keep it
     Then the storage provider keeps "k1" as typed on "this device" and forgets it when asked

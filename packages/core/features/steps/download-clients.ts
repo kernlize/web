@@ -296,3 +296,8 @@ Then('the page scheme is {string} on a page loaded over {string}', (_world: Core
 Then('the programs kernl can drive are {string}', (_world: CoreWorld, names: string) => {
   expect(Object.keys(DOWNLOAD_PROGRAMS).join(',')).toBe(names);
 });
+
+Then('the storage provider answers {string} when its storage refuses the write', async (_world: CoreWorld, reason: string) => {
+  const full = { getItem: () => null, removeItem: () => undefined, setItem: () => { throw new Error('QuotaExceededError: k1'); } };
+  await expect(createStorageSecrets(full).set('probe', 'k1')).rejects.toThrow(new Error(reason));
+});

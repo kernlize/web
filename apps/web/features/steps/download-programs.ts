@@ -76,7 +76,7 @@ Then('a program never set up has something to save once an address is typed', ()
 Then('the download program reason {string} is explained with {string}', (_world: ProgramWorld, reason: string, words: string) => {
   expect(programError(new Error(reason))).toContain(words);
   expect(programError(reason)).toContain(words);
-  expect(programError(new Error(reason))).not.toContain(reason.split(' ')[0]);
+  expect(programError(new Error(reason))).not.toContain(reason.split(':')[0]);
 });
 
 Then('the download program note {string} says {string}', (_world: ProgramWorld, note: string, words: string) => {

@@ -210,7 +210,7 @@ const CHANGES: Partial<Record<NzbClientAction, readonly [fields: Fields, done: (
  * What it offers, and why:
  *
  * - `pause` and `resume` for a job in the queue, always the per-job requests.
- * - No `cancel`: see {@link ACTIONS}.
+ * - No `cancel`: removing a queued job leaves no record, and nothing stops processing while keeping the files.
  * - `retry` for a failed job whose partial files SABnzbd still has. SABnzbd makes a
  *   new job for the attempt, so the id that comes back is the successor's.
  * - `forget` for a completed or failed job, and `delete` only for a failed job with

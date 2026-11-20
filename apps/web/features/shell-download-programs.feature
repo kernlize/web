@@ -37,7 +37,7 @@ Feature: Setting up download programs in Settings
       | denied:credentials                       | refused that sign-in                     |
       | unavailable:timeout                      | did not answer in time                   |
       | unavailable:unreachable                  | No answer                                |
-      | unavailable:bad-response extra detail    | Something else answered                  |
+      | unavailable:bad-response: HTTP 404       | Something else answered                  |
       | unavailable:unsupported                  | too old                                  |
       | denied:secrets                           | could not be kept                        |
       | unavailable:secrets                      | could not be kept                        |
