@@ -102,7 +102,7 @@ Every request is made with `redirect: 'manual'`, so the bridge decides about eac
 
 Browser requests are also subject to CORS: the shell's page fetches the URL, so an origin that does not allow cross-origin reads fails, and the browser does not say why. A request the browser blocks, for CORS or because the network failed, surfaces as `unavailable:network Failed to fetch`; any other status-0 answer as `unavailable:network <type> response`, for example `unavailable:network opaque response`. In practice the web bridge in the shell works for `https` origins that permit cross-origin reads and answer without a redirect. Requests race `AbortSignal.timeout(timeoutMs)` and the caller's signal: the time limit fails with `unavailable:timeout`, a caller cancel with `unavailable:aborted`, any other fetch failure with `unavailable:network <message>`. Caller headers are forwarded on every hop.
 
-A response whose `content-length` exceeds `maxBytes` fails with `denied:too-large` before the body is read. Otherwise the `Response` is returned with its status and headers, and its body is streamed through a counter that errors the stream with `denied:too-large` the moment the limit is crossed. Before the request reaches the bridge, kehto's runtime firewall applies the `resource:fetch` rate kernl installed at mount and refuses a request over budget. kernl's guard sees the envelope just before kehto dispatches it but cannot hold it: `maxResourceEnvelopeBytes` and the focus firewall's `resource:bytes` bucket only report, while a hidden window's request past `hiddenResourceAllowance` quarantines the applet, and that request is not dispatched ([Guard](./guard.md#where-enforcement-happens)).
+A response whose `content-length` exceeds `maxBytes` fails with `denied:too-large` before the body is read. Otherwise the `Response` is returned with its status and headers, and its body is streamed through a counter that errors the stream with `denied:too-large` the moment the limit is crossed. Before the request reaches the bridge, kernl's guard drops a `resource.*` envelope over `maxResourceEnvelopeBytes` or over the `resource:bytes` budget, and a hidden window's request past `hiddenResourceAllowance` quarantines the applet, so that request is not dispatched. kehto's runtime then charges the download against the same `resource:bytes` budget, and for a web address the firewall is put the origin first, which under kernl's shipped rules goes ahead without asking. Only that first origin reaches the firewall; the bridge follows or refuses redirects under the policy above ([Guard](./guard.md#the-firewall)).
 
 ## Backend-driven bridges
 
@@ -170,11 +170,17 @@ The backend also exposes what the Downloads panel needs:
 
 The backend has no `handoff` trait, so the bridge reports `{ available: true }` and `describeBridge` gives `Status: ready` without the `Handled by` and `Sent through kernl` rows. The exposure rows stay: peers see the user's network address, the transfer is not encrypted, and what the user fetches is visible to the swarm. See `webtorrent-backend.feature`.
 
-`createDefaultBridges({ handoff, torrent })` builds the torrent bridge over `torrent` when given, and over the hand-off otherwise; NZB, Soulseek and mail still hand off. `createKernl` passes `KernlOptions.torrent` through. The web shell supplies a backend that follows the user's choice in Settings: **Download in kernl**, the default when the browser has `RTCPeerConnection`, or **Open in an app on your device**, which uses the hand-off backend. The choice is stored under `kernl:downloads:mode:v1`. The WebTorrent library (`webtorrent` 3.0.21, browser build) loads only in the shell host page, and only when the first download starts. Applet frames never get it: their CSP and kehto's prelude still remove WebRTC from them.
+`createDefaultBridges({ handoff, torrent })` builds the torrent bridge over `torrent` when given, and over the hand-off otherwise; NZB, Soulseek and mail still hand off. `createKernl` passes `KernlOptions.torrent` through. The web shell supplies a backend that follows the user's choice in Settings, under Downloads: **Download in kernl**, the default when the browser has `RTCPeerConnection`, or **Open in an app on your device**, which uses the hand-off backend. The choice is stored under `kernl:downloads:mode:v1`. The WebTorrent library (`webtorrent` 3.0.21, browser build) loads only in the shell host page, and only when the first download starts. Applet frames never get it: their CSP and kehto's prelude still remove WebRTC from them.
 
 ### Why NZB, Soulseek and mail still hand off
 
-A browser page can open HTTP requests, WebSockets and WebRTC connections, and nothing else. NZB downloads need NNTP to a news server, Soulseek its own protocol to a central server and to peers, and mail SMTP and IMAP; all of them run over raw TCP sockets, which no page can open. They stay hand-off until kernl can reach a companion service that opens those sockets for the user ([Roadmap](../roadmap.md#_2-bridge-backends)). Supplying another backend is a shell change plus a docs change; see [Add a bridge backend](../how-tos/add-a-bridge-backend.md).
+A browser page can open HTTP requests, WebSockets and WebRTC connections, and nothing else. NZB downloads need NNTP to a news server, Soulseek its own protocol to a central server and to peers, and mail SMTP and IMAP; all of them run over raw TCP sockets, which no page can open. For a link the person opens, they stay hand-off. The programs people already run for these networks do open those sockets, and each has an HTTP API a page can call; kernl drives them for applets (below), and using them for the person's own links as well is on the [Roadmap](../roadmap.md#_2-bridge-backends). Supplying another backend is a shell change plus a docs change; see [Add a bridge backend](../how-tos/add-a-bridge-backend.md).
+
+### Applets and the person's own programs
+
+The bridges above serve a locator: a link the person opens, or one an applet asks for through the `resource` domain. They are not how an applet runs a download. For that kernl offers three domains of their own, `torrent`, `nzb` and `soulseek`, served by driving a program the person already runs (Transmission or uTorrent, NZBGet or SABnzbd, slskd) through its own API ([D-050](../decisions.md#d-050)). The adapters live in this package beside the bridges and share none of their contract: there is no locator, no `Bridge`, and no `BridgeRegistry`. [Connected programs](./download-programs.md) explains them, and [Connect a program](../how-tos/connect-a-download-program.md) sets one up.
+
+The one place the two meet is an NZB an applet names by `https` address: the `nzb` service fetches it through this registry, so the HTTP bridge's policy applies to it.
 
 ## The resource resolver
 
@@ -207,4 +213,12 @@ An applet could, in principle, be given a WebRTC or WebSocket path and speak the
 ## Related
 
 - [`@kernlize/bridges`](../packages/bridges.md)
+- [Connected programs](./download-programs.md): how applets download through programs the person runs.
 - [Security posture](../policies/security-posture.md)
+
+## The Blossom bridge
+
+A `blossom:` reference names a blob by its SHA-256. `createDefaultBridges` registers `createBlossomBridge`, and `createKernl` gives it the running applet's manifest `server` tags as the place to look when the reference names none, which is how published applets ship their assets: beside their artifact, referenced as `blossom:sha256:<hash>` with no hint. The bridge asks the reference's `xs` hints first, then those servers, through the web bridge's policy, and hands back only bytes whose hash matches; a server is an accelerator, never the identity of what it serves. No other server is asked, so an applet's hash is not revealed to a server neither it nor its publisher named. kehto's resource service does not pass a request's advisory `servers` to the resolver, so they are not used ([D-055](../decisions.md#d-055)).
+
+A rejection reaches the applet as the NAP-RESOURCE error it is, through `resourceErrorFor`: a blob nobody named holds is `not-found`, a scheme no bridge serves is `unsupported-scheme`, and only a failure of the network itself is `network-error`.
+

@@ -28,13 +28,12 @@ const VERBS: Readonly<Record<GuardEvent['disposition'], string>> = {
 function because(event: GuardEvent): string {
   const { reason, opClass } = event;
   if (reason === 'flood:burst') return 'a burst of messages';
-  if (reason === 'flood:startup') return 'a burst of messages as it started';
+  if (reason === 'flood:prompts') return 'it asked you too many questions at once';
   if (reason === 'flood:queue-full' || reason === 'defer:queue-full') return 'its queue is full';
   if (reason === 'flood:quarantine') return 'it kept flooding the shell';
   if (reason === 'flood:hidden-resource') return 'too many web fetches while hidden';
   if (reason.startsWith('rate:')) return `too many ${OP_WORDS[opClass]}`;
   if (reason.startsWith('size:')) return `an oversized request (${OP_WORDS[opClass]})`;
-  if (reason.startsWith('prompt:')) return 'it needs your answer first';
   return reason;
 }
 

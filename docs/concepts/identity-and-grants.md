@@ -33,15 +33,26 @@ A grant is expressed in domains, not capabilities. `DOMAIN_CAPABILITIES` (`grant
 
 ## Restrictive posture
 
-kehto's runtime ACL is permissive unless the host says otherwise: a capability with no entry in the ACL store is allowed. kernl says otherwise. `createShellAdapter` sets `aclDefaultPolicy: 'restrictive'` (`@kehto/shell` 0.32.0, [D-020](../decisions.md#d-020)), so an applet with no entry holds nothing, and a stored policy is replaced by this one on load while stored entries are kept. The posture is built in three places:
+kehto's runtime ACL is permissive unless the host says otherwise: a capability with no entry in the ACL store is allowed. kernl says otherwise. `createShellAdapter` sets `aclDefaultPolicy: 'restrictive'` (`@kehto/shell` 0.32.0, [D-020](../decisions.md#d-020)), so an applet with no entry holds nothing, and a stored policy is replaced by this one on load while stored entries are kept. The posture is built in two places:
 
 1. **ACL writes.** `KernlGrants.ensure(identity)` runs inside `kernl.plan`, before any frame exists. It commits the applet's record: every capability `BASELINE_DOMAINS` or an allowed domain needs is granted, and whatever the applet's stored entry holds beyond that is revoked (a domain the user took back, or an entry kept from the earlier permissive posture). Then the blocked flag is applied and the ACL persisted. An applet kernl never planned has no entry and is denied everything.
 2. **Environment narrowing.** `createEnvironmentResolver(grants)` is the `ShellAdapter.capabilities.resolveEnvironment` hook. For each identity it returns the baseline plus the domains the user allowed, intersected with what the shell offers live; a blocked applet gets `shell` alone, enough to finish the handshake and nothing more. kehto intersects the result with its own availability set, so the hook can only remove. The applet's `shell.init` therefore advertises a subset.
-3. **Runtime firewall rules.** `kernl.mount` calls `applyRuntimeFirewallRules`, which translates the guard profile's per-class rates into kehto's runtime firewall through `RUNTIME_OP_CLASSES` so that over-budget envelopes are refused before dispatch. It sets no policy: kehto's `allow` policy would skip every check, and deny and block are the grants layer's job. [Guard](./guard.md#where-enforcement-happens) has the translation table.
 
-The baseline is `BASELINE_DOMAINS`: `shell`, `inc`, `theme` and `storage`. It has no network, and it is not read-only: the handshake, in-shell messaging, the theme, and the applet's own scoped storage, which it reads and writes within its state quota. Who the user is, is not in it. `identity` is a grant like any other ("your account" in the shell): until the user grants it, the shell does not tell an applet which account is signed in, its public key or its profile (SOUL opinion 2). Other grants can reveal the account indirectly, and the shell does not hide that: an applet granted `relay` that publishes gets the signed event back in `relay.publish.result`, and a signed event carries the author's public key. `grants.revokeDomain` refuses a baseline domain with `denied:baseline-domain`; `grants.allowDomain` refuses a domain the shell does not offer with `invalid:domain`, and is a no-op for a baseline domain.
+Rates are a separate matter: the guard's budgets say how often an applet may act, not whether it may ([Guard](./guard.md#where-enforcement-happens)).
+
+The baseline is `BASELINE_DOMAINS`: `shell`, `inc`, `theme`, `storage` and `keys`. It has no network, and it is not read-only: the handshake, in-shell messaging, the theme, the applet's own scoped storage, which it reads and writes within its state quota, and keyboard shortcuts, which act only in the applet's own focused window ([D-054](../decisions.md#d-054)). Who the user is, is not in it. `identity` is a grant like any other ("your account" in the shell): until the user grants it, the shell does not tell an applet which account is signed in, its public key or its profile (SOUL opinion 2). Other grants can reveal the account indirectly, and the shell does not hide that: an applet granted `relay` that publishes gets the signed event back in `relay.publish.result`, and a signed event carries the author's public key. `grants.revokeDomain` refuses a baseline domain with `denied:baseline-domain`; `grants.allowDomain` refuses a domain the shell does not offer with `invalid:domain`, and is a no-op for a baseline domain.
+
+`torrent`, `nzb` and `soulseek` are grants too, off until the user switches each on for that applet, and each still asks before a download is added, before a window first uses the sharing program and before anything is deleted ([Connected programs](./download-programs.md#what-the-person-controls)). They are not kehto domains and need no capability; kernl narrows them with the same rule as every other domain and adds the granted ones to the environment a window is mounted with ([D-050](../decisions.md#d-050)). The shell offers them only when an applet can call them ([When the domains are offered](./download-programs.md#when-the-domains-are-offered)). An applet that holds the `dm` grant is sealed and holds none of the three, whatever was granted: a search term, a file name or an NZB is a way out ([D-046](../decisions.md#d-046)).
 
 The practical effect for an applet: `requires` in the manifest is honoured as a question, not a demand. `MountPlan.missingRequired` lists the required domains the environment does not include, and the host decides what to do before mounting; the web shell's launcher shows the required and optional domains as choices and calls `grants.allowDomain` for the ones the user turns on before it calls `kernl.plan`.
+
+## The firewall inside the grants
+
+Grants decide which domains an applet holds. kehto's firewall decides, inside those, what goes ahead without asking, what asks the user, and what is refused ([D-056](../decisions.md#d-056)). The restrictive ACL is its ceiling: no firewall answer gives an applet a domain its grant does not.
+
+kernl ships rules that allow everything and ask about every link opened outside the shell, so the firewall adds one question to what the grants already settled. `kernl.plan` has each start admitted by the firewall after the grants narrowed it: a required domain the firewall refuses fails the plan with `denied:firewall`, and any other refused domain is left out of the environment. The user changes the rules through `kernl.firewall`, and taking back an answer an applet runs under stops its window, as narrowing its grant does. Grants are tied to the exact code; firewall rules follow an applet across versions, and stored firewall answers are tied to the exact code again.
+
+[Guard](./guard.md#the-firewall) describes the rules, the questions and the answers; [Change the firewall rules](../how-tos/change-firewall-rules.md) shows how to change them.
 
 ## Consent for destructive writes
 
@@ -57,7 +68,7 @@ Most writes an applet asks the shell to sign are additive: a note, a reaction, a
 | `0` | `destructive` | "Update your profile": one line per changed field, with the value before and after. |
 | `3` | `destructive` | "Change who you follow": follows added and removed, counted, the first three named by abbreviated key. |
 | `5` | `destructive` | "Delete N items", or "Delete N posts" when the `k` tags say every target is a post: one line per event id (`e` tag), and one "Delete every version of" line per address (`a` tag), named in plain words such as `record (type 30001) "books" by person 3bf0c63f…`. |
-| `62` | `destructive` | "Ask services to erase your account": everything the account published, and which services are asked. |
+| `62` | `destructive` | "Ask relays to erase your identity": everything the identity published, and which relays are asked. |
 | `10002` | `destructive` | "Change your inbox and outbox": a line saying what the two are, then relays added to and removed from each. An unmarked relay is both and appears in each (NIP-65). |
 | 10000–10099, 30000–30099 | `destructive` | "Change the list …": entries added and removed, each named as a person, item, topic, type, server or key rather than as a raw tag. |
 | any other replaceable or addressable kind | `destructive` | "Replace one of your records (type N)": tags added and removed, and "Content: Replaced" when the content changes, without copying it. |
@@ -73,9 +84,9 @@ Three limits are deliberate:
 - **Answers are not remembered.** Each destructive write asks again; `ConsentPrompt` has no "always allow" switch.
 - **The user never approves raw JSON.** The unsigned draft (empty `id` and `sig`) is on `ConsentSummary.event` for an "advanced" disclosure.
 
-kehto's own `ConsentRequest` is a different thing: the runtime raises it, without an event, when a firewall policy is `prompt`. `createConsentHandler` is registered for it and refuses those without asking; a future request that carries an event, from a window the shell can name, would be described and put to the user. kernl sets no runtime policy except the momentary `deny` of `refuseCurrentDispatch`, and never `ask`, so the firewall path is not expected.
+kehto's own `ConsentRequest` is a different thing: the runtime's former rate gate raised it, without an event, for a `prompt` policy. kernl no longer runs that gate ([D-056](../decisions.md#d-056)), so the request is not expected. `createConsentHandler` stays registered for it and refuses one without an event; a request that carries an event, from a window the shell can name, would be described and put to the user. A firewall question is separate again: it reaches the host through `presentApproval`, not through consent ([Guard](./guard.md#the-firewall)).
 
-Deletions are not rate-limited more tightly than other publishes before dispatch: kind 5 shares the `relay:write` budget in kehto's runtime firewall. The guard's separate `relay:publish:delete` bucket runs only in kernl's own focus firewall, which observes each envelope before dispatch but cannot hold it, so an overrun becomes a guard event ([Guard](./guard.md#where-enforcement-happens)).
+Deletions have their own, tighter budget only in kernl's rate limiter, which drops a deletion over it before dispatch with a `rate:relay:publish:delete` guard event. In kehto's runtime, kind 5 shares the `relay:publish` budget with other publishes ([Guard](./guard.md#where-enforcement-happens)). The rate is not what stops an unwanted deletion; consent is.
 
 ## What the applet learns
 
@@ -84,5 +95,7 @@ The applet learns its own narrowed environment through `shell.init`. Without the
 ## Related
 
 - [Guard](./guard.md): the behavioural limits that apply once a grant exists.
+- [Change the firewall rules](../how-tos/change-firewall-rules.md): what goes ahead without asking, inside a grant.
 - [Grant and revoke](../how-tos/grant-and-revoke.md): the shell-side calls.
 - [Security posture](../policies/security-posture.md): the mount rules this page relies on.
+- [Connected programs](./download-programs.md): the three download grants and what each asks.

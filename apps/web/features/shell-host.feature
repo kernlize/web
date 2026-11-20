@@ -28,13 +28,23 @@ Feature: The shell host
     Given the shell host with window "w1" titled "Notes"
     Then the shell host asks the chooser, opens applets through the desktop once it can, and brings windows forward
 
-  Scenario: a link opens only after the user agrees
+  Scenario: a link the firewall did not decide opens only after the user agrees
     Given the shell host with window "w1" titled "Notes"
     When the shell host is asked to open "https://example.org" and the user says "no"
     Then the shell host asked before opening "https://example.org"
     And the shell host opened nothing
     When the shell host is asked to open "https://example.org" and the user says "yes"
     Then the shell host opened "https://example.org" in a new, unlinked tab
+
+  Scenario: a link the firewall already let through opens without a second question
+    Given the shell host with window "w1" titled "Notes"
+    When the shell host is asked to open "https://example.org", which the firewall already let through
+    Then the shell host did not ask again
+    And the shell host opened "https://example.org" in a new, unlinked tab
+
+  Scenario: firewall questions wait in their own queue
+    Given the shell host with window "w1" titled "Notes"
+    Then the shell host puts a firewall question in the firewall queue
 
   Scenario Outline: a stopped applet is explained in plain words
     Given the shell host with window "w1" titled "Notes"
@@ -47,6 +57,7 @@ Feature: The shell host
       | w1     | host           | Notes was stopped     | The shell closed it.                                                                    |
       | w1     | grant-narrowed | Notes was stopped     | You took back something it was using. Open it again to run it with what it may use now. |
       | w1     | blocked        | Notes was stopped     | You blocked it.                                                                         |
+      | w1     | firewall       | Notes was stopped     | A firewall rule or answer it ran under changed. Open it again. |
       | w9     | expired        | An applet was stopped | expired                                                                                 |
 
   Scenario: the window itself records why it stopped
@@ -57,3 +68,26 @@ Feature: The shell host
   Scenario: the reply question reaches its dialog and the answer comes back
     Given the shell host with window "w1" titled "Notes"
     Then the shell host puts the reply question to the reply dialog
+
+  Scenario: a key an applet had no shortcut for reaches the shell once it is on screen
+    Given the shell host with window "w1" titled "Notes"
+    When the shell host is handed the key "/" at "Slash" with Alt "held"
+    Then the shell ran the shortcuts ""
+    When the shell is on screen
+    And the shell host is handed the key "/" at "Slash" with Alt "held"
+    And the shell host is handed the key "Escape" at "Escape" with Alt "up"
+    And the shell host is handed the key "k" at "KeyK" with Alt "held"
+    Then the shell ran the shortcuts "launcher,dismiss"
+
+  Scenario Outline: the shell knows its own keys by what they type or where they sit
+    Then the key "<key>" at "<code>" with Alt "<alt>" is the shell's "<shortcut>" shortcut
+    And an applet cannot bind "Alt+/"
+
+    Examples:
+      | key    | code   | alt  | shortcut |
+      | Escape | Escape | up   | dismiss  |
+      | /      | Slash  | held | launcher |
+      | ÷      | Slash  | held | launcher |
+      | /      | Minus  | held | launcher |
+      | /      | Slash  | up   | none     |
+      | k      | KeyK   | held | none     |

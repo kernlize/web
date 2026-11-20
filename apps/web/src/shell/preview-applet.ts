@@ -165,7 +165,7 @@ const ACTIONS: readonly Action[] = [
   { id: 'intent', label: 'Open a profile', hint: 'another applet shows it; the shell asks which', domain: 'intent' },
   { id: 'flood', label: 'Flood the shell', hint: '40 network reads at once; watch the guard', domain: 'relay' },
   { id: 'download', label: 'Download a shared file', hint: 'it joins your downloads, or goes to an app on your device if you chose that' },
-  { id: 'link', label: 'Open a link', hint: 'the shell confirms before leaving' },
+  { id: 'link', label: 'Open a link', hint: 'the firewall asks first' },
 ];
 
 const EXTRA_ACTIONS: readonly Action[] = [

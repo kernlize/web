@@ -1,12 +1,19 @@
-import type { Frame, Page } from '@playwright/test';
-import { expect } from './fixtures';
-import { DENIED_WORDS } from '../../apps/web/src/shell/vocabulary';
+import type { Frame, Locator, Page } from '@playwright/test';
+import { expect, openSettings, SETTINGS_SECTIONS } from './fixtures';
+import { DENIED_WORDS, withoutAddresses } from '../../apps/web/src/shell/vocabulary';
 
-/** Everything a person can perceive in a frame: text, accessible names and hints, and the values of fields. */
+/**
+ * Everything a person can perceive in a frame: text, accessible names and hints, and the values of
+ * fields. A grant's contract name (`data-contract`) is an identifier beside the plain words, like an
+ * address, so it is left out (D-057); only a bare capitalised identifier is, so no prose can hide in one.
+ */
 export async function perceivable(frame: Frame | Page): Promise<string> {
   return frame.evaluate(() => {
     const attributes = ['title', 'aria-label', 'placeholder', 'alt', 'aria-description'];
+    const contracts = [...document.querySelectorAll<HTMLElement>('[data-contract]')].filter((element) => /^[A-Z][A-Z0-9-]*$/.test(element.textContent ?? ''));
+    for (const element of contracts) element.style.display = 'none';
     const parts = [document.title, document.body.innerText];
+    for (const element of contracts) element.style.display = '';
     for (const element of document.querySelectorAll('*')) {
       for (const name of attributes) {
         const value = element.getAttribute(name);
@@ -18,11 +25,26 @@ export async function perceivable(frame: Frame | Page): Promise<string> {
   });
 }
 
-/** Fail when any frame of the page shows a word the shell's own denylist forbids (D-006). */
+/**
+ * Fail when any frame of the page shows a word the shell's own denylist forbids (D-006). Addresses are
+ * blanked first: a relay is shown by its own host, whatever words that host contains (D-051).
+ */
 export async function expectClean(page: Page, where: string): Promise<void> {
   for (const frame of page.frames()) {
     const text = await perceivable(frame);
-    const hit = DENIED_WORDS.exec(text);
+    const hit = DENIED_WORDS.exec(withoutAddresses(text));
     expect(hit?.[0], `${where} (${frame === page.mainFrame() ? 'page' : 'applet frame'})`).toBeUndefined();
   }
+}
+
+/** Open Settings and read every section in turn, with what is folded away opened: only the section showing is rendered text. */
+export async function expectCleanSettings(page: Page, where: string): Promise<Locator> {
+  const settings = await openSettings(page);
+  for (const section of SETTINGS_SECTIONS) {
+    await settings.getByRole('tab', { name: section }).click();
+    await expect(settings.getByRole('tabpanel', { name: section })).toBeVisible();
+    await settings.locator('details').evaluateAll((all) => all.forEach((d) => d.setAttribute('open', '')));
+    await expectClean(page, `${where}: ${section}`);
+  }
+  return settings;
 }

@@ -5,7 +5,7 @@ import type { IAccount } from 'applesauce-accounts';
 import { PrivateKeyAccount, ReadonlyAccount } from 'applesauce-accounts/accounts';
 import { BASELINE_DOMAINS, DEFAULT_FILE_SERVERS } from '@kernlize/core';
 import { MemoryStorage } from '../../../../packages/core/features/steps/world.ts';
-import { abbreviate, type AppletHandle, type AppletPointer, type AppletSummary, type ConsentPrompt, type FrameLike, type HandlerPrompt, type KernlHost, type MountPlan, type SettingsPrompt, type ShellKernl } from '../../src/shell/contract.ts';
+import { abbreviate, type AppletHandle, type AppletPointer, type AppletSummary, type ConsentPrompt, type FirewallChoice, type FirewallPrompt, type FrameLike, type HandlerPrompt, type KernlHost, type MountPlan, type SettingsPrompt, type ShellKernl } from '../../src/shell/contract.ts';
 import { PREVIEW_PUBLISHER, sampleSummary } from '../../src/shell/preview-applet.ts';
 import { PREVIEW_CORRESPONDENT } from '../../src/shell/preview-messaging.ts';
 import { createShellDownloads } from '../../src/shell/downloads.ts';
@@ -28,6 +28,10 @@ export interface PreviewScratch {
   readonly settings: SettingsPrompt[];
   readonly notices: unknown[];
   readonly links: string[];
+  /** Firewall questions the host was shown, and what it answers each with; `undefined` leaves them unanswered. */
+  readonly firewallQuestions: FirewallPrompt[];
+  firewallAnswer?: FirewallChoice | 'dismiss';
+  readonly approvedLinks: string[];
   readonly revoked: Array<{ windowId: string; reason: string }>;
   readonly frames: Map<string, PreviewFrame>;
   readonly handles: Map<string, AppletHandle>;
@@ -131,7 +135,7 @@ async function openFromDesktop(world: PreviewWorld, address: string): Promise<st
   return handleOf(scratch, frameName).windowId;
 }
 
-function previewKernl(world: PreviewWorld, inKernl: boolean, showsSettings = true): void {
+export function previewKernl(world: PreviewWorld, inKernl: boolean, showsSettings = true, asksFirewall = true): void {
   const prompts: ConsentPrompt[] = [];
   const settings: SettingsPrompt[] = [];
   const notices: unknown[] = [];
@@ -145,7 +149,16 @@ function previewKernl(world: PreviewWorld, inKernl: boolean, showsSettings = tru
     },
     ...(showsSettings ? { presentSettings: (prompt: SettingsPrompt) => void settings.push(prompt) } : {}),
     notify: (notice) => void notices.push(notice),
-    openLink: (url) => void links.push(url),
+    openLink(url, options) {
+      links.push(url);
+      if (options?.approved) scratch.approvedLinks.push(url);
+    },
+    ...(asksFirewall ? {
+      presentApproval(prompt: FirewallPrompt) {
+        scratch.firewallQuestions.push(prompt);
+        if (scratch.firewallAnswer !== undefined) prompt.resolve(scratch.firewallAnswer === 'dismiss' ? undefined : scratch.firewallAnswer);
+      },
+    } : {}),
     getVisibility: () => ({ visible: true, focused: true }),
     onRevoked: (windowId, reason) => void revoked.push({ windowId, reason }),
     async chooseHandler(prompt) {
@@ -163,6 +176,9 @@ function previewKernl(world: PreviewWorld, inKernl: boolean, showsSettings = tru
     settings,
     notices,
     links,
+    firewallQuestions: [],
+    firewallAnswer: 'allow-once',
+    approvedLinks: [],
     revoked,
     frames: new Map(),
     handles: new Map(),
@@ -330,7 +346,7 @@ Then('the preview kernl plan is for window {string}', (world: PreviewWorld, wind
 
 Then('the preview kernl plan grants {string} beyond the baseline', (world: PreviewWorld, domains: string) => {
   const plan = preview(world).plan;
-  expect(plan?.environment.capabilities.domains).toEqual([...BASELINE_DOMAINS, ...list(domains)]);
+  expect(plan?.environment.capabilities.domains).toEqual([...BASELINE_DOMAINS.filter((domain) => domain !== 'keys'), ...list(domains)]);
   expect(plan?.environment.services).toEqual([]);
 });
 
@@ -619,4 +635,8 @@ Then('the preview kernl finds the same person from hex, the short shareable form
 
 Then('the preview kernl refuses {string} as a person with {string}', async (world: PreviewWorld, text: string, reason: string) => {
   await expect(preview(world).kernl.people.locate(text)).rejects.toThrow(reason);
+});
+
+Then('the preview kernl plan does not offer {string}', (world: PreviewWorld, domain: string) => {
+  expect(preview(world).plan?.environment.capabilities.domains).not.toContain(domain);
 });

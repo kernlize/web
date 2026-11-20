@@ -47,14 +47,16 @@
         </div>
       {/each}
     </dl>
-    <details bind:open={advanced}>
-      <summary>Advanced: the exact record</summary>
-      <dl class="record">
-        {#each eventDetails(summary.event, accountKey) as row, index (index)}
-          <div><dt>{row.label}</dt><dd>{row.value}</dd></div>
-        {/each}
-      </dl>
-    </details>
+    {#if summary.event}
+      <details bind:open={advanced}>
+        <summary>Advanced: the exact record</summary>
+        <dl class="record">
+          {#each eventDetails(summary.event, accountKey) as row, index (index)}
+            <div><dt>{row.label}</dt><dd>{row.value}</dd></div>
+          {/each}
+        </dl>
+      </details>
+    {/if}
     <div class="shell-actions">
       <button type="button" class="shell-button" bind:this={denyButton} onclick={() => onanswer(false)}>Deny</button>
       <button type="button" class="shell-button primary" onclick={() => onanswer(true)}>Allow</button>

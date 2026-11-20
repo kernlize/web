@@ -10,6 +10,8 @@ A grant is something the user gave and can take back. This page covers what the 
 
 **During use.** kernl asks before signing a destructive change. Whether the applet publishes through `relay.publish` (signed through `ShellAdapter.auth.getSigner(windowId)`) or `outbox.publish` (gated in kernl's outbox service wrapper), the write passes `createSigningConsent`: for a destructive kind (any replaceable or addressable kind, a deletion or a request to vanish) it looks up the current version, in the event store and then on the outbox and discovery relays for up to 4 seconds, runs `describeChange` on the unsigned draft, calls `host.presentConsent` and waits. The host shows the title ("Update your profile", "Change who you follow", "Delete 2 posts" or "Delete 2 items", "Ask services to erase your account", "Change your inbox and outbox", "Change the list …", "Replace one of your records (type N)") and one line per change with the value before and after; when the current version could not be loaded, the first line says so. The applet is named by its display name and the short hash of its build. *Allow* resolves the prompt with `true` and the event is signed; dismissing it resolves `false`, the write fails with `denied:consent`, and nothing is signed or published. Routine writes (posts, reactions and other kinds outside the destructive set) are signed without a prompt, and the shell's own signing is never gated. Nothing is remembered; the next destructive write asks again. kehto's runtime has no destructive-signing consent of its own; this is kernl's.
 
+**Links ask, through the firewall.** A grant says an applet holds a domain; kehto's firewall decides, inside that, what goes ahead without asking. As shipped, everything granted goes ahead and each link an applet opens outside the shell asks first, with "Open link" and "Don't open". The user changes that in the **Firewall** panel ([Change the firewall rules](./change-firewall-rules.md)).
+
 **In the grants panel.** Every domain the shell offers, as a switch; a **Block applet** button (**Unblock applet** once blocked); and, when the guard has quarantined the window, **Release from quarantine**. The panel reads `kernl.grants.get(identity)` and re-renders on `kernl.grants.changes$`.
 
 ## What a grant is keyed by
@@ -33,7 +35,7 @@ kernl.grants.block(identity);
 kernl.grants.unblock(identity);
 kernl.grants.setStateQuota(identity, 4096);
 kernl.grants.availableDomains(); // what buildShellCapabilities(adapter) offers
-kernl.grants.baselineDomains(); // ['shell', 'inc', 'theme', 'storage']
+kernl.grants.baselineDomains(); // ['shell', 'inc', 'theme', 'storage', 'keys']
 
 const subscription = kernl.grants.changes$.subscribe((record) => console.log(record.identity.dTag, record.domains));
 subscription.unsubscribe();
@@ -67,4 +69,4 @@ A `resource` request from an applet that holds the `resource` domain is resolved
 - Access to `window.nostr`, raw keys or the `EventStore`.
 - A global grant across applets.
 - A grant by a developer flag or a URL parameter.
-- A domain the shell does not serve. `DOMAIN_CAPABILITIES` has rows for `fs`, `llm` and `cache`, but `availableDomains()` does not list them, nor `config` when the host has no `presentSettings`, and `allowDomain` refuses them with `invalid:domain`. (`keys` and `media` are listed, because kehto's runtime serves them natively, though kernl wires nothing behind them.)
+- A domain the shell does not serve. `DOMAIN_CAPABILITIES` has rows for `fs`, `llm` and `cache`, but `availableDomains()` does not list them, nor `config` when the host has no `presentSettings`, and `allowDomain` refuses them with `invalid:domain`. (`keys` and `media` are listed, because kehto's runtime serves them natively, though kernl wires nothing behind them.) `torrent`, `nzb` and `soulseek` are refused the same way until the shell can offer them ([Connected programs](../concepts/download-programs.md#when-the-domains-are-offered)).

@@ -2,6 +2,7 @@ import { BehaviorSubject } from 'rxjs';
 import { denyNappletControllerAccess, type OriginRegistry, type ShellBridge } from '@kehto/shell';
 import type { WindowVisibility } from '@kernlize/guard';
 import type { AppletHandle, AppletStatus, FrameLike, MountPlan } from '../types.js';
+import { permissionPrincipalFor } from '../firewall/permissions.js';
 
 /**
  * The Permissions-Policy `denyNappletControllerAccess` sets, for frames that cannot report their own.
@@ -77,7 +78,9 @@ export function mountApplet(plan: MountPlan, frame: FrameLike, deps: MountDeps):
   let finished = false;
 
   harden(frame);
-  deps.originRegistry.register(win, windowId, { dTag: plan.summary.identity.dTag, aggregateHash: plan.summary.identity.hash });
+  const { identity } = plan.summary;
+  // The principal is what kehto's firewall knows the applet by; it comes from the verified manifest (D-056).
+  deps.originRegistry.register(win, windowId, { dTag: identity.dTag, aggregateHash: identity.hash, permissionPrincipal: permissionPrincipalFor(plan.summary) });
   deps.originRegistry.setEnvironment(win, plan.environment);
   const stopObserving = deps.bridge.observeFrame(frame, windowId);
   const onFirstLoad = (): void => {

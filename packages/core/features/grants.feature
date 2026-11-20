@@ -9,7 +9,7 @@ Feature: Grants
     And kernl grants over empty storage offering "shell,inc,theme,identity,storage,relay,notify,resource"
 
   Scenario: the baseline is read-only and offline
-    Then the baseline domains are "shell,inc,theme,storage"
+    Then the baseline domains are "shell,inc,theme,storage,keys"
     And the available domains are "shell,inc,theme,identity,storage,relay,notify,resource"
     And the grants list is empty
     And there is no grant record for "chat"
@@ -17,7 +17,7 @@ Feature: Grants
   Scenario: ensuring an applet writes the baseline into the ACL and nothing more
     When the shell ensures grants for "chat"
     Then the grant record for "chat" has domains "" and is not blocked
-    And the grant record for "chat" has capabilities "state:read,state:write,theme:read"
+    And the grant record for "chat" has capabilities "state:read,state:write,theme:read,keys:bind,keys:forward"
     And the ACL allows "theme:read" for "chat"
     And the ACL denies "identity:read" for "chat"
     And the ACL denies "relay:read" for "chat"

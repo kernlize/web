@@ -6,9 +6,9 @@
  */
 export const UNAVAILABLE_WORDS: Readonly<Record<string, string>> = {
   'sign-in-required': 'Sign in to use this provider.',
-  'signer-cannot-encrypt': 'The identity you signed in with cannot lock and unlock messages this way. Sign in with one that can.',
-  'no-runtime': 'No backend is available for this provider yet; this build lacks the part it needs.',
-  'no-ratchet-runtime': 'Ratchet sessions run only in the live shell once you are signed in, not in the preview.',
+  'signer-cannot-encrypt': 'This identity cannot lock messages this way.',
+  'no-runtime': 'Not part of this build yet.',
+  'no-ratchet-runtime': 'Needs the live shell and a signed-in identity.',
 };
 
 /** Plain words for the reasons a send, an enable or a disable can be refused with. */
@@ -27,7 +27,7 @@ const ERROR_WORDS: Readonly<Record<string, string>> = {
 
 /** Why a provider cannot be used, in plain words; an unknown code gets a generic sentence. */
 export function unavailableWhy(reason: string): string {
-  return UNAVAILABLE_WORDS[reason] ?? 'No backend is available for this provider yet.';
+  return UNAVAILABLE_WORDS[reason] ?? 'Not available yet.';
 }
 
 /** A refused messaging action in plain words. The raw reason is never shown. */

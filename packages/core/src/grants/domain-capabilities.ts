@@ -33,11 +33,16 @@ export const DOMAIN_CAPABILITIES: Readonly<Record<string, readonly Capability[]>
   cache: ['cache:read', 'cache:write'],
   // kehto's ACL has no capability for direct connections; the service checks the grant itself (D-042).
   webrtc: [],
+  // Not kehto domains at all: its runtime admits each by the window's environment and the service's own message list (D-050).
+  torrent: [],
+  nzb: [],
+  soulseek: [],
 });
 
 /**
  * Domains every applet gets without asking: the handshake, in-shell messaging,
- * the theme and scoped storage. No network, and not the identity: which
+ * the theme, scoped storage and keyboard shortcuts, which act only in the
+ * applet's own focused window (D-054). No network, and not the identity: which
  * account is signed in is the user's to reveal, so an applet learns it only
  * after the user grants "your account" (SOUL opinion 2).
  *
@@ -47,7 +52,7 @@ export const DOMAIN_CAPABILITIES: Readonly<Record<string, readonly Capability[]>
  * capabilitiesForDomains(BASELINE_DOMAINS); // the capabilities granted without asking
  * ```
  */
-export const BASELINE_DOMAINS: readonly string[] = Object.freeze(['shell', 'inc', 'theme', 'storage']);
+export const BASELINE_DOMAINS: readonly string[] = Object.freeze(['shell', 'inc', 'theme', 'storage', 'keys']);
 
 /**
  * Capabilities a domain needs. Unknown domains need none, which keeps the

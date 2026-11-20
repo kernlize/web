@@ -3,7 +3,6 @@ import { After, Given, Then, When, type DataTable } from 'quickpickle';
 import { EventStore } from 'applesauce-core';
 import { AccountManager, type IAccount } from 'applesauce-accounts';
 import { ReadonlyAccount, registerCommonAccountTypes } from 'applesauce-accounts/accounts';
-import { originRegistry } from '@kehto/shell';
 import type { BridgeContext, BridgeRegistry } from '@kernlize/bridges';
 import { createMemoryBackend, createMessagingRegistry } from '@kernlize/messaging';
 import type { GuardEvent, GuardProfile } from '@kernlize/guard';
@@ -58,7 +57,7 @@ export function k(world: CoreWorld): KernlScratch {
   return value;
 }
 
-function vector(world: CoreWorld): ManifestVector {
+export function vector(world: CoreWorld): ManifestVector {
   return scratch(world).manifest as ManifestVector;
 }
 
@@ -382,7 +381,7 @@ Then('the shell plan is missing {string}', (world: CoreWorld, domains: string) =
   expect(k(world).plan?.missingRequired).toEqual(splitList(domains));
 });
 
-function mountFrame(world: CoreWorld): void {
+export function mountFrame(world: CoreWorld): void {
   const s = k(world);
   if (!s.plan) throw new Error('plan first');
   s.frame = createFakeFrame();
@@ -428,7 +427,7 @@ function windowMessage(source: MessageEventSource | null, data: unknown, ports: 
   return Object.assign(new Event('message'), { source, data, ports, origin: 'null' }) as MessageEvent;
 }
 
-function hello(world: CoreWorld, win: Window): MessageChannel {
+export function hello(world: CoreWorld, win: Window): MessageChannel {
   const channel = new MessageChannel();
   channel.port1.onmessage = (event) => void k(world).received.push(event.data as Record<string, unknown>);
   const message = windowMessage(win, { type: 'napplet.hello' }, [channel.port2]);
@@ -484,20 +483,6 @@ Then('the fake bridges were asked for {string} by applet {string}', (world: Core
 
 When('a window message with no source reaches the shell', (world: CoreWorld) => {
   k(world).kernl.handleWindowMessage(windowMessage(null, { type: 'napplet.hello' }, []));
-});
-
-When('a rogue window registered outside the shell is granted {string}, sends its hello, asks {string} for {string} and floods {string}', async (world: CoreWorld, domain: string, ask: string, url: string, type: string) => {
-  const win = {} as Window;
-  const windowId = 'rogue-1';
-  const identity = { dTag: 'rogue', hash: 'cd'.repeat(32) };
-  k(world).kernl.grants.allowDomain(identity, domain);
-  originRegistry.register(win, windowId, { dTag: identity.dTag, aggregateHash: identity.hash });
-  const channel = hello(world, win);
-  channel.port1.postMessage({ type: ask, id: 'rogue-ask', url });
-  await settle();
-  for (let i = 0; i < 320; i += 1) channel.port1.postMessage({ type, id: `rogue-${i}`, key: 'k' });
-  await settle();
-  k(world).rogue = { windowId, channel };
 });
 
 Then('the fake bridges were asked for {string} by the shell itself', (world: CoreWorld, uri: string) => {
@@ -594,19 +579,6 @@ When('the applet sends {string} for a kind {int} event over its port', async (wo
 
 When('the applet sends {string} without an id or an event over its port', async (world: CoreWorld, type: string) => {
   k(world).channel?.port1.postMessage({ type });
-  await settle();
-});
-
-When('a rogue window registered outside the shell is granted {string}, sends its hello and publishes a kind {int} event', async (world: CoreWorld, domain: string, kind: number) => {
-  const win = {} as Window;
-  const windowId = 'rogue-publisher';
-  const identity = { dTag: 'rogue', hash: 'ce'.repeat(32) };
-  k(world).kernl.grants.allowDomain(identity, domain);
-  originRegistry.register(win, windowId, { dTag: identity.dTag, aggregateHash: identity.hash });
-  const channel = hello(world, win);
-  k(world).rogue = { windowId, channel };
-  channel.port1.postMessage({ type: 'shell.ready', id: 'ready-1' });
-  channel.port1.postMessage({ type: 'relay.publish', id: 'publish-1', event: { kind, content: '{"name":"rogue"}', tags: [], created_at: Math.floor(Date.now() / 1000) } });
   await settle();
 });
 

@@ -13,7 +13,6 @@ import {
   createDefaultBridges,
   createDefaultMessaging,
   createKernlServices,
-  createRuntimeFirewallHooks,
   createShellAdapter,
   isTheme,
   resourceInitFor,
@@ -22,7 +21,7 @@ import {
   type RelayTiers,
   type RemoteToolsSettings,
 } from '@kernlize/core';
-import { allowAllSigning, scratch, signEvent, splitList, type CoreWorld } from './world.js';
+import { allowAllSigning, quietPermissions, scratch, signEvent, splitList, type CoreWorld } from './world.js';
 
 interface ServicesScratch {
   services: KernlServices;
@@ -80,6 +79,7 @@ async function build(world: CoreWorld, options: { signer?: boolean; theme?: Reco
     messaging,
     ...(isTheme(theme) ? { theme } : {}),
     ...(options.remoteTools ? { remoteTools: options.remoteTools } : {}),
+    shortcuts: { isFocused: () => true },
     resolveIdentity: (windowId) => (windowId === 'w1' ? IDENTITY : null),
   });
   s.services = { services, sent: [], notices, links, bridgeCalls, pubkey, bridges, signer } satisfies ServicesScratch;
@@ -234,7 +234,7 @@ Given('a kernl shell adapter', (world: CoreWorld) => {
     onNappletRevoked: () => undefined,
     filterNappletMessage: (windowId) => (windowId === 'hidden' ? 'defer' : 'dispatch'),
     getFocusContext: (windowId) => ({ focused: windowId === 'focused' }),
-    runtimeFirewall: createRuntimeFirewallHooks({ storage: scratch(world).storage, onEvent: () => undefined }),
+    permissions: quietPermissions(scratch(world).storage),
     onUnroutedMessage: (info) => void unrouted.push(info),
   });
   s.adapter = adapter;
@@ -245,7 +245,7 @@ function adapter(world: CoreWorld): ShellAdapter {
   return scratch(world).adapter as ShellAdapter;
 }
 
-Then('the adapter creates no windows, has no worker relay, forwards no hotkeys and shows update banners', (world: CoreWorld) => {
+Then('the adapter creates no windows, has no worker relay, drops a forwarded key nobody takes and shows update banners', (world: CoreWorld) => {
   const a = adapter(world);
   expect(a.windowManager.createWindow({ title: 'x', class: 'y' })).toBeNull();
   expect(a.workerRelay.getWorkerRelay()).toBeNull();
@@ -291,12 +291,14 @@ Then('the adapter has no network suggestions', (world: CoreWorld) => {
   expect(adapter(world).relayConfig.getNip66Suggestions()).toBeNull();
 });
 
-Then('the adapter keeps a restrictive ACL, hands the runtime a firewall and asks the shell about focus and every port message', (world: CoreWorld) => {
+Then('the adapter keeps a restrictive ACL, hands the runtime the firewall and its rate limiter, and asks the shell about focus and every port message', (world: CoreWorld) => {
   const shell = adapter(world);
   expect(shell.aclDefaultPolicy).toBe('restrictive');
   expect([shell.getFocusContext?.('focused'), shell.getFocusContext?.('other')]).toEqual([{ focused: true }, { focused: false }]);
   expect([shell.filterNappletMessage?.('hidden', { type: 'relay.subscribe' }), shell.filterNappletMessage?.('w1', { type: 'relay.subscribe' })]).toEqual(['defer', 'dispatch']);
-  expect(shell.legacyFirewall?.evaluate).toBeTypeOf('function');
+  expect(shell.permissions?.defaultDecision).toBeTypeOf('function');
+  expect(shell.permissions?.rateLimiter?.evaluate).toBeTypeOf('function');
+  expect(shell.legacyFirewall).toBeUndefined();
 });
 
 Then('the adapter forwards unrouted messages when asked to', (world: CoreWorld) => {
@@ -312,7 +314,7 @@ Then('the adapter forwards unrouted messages when asked to', (world: CoreWorld) 
     onNappletRevoked: () => undefined,
     filterNappletMessage: () => 'dispatch',
     getFocusContext: () => ({ focused: true }),
-    runtimeFirewall: createRuntimeFirewallHooks({ storage: scratch(world).storage, onEvent: () => undefined }),
+    permissions: quietPermissions(scratch(world).storage),
   });
   expect(silent.onUnroutedMessage).toBeUndefined();
 });

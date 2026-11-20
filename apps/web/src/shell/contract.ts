@@ -18,6 +18,13 @@ export type {
   CatalogEntry,
   ConsentPrompt,
   ConsentSummary,
+  Firewall,
+  FirewallChoice,
+  FirewallDecision,
+  FirewallPrompt,
+  FirewallRequest,
+  FirewallRuleTarget,
+  FirewallSummary,
   FrameLike,
   GrantRecord,
   Grants,
@@ -33,6 +40,7 @@ export type {
   RelayTiers,
   Session,
   SettingsPrompt,
+  ShortcutKey,
   StorageLike,
 } from '@kernlize/core';
 

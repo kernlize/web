@@ -65,6 +65,10 @@ Feature: The preview kernl
     And the preview kernl plan grants "" beyond the baseline
     And the preview kernl plan is missing "relay,identity,intent"
 
+  Scenario: the preview does not advertise keyboard shortcuts it cannot serve (D-054)
+    When the preview kernl plans "notes"
+    Then the preview kernl plan does not offer "keys"
+
   Scenario: granted domains join the plan and every plan gets its own window
     Given the preview kernl user granted "relay" to "notes"
     When the preview kernl plans "pulse"
@@ -161,13 +165,48 @@ Feature: The preview kernl
     When the preview kernl frame "a" posts '{"kernlPreview":"subscribe"}'
     Then the preview kernl frame "a" hears nothing
 
-  Scenario: only secure links are handed to the host
+  Scenario: a link asks the person first, and only a secure one is asked about
     Given the preview kernl mounts "notes" in frame "a"
-    When the preview kernl frame "a" posts '{"kernlPreview":"link","url":"https://example.org/a"}'
-    And the preview kernl frame "a" posts '{"kernlPreview":"link","url":"http://example.org/b"}'
+    When the preview kernl frame "a" posts '{"kernlPreview":"link","url":"http://example.org/b"}'
     And the preview kernl frame "a" posts '{"kernlPreview":"link"}'
-    Then the preview kernl host opened "https://example.org/a"
-    And the preview kernl frame "a" hears nothing
+    Then the preview kernl frame "a" hears nothing
+    And the preview kernl user was asked 0 firewall questions
+    When the preview kernl frame "a" posts '{"kernlPreview":"link","url":"https://example.org/a"}'
+    Then the preview kernl frame "a" is answered "yes" with "The link was opened."
+    And the preview kernl firewall question is a link to "https://example.org/a" from "Notes" that can be opened once or not
+    And the preview kernl host opened "https://example.org/a" as already approved
+
+  Scenario Outline: a link the person does not open stays closed
+    Given the preview kernl user will answer firewall questions with "<answer>"
+    And the preview kernl mounts "notes" in frame "a"
+    When the preview kernl frame "a" posts '{"kernlPreview":"link","url":"https://example.org/a"}'
+    Then the preview kernl frame "a" is answered "no" with "You did not open the link."
+    And the preview kernl host opened 0 links
+
+    Examples:
+      | answer  |
+      | deny    |
+      | dismiss |
+
+  Scenario: a host with nobody to ask refuses links
+    Given a preview kernl whose host cannot ask firewall questions
+    And the preview kernl mounts "notes" in frame "a"
+    When the preview kernl frame "a" posts '{"kernlPreview":"link","url":"https://example.org/a"}'
+    Then the preview kernl frame "a" is answered "no" with "You did not open the link."
+    And the preview kernl host opened 0 links
+
+  Scenario: the firewall's rules decide a link without asking when the person set them to
+    Given the preview kernl firewall rule for '{"operation":"link.open"}' is "allow"
+    And the preview kernl mounts "notes" in frame "a"
+    When the preview kernl frame "a" posts '{"kernlPreview":"link","url":"https://example.org/a"}'
+    Then the preview kernl frame "a" is answered "yes" with "The link was opened."
+    And the preview kernl user was asked 0 firewall questions
+    Given the preview kernl firewall rule for '{"operation":"link.open"}' is "deny"
+    When the preview kernl frame "a" posts '{"kernlPreview":"link","url":"https://example.org/c"}'
+    Then the preview kernl frame "a" is answered "no" with "Refused: a firewall rule refuses links."
+    And the preview kernl host opened "https://example.org/a" as already approved
+    Given the preview kernl firewall rule for '{}' is "restored"
+    Then the preview kernl firewall keeps its rules, holds no answers and has none to take back
 
   Scenario: an unknown request is answered with its name
     Given the preview kernl mounts "notes" in frame "a"

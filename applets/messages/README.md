@@ -98,15 +98,16 @@ imports a callable SDK binding.
   until a thread is opened or the shell has been idle.
 - **Drops.** Reads that are safe to repeat (status, conversations, messages,
   stored state, theme, the account, the live subscription) get four seconds per
-  attempt and two more attempts with a growing pause; an error starting
-  `firewall:` counts as a drop. An attempt that went quiet is not abandoned, so
+  attempt and two more attempts with a growing pause; `rate limit exceeded`, or
+  an error starting `firewall:` from a shell on the older rate gate, counts as
+  a drop. An attempt that went quiet is not abandoned, so
   a slow shell's late answer still wins. A send is never repeated.
 - **Easing off.** Any drop or refusal slows the pacer to one request a second
   for five seconds, which fits inside the unfocused budget and lets it recover.
 - **Error records.** A binding may answer a refused `dm` request by resolving
   with `{ error: "<reason>" }` rather than rejecting. `src/shell.ts` turns that
   into a rejection with the same reason (`src/dm-result.ts`), so a declined send
-  reads "Not sent." and a `firewall:` record on a read is asked again.
+  reads "Not sent." and an over-budget record on a read is asked again.
 - **Not paced.** Listening (`dm.onMessage`, account and theme changes) sends
   nothing; the binding only records the handler.
 

@@ -10,3 +10,7 @@ import './messages.ts';
 import './mailboxes.ts';
 import './settings.ts';
 import './preview-settings.ts';
+import './download-programs.ts';
+import './settings-window.ts';
+import './firewall-words.ts';
+import './preview-firewall.ts';

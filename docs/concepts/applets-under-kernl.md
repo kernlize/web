@@ -18,10 +18,13 @@ kernl's packages are shell-side. You do not import them in an applet.
 
 | Posture | Domains | Notes |
 | --- | --- | --- |
-| Baseline, advertised without a grant | `shell`, `inc`, `theme`, `storage` | `BASELINE_DOMAINS`. No network, and no account. Storage is the applet's own, read and write. A blocked applet sees `shell` alone. |
+| Baseline, advertised without a grant | `shell`, `inc`, `theme`, `storage`, `keys` | `BASELINE_DOMAINS`. No network, and no account. Storage is the applet's own, read and write. Keyboard shortcuts act only in the applet's own focused window. A blocked applet sees `shell` alone. |
 | Offered, advertised once the user grants it | `identity`, `relay`, `outbox`, `resource`, `dm`, `notify`, `link`, `intent` | Backed by the services `createKernlServices` registers. `identity` is "your account" in the launcher: until it is granted, your applet is not told who is signed in. In the live shell `dm` reaches `private` and `legacy` while the signed-in account can encrypt; with nobody signed in no provider is available ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)). |
-| Offered, advertised once granted, nothing wired behind it | `keys`, `media` | kehto's runtime serves these domains natively, so the shell offers them; kernl wires no host behaviour (hotkeys are not forwarded). |
+| Offered, advertised once granted, nothing wired behind it | `media` | kehto's runtime serves this domain natively, so the shell offers it; kernl wires no host behaviour. |
+| Offered only where an applet can call them, then advertised once granted | `torrent`, `nzb`, `soulseek` | Downloads through a program the person runs, as NAP-TORRENT, NAP-NZB and NAP-SOULSEEK describe them. kernl serves them itself, not kehto, and offers them only when the installed `@kehto/shell` prelude binds a domain it does not build in, which 0.35 does not, so today they are listed as "not available in this shell". They are remote controls: ask the discovery call (`torrent.capabilities`, `nzb.downloaders`, `soulseek.info`) what is on, and expect every read, save or open of a file to be refused. An applet that holds `dm` never gets them. See [Connected programs](./download-programs.md). |
 | Not offered | `config`, `cvm`, `upload`, `fs`, `llm`, `cache`, and every other domain | They have a row in `DOMAIN_CAPABILITIES` (or none), but no service is registered, so they are never advertised. |
+
+`keys` is keyboard shortcuts, and every applet has it without asking or naming it in its manifest. `keys.registerAction` with a `defaultKey` is answered with the `binding` the shell gave it, and `keys.bindings` then lists every key your applet holds. The answer has no `binding` when the key is one the shell or the browser keeps (`Alt+/`, `Escape`, `Tab`, `Ctrl+W` and the like), so read it instead of assuming. Your action runs when the key is pressed inside your applet, and when it is pressed on the shell's own page while your window is the focused one and the shell had no use for the key itself. A key you hold no binding for is forwarded to the shell, whose own shortcuts therefore work while your applet has focus; a held key's repeats are not forwarded on. Register your whole keymap as you start: registrations made in your window's first second are held until it is over and then answered together, so they do not count against the startup burst limit below, but their answers arrive up to a second after you asked ([D-054](../decisions.md#d-054)).
 
 `intent` is "opening other applets": with it your applet can ask for a role and an action and receive what other applets hand it. An applet that requires it to ask, or that takes requests (it has `z` and `i` tags), is offered the switch already on at its first run, because a handler without it receives nothing. See [The store and intents](./store-and-intents.md).
 
@@ -29,10 +32,11 @@ Put a domain in `requires` only if your applet is useless without it. The launch
 
 ## Where the guard acts on your traffic
 
-kehto's bridge owns the port your applet talks over. kehto asks kernl about each envelope before its runtime sees it, and kernl answers dispatch, hold or drop ([D-020](../decisions.md#d-020)). Two layers follow from that, and they behave differently:
+kehto's bridge owns the port your applet talks over. kehto asks kernl about each envelope before its runtime sees it, and kernl answers dispatch, hold or drop ([D-020](../decisions.md#d-020)). Three layers follow from that, and they behave differently:
 
 - **kernl's guard drops, holds and quarantines.** It judges your traffic with the shell's knowledge of visibility and focus and records guard events. Whatever it will not let through (an oversized request, a burst above 8 per second, a request over a class budget, smaller while you are not focused) is dropped: it is not handled and you get no reply, so give every request a timeout. Anything but a control message while your window is hidden is held and answered once you are visible. Control messages (`shell.*`, `inc.*`, `theme.*`, closes) are dispatched. When an envelope pushes your applet over a quarantine limit, kernl revokes the binding inside that decision, so that envelope is not dispatched and your applet is closed.
-- **kehto's runtime firewall refuses.** It enforces the profile's per-class rates, which `kernl.mount` installs for your applet's `dTag`, at the window's focus, and the profile's startup burst guard. An envelope it refuses is answered with an error that starts `firewall:`. Because kernl counts the same rates first, you mostly meet the runtime's refusals in your first second and for held requests released over budget.
+- **kehto's runtime refuses by rate.** It charges what it is about to carry out against the same class budgets, at the window's focus, through the rate limiter kernl hands it. A request it refuses is answered with the error `rate limit exceeded`. Because kernl counts the same budgets first, you mostly meet the runtime's refusals for held requests released over budget.
+- **kehto's firewall allows, asks or refuses.** Every request a service carries out is put to the firewall, under rules the user sets. As shipped, everything the user granted goes ahead and `link.open` asks the user each time ([The firewall and your applet](#the-firewall-and-your-applet)).
 
 The window-level `hello` is filtered by kernl before kehto sees it.
 
@@ -44,7 +48,7 @@ The shell boots in `strict`. The numbers are in [Guard](./guard.md#profiles); th
 
 **Hidden resource allowance.** A hidden window may make 8 `resource.*` requests; the ninth quarantines it with `flood:hidden-resource`, and that ninth request is not dispatched. The count resets as soon as the window is visible again. Fetch what you need while visible.
 
-**Rate limits by operation class.** Each class has its own token bucket, keyed by your applet's `dTag`, so two windows of your applet share one budget. In `strict`: 30 `relay.subscribe` and 20 `relay.publish` per minute, 20 `dm.send` and 10 `intent.*` per minute, 120 `resource.*` and 60 `storage.set`/`storage.remove` per 10 seconds. While your window is not focused, each budget is 0.25 of its capacity. kernl's focus firewall counts these classes first, plus 5 deletions per minute, and drops an overrun without a reply, with a guard event such as `rate:relay:publish` or `rate:relay:publish:delete`. The runtime enforces the same budgets, focus included, on what it handles, which matters for requests held while you were hidden: those over budget when released are refused with a `firewall:` error. Deletions (kind 5) count against the `relay.publish` budget in the runtime.
+**Rate limits by operation class.** Each class has its own token bucket, keyed by your applet's `dTag`, so two windows of your applet share one budget. In `strict`: 30 `relay.subscribe` and 20 `relay.publish` per minute, 20 `dm.send` and 10 `intent.*` per minute, 120 `resource.*` and 60 `storage.set`/`storage.remove` per 10 seconds. While your window is not focused, each budget is 0.25 of its capacity. kernl's rate limiter counts these classes first, plus 5 deletions per minute, and drops an overrun without a reply, with a guard event such as `rate:relay:publish` or `rate:relay:publish:delete`. The runtime enforces the same budgets, focus included, on what it handles, which matters for requests held while you were hidden: those over budget when released are refused with `rate limit exceeded`. Deletions (kind 5) count against the `relay.publish` budget in the runtime.
 
 **Ingress flood control.** kernl counts 8 messages per second per window. Above that, non-control requests are dropped without a reply, with a `flood:burst` event; nothing is queued, so time out and retry later. The hard limit is real: the 300th message inside any rolling 10 seconds quarantines the window with `flood:quarantine`, and that message is not dispatched. Batch your writes and coalesce your subscriptions.
 
@@ -52,11 +56,23 @@ The shell boots in `strict`. The numbers are in [Guard](./guard.md#profiles); th
 
 **Envelope caps.** `resource.*` envelopes over 64 KiB and `relay.subscribe`/`outbox.subscribe` (including `outbox.query`) envelopes over 256 KiB are dropped before dispatch: your applet gets no reply, nothing is fetched, and the user sees a `size:<class>` guard event. Large filters are a smell; split them.
 
-**A startup burst limit.** kehto's runtime counts every operation in your window's first second, control messages included, and refuses everything past the 8th in `strict` (12 in `balanced`, 24 in `relaxed`) with a `firewall:` error. kernl also counts 8 messages per second from the first message, and drops non-control requests above that. Load lazily: request the first screen, render, then fetch the rest.
+**A burst limit from the first message.** kernl counts 8 messages per second in `strict` (12 in `balanced`, 24 in `relaxed`) from your window's first message, and drops non-control requests above that. There is no separate startup limit in the runtime. Shortcut registrations are the exception: kernl holds them until the first second is over. Load lazily: request the first screen, render, then fetch the rest.
 
 **No frames of your own.** kernl refuses to mount an applet whose markup contains an `iframe`, `frame`, `frameset`, `object`, `embed`, `portal` or `fencedframe` element (`denied:nested-frame`), and inside the window every way of creating one throws `TypeError: denied:nested-frame`: `createElement`, `createElementNS`, `createDocument`, and any HTML string with a frame tag written to `innerHTML`, `insertAdjacentHTML`, `document.write` or a parser. A child frame would be a fresh realm with a network path the shell cannot see ([D-014](../decisions.md#d-014)). Render into your own document instead. Two side effects to know: a string written to an HTML sink that merely mentions a frame tag, in text or an attribute, is refused too, so escape such text or set it with `textContent`; and the window's CSP carries `require-trusted-types-for 'script'; trusted-types default`, so your applet must not register a Trusted Types policy of its own, `default` or any other name. Libraries that create one need a fallback.
 
 **Consent for destructive kinds.** When your applet asks the shell to sign a replaceable event (kind 0, 3 or 10000–19999), an addressable event (30000–39999), a deletion (5) or a request to vanish (62), through `relay.publish` or `outbox.publish`, kernl looks up the version it replaces (for up to 4 seconds on the network), shows the user a summary of what changes and waits. Expect the publish to take as long as a person takes to read. If they refuse, signing fails with `denied:consent` and nothing is published; you receive the normal error envelope. Every other kind is signed without a prompt, and nothing is remembered: the next destructive write asks again.
+
+## The firewall and your applet
+
+Grants decide which domains your applet holds. kehto's firewall decides, inside those, what goes ahead without asking, what asks the user, and what is refused ([Guard](./guard.md#the-firewall), [D-056](../decisions.md#d-056)). With the rules kernl ships you meet it in one place:
+
+- **`link.open` asks every time.** The user sees the link and where it leads and chooses "Open link" or "Don't open". Nothing is remembered, so the next link asks again. Expect the result to take as long as a person takes to read, and handle `denied`: the user said no, dismissed the question, or the shell they run cannot ask. Open links on a click, one at a time; an applet that asks more than twelve questions a minute has the rest dropped.
+
+The user can change the rules, so do not assume the shipped ones:
+
+- A domain set to "ask" is put to the user before your applet starts. If they refuse a domain in your `requires`, the applet does not start; a refused `optional` domain is left out of `shell.init`, like one that was never granted.
+- A request set to "refuse" fails the way a missing grant does.
+- When the user takes back an answer your applet runs under, or tightens the rule that let it start, the window is closed. Nothing resumes on its own; the user opens your applet again.
 
 None of this changes the wire format. A refusal is a normal NAP error envelope; a dropped request gets no envelope at all, because NAP defines none for it, so give every request a timeout. A guard event is visible to the user, not to your applet.
 
@@ -83,7 +99,7 @@ for (let i = 0; i < 9; i += 1) {
 // the ninth call inside one second returns 'defer' and emits { disposition: 'defer', reason: 'flood:burst' }
 ```
 
-Pass `now: () => clock` to both factories to drive time from the test instead of the wall clock. `createFocusFirewall({ config })` adds the per-class rates on top; its `observe()` returns kehto's `EvaluateResult`.
+Pass `now: () => clock` to both factories to drive time from the test instead of the wall clock. `createFocusRateLimiter({ config })` adds the per-class rates on top; its `observe()` returns a `RateVerdict` whose `decision` is `pass` or `reject`.
 
 Scenarios worth writing for your own applet:
 

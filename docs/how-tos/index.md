@@ -5,6 +5,7 @@ One task per page, with the exact calls. Each assumes you have the kernl source 
 | How-to | What it does |
 | --- | --- |
 | [Change the guard profile](./change-guard-profile.md) | Switch the shell between `strict`, `balanced` and `relaxed`, and what a profile can and cannot change. |
+| [Change the firewall rules](./change-firewall-rules.md) | Set what applets may do without asking, by request, by kind and per applet, and take back the answers in force. |
 | [Grant and revoke](./grant-and-revoke.md) | What the shell asks when an applet opens, what each answer changes, and the `Kernl` calls behind the grants panel. |
 | [Change the shell's layout](./change-the-shells-layout.md) | Change the spacing, choose which layouts the shell offers, and register a layout of your own. |
 | [Write your own window manager](./write-a-window-manager.md) | Replace how windows are placed, focused and stacked, and the one rule a window manager must keep: tell the guard the truth about what the person can see. |
@@ -12,5 +13,7 @@ One task per page, with the exact calls. Each assumes you have the kernl source 
 | [Add a messaging provider](./add-a-messaging-provider.md) | Define a provider and its backend, and register it in the shell's messaging registry. |
 | [Add a bridge backend](./add-a-bridge-backend.md) | Supply a backend that turns an `unavailable` bridge, such as downloads, into a working one. |
 | [Add a cache backend](./add-a-cache-backend.md) | Keep events in a store of your own, from an applesauce event database or your own rows, in front of the browser's defaults. |
+| [Connect a program](./connect-a-download-program.md) | Give the shell the address and sign-in of Transmission, uTorrent, NZBGet, SABnzbd or slskd, read what a failed check means, and put a reverse proxy in front of a program that does not accept requests from the page. |
+| [Swap the secrets provider](./swap-the-secrets-provider.md) | Keep the passwords and keys the shell signs in with in a keeper of your own, by passing a `SecretsProvider` to `createKernl`. |
 | [Deploy](./deploy.md) | Build the site, shell, docs and API reference into one static artifact and publish it to kernl.run on bunny.net. |
 | [Publish packages](./publish-packages.md) | Configure npm and JSR, validate artifacts, release and retry. |

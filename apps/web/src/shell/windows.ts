@@ -1,4 +1,4 @@
-import { createDefaultLayouts, createWindowManager, type LayoutChoice, type LayoutRegistry, type Rect, type WindowManager } from '@kernlize/core/wm';
+import { createDefaultLayouts, createWindowManager, type LayoutChoice, type LayoutRegistry, type ManagedWindow, type Rect, type WindowManager } from '@kernlize/core/wm';
 import { DEFAULT_WINDOW_SIZE, LAYOUT_KEY, type StorageLike } from './contract';
 
 /*
@@ -45,4 +45,13 @@ export function frameRect(rect: Rect): Rect {
 export function layoutAfter(choices: readonly LayoutChoice[], currentId: string): LayoutChoice | undefined {
   const index = choices.findIndex((choice) => choice.id === currentId);
   return choices[(index + 1) % Math.max(choices.length, 1)];
+}
+
+/**
+ * The shell-drawn window Escape closes: the one the person is working in, or else the one in
+ * front. A minimised window is left alone; closing what nobody can see would lose it unasked.
+ */
+export function panelToClose<T extends ManagedWindow>(panels: readonly T[]): T | undefined {
+  const shown = panels.filter((panel) => !panel.minimised);
+  return shown.find((panel) => panel.focused) ?? shown.reduce<T | undefined>((front, panel) => (front && front.z > panel.z ? front : panel), undefined);
 }

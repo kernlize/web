@@ -42,7 +42,7 @@ If kehto ships an experimental privacy or security mitigation, kernl enables it 
 
 Concretely:
 
-- The behavioural firewall ships enabled, in its strict profile. Focus-aware tightening is enforced: an applet you are not using that goes over its smaller budget is turned away before its request is handled (D-012, D-020).
+- The guard's rate limits ship enabled, in the strict profile. Focus-aware tightening is enforced: an applet you are not using that goes over its smaller budget is turned away before its request is handled (D-012, D-020).
 - Hidden and minimised applets cannot act: their requests are held until you can see them, though you can still close them, and one that keeps downloading past its allowance is closed (D-020).
 - Replay and cross-window identity checks are on.
 - Artifact bytes are cached only after hash verification, and re-verified on every read.
@@ -97,7 +97,7 @@ If two of these conflict, the lower-numbered one wins, and the conflict is recor
 | shell | OS, desktop, browser | kernl is a shell. It runs in a browser; it is not one. |
 | grant | permission, capability (in UI) | A grant is something the user gave and can take back. |
 | provider | protocol (in UI) | Users choose providers by what they do, not by their wire format. |
-| guard | firewall, mitigation (in UI) | The guard is the set of protections between an applet and the user. |
+| guard | mitigation (in UI) | The guard is the set of protections between an applet and the user. The firewall is one of them: the rules for what goes ahead without asking. |
 
 ## Words we avoid
 

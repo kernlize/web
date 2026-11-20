@@ -1,6 +1,6 @@
 # @kernlize/core
 
-Opinionated shell composition over kehto and applesauce.
+Opinionated shell composition over kehto and applesauce. Includes the `torrent`, `nzb` and `soulseek` services, which let applets download through programs the person already runs, and a secrets provider the host can replace.
 
 | Registry | Package |
 | --- | --- |

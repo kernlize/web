@@ -184,6 +184,9 @@ importers:
       '@kehto/acl':
         specifier: ^0.20.6
         version: 0.20.6(@napplet/core@0.41.0)(@napplet/nap@0.40.0(typescript@5.9.3))
+      '@kehto/firewall':
+        specifier: ^0.10.0
+        version: 0.10.0(@napplet/core@0.41.0)
       '@kehto/nip':
         specifier: ^0.8.0
         version: 0.8.0(nostr-tools@2.26.1(typescript@5.9.3))

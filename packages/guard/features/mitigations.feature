@@ -4,7 +4,7 @@ Feature: Mitigation descriptions
 
   Scenario: every mitigation is described once, in display order
     When the guard describes the mitigations for the "strict" profile
-    Then the guard describes 11 mitigations
+    Then the guard describes 12 mitigations
     And every guard mitigation is enabled
     And the guard mitigations are listed in this order:
       | id                   | provider |
@@ -16,7 +16,8 @@ Feature: Mitigation descriptions
       | focus-tightening     | both     |
       | hidden-deferral      | kernl    |
       | ingress-flood        | kernl    |
-      | size-caps            | both     |
+      | size-caps            | kernl    |
+      | firewall             | both     |
       | device-denial        | kehto    |
       | destructive-consent  | kernl    |
 
@@ -65,3 +66,8 @@ Feature: Mitigation descriptions
     Then the guard mitigation "focus-tightening" has limit "75% of the focused budget"
     And the guard mitigation "ingress-flood" has limit "24 messages per second, 800 per 10s"
     And the guard mitigation "size-caps" has limit "downloads 192 KiB, queries 768 KiB"
+
+  Scenario: the firewall is described by what it does to begin with
+    When the guard describes the mitigations for the "strict" profile
+    Then the guard mitigation "firewall" is titled "The firewall decides what an applet may ask for"
+    And the guard mitigation "firewall" says "Every request passes the firewall’s rules. They start by allowing what you granted and asking about each link. Change them in the firewall panel."

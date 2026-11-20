@@ -1,11 +1,11 @@
 import { expect, test } from './fixtures';
-import { expectClean } from './vocabulary';
+import { expectClean, expectCleanSettings } from './vocabulary';
 
 // DECISIONS D-006: the public site and the shell never name a protocol. The build-time scan reads files;
 // this reads what a person can perceive in a real browser, including text that scripts render,
-// accessible names, and the values of fields the shell fills in. Addresses are not exempt: the shell
-// shows servers by a display name and keeps pairing codes out of the page (QR and clipboard only).
-// The live shell, with its real default servers, is walked in public-vocabulary-live.spec.ts.
+// accessible names, and the values of fields the shell fills in. A relay is called a relay and shown by
+// its own host (D-051), so addresses are blanked before the words are read; pairing codes stay out of
+// the page (QR and clipboard only). The live shell, with its real default relays, is walked in public-vocabulary-live.spec.ts.
 
 for (const path of ['/', '/about/', '/about/why/', '/about/guard/', '/about/messaging/', '/about/bridges/', '/about/developers/', '/app/']) {
   test(`${path} names no protocol`, async ({ page }) => {
@@ -63,6 +63,14 @@ test('every shell surface names no protocol', async ({ page }) => {
   await page.getByRole('button', { name: /^Guard/ }).first().click();
   await expectClean(page, 'guard panel');
   await page.keyboard.press('Escape');
+  await applet.getByRole('button', { name: 'Open a link' }).click();
+  await expect(page.getByRole('heading', { name: 'Open a link outside kernl' })).toBeVisible();
+  await expectClean(page, 'firewall question');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Firewall' }).first().click();
+  await page.getByRole('dialog', { name: 'Firewall' }).locator('details').evaluateAll((all) => all.forEach((d) => d.setAttribute('open', '')));
+  await expectClean(page, 'firewall panel');
+  await page.keyboard.press('Escape');
   // Messages is an applet in its own frame, and every frame is read.
   await page.getByRole('button', { name: /^Messages/ }).first().click();
   const messages = page.frameLocator('iframe[data-window-id]').nth(1);
@@ -78,10 +86,7 @@ test('every shell surface names no protocol', async ({ page }) => {
   await expectClean(page, 'reply question');
   await page.getByRole('dialog').getByRole('button', { name: 'Do not send' }).click();
   await expectClean(page, 'messages, not sent');
-  await page.locator('details.account summary').click();
-  await page.getByRole('button', { name: 'Settings' }).click();
-  await page.getByRole('dialog').locator('details').evaluateAll((all) => all.forEach((d) => d.setAttribute('open', '')));
-  await expectClean(page, 'settings, messages');
+  await expectCleanSettings(page, 'settings');
   await page.keyboard.press('Escape');
   // The messages window is in front; its grants are the ones the shell switched on for it.
   await page.getByRole('button', { name: 'Grants for Messages' }).click();
@@ -92,17 +97,19 @@ test('every shell surface names no protocol', async ({ page }) => {
   await page.keyboard.press('Escape');
   await page.locator('details.account summary').click();
   await expectClean(page, 'account menu');
-  await page.getByRole('button', { name: 'Settings' }).click();
-  const servers = page.locator('[data-address]');
+  await page.locator('details.account').getByRole('button', { name: 'Settings' }).click();
+  const settings = page.getByRole('region', { name: 'Settings window' });
+  await settings.getByRole('tab', { name: 'Servers' }).click();
+  const servers = settings.getByRole('tabpanel', { name: 'Servers' }).locator('[data-address]');
   await expect(servers.first()).toBeVisible();
   expect(await servers.count()).toBeGreaterThanOrEqual(4);
-  await expect(page.getByText('damus.io', { exact: true }).first()).toBeVisible();
-  await expectClean(page, 'settings panel with servers');
-  const add = page.getByRole('textbox', { name: 'Add a server to People lookup' });
+  await expect(page.getByText('relay.damus.io', { exact: true }).first()).toBeVisible();
+  await expectClean(page, 'settings with relays');
+  const add = page.getByRole('textbox', { name: 'Add a lookup relay' });
   await add.fill('relay.example.org');
   await add.press('Enter');
-  await expect(page.getByText('example.org', { exact: true })).toBeVisible();
-  await expectClean(page, 'settings after adding a server');
+  await expect(page.getByText('relay.example.org', { exact: true })).toBeVisible();
+  await expectClean(page, 'settings after adding a relay');
 });
 
 // Every wire name a domain can have. The launcher shows each one in plain words, and an unknown
@@ -126,7 +133,7 @@ for (const sample of ['Notes', 'Pulse']) {
   });
 }
 
-const PLAIN_TAG = /^(person|item|address|topic|server|name|type|label)( · |$)/;
+const PLAIN_TAG = /^(person|item|address|topic|relay|link|name|type|label)( · |$)/;
 
 test('every consent the preview can ask for, and its exact record, names no protocol', async ({ page }) => {
   await page.goto('/app/?preview=1');

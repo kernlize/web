@@ -82,7 +82,7 @@ Published packages have zero framework dependencies, matching kehto's rule. The 
 
 **Decision.** `apps/web` output is scanned by `scripts/check-public-vocabulary.mjs` for a denylist (`nostr`, `nip-`, `napplet`, `relay`, `pubkey`, `npub`, `nsec`) and the build fails on a hit. The denylist applies to the landing pages and the shell UI copy. It does not apply to `docs/`, which is written for developers and must name things precisely.
 
-**Consequences.** UI copy says "applet", "account", "network", "provider", "guard". Developer-facing terms live in the docs.
+**Consequences.** UI copy says "applet", "account", "network", "provider", "guard". Developer-facing terms live in the docs. In the shell, a relay is since called a relay ([D-051](#d-051)); the website still never says it.
 
 **Reversal cost.** Low.
 
@@ -153,6 +153,8 @@ The window-level `hello` is the one message kernl can hold or drop before kehto 
 **Consequences.** A hidden applet's requests fail instead of waiting: the gate cannot hold a port envelope, so the applet must retry once visible, and a hidden download past the allowance still quarantines. A hook that let the shell defer instead of refuse is kehto/web#399. The runtime firewall applies no unfocused multiplier, because kehto does not forward focus to it (D-001, gaps 1 and 4); the profile's multiplier is applied by kernl's focus firewall, whose rejections are refused through `refuseCurrentDispatch`. The runtime's refusals reach the applet but not the host, because `ShellAdapter` does not forward `onFirewallEvent`; the guard panel shows kernl's own count of the same rates. Rates are installed at mount, so a window keeps the rates it was mounted with when the profile changes. Earlier drafts of this entry said the rates were refused while kernl also set the `allow` policy that bypassed them, and until 2026-11-04 focus tightening, bursts and hidden activity were reported but still handled; `docs/alpha-status.md` records both. The upstream requests that would give kernl a true pre-dispatch hook are recorded with D-001's gaps.
 
 **Reversal cost.** Low; the pipeline sits behind `createGuardPipeline` and shrinks when kehto exposes a hook that can hold or drop an envelope. `refuseCurrentDispatch` goes when kehto offers that hook and its runtime can measure the envelopes and focus it cannot see today.
+
+**Superseded in part by D-056.** The runtime firewall this entry describes is kehto's rate limiter now, and kehto's firewall is an approval authority that kernl configures.
 
 **Superseded in part by D-020.** kehto now offers that hook. Port traffic is decided by `ShellAdapter.filterNappletMessage`: what kernl's guard will not let through is dropped rather than refused, a hidden window's requests are held and released when it is visible, and `refuseCurrentDispatch` is deleted. The runtime firewall now applies the unfocused multiplier and reports its refusals to the guard log. The size, burst, focus and quarantine layers described above remain kernl's.
 
@@ -287,6 +289,8 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Reversal cost.** Low. The decisions sit behind `GuardPipeline.observe` and `createShellAdapter`; the runtime firewall calls sit in one module.
 
 **Superseded in part by D-037.** #336 shipped. kernl now constructs the runtime firewall from `@kehto/rate-limit/legacy` and passes it as `legacyFirewall`; `firewallPersistence` is gone, and the move to `permissions` is still to come.
+
+**Superseded in part by D-056.** kernl configures `permissions`. The legacy gate, `legacyFirewall`, `onFirewallEvent`, `runtime-rules.ts` and `kernl:firewall:v1` are gone; the runtime charges through `permissions.rateLimiter`, and the focus firewall is the focus rate limiter. What kernl puts in front of kehto is unchanged.
 
 ## D-021 · Registry scopes are explicit; package versions have one authority
 
@@ -464,7 +468,7 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 
 - **Always look for kind 0.** `createProfiles` asks the lookup relays (`discovery`, then `super`) for the profile and the relay list at once; when the list names write relays the profile was not found on, it asks there (NIP-65). A card never gives up on a timer, and a late profile replaces the short key. The session label follows the account's published name. Every person in the shell is drawn through one component that does this, and the `dm` domain names conversation participants the same way before an applet sees them, so applets get names without asking.
 - **Stream, and bound only at the extremes.** The store emits its list as each relay answers, says "no applets match, more may still arrive" after `CATALOG_SETTLE_MS` (3 s) with nothing, and stops listening at `CATALOG_TIMEOUT_MS` (30 s). Cached manifests are listed first. A manifest its publisher deleted (kind 5) is left out. Every published applet is listed by default, as the public stores list them; one that needs a capability this shell does not offer says which, and "Only applets that work here" hides those when the person asks.
-- **Name servers by role.** Settings has "Inbox and outbox", the account's published list (D-029), with "Inbox: where people send things to you" and "Outbox: where your posts are kept, and where others look for them", and says that pictures and applet files live on separate file servers. The shell's own lists are "People lookup", "Applet catalogue" and "General". The consent for a relay list says "Change your inbox and outbox" and lists what each side gains and loses. The word for the protocol's server still never appears (D-006).
+- **Name servers by role.** Settings has "Inbox and outbox", the account's published list (D-029), with "Inbox: where people send things to you" and "Outbox: where your posts are kept, and where others look for them", and says that pictures and applet files live on separate file servers. The shell's own lists are "People lookup", "Applet catalogue" and "General". The consent for a relay list says "Change your inbox and outbox" and lists what each side gains and loses. The word for the protocol's server still never appears (D-006). [D-051](#d-051) reverses this bullet: the lists are named as relays and each relay is shown by its own host.
 
 **Consequences.** Names appear wherever a key did, from cache at once and from the network as it answers. The store fills from the first relay. The `outbox` tier is no longer edited by hand; it follows the published list.
 
@@ -567,6 +571,8 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Consequences.** Each runtime logs `FW-RUNTIME-LEGACY-GATE-001` once, and each service its `FW-*-LEGACY-001` warning, until `permissions` is configured. A publish whose plan is empty is refused rather than sent nowhere. A refused relay is now dialled twice in total per round, by applesauce, rather than in two rounds by kernl.
 
 **Reversal cost.** Low. The firewall calls stay in `runtime-rules.ts`; the relay planner and stable signers are one function each.
+
+**Superseded in part by D-056.** The stopgap is over: kernl configures `permissions`, and the `FW-*-LEGACY-001` warnings no longer appear.
 
 ## D-038 · Narrowing a running applet's grant stops its window
 
@@ -727,3 +733,162 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Consequences.** The store can be tiled next to applets, moved, resized and minimised to the bar. Browser tests find it as the "Applets window" region, not a dialog.
 
 **Reversal cost.** Low. One store method and one snippet.
+
+## D-049 · Settings are a window with sections
+
+**Context.** Settings was one long modal sheet: inbox and outbox, file servers, meeting people, the lookup servers, messaging providers, downloads, bridges, appearance and About, in the order they had been written. Nothing was grouped, so finding a setting meant scrolling past all the others. Being modal, the sheet also hid the applet a setting was being changed for, and it was the last large surface that ignored the layout the person chose ([D-048](#d-048) had moved the store).
+
+**Decision.**
+
+- **Settings is the second shell-drawn window.** `Desktop.openSettings(section?)` calls `WindowStore.openPanel('settings', 'Settings')`, so the one `WindowManager` places, focuses, tiles, moves, minimises and closes it like the store and every applet window, and the bar lists it. Asking for it again brings it forward.
+- **Five sections, one showing at a time**, named for where a person looks: General (appearance, About), Servers (inbox and outbox, file servers, the lookup servers), Messages (providers and their order, replies), Connections (meeting people and remote tools), Downloads (where links go, bridges). They are tabs with the usual semantics and keys: a list down the side of the window, and one row across the top when the window is narrow. "Narrow" is the window's own width, by a container query, because a window is resized and tiled independently of the page. The list and its key handling live in `settings/sections.ts`.
+- **The section is remembered** under `kernl:settings:section:v1`, and another part of the shell can open Settings at a section by its id (the Downloads sheet does).
+- **A section is drawn when first chosen and kept until the window closes**, so a list half edited in Servers survives a look at Messages, and the monitored-server lookup starts only when Servers is opened.
+- **Escape closes the shell-drawn window the person is working in**, or else the one in front; a minimised one is left alone (`panelToClose` in `windows.ts`). The store follows the same rule.
+- **The guard, grants and Downloads stay sheets.** They are short, and each is about something else on the desktop that it is right to pause over.
+
+**Consequences.** No setting does anything different; each is in a section. Browser tests find Settings as the "Settings window" region and name the section they need, and the vocabulary walk visits every section, because a section that is not showing is not rendered text. The count of unread messages is taken again when Settings loses focus, not when a sheet closes.
+
+**Reversal cost.** Low. The sections are components that do not know they are in a window; a sheet could hold the same tabs.
+
+## D-050 · Applets work through the programs the person already runs
+
+**Context.** Three NAP drafts let an applet ask the shell for transfers it could never make itself: NAP-TORRENT (napplet/naps#72), NAP-NZB (#136) and NAP-SOULSEEK (#135). Each says the runtime may be its own engine or may adapt a program the user configured, and names Transmission-style daemons, NZBGet, SABnzbd and slskd. D-017 put a browser-peer engine in the page for magnet links and left everything else to a hand-off, because a page cannot open the sockets those networks need. The programs people already run for this do open them, and each has an HTTP API a page can call. kehto's runtime dispatches a domain it does not build in to a service that lists its message types (`messageCapabilities`), but `@kehto/shell` 0.35 advertises a fixed list of domains, and the port an applet talks through is private to kehto's injected prelude, which builds a domain it does not know as an empty object.
+
+**Decision.**
+
+- **Five adapters, one contract each.** `@kernlize/bridges` gains `createTransmissionClient`, `createUtorrentClient` (`TorrentClient`), `createNzbgetClient`, `createSabnzbdClient` (`NzbClient`) and `createSlskdClient` (`SoulseekClient`). Each speaks only its program's own API, takes `fetch` as an option, and rejects with one of a fixed set of reasons. The package still has no dependencies. Nothing above an adapter sees a backend's method names, ids or paths.
+- **Three services, one per draft.** `createTorrentService`, `createNzbService` and `createSoulseekService` in `@kernlize/core` speak each NAP's wire format and call an adapter. They are remote controls: kernl cannot read what the program wrote to its disk, so every operation that would hand an applet file bytes, or save or open a file, answers with the draft's own "unsupported" (or, for NAP-SOULSEEK's `read`, `denied`), and each domain's discovery call says so before an applet tries.
+- **Handles are the shell's.** An applet never sees a backend's id, address or category name. Torrent jobs and NZB jobs belong to the applet that started them, by its catalogue id (publisher, kind and name, the same across versions), so another publisher's applet with the same name is another applet, and are found again after a reload; Soulseek handles belong to one window and end with it, as that draft requires. An applet sees and controls only what it started: what the person, or another applet, put in the same program is concealed.
+- **The person is asked.** Before every torrent or NZB an applet adds, before a window's first search or download through the sharing daemon, and again before anything is deleted. The prompt says what peers or servers will see. A session-scoped torrent is paused, not removed, when its window closes; kernl never removes from the person's program something it was not asked to.
+- **Settings are the person's, on this device.** `createDownloadClients` keeps each program's address and name at `kernl:download-programs:v1` and exposes them as `kernl.downloads`. Passwords and keys go to the secrets provider (D-052); they are never put in an address, a prompt, an error, the settings record or anything an applet receives.
+- **An address is checked against how kernl itself was loaded.** A page loaded over `https` may call a plain `http` address only on the same device, so `checkClientEndpoint` refuses anything else as `invalid:mixed-content` before it is saved, rather than letting it fail later with no explanation. An address typed without a scheme has it worked out by asking the program, `https` first, and only at addresses the page may call; a program that answers but refuses the sign-in ends the search, so credentials are not offered to a second address. An unencrypted address on another machine is allowed with a warning that the password travels in the clear. What comes back out of storage is checked again.
+- **The domains are offered only where an applet can call them.** kernl adds the three domains to the environment it sets at mount, which is what kehto's runtime reads to admit a domain, and passes kehto's prelude a binding table per domain (kehto/web#413). `supportsDomainBindings` asks the installed prelude whether it renders one; until a released `@kehto/shell` does, the domains are not offered, the services are not registered, and the store marks an applet that requires one as it marks any other it cannot run. `KernlOptions.downloads.offer` is for a host whose own prelude binds them. No second channel into the applet is built to get around the private port: that would be a copy of the one primitive kehto exists to own (D-001).
+- **Sealed applets get none of the three.** They are not on the list of domains that may be held together with messages (D-046): a search term, a file name or an NZB is a way out.
+
+**Consequences.** A browser applies its own rule on top of the scheme check: the program has to accept requests from the page's origin. SABnzbd, NZBGet and slskd send the headers that allow it; Transmission and uTorrent do not, so from a page they need a small reverse proxy that adds them, which the how-to shows. A host outside a browser has neither limit. The in-page engine and the hand-offs of D-017 are unchanged: they serve links the person opens, while these domains serve applets.
+
+**Reversal cost.** Low for any one program: an adapter is one file behind a contract. Medium for a domain: the service and its stored handles.
+
+## D-051 · In the shell a relay is called a relay, and shown by its own address
+
+**Context.** [D-006](#d-006) kept the word "relay" out of everything a person reads, and [D-031](#d-031) named relays by the role they play. The shell therefore said "servers that introduce you", "People lookup" and "Applet catalogue", shortened `relay.damus.io` to `damus.io`, and replaced a host that contained a denied word with a nickname such as "Applet catalogue server 1". On 2026-11-20 the owner ruled that "servers that introduce you" is not technically accurate, "They are relays", and that a nickname in place of an address is "unintuitive, confusing and not user friendly". The same review found the Settings window carrying more help text than a settings window should.
+
+**Decision.**
+
+- **The shell says relay.** `relays?` leaves `DENIED_WORDS` in `apps/web/src/shell/vocabulary.ts`. Settings has "Inbox relays" and "Outbox relays" under "Inbox and outbox", "Lookup relays", "Applet relays" and "General relays" under "Relays the shell asks", and "Relays for meeting people". Status, error and consent text follows: "Saved to all 3 relays", "The shell could not connect to any relay.", "Inbox relays added", "Relays asked". File servers stay "file servers" and connection helpers stay "helpers", because they are not relays. The Servers tab keeps its name: it holds relays and file servers.
+- **Every relay and file server is shown by its own host**, port included, with no label dropped and no nickname (`hostOf` in `servers.ts`; `relayName` in the core's consent summaries). `serverLabel` and the label-dropping `serverName` are gone.
+- **The vocabulary check reads the shell's words, not the addresses it shows.** A host can contain a denied word (`relay.nostr.band`, `relay.napplet.soy`), so the browser check blanks addresses first with `withoutAddresses`. It is narrow: lower-case dot-joined labels ending in a top-level label, never a token whose last label is itself a denied word. The scenarios in `shell-words.feature` hold both sides.
+- **The website is unchanged.** `scripts/check-public-vocabulary.mjs` still denies `relay` on the landing and `/about/` pages. The shell page's static HTML names no relay, since its copy is rendered by script, so the scan needed no exemption.
+- **Settings copy is cut to what a settings window carries**: at most one short line under a heading, field labels of one to four words, conditions as placeholders. A privacy fact a person needs before acting stays, as one line beside its control.
+
+This amends D-006 and D-031 for the shell only.
+
+**Consequences.** A person who knows the network finds the word they expect, and one who does not sees an address they can search for. An address someone else chose can put a protocol word on screen; that is the address, not the shell's copy. `@kernlize/core` consent summaries and `describeOutcome` change wording, a patch release.
+
+**Reversal cost.** Low. One pattern, one function and the labels.
+
+## D-052 · Secrets are kept by a provider the host can replace
+
+**Context.** The download programs of D-050 are the first services kernl signs in to with a password or a key. A page's own storage keeps such a thing as plain text that any script on the origin can read. Where kernl runs decides what better keeper exists: a browser extension, a service on the device, the platform's keychain in a native shell. None of them is kernl's to pick for every host, and identity keys already have their own rule: they live only in signers (SOUL opinion 1).
+
+**Decision.**
+
+- **One small contract.** `SecretsProvider` is `get(name)`, `set(name, value)`, `delete(name)` and a `description` of how it keeps things (`plain`, `protected` or `session`, with a short label). Names are the shell's own, such as `download:transmission:password`. A provider may reject with `unavailable:secrets` or `denied:secrets`; a caller reads both as "not available now", never as "there is none".
+- **The host chooses.** `KernlOptions.secrets` takes any provider. The default, `createStorageSecrets(host.storage)`, keeps secrets in the host's storage as typed and says so (`keeps: 'plain'`); `createMemorySecrets()` keeps them for the session only. `kernl.secrets` is the description, so a settings screen can say truthfully where sign-ins are kept.
+- **Settings never hold a secret.** A download program's record holds its address, its name and whether a password or key is kept. The secrets are read from the provider once, held in memory for the clients that sign in with them, and handed to nothing else: not to settings, not to the settings form, not to an applet. A secret left empty in the form means "the kept one", and only for the address it was kept for.
+- **A provider that says no is not an empty provider.** If it will not keep a secret, nothing is saved. If it will not hand a kept one over, that program is `locked`: it serves no applet until the person signs in to it again, and the settings say so.
+- **Identity keys are out of scope.** They stay inside applesauce signers.
+
+**Consequences.** On kernl.run the default still keeps sign-ins readable to the origin, which the settings line states. A host with a keychain, an extension or a local service closes that by passing one object. Other secrets the shell holds as plain settings today, the connection helpers' credentials (D-043), should move behind the same provider.
+
+**Reversal cost.** Low. One interface and one caller.
+
+## D-053 · Connections are many, and kernl routes
+
+**Context.** D-050 kept one connection per program, so a person with two Transmission daemons, or a Transmission and a uTorrent, could use only one of them at a time. NAP-NZB lets an applet choose among several downloaders. NAP-TORRENT and NAP-SOULSEEK have no way for an applet to name a backend, and should not: which machine a download runs on is the person's business.
+
+**Decision.**
+
+- **A connection is a record of its own.** It has a random id, a program, a label the person can change, an address and a sign-in. Any number may exist, several of one program among them. Secrets are kept under the connection's id (D-052) and go with it when it is removed.
+- **kernl routes torrent and Soulseek work.** Each domain has a default connection, the first of its kind until the person picks another; removing the default makes the next one the default. A new torrent goes to the connection that already holds that torrent for kernl, else to the default. A search or browse goes to the default. A torrent job, and a Soulseek query with its files and transfers, remembers the connection it went to and is served by that connection from then on. The add prompt names the connection by its label.
+- **NZB connections are each a downloader.** The applet chooses among them as NAP-NZB says, by the person's label and an opaque id.
+- **An address change starts a new routing key.** NZB handles and Soulseek queries and transfers are keyed by it, so a handle issued at the old address can never reach a different server's job that happens to have the same id; it answers "not found" instead. A torrent job follows its connection across an address change and asks the new address for the same info hash: an info hash names the content, so it cannot meet a different torrent.
+- **A connection that is gone leaves nothing stuck.** A job on a removed or locked connection reports the torrent as unavailable, and removing that job succeeds without touching any program.
+- **Uploads will ask.** When NAP-UPLOAD reaches these programs, seeding through a torrent connection is the person's choice, asked in the prompt sequence when more than one connection could take it. Only the torrent domain has a way to seed; NAP-NZB and NAP-SOULSEEK define none.
+
+**Consequences.** Two connections to the same daemon are two connections: kernl does not detect that they are one program. Routing is not load balancing; a default that cannot be reached is not replaced by another for new work.
+
+**Reversal cost.** Low. Routing is one interface the services read.
+
+## D-054 · Applets' keyboard shortcuts work, for every applet
+
+**Context.** An applet that registers keyboard shortcuts worked in other shells and not in kernl, for four reasons that each hid the next.
+
+1. `keys` was offered only behind a grant, and the store offers a switch only for a domain the manifest names. An applet that names none was never told the domain exists.
+2. Nothing was registered behind the domain. Without a `keys` service kehto's runtime answers `keys.registerAction` with no `binding` and never sends `keys.bindings` or `keys.action`, and the frame only runs an action for a key it was told it holds.
+3. An applet registers its whole keymap as it starts, a dozen envelopes at once, which is when the runtime's startup burst guard allows eight and answers none of the rest. kernl's own per-second rate dropped the same burst.
+4. The frame forwards every key it has no binding for, repeats included. A key held for ten seconds is three hundred envelopes, which is the quarantine threshold: the applet would have been stopped for the person's own typing.
+
+**Decision.**
+
+- **Keyboard shortcuts are baseline.** `keys` joins `BASELINE_DOMAINS`. What an applet gets is narrow enough to need no grant: its actions run only in its own focused window, it learns nothing typed elsewhere, and the only things it can make the shell do are open the store and close an overlay, while it is the focused window and no dialog is open.
+- **kehto's `createKeysService` is registered, behind kernl's own listener.** `createShortcutsService` wraps it and `createKernlServices` puts it at `keys`. An action's `defaultKey` is bound as asked, the answer names the binding, and the window is sent its complete `keys.bindings` after every change. There is no rebinding UI yet; the key the applet suggests is the key it gets, or none. kehto listens on a private target that kernl feeds from the page's `document`, passing on only a key the shell did not use itself: not one a handler already took, not one being composed, and not one aimed at a field, a button or a link. A key that ran an action has its default prevented.
+- **An action runs in the focused window only.** kehto sends `keys.action` to every window that bound the key. kernl drops it for a window `pipeline.getVisibility` does not report as focused, the same focus the guard uses, so two windows of one applet do not both act.
+- **The shell's chords are reserved.** `KernlOptions.shortcuts.reserved` goes to kehto as `reservedChords`; the web shell names `Alt+/`. kehto also refuses the keys a browser keeps (`Escape`, `Tab`, `Ctrl+W` and the like). A refused request is answered without a `binding` and without an error.
+- **A forwarded key goes to the host, once, from the focused window.** `executeHotkeyFromForward` calls `KernlHost.onShortcut`. Before the guard counts anything, `createForwardedKeys` drops a forward from a window that is not focused, and the same key forwarded again within 600 ms, which is a held key repeating: the shell's shortcuts act on the press. Nothing is reported for them, because they are the person's typing and not something the applet tried. The web shell runs the two shortcuts it runs for its own key presses, Escape for the topmost overlay and `Alt+/` for the store, matched by character or by physical key because some layouts type another character with Alt held; while a dialog is open it ignores forwarded keys, since a dialog holds the keyboard and the person cannot have typed in an applet.
+- **A keymap waits out the startup window.** `createKeymapHold` answers `defer` for a `keys.registerAction` or `keys.unregisterAction` that arrives in a window's first second (the profile's `burstGuard.windowMs`), keeps later ones behind the first so none overtakes another, and asks kehto to release them when the second is over, where they meet the ordinary rates. While a keymap is held, a visibility change does not release early: kehto hands on everything it holds for a window at once, and an early release would put the keymap back inside the startup window.
+- **`keys.*` is `control` to the guard.** After the first second an applet may register a keymap again, when a game starts or a screen changes. As `generic` traffic the ninth envelope in a second was dropped; as `control` it is dispatched, counted towards quarantine and limited by the runtime's rate like the rest.
+
+**Consequences.** Every applet can bind keys, including one the person granted nothing; a blocked applet still gets `shell` alone. An applet's registrations made as it starts are answered up to a second later. A registration is not held or counted by kernl's ingress guard, so a flood of them is stopped by kehto's limit on held envelopes (the window is revoked past 1024) and by the runtime's rate afterwards. Pressing the same key twice within 600 ms forwards it once. The offline preview does not serve `keys` and leaves it out of what it advertises. `media` remains offered with nothing behind it.
+
+**Reversal cost.** Moderate. Removing `keys` from the baseline is one line but leaves applets that name no domain without shortcuts again; the service, the two filters and the host member come out independently.
+
+## D-055 · An applet's Blossom resources are found on its own servers and verified
+
+**Context.** Applets load assets through the `resource` domain as `blossom:` references. kernl had no bridge for the scheme, so every such request failed, and kehto's resource service reports any error that is not a `ResourceServiceError` as `network-error`, so the applet could not tell a missing scheme from a dead network. Published applets name the blob as `blossom:sha256:<hash>`, which is not BUD-10's `blossom:<hash>.<ext>`, and give no server: the blob sits on the servers their manifest names, and nowhere else. kehto's resource service does not pass the request's advisory `servers` to the host's resolver.
+
+**Decision.**
+
+- **A Blossom bridge, in `@kernlize/bridges`.** `createBlossomBridge` reads both forms. It asks the reference's `xs` hints, then the servers named for the requester, in order and each once, through a web bridge under the same SSRF policy, and returns the first blob whose SHA-256 matches. Other bytes, a 404, an unreachable or private server are passed over. The content type comes from the extension; the server's header is not trusted.
+- **The applet's own servers are the fallback.** `createKernl` passes the running applet's manifest `server` tags as `serversFor`, matched by the verified identity the resource service names. No general servers are tried: a hash is not revealed to a server neither the applet nor its publisher named, and a blob that is not where its publisher put it is the publisher's to fix.
+- **Bridge reasons become resource errors.** `resourceErrorFor` maps the registry's prefixed reasons to NAP-RESOURCE codes before kehto sees them.
+
+**Consequences.** Applets whose assets sit beside their artifact load them. A reference to a blob on a server nobody named is `not-found`. The loose `blossom:sha256:` form is accepted though BUD-10 does not define it; it is recorded next to the parser. Payloads larger than about 2 MB still fail inside kehto's prelude, whose canonical-base64 pattern exhausts the stack (kehto/web#473), until kernl takes a kehto release with that fix. A host that passes its own `bridges` gets no Blossom bridge unless it registers one.
+
+**Reversal cost.** Low. One bridge, one registry option and one error mapping.
+
+## D-056 · kehto's firewall decides every request, under rules that ask only about links
+
+**Context.** kehto's firewall became an approval authority (`@kehto/firewall` 0.9 to 0.10): scoped grants per applet and artifact, with a lifetime of once, a session, or kept. A host that sets `permissions` has every applet admitted before its code runs, and every request a service carries out put to the firewall, which prompts when nothing covers it. The temporal engine it used to be is `@kehto/rate-limit`, which a host installs itself. D-037 left kernl on the legacy rate gate, which kehto retains for one more minor release. A host that sets `permissions` with no rules asks the person about every domain at start and every destination afterwards.
+
+**Decision.**
+
+- **kernl configures `permissions`.** `createFirewallPermissions` is the host side: time, cancellation, the question, stored answers under `kernl:firewall-decisions:v1`, and the rules as `defaultDecision`. Every applet's session carries a verified principal, its catalogue id and artifact hash, from the manifest kernl verified.
+- **The rules ask only about links.** `defaultFirewallRules` allows everything and asks about `link.open`. The grants layer already decided which domains an applet holds, and the ACL stays restrictive, which under `permissions` is a ceiling no answer exceeds; asking again for each domain would bury the one question no grant describes. A link leaves the shell, so it asks every time: the question offers only "open" and "don't open", and nothing is kept. NAP-LINK leaves prompting to shell policy.
+- **The person can change the rules.** `kernl.firewall.setRule` sets allow, ask or deny for everything, a domain or one request, for every applet or one, kept under `kernl:firewall-rules:v1`. Rules follow an applet across versions; answers stay tied to the exact code. A damaged rules document falls back to the shipped rules, and damaged answers refuse every start until cleared.
+- **Admission happens in `plan`.** `kernl.plan` opens the session, asks the firewall for every domain the grants leave the applet, and narrows the plan's environment to what was admitted, so no code runs with a domain the firewall refused. Required domains refuse the start when refused (`denied:firewall`); others are left out. `mount` checks the admission still stands (`denied:admission-expired`). At most 16 plans may wait unmounted.
+- **Taking an answer back stops the window.** kehto ends the work an answer covered; kernl removes the frame, with reason `firewall`, as it does for a narrowed grant (D-038). Tightening a rule takes back the answers the old rule gave.
+- **Rate limiting is `@kehto/rate-limit`, twice.** `@kernlize/guard`'s focus firewall is `createFocusRateLimiter` over `evaluateRateLimit`, one budget per operation class. `createRuntimeRateLimiter` hands the same budgets to the runtime as `permissions.rateLimiter`, and `onRateLimit` feeds the guard log. Questions have kehto's suggested budget, twelve a minute (`flood:prompts`). The legacy subpath, `legacyFirewall`, `onFirewallEvent` and `kernl:firewall:v1` are gone.
+- **The services meet kehto's planning contracts.** Messages and social actions plan onto the shell's relay tiers as bare origins, since the applet never chooses them. The uploader plans the first file server. The planned outbox publish keeps the any-relay policy (D-028). A download's first origin is put to the firewall. The host's link opener is told a link was already approved, so the person is not asked twice.
+
+**What changed for kernl's own layers.** Nothing in front of kehto moved: the ingress guard, the visibility gate and the rate limiter still judge every envelope in `filterNappletMessage`. The limiter no longer carries policies or content matchers; size caps were already the ingress guard's. The runtime has no startup burst: kernl's ingress guard counts every second, and the runtime's first second would start at plan time.
+
+**Consequences.** A window kehto was handed without `kernl.plan` gets no answer at all, where it used to be served as the shell's own. A refused rate at the runtime reads `rate limit exceeded`, not `firewall:`; the Messages applet retries on either. A `dm` request over the runtime's budget reads `forbidden`, as a refusal does, because kehto's service does not tell the two apart; kernl's own limiter, in front, normally drops it first, which the applet retries. A firewall question times out after ten minutes, not kehto's one. A download is charged once at the runtime, though kehto names two operations for it. Gaps recorded next to the code: the bridge registry follows redirects under its own policy, so only a download's first origin reaches the firewall; the relay plan for messages names every tier, not the recipient's inboxes; mirrors of an upload are not in its plan. `@kernlize/guard` drops `createFocusFirewall`, `applyNappletRules` and `GuardConfig.firewall`; `@kernlize/core` drops the `runtime-rules` exports and adds `Kernl.firewall` and `KernlHost.presentApproval`. Both are minor releases on 0.x.
+
+**Reversal cost.** Medium. The firewall sits behind `createFirewallPermissions`, `createAppletAdmissions` and `createFirewall`; removing `permissions` from the adapter would need the legacy gate back, which kehto is dropping.
+
+## D-057 · A grant shows its contract beside its plain words
+
+**Context.** Grants are named in plain words ("web fetches", "posting to your network") so a person can decide without knowing the protocol (D-006). Someone who does know it, such as an applet's author or a person checking what an applet really asks for, could not tell which NAP contract a row stood for: "network" is `relay`, "web fetches" is `resource`.
+
+**Decision.**
+
+- **Every grant row shows its contract.** In the store's review and the grants panel, the NAP domain is written in capitals after the plain words (`RESOURCE`, `OUTBOX`), in the monospace face, smaller and lower in contrast, so the words stay first. `contractName(domain)` makes it.
+- **It is an identifier, not prose.** The plain-words rule is kept for everything a person reads as text. A contract tag carries `data-contract`, and the browser vocabulary check leaves out a tag only when its text is a bare capitalised identifier, the way an address is not read as prose, so a sentence cannot pass the check by being put in one.
+- **It is part of the row's name.** A screen reader reads it after the words, as a sighted person sees it.
+
+**Consequences.** `RELAY` appears in the grants UI although the word is otherwise kept out of the shell's copy on `main`. Any other place that lists grants by their words, such as the firewall's rows, should add the same tag.
+
+**Reversal cost.** Low. One function, two template lines and one style.
+

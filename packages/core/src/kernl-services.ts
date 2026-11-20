@@ -12,13 +12,16 @@ import {
   createOutboxService,
   createRelayPoolOutboxRouter,
   createResourceService,
+  ResourceServiceError,
   createThemeService,
   createUploadService,
   type CommonServiceOptions,
   type ConfigServiceOptions,
   type DmService,
+  type OutboxPublishResult,
   type OutboxRouter,
   type RelayListEntry,
+  type ResourceErrorCode,
   type ResourceFetchInit,
   type ThemeService,
   type Uploader,
@@ -31,12 +34,13 @@ import type { DirectConnectionsSettings, KernlHost, RelayTiers, RemoteToolsSetti
 import { createDirectConnectionsService, type DirectConnectionsOptions } from './multiplayer/direct-connections.js';
 import { createRemoteToolsService, mergeFamilies } from './multiplayer/remote-tools.js';
 import { createWindowIdentities, type WindowIdentities } from './multiplayer/window-identities.js';
+import { createShortcutsService, type ShortcutsOptions, type ShortcutsService } from './keys/shortcuts.js';
 import type { MultiplayerSettings } from './multiplayer/settings.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { createAppletRelayService, createOutboxRelayPool } from './applesauce/relay-backend.js';
 import { createIdentityProviders, type IdentityProviders, type RelayPermissions } from './applesauce/identity-providers.js';
 import type { SigningConsent, SigningTemplate } from './consent/handler.js';
-import { locateRecipients } from './people/locate-recipients.js';
+import { locateRecipients, locateSendRecipients } from './people/locate-recipients.js';
 import type { People } from './people/person.js';
 import { labelConversations } from './messaging/label-conversations.js';
 import type { Profiles } from './profiles/profiles.js';
@@ -104,6 +108,8 @@ export interface KernlServiceDeps {
   readonly directConnections?: DirectConnectionsDeps | undefined;
   /** The person's own choices, which come before the host's (D-043). */
   readonly multiplayer?: Pick<MultiplayerSettings, 'state'>;
+  /** Reserved chords, the key listener's target and the focus source for the `keys` domain (D-054). */
+  readonly shortcuts: ShortcutsOptions;
 }
 
 /** What the `webrtc` service needs beyond the pool and the window identities. */
@@ -116,6 +122,8 @@ export interface KernlServices {
   readonly registry: ServiceRegistry;
   readonly theme: ThemeService;
   readonly dm: DmService;
+  /** The `keys` service; `destroy()` gives back its key listener. */
+  readonly keys: ShortcutsService;
 }
 
 function toRelayListEntry(relays: RelayPermissions): RelayListEntry {
@@ -146,15 +154,72 @@ function withShellWrites(entry: RelayListEntry, tiers: KernlServiceDeps['tiers']
  * ```
  */
 export function acceptAnyRelay(router: OutboxRouter): OutboxRouter {
+  const accept = (result: OutboxPublishResult): OutboxPublishResult => {
+    if (result.ok || !result.relays || !Object.values(result.relays).some(Boolean)) return result;
+    const { error: _refused, ...accepted } = result;
+    return { ...accepted, ok: true };
+  };
+  // Under the firewall kehto plans a publish, has the plan approved and publishes through `publishWithPlan`, so that path gets the same policy.
+  const planned = router as PlannedPublishRouter;
+  const publishWithPlan = planned.publishWithPlan?.bind(planned);
   return {
     ...router,
-    async publish(template, options) {
-      const result = await router.publish(template, options);
-      if (result.ok || !result.relays || !Object.values(result.relays).some(Boolean)) return result;
-      const { error: _refused, ...accepted } = result;
-      return { ...accepted, ok: true };
-    },
-  };
+    publish: async (template, options) => accept(await router.publish(template, options)),
+    ...(publishWithPlan ? { publishWithPlan: async (...args: Parameters<typeof publishWithPlan>) => accept(await publishWithPlan(...args)) } : {}),
+  } as OutboxRouter;
+}
+
+/** The planned publish kehto's relay-pool router adds beside `OutboxRouter`; kehto does not export its type. */
+interface PlannedPublishRouter extends OutboxRouter {
+  publishWithPlan?(template: EventTemplate, plan: unknown): Promise<OutboxPublishResult>;
+}
+
+/**
+ * The relays the shell itself may reach for an applet, as bare origins: the
+ * form kehto's firewall takes a network destination in.
+ *
+ * kehto's messaging and social services have each request's relays approved
+ * before they run it. In kernl the applet never chooses them: a provider finds
+ * the recipient's inboxes and a post goes to the tier for its kind, so the
+ * plan is every relay in the shell's tiers, which is the widest set either can
+ * reach. A relay whose address is not a bare `ws:` or `wss:` origin is left out.
+ *
+ * @param tiers - The shell's relay tiers.
+ * @returns Distinct relay origins.
+ * @example
+ * ```ts
+ * shellRelayOrigins(tiers); // ['wss://relay.example', …]
+ * ```
+ */
+export function shellRelayOrigins(tiers: Pick<RelayTiers, 'get'>): readonly string[] {
+  const { outbox, discovery, apps, super: shared } = tiers.get();
+  const origins = [...outbox, ...shared, ...discovery, ...apps].flatMap((relay) => {
+    const origin = /^(wss?:\/\/[^/?#@]+)\/?$/.exec(relay)?.[1];
+    return origin ? [origin] : [];
+  });
+  return [...new Set(origins)];
+}
+
+/**
+ * Have the firewall approve the server a download contacts before it is
+ * contacted. kehto's resource service passes `authorizeNetwork` when the
+ * firewall is on; a web address is put to it by origin, and anything else
+ * (a magnet link, a file-server address) is resolved by its bridge, which
+ * names its own servers. Upstream gap: the bridge registry follows a redirect
+ * itself under its own address policy, so only the first origin is put to the
+ * firewall.
+ *
+ * @param url - The address the applet asked for.
+ * @param init - What kehto's resource service passed.
+ * @param run - Resolves the address under the signal it is given.
+ * @returns What `run` resolved.
+ * @example
+ * ```ts
+ * createResourceService({ fetch: (url, init) => fetchThroughFirewall(url, init, (signal) => resolve(url, { signal })) });
+ * ```
+ */
+export function fetchThroughFirewall<T>(url: string, init: Pick<ResourceFetchInit, 'signal' | 'authorizeNetwork'>, run: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  return init.authorizeNetwork && /^https?:/i.test(url) ? init.authorizeNetwork(url, run) : run(init.signal);
 }
 
 function requesterFor(deps: Pick<KernlServiceDeps, 'resolveIdentity'>, windowId: string | undefined): BridgeContext['requester'] {
@@ -177,6 +242,37 @@ function requesterFor(deps: Pick<KernlServiceDeps, 'resolveIdentity'>, windowId:
 export function resourceInitFor(deps: Pick<KernlServiceDeps, 'resolveIdentity'>, init: ResourceFetchInit): ResourceResolveInit {
   const requester = requesterFor(deps, init.windowId);
   return init.headers ? { signal: init.signal, requester, headers: init.headers } : { signal: init.signal, requester };
+}
+
+/** NAP-RESOURCE codes for the bridges' reasons, most specific first; the rest of a family takes its prefix's code. */
+const RESOURCE_CODES: readonly (readonly [prefix: string, code: ResourceErrorCode])[] = [
+  ['unavailable:no-bridge', 'unsupported-scheme'],
+  ['unavailable:not-found', 'not-found'],
+  ['unavailable:no-servers', 'not-found'],
+  ['unavailable:timeout', 'timeout'],
+  ['denied:too-large', 'too-large'],
+  ['invalid:', 'invalid-request'],
+  ['denied:', 'blocked-by-policy'],
+];
+
+/**
+ * The NAP-RESOURCE error a bridge failure becomes. The bridges reject with
+ * prefixed reasons; kehto's resource service reports any error that is not a
+ * `ResourceServiceError` as `network-error`, so without this an applet could
+ * not tell a missing blob or an unsupported scheme from a dead network (D-055).
+ *
+ * @param error - What the bridge registry rejected with.
+ * @returns The error to throw to the resource service, carrying the bridge's reason as its message.
+ * @example
+ * ```ts
+ * resourceErrorFor(new Error('unavailable:not-found')).code; // 'not-found'
+ * resourceErrorFor(new Error('unavailable:network Failed to fetch')).code; // 'network-error'
+ * ```
+ */
+export function resourceErrorFor(error: unknown): ResourceServiceError {
+  const reason = error instanceof Error ? error.message : String(error);
+  const code = RESOURCE_CODES.find(([prefix]) => reason.startsWith(prefix))?.[1] ?? 'network-error';
+  return new ResourceServiceError(code, reason);
 }
 
 /**
@@ -262,15 +358,16 @@ function gateOutboxPublish(outbox: ServiceHandler, consent: SigningConsent): Ser
 /**
  * Register kehto's reference services over the shell's applesauce layer.
  *
- * `relay`, `identity`, `theme`, `notify`, `link`, `resource`, `dm`, `outbox`
- * and `cvm` are wired; every network path goes through the one pool, every
+ * `relay`, `identity`, `theme`, `keys`, `notify`, `link`, `resource`, `dm`,
+ * `outbox` and `cvm` are wired; every network path goes through the one pool, every
  * resource fetch through the bridge registry's SSRF policy, links open only
  * over `https:` and `mailto:`, notifications surface through the host, outbox
  * publishes pass the consent gate before they are signed, and remote tools are
- * called under each window's own key.
+ * called under each window's own key. An applet's shortcut runs in the focused
+ * window only.
  *
  * @param deps - Pool, tiers, store, auth, consent gate, host, registries and identity resolver.
- * @returns The service registry and the theme and dm handles.
+ * @returns The service registry and the theme, dm and keys handles.
  * @example
  * ```ts
  * const services = createKernlServices(deps);
@@ -281,28 +378,38 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
   const identity = deps.identity ?? createIdentityProviders(deps.eventStore, deps.pool, deps.tiers);
   const theme = createThemeService(deps.theme ? { initialTheme: deps.theme } : {});
   const located = deps.people ? locateRecipients(deps.messaging.composite(), deps.people) : deps.messaging.composite();
-  const dm = createDmService({ adapter: deps.profiles ? labelConversations(located, deps.profiles) : located });
+  const relayPlan = (): readonly string[] => shellRelayOrigins(deps.tiers);
+  const labelled = deps.profiles ? labelConversations(located, deps.profiles) : located;
+  const dmService = createDmService({ adapter: { ...labelled, planRelays: relayPlan } });
+  const dm = deps.people ? locateSendRecipients(dmService, deps.people) : dmService;
   const resolve = createBridgeResourceResolver(deps.bridges);
   const identities = deps.identities ?? createWindowIdentities();
   const direct = deps.directConnections;
   const chosen = () => deps.multiplayer?.state();
+  const keys = createShortcutsService(deps.shortcuts);
 
   const registry: ServiceRegistry = {
     relay: createAppletRelayService(deps.pool, deps.tiers),
     identity: createIdentityService({ getSigner: createIdentitySigner(deps.auth), ...identity }),
     theme: theme.handler,
+    keys,
     notify: createNotifyService({
       present: ({ windowId, message }) => deps.host.notify({ title: message.title, windowId, tone: 'info', ...(message.body ? { body: message.body } : {}) }),
     }),
     link: createLinkService({
       allowedProtocols: LINK_PROTOCOLS,
+      // kehto calls this only after the firewall let this exact link through, so the host need not ask again (D-056).
       open: ({ url }) => {
-        deps.host.openLink(url.href);
+        deps.host.openLink(url.href, { approved: true });
         return { status: 'opened' };
       },
     }),
+    // The firewall approves a web address's server before it is contacted (D-056); a bridge's reason becomes a NAP-RESOURCE code (D-055).
     resource: createResourceService({
-      fetch: (url, init) => resolve(url, resourceInitFor(deps, init)),
+      fetch: (url, init) =>
+        fetchThroughFirewall(url, init, (signal) => resolve(url, resourceInitFor(deps, { ...init, signal }))).catch((error: unknown) => {
+          throw resourceErrorFor(error);
+        }),
     }),
     dm,
     outbox: gateOutboxPublish(createOutbox(deps, identity), deps.consent),
@@ -322,8 +429,8 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
       }),
     } : {}),
     ...(deps.config ? { config: createConfigService(deps.config).handler } : {}),
-    ...(deps.common ? { common: createCommonService(deps.common) } : {}),
+    ...(deps.common ? { common: createCommonService({ planRelays: relayPlan, ...deps.common }) } : {}),
     ...(deps.uploader ? { upload: createUploadService({ uploader: deps.uploader, uploadInfo: { rails: [{ rail: 'blossom', enabled: true }] } }) } : {}),
   };
-  return { registry, theme, dm };
+  return { registry, theme, dm, keys };
 }

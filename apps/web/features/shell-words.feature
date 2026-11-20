@@ -16,24 +16,27 @@ Feature: Shell words
     And the shell keeps recent applets under "kernl:recent:v1" and the layout under "kernl:layout:v1"
 
   Scenario: protocol words are recognised wherever they appear
-    Then the shell text "Open the Relay list" names the protocol
+    Then the shell text "Open the Nostr settings" names the protocol
+    And the shell text "Open the relay list" does not name the protocol
     And the shell text "verified by NIP-05" names the protocol
     And the shell text "paste your npub1xyz" names the protocol
     And the shell text "Your identity and your network" does not name the protocol
     And the shell text "Sign in to your account" names the protocol
     And the shell text "Remembered accounts" names the protocol
 
-  Scenario Outline: grant domains read as plain words
+  Scenario Outline: grant domains read as plain words, with the contract beside them
     Then the shell calls the domain "<domain>" "<label>"
+    And the shell writes the contract of "<domain>" as "<contract>"
 
     Examples:
-      | domain   | label                    |
-      | identity | your identity            |
-      | relay    | network                  |
-      | outbox   | posting to your network  |
-      | common   | social actions           |
-      | zap      | another capability       |
-      | toString | another capability       |
+      | domain   | label                    | contract |
+      | identity | your identity            | IDENTITY |
+      | relay    | network                  | RELAY    |
+      | outbox   | posting to your network  | OUTBOX   |
+      | resource | web fetches              | RESOURCE |
+      | common   | social actions           | COMMON   |
+      | zap      | another capability       | ZAP      |
+      | toString | another capability       | TOSTRING |
 
   Scenario: an applet's first run lists required domains first and presets the account
     Given an applet that requires "identity, storage" and may use "storage, relay, zap"
@@ -87,8 +90,8 @@ Feature: Shell words
   Scenario: every reason an applet cannot be opened has plain words
     Then the shell explains the open failure "invalid:pointer" as "That does not look like an applet address."
     And the shell explains the open failure "unavailable:manifest" as "No applet was found at that address. Check it and try again."
-    And the shell explains the open failure "unavailable:network" as "The servers that list applets did not answer in time. Try again in a moment."
-    And the shell explains the open failure "unavailable:unreachable" as "The shell could not connect to any server. You may be offline, your network may block them, or the browser may have too many connections open: closing other tabs can help."
+    And the shell explains the open failure "unavailable:network" as "The applet relays did not answer in time. Try again in a moment."
+    And the shell explains the open failure "unavailable:unreachable" as "The shell could not connect to any relay. You may be offline, your network may block them, or the browser may have too many connections open: closing other tabs can help."
     And the shell explains the open failure "unavailable:blob" as "The applet was found, but its file could not be downloaded right now. Try again later."
     And the shell explains the open failure "invalid:domain" as "This shell cannot provide something that was switched on for this applet. Look it up again."
     And the shell explains the open failure "invalid:blob-hash-mismatch" as "This applet did not pass the shell's checks, so it was not opened."
@@ -159,36 +162,39 @@ Feature: Shell words
       | 1048576       | 1.0 MiB  |
       | 2199023255552 | 2048 GiB |
 
-  Scenario Outline: a server reads by the name someone registered
-    Then the shell reads the server "<address>" as "<name>"
+  Scenario Outline: a relay is shown by its own host, with nothing dropped and no nickname
+    Then the shell shows the relay "<address>" as "<host>"
 
     Examples:
-      | address                       | name           |
-      | wss://relay.damus.io          | damus.io       |
-      | wss://nos.lol                 | nos.lol        |
-      | wss://nostr.wine              | nostr.wine     |
-      | wss://relay.co.uk             | relay.co.uk    |
-      | wss://relay.example.co.uk     | example.co.uk  |
-      | wss://relay.ab.cd             | ab.cd          |
-      | wss://relay.co.ukk            | co.ukk         |
-      | wss://Example.com:7777/inbox  | example.com    |
-      | Relay.Damus.IO/inbox          | damus.io       |
-      | wss://[broken/inbox           | [broken        |
+      | address                       | host               |
+      | wss://relay.damus.io          | relay.damus.io     |
+      | wss://nos.lol                 | nos.lol            |
+      | wss://relay.nostr.band        | relay.nostr.band   |
+      | wss://relay.napplet.soy/      | relay.napplet.soy  |
+      | wss://relay.example.co.uk     | relay.example.co.uk |
+      | wss://Example.com:7777/inbox  | example.com:7777   |
+      | https://files.example.net/    | files.example.net  |
+      | relay.damus.io/inbox          | relay.damus.io     |
+      | wss://[broken/inbox           | [broken            |
 
-  Scenario: a server whose name would name the protocol is called by its tier
-    Then the shell labels the server "wss://relay.nostr.band" in "Applet catalogue" at index 0 as "Applet catalogue server 1"
-    And the shell labels the server "wss://relay.damus.io" in "Your network" at index 2 as "damus.io"
+  Scenario: the vocabulary check reads the shell's words, not the addresses it shows
+    Then the shell text "Remove relay.nostr.band from Inbox relays" without its addresses does not name the protocol
+    And the shell text "relay · wss://relay.napplet.soy/apps?x=1, nostr.wine and nostr.example:7777" without its addresses does not name the protocol
+    And the shell text "Your nostr relays" without its addresses names the protocol
+    And the shell text "Paste an npub. Then sign in" without its addresses names the protocol
+    And the shell text "end of one.nostr sentence" without its addresses names the protocol
+    And the shell text "Saved.Nostr is next" without its addresses names the protocol
 
-  Scenario: a typed server address gets the secure scheme when it has none
-    Then the shell stores the typed server "  relay.damus.io " as "wss://relay.damus.io"
-    And the shell stores the typed server "ws://localhost:7777" as "ws://localhost:7777"
+  Scenario: a typed relay address gets the secure scheme when it has none
+    Then the shell stores the typed relay "  relay.damus.io " as "wss://relay.damus.io"
+    And the shell stores the typed relay "ws://localhost:7777" as "ws://localhost:7777"
 
   Scenario: a search for tools that finds nothing to trust says why, in words
-    Then the shell explains the tool search refusal "invalid:tool-reference" as "Enter a reference to tools someone shared, a 64-character tool fingerprint, or a website address."
+    Then the shell explains the tool search refusal "invalid:tool-reference" as "Enter a shared reference, a tool fingerprint or a website."
     And the shell explains the tool search refusal "unavailable:no-tools" as "No tools were found for that."
-    And the shell explains the tool search refusal "invalid:tool-inventory" as "The tools found do not match what they say they are, so they are not offered."
-    And the shell explains the tool search refusal "unavailable:website" as "That website does not say which tool server it runs."
-    And the shell explains the tool search refusal "unavailable:preview" as "The preview reaches no network, so it cannot look for tools."
+    And the shell explains the tool search refusal "invalid:tool-inventory" as "Those tools failed their check, so they are not offered."
+    And the shell explains the tool search refusal "unavailable:website" as "That website names no tool server."
+    And the shell explains the tool search refusal "unavailable:preview" as "The preview cannot look for tools."
     And the shell explains the tool search refusal "mystery" as "The search did not work. Try again."
     And the shell explains a tool search that threw something other than an error as "The search did not work. Try again."
 
@@ -198,13 +204,13 @@ Feature: Shell words
 
   Scenario: messaging reasons never reach a person raw
     Then the shell explains the unavailable reason "sign-in-required" as "Sign in to use this provider."
-    And the shell explains the unavailable reason "signer-cannot-encrypt" as "The identity you signed in with cannot lock and unlock messages this way. Sign in with one that can."
-    And the shell explains the unavailable reason "mystery" as "No backend is available for this provider yet."
+    And the shell explains the unavailable reason "signer-cannot-encrypt" as "This identity cannot lock messages this way."
+    And the shell explains the unavailable reason "mystery" as "Not available yet."
     And the shell explains the messaging refusal "invalid:no-recipients" as "Add someone to write to."
     And the shell explains the messaging refusal "unavailable:offline after 3 tries" as "The message could not be sent right now."
-    And the shell explains the messaging refusal "unavailable:no-ratchet-runtime" as "Ratchet sessions run only in the live shell once you are signed in, not in the preview."
-    And the shell explains the messaging refusal "unavailable:no-runtime" as "No backend is available for this provider yet; this build lacks the part it needs."
-    And the shell explains the messaging refusal "unavailable:mystery" as "No backend is available for this provider yet."
+    And the shell explains the messaging refusal "unavailable:no-ratchet-runtime" as "Needs the live shell and a signed-in identity."
+    And the shell explains the messaging refusal "unavailable:no-runtime" as "Not part of this build yet."
+    And the shell explains the messaging refusal "unavailable:mystery" as "Not available yet."
     And the shell explains the messaging refusal "invalid:recipient" as "That is not an identity. Paste one as it was shared with you."
     And the shell explains the messaging refusal "invalid:groups-unsupported" as "This provider writes to one person at a time."
     And the shell explains the messaging refusal "denied:nope" as "That did not work. Try again."
@@ -217,6 +223,7 @@ Feature: Shell words
       | p 0123456789abcdef         |
       | relay wss://relay.damus.io |
       | r wss://relay.nostr.band   |
+      | r https://example.com/page |
       | x hello world              |
     And the record to sign has the identifier "ff00"
     When the shell spells out the record for the account "abc"
@@ -227,9 +234,10 @@ Feature: Shell words
       | Created    | 1970-01-01T00:00:00.000Z   |
       | Content    | hello                      |
       | Label 1    | person · 0123456789abcdef  |
-      | Label 2    | server · damus.io          |
-      | Label 3    | server · a server          |
-      | Label 4    | label · hello · world      |
+      | Label 2    | relay · relay.damus.io     |
+      | Label 3    | relay · relay.nostr.band   |
+      | Label 4    | link · https://example.com/page |
+      | Label 5    | label · hello · world      |
       | Identifier | ff00                       |
 
   Scenario: a list signed by someone else, with nothing to say
@@ -306,7 +314,7 @@ Feature: Shell words
       | mine   | The shell will always use your order, without asking.                                         |
 
   Scenario: Settings lists the three reply rules, asking first
-    Then the reply rules are "Ask me | Reply the way they wrote to me | Always use my order"
+    Then the reply rules are "Ask me | Reply their way | Use my order"
 
   Scenario Outline: Settings says for how many people the question is settled
     Then <count> settled answers read "<words>"
@@ -342,3 +350,61 @@ Feature: Shell words
     And with "dm,identity" switched on, these stay:
       | shell | dm | identity | theme | storage | config | notify | keys | intent |
     And with "relay,identity" switched on, nothing is withheld from "relay,upload,webrtc,inc"
+
+  Scenario Outline: a firewall question is put in plain words
+    Given a firewall question of kind "<kind>" about '<requests>'
+    Then the firewall question reads "<title>"
+    And its rows are "<rows>"
+
+    Examples:
+      | kind    | requests                                                                                                           | title                                 | rows                                                   |
+      | link    | [{"kind":"resource","domain":"link","operation":"link.open","target":"https://example.org/a?b=1"}]                 | Open a link outside kernl             | Link=https://example.org/a?b=1; Leads to=example.org   |
+      | link    | [{"kind":"resource","domain":"link","operation":"link.open","target":"mailto:ada@example.org"}]                    | Open a link outside kernl             | Link=mailto:ada@example.org; Leads to=your mail app    |
+      | link    | [{"kind":"resource","domain":"link","operation":"link.open","target":"not an address"}]                            | Open a link outside kernl             | Link=not an address; Leads to=not an address           |
+      | access  | [{"kind":"access","domain":"relay","operation":"access","target":"relay"}]                                         | Use network                           | Uses=network                                           |
+      | access  | [{"kind":"access","domain":"relay","operation":"access","target":"relay"},{"kind":"access","domain":"dm","operation":"access","target":"dm"},{"kind":"access","domain":"upload","operation":"access","target":"upload"}] | Use network, messages and uploads | Uses=network; Uses=messages; Uses=uploads |
+      | request | [{"kind":"network","domain":"relay","operation":"relay.network","target":"wss://one.example"},{"kind":"network","domain":"relay","operation":"relay.network","target":"wss://one.example"},{"kind":"resource","domain":"notify","operation":"notify.send","target":"x"}] | Go ahead with a request | Reaches=one.example; For=notifications |
+
+  Scenario: every firewall question carries one short line, and nothing names the protocol
+    Then the firewall notes for "link,access,request" each say why the person is asked
+    And the firewall's words never name the protocol
+
+  Scenario Outline: a firewall answer's button says what it does
+    Then the "<choice>" answer to a "<kind>" question reads "<words>"
+
+    Examples:
+      | choice        | kind    | words                  |
+      | allow-once    | link    | Open link              |
+      | deny          | link    | Don’t open             |
+      | allow-once    | request | Allow once             |
+      | allow-session | access  | Allow while open       |
+      | allow-always  | access  | Always allow           |
+      | deny          | access  | Don’t allow            |
+
+  Scenario Outline: an answer in force reads as what it lets through and for how long
+    Then the firewall answer '<request>' that is "<effect>" for "<lifetime>" reads "<words>"
+
+    Examples:
+      | request                                                                                         | effect | lifetime | words                                                           |
+      | {"kind":"access","domain":"relay","operation":"access","target":"relay"}                        | allow  | always   | network: allowed, kept across visits                            |
+      | {"kind":"network","domain":"relay","operation":"relay.network","target":"wss://one.example"}    | deny   | session  | network, reaching one.example: refused, until its window closes |
+      | {"kind":"resource","domain":"link","operation":"link.open","target":"https://example.org/a"}    | allow  | session  | opening example.org: allowed, until its window closes           |
+
+  Scenario Outline: a rule is read at its own target and followed down to the wider ones
+    Given firewall rules '<rules>'
+    Then the rule set at '<target>' is "<own>", what happens there is "<in force>", and leaving it unset reads "<inherit>"
+
+    Examples:
+      | rules                                                                                               | target                                    | own     | in force | inherit                                        |
+      | {"default":"allow","operations":{"link.open":"ask"}}                                                | {}                                        | allow   | allow    | Default (allow)   |
+      | {"default":"allow","operations":{"link.open":"ask"}}                                                | {"operation":"link.open"}                 | ask     | ask      | Default (allow)   |
+      | {"default":"allow","domains":{"link":"deny"}}                                                       | {"operation":"link.open"}                 | inherit | deny     | Default (refuse)                 |
+      | {"default":"ask"}                                                                                   | {"domain":"relay"}                        | inherit | ask      | Default (ask every time)      |
+      | {"default":"allow","operations":{"link.open":"ask"}}                                                | {"applet":"a1","operation":"link.open"}   | inherit | ask      | Default (ask every time)      |
+      | {"default":"allow","operations":{"link.open":"ask"},"napplets":{"a1":{"domains":{},"operations":{"link.open":"allow"}}}} | {"applet":"a1","operation":"link.open"} | allow | allow | Default (ask every time) |
+      | {"default":"allow","napplets":{"a1":{"default":"deny","domains":{"relay":"ask"},"operations":{}}}}  | {"applet":"a1","domain":"relay"}          | ask     | ask      | Default (refuse)                 |
+      | {"default":"allow","napplets":{"a1":{"default":"deny","domains":{},"operations":{}}}}               | {"applet":"a1"}                           | deny    | deny     | Default (allow)   |
+      | {"default":"allow","napplets":{"a1":{"domains":{"relay":"ask"},"operations":{}}}}                   | {"applet":"a1"}                           | inherit | allow    | Default (allow)   |
+
+  Scenario: a rule select's value becomes an action, or nothing for the wider rule
+    Then the rule choices "allow,ask,deny,inherit,anything" become "allow,ask,deny,none,none"

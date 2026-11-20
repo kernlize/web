@@ -1,6 +1,6 @@
 Feature: Guard pipeline
   The guard sits in front of kehto's bridge: ingress flood control, then the
-  visibility gate, then the focus-aware firewall. Window-level messages can be
+  visibility gate, then the focus-aware rate limiter. Window-level messages can be
   held or dropped. Port traffic is decided before kehto's runtime sees it: it
   is dispatched, held until the window is visible, or dropped (D-020).
 
@@ -56,7 +56,7 @@ Feature: Guard pipeline
     And the pipeline marks window "w1" visible
     Then 0 messages were forwarded
 
-  Scenario: the firewall rejects a window that publishes past its rate
+  Scenario: the rate limiter rejects a window that publishes past its rate
     When paced window messages of type "relay.publish" arrive from window "w1" until one is rejected, at most 40
     Then the pipeline disposition was "reject"
     And at least 20 messages were forwarded
@@ -125,7 +125,7 @@ Feature: Guard pipeline
     When the pipeline observes a port envelope of type "shell.ready" from window "w1"
     Then the pipeline disposition was "dispatch"
 
-  Scenario: a port request over the firewall's budget is dropped
+  Scenario: a port request over the rate limiter's budget is dropped
     When the pipeline observes 25 paced port envelopes of type "intent.invoke" from window "w1"
     Then the pipeline disposition was "drop"
     And the pipeline emitted guard events with reasons "rate:intent:invoke"
@@ -137,13 +137,13 @@ Feature: Guard pipeline
     When a window message of type "relay.subscribe" arrives from window "w1"
     Then the pipeline disposition was "defer"
 
-  Scenario Outline: the runtime firewall's reports are told in the guard's words, without the message
-    When the runtime firewall reports rule "<rule>" with decision "<decision>" for "<runtime class>"
+  Scenario Outline: the runtime's budget reports are told in the guard's words
+    When the runtime reports a spent budget for "<operation>" with action "<action>"
     Then the guard was told of a "<disposition>" of "<op class>" because "<reason>", and nothing else
 
     Examples:
-      | rule         | decision | runtime class | disposition | op class        | reason             |
-      | rate:opclass | reject   | state:write   | reject      | storage:write   | rate:storage:write |
-      | burst        | reject   | relay:read    | reject      | relay:subscribe | flood:startup      |
-      | policy:deny  | prompt   | made:up       | reject      | generic         | runtime:policy:deny |
-      | matcher:big  | pass     | relay:write   | flag        | relay:publish   | runtime:matcher:big |
+      | operation         | action | disposition | op class        | reason             |
+      | storage.set       | block  | reject      | storage:write   | rate:storage:write |
+      | relay.subscribe   | block  | reject      | relay:subscribe | rate:relay:subscribe |
+      | config.get        | flag   | flag        | generic         | rate:generic       |
+      | permission.prompt | block  | reject      | generic         | flood:prompts      |

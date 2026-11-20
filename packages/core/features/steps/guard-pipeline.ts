@@ -2,8 +2,7 @@ import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import { createGuardConfig, type GuardEvent, type GuardProfile, type WindowVisibility } from '@kernlize/guard';
 import type { NappletMessageDecision } from '@kehto/shell';
-import type { Decision } from '@kehto/rate-limit/legacy';
-import { createGuardPipeline, createRuntimeFirewallHooks, type GuardPipeline, type PipelineDisposition, type WindowResolution } from '@kernlize/core';
+import { createGuardPipeline, toGuardEvent, type GuardPipeline, type PipelineDisposition, type WindowResolution } from '@kernlize/core';
 import { scratch, splitList, type CoreWorld } from './world.js';
 
 interface PipelineRecord {
@@ -217,11 +216,9 @@ Then('the pipeline profile is {string}', (world: CoreWorld, profile: GuardProfil
   expect(state(world).profiles.at(-1)).toBe(profile);
 });
 
-When('the runtime firewall reports rule {string} with decision {string} for {string}', (world: CoreWorld, ruleId: string, decision: Decision, opClass: string) => {
-  const events: GuardEvent[] = [];
-  const hooks = createRuntimeFirewallHooks({ storage: scratch(world).storage, onEvent: (event) => void events.push(event) });
-  hooks.onFirewallEvent({ windowId: 'w1', napplet: 'chat', opClass, decision, action: 'block', ruleId, reason: 'secret detail', message: { type: 'storage.set', value: 'secret' } as never });
-  scratch(world).runtimeEvents = events;
+When('the runtime reports a spent budget for {string} with action {string}', (world: CoreWorld, operation: string, action: 'block' | 'flag') => {
+  const report = { windowId: 'w1', operation, action, reason: 'rate-exceeded' as const };
+  scratch(world).runtimeEvents = [toGuardEvent(report, 'chat', 7)];
 });
 
 Then('the guard was told of a {string} of {string} because {string}, and nothing else', (world: CoreWorld, disposition: string, opClass: string, reason: string) => {

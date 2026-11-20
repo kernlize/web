@@ -1,6 +1,5 @@
 import type { ConsentSummary } from './contract';
-import { serverName } from './servers';
-import { namesProtocol } from './vocabulary';
+import { hostOf } from './servers';
 
 /** Plain words for the short tag names a record carries; anything else is just a label. */
 const TAG_NAMES: Readonly<Record<string, string>> = {
@@ -8,13 +7,12 @@ const TAG_NAMES: Readonly<Record<string, string>> = {
   e: 'item',
   a: 'address',
   t: 'topic',
-  r: 'server',
-  relay: 'server',
+  relay: 'relay',
   d: 'name',
   k: 'type',
 };
 
-const SERVER_VALUE = /^wss?:\/\//i;
+const RELAY_VALUE = /^wss?:\/\//i;
 
 /** Plain names for the record types the shell asks consent for; the number follows in parentheses. */
 const KIND_NAMES: Readonly<Record<number, string>> = {
@@ -34,22 +32,21 @@ function kindName(kind: number): string {
   return 'record';
 }
 
-/** How a server address reads in a record: its display name, or just "a server" when that name would name the protocol. */
-function serverText(value: string): string {
-  const name = serverName(value);
-  return namesProtocol(name) ? 'a server' : name;
-}
-
 /** Who signs the record: the active account, or another person by a shortened key. */
 function signerText(pubkey: string, accountKey: string | undefined): string {
   if (!pubkey || pubkey === accountKey) return 'your identity';
   return `person ${pubkey.slice(0, 8)}…`;
 }
 
-/** One tag in plain words: its name translated, server addresses shown by their display name. */
+/** What a tag is called: a reference is a relay when it holds a relay's address, a link otherwise. */
+function tagName(name: string, first = ''): string {
+  if (name === 'r') return RELAY_VALUE.test(first) ? 'relay' : 'link';
+  return Object.hasOwn(TAG_NAMES, name) ? (TAG_NAMES[name] as string) : 'label';
+}
+
+/** One tag in plain words: its name translated, relay addresses shown by their own host (D-051). */
 function tagText([name = '', ...values]: readonly string[]): string {
-  const plain = Object.hasOwn(TAG_NAMES, name) ? (TAG_NAMES[name] as string) : 'label';
-  return [plain, ...values.map((value) => (SERVER_VALUE.test(value) ? serverText(value) : value))].join(' · ');
+  return [tagName(name, values[0]), ...values.map((value) => (RELAY_VALUE.test(value) ? hostOf(value) : value))].join(' · ');
 }
 
 /** One labelled field of the exact record the shell will sign. */
@@ -61,14 +58,14 @@ export interface EventDetail {
 /**
  * The full record behind a consent prompt, with plain labels instead of wire field names (DECISIONS D-006).
  * Nothing is hidden: every field and every tag value is listed, so a careful reader sees exactly what is signed.
- * Tag names are put in plain words and server addresses read by their display name.
+ * Tag names are put in plain words and relay addresses read by their own host.
  * @param event The event attached to the consent summary.
  * @param accountKey The active account's key, so its own records read "your account".
  * @returns Rows in signing order.
  * @example
  * eventDetails(summary.event, session.pubkey).map((row) => `${row.label}: ${row.value}`);
  */
-export function eventDetails(event: ConsentSummary['event'], accountKey?: string): readonly EventDetail[] {
+export function eventDetails(event: NonNullable<ConsentSummary['event']>, accountKey?: string): readonly EventDetail[] {
   const rows: EventDetail[] = [
     { label: 'Type', value: `${kindName(event.kind)} (${event.kind})` },
     { label: 'Signed by', value: signerText(event.pubkey, accountKey) },

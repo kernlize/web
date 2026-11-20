@@ -6,7 +6,9 @@ import type { GroupReqMessage, PublishResponse } from 'applesauce-relay';
 import type { Filter } from 'applesauce-core/helpers';
 import type { NappletArtifactCache, WriteVerifiedResolutionInput } from '@kehto/nip/5d';
 import type { NostrEvent, NostrFilter } from '@napplet/core';
-import type { ApplesaucePool, FrameLike, SigningConsent, StorageLike } from '@kernlize/core';
+import type { PermissionAdapter } from '@kehto/runtime';
+import { createGuardConfig } from '@kernlize/guard';
+import { createFirewallPermissions, createFirewallRules, createRuntimeRateLimiter, type ApplesaucePool, type FrameLike, type SigningConsent, type StorageLike } from '@kernlize/core';
 
 /** Map-backed storage satisfying both `StorageLike` and the parts of `Storage` kehto touches. */
 export class MemoryStorage implements StorageLike {
@@ -293,3 +295,14 @@ export async function attempt(world: CoreWorld, body: () => unknown): Promise<vo
 
 /** A consent gate that lets every signature through, for steps that are not about consent. */
 export const allowAllSigning: SigningConsent = async () => undefined;
+
+/** kernl's real firewall adapter under the shipped rules, with nobody to ask and nowhere to report. */
+export function quietPermissions(storage: StorageLike): PermissionAdapter {
+  return createFirewallPermissions({
+    host: { storage, notify: () => undefined },
+    rules: createFirewallRules(storage),
+    appletOf: () => undefined,
+    rateLimiter: createRuntimeRateLimiter(() => createGuardConfig('strict')),
+    onRateLimit: () => undefined,
+  });
+}

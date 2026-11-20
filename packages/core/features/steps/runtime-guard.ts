@@ -1,23 +1,12 @@
 import { expect, vi } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import type { NappletRevocationReason } from '@kehto/shell';
-import type { FirewallStateContainer } from '@kehto/rate-limit/legacy';
+import { runtimeOpClass } from '@kernlize/core';
 import { k, settle } from './kernl.js';
 import { scratch, type CoreWorld } from './world.js';
 
 /** The fake bridges answer any address under this prefix. */
 const FILES = 'https://files.example/';
-
-/** The firewall the runtime itself evaluates, which must be the one kernl configures. */
-function firewall(world: CoreWorld): FirewallStateContainer {
-  const legacy = k(world).kernl.bridge.runtime.legacyFirewall;
-  expect(legacy).toBeDefined();
-  return legacy as FirewallStateContainer;
-}
-
-function policyOf(world: CoreWorld, napplet: string): string {
-  return firewall(world).getConfig().napplets[napplet]?.policy ?? 'none';
-}
 
 Then('the applet received no {string}', (world: CoreWorld, type: string) => {
   expect(k(world).received.map((entry) => entry.type)).not.toContain(type);
@@ -36,37 +25,36 @@ Then('the fake bridges were asked for nothing', (world: CoreWorld) => {
   expect(k(world).bridgeCalls).toEqual([]);
 });
 
-Then('the runtime firewall scales unfocused budgets by {float} and allows {int} operations in a window\'s first {int} ms', (world: CoreWorld, multiplier: number, maxOps: number, windowMs: number) => {
-  const config = firewall(world).getConfig();
-  expect(config.unfocusedMultiplier).toBe(multiplier);
-  expect(config.burstGuard).toEqual({ windowMs, maxOps, action: 'block' });
+Then('the runtime charges what it carries out against the guard\'s budgets, a {string} at {int} per {int} ms', (world: CoreWorld, operation: string, capacity: number, windowMs: number) => {
+  const { permissions, legacyFirewall } = k(world).kernl.bridge.runtime;
+  expect(permissions?.available).toBe(true);
+  expect(legacyFirewall).toBeUndefined();
+  expect(k(world).kernl.guard.config.rateLimits[runtimeOpClass(operation)]).toMatchObject({ capacity, windowMs, action: 'block' });
 });
 
 Then('the runtime ACL refuses {string} to an applet the user never granted anything', (world: CoreWorld, capability: 'relay:read') => {
   expect(k(world).kernl.bridge.runtime.aclState.check('', 'stranger', 'ab'.repeat(32), capability)).toBe(false);
 });
 
-Then('the host storage holds the runtime firewall config under {string}', (world: CoreWorld, key: string) => {
-  const stored = JSON.parse(scratch(world).storage.getItem(key) ?? '{}') as { napplets?: Record<string, unknown> };
-  expect(stored.napplets?.chat).toBeDefined();
+Then('the host storage no longer holds {string}', (world: CoreWorld, key: string) => {
+  expect(scratch(world).storage.getItem(key)).toBeNull();
 });
 
 When('kehto revokes the mounted window for {string}', (world: CoreWorld, reason: NappletRevocationReason) => {
   k(world).kernl.bridge.revokeNapplet(k(world).plan?.windowId ?? '', reason);
 });
 
-Given('the applet\'s startup window has passed', (world: CoreWorld) => {
-  advance(world, 1000);
+Given('the host storage holds {string} under {string}', (world: CoreWorld, value: string, key: string) => {
+  scratch(world).storage.setItem(key, value);
+});
+
+Then('the rogue window got no answer', (world: CoreWorld) => {
+  const answers = k(world).received.filter((entry) => typeof entry.id === 'string' && (entry.id.startsWith('rogue') || entry.id === 'publish-1'));
+  expect(answers).toEqual([]);
 });
 
 Then('no guard event carries the applet\'s message', (world: CoreWorld) => {
   for (const event of k(world).guardEvents) expect(Object.keys(event).sort()).toEqual(['at', 'disposition', 'napplet', 'opClass', 'reason', 'windowId']);
-});
-
-Then('the runtime firewall holds no policy for {string} and a {string} rate of {int} per {int} ms', (world: CoreWorld, napplet: string, opClass: string, capacity: number, windowMs: number) => {
-  const rules = firewall(world).getConfig().napplets[napplet];
-  expect(policyOf(world, napplet)).toBe('none');
-  expect(rules?.rateLimits[opClass]).toEqual({ capacity, windowMs, action: 'block' });
 });
 
 const VISIBILITY = {
@@ -95,7 +83,7 @@ When('the applet sends {int} {string} requests over its port, {int} ms apart', a
   await settle();
 });
 
-/** The manual clock also drives `Date`, because kehto's runtime reads `Date.now()` for its budgets and startup window. */
+/** The manual clock also drives `Date`, which kehto's runtime reads for the times it stamps. */
 function advance(world: CoreWorld, ms: number): void {
   scratch(world).clock = (scratch(world).clock as number) + ms;
   vi.setSystemTime(scratch(world).clock as number);
@@ -106,7 +94,7 @@ function answerTo(world: CoreWorld, type: string, n: number): Record<string, unk
 }
 
 function refused(answer: Record<string, unknown> | undefined): boolean {
-  return String(answer?.error).startsWith('firewall: ');
+  return answer?.error === 'rate limit exceeded';
 }
 
 Then('{string} requests {int} to {int} were answered', (world: CoreWorld, type: string, from: number, to: number) => {
@@ -126,7 +114,7 @@ Then('at least one {string} request got no answer', (world: CoreWorld, type: str
   expect(Array.from({ length: sent }, (_, i) => answerTo(world, type, i + 1)).some((answer) => answer === undefined)).toBe(true);
 });
 
-Then('{string} requests {int} to {int} were refused by the firewall', (world: CoreWorld, type: string, from: number, to: number) => {
+Then('{string} requests {int} to {int} were refused for the rate limit', (world: CoreWorld, type: string, from: number, to: number) => {
   for (let n = from; n <= to; n += 1) expect(refused(answerTo(world, type, n)), `${type}-${n}`).toBe(true);
 });
 

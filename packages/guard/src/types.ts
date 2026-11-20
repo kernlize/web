@@ -1,4 +1,4 @@
-import type { FirewallConfig, EvaluateResult } from '@kehto/rate-limit/legacy';
+import type { RateLimitAction, RateLimitConfig } from '@kehto/rate-limit';
 
 /**
  * How much an applet is allowed to do before the guard intervenes.
@@ -10,7 +10,7 @@ export type GuardProfile = 'strict' | 'balanced' | 'relaxed';
 
 /**
  * Operation class the guard assigns to an inbound applet envelope. kehto's
- * firewall treats the class as an opaque key; kernl gives it meaning.
+ * rate limiter treats the class as an opaque key; kernl gives it meaning.
  */
 export type OpClass =
   | 'relay:subscribe'
@@ -72,17 +72,24 @@ export interface GuardLimits {
   readonly maxResourceEnvelopeBytes: number;
   /** Largest `relay.subscribe` / `outbox.subscribe` envelope in bytes. */
   readonly maxSubscribeEnvelopeBytes: number;
-  /** Token-bucket capacity per op class per window. */
+  /** Token-bucket capacity per op class, kept per applet. */
   readonly rates: Readonly<Record<OpClass, { capacity: number; windowMs: number }>>;
   /** Multiplier applied to rate capacities while a window is unfocused. */
   readonly unfocusedMultiplier: number;
 }
 
-/** A complete guard configuration: the profile, its limits and the derived kehto firewall config. */
+/**
+ * A complete guard configuration: the profile, its limits, and the budgets
+ * derived from them in the shape `@kehto/rate-limit` evaluates.
+ */
 export interface GuardConfig {
   readonly profile: GuardProfile;
   readonly limits: GuardLimits;
-  readonly firewall: FirewallConfig;
+  /**
+   * One budget per operation class. None carries a startup burst: the ingress
+   * guard counts every second of a window's life, its first included.
+   */
+  readonly rateLimits: Readonly<Record<OpClass, RateLimitConfig>>;
 }
 
 /** Per-call options for `IngressGuard.admit`. */
@@ -122,10 +129,19 @@ export interface VisibilityGate {
   forget(windowId: string): void;
 }
 
-/** Focus-aware firewall over the pure kehto engine. */
-export interface FocusFirewall {
-  /** Evaluate one envelope. Focus comes from the shell, never from the applet. */
-  observe(windowId: string, napplet: string, envelope: GuardEnvelope, visibility: WindowVisibility): EvaluateResult;
+/** What the focus-aware rate limiter decided about one envelope. */
+export interface RateVerdict {
+  /** `reject` only when the budget is spent and its action is `block`. */
+  readonly decision: 'pass' | 'reject';
+  /** What the spent budget says to do; `ignore` while within budget. */
+  readonly action: RateLimitAction;
+  readonly reason: 'within-budget' | 'rate-exceeded';
+}
+
+/** Focus-aware rate limiter over kehto's pure evaluator. */
+export interface FocusRateLimiter {
+  /** Charge one envelope. Focus comes from the shell, never from the applet. */
+  observe(windowId: string, napplet: string, envelope: GuardEnvelope, visibility: WindowVisibility): RateVerdict;
   /** Reset counters for a window; call on revocation. */
   forget(windowId: string): void;
 }

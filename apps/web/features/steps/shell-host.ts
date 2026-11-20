@@ -2,6 +2,7 @@ import { expect, vi } from 'vitest';
 import { After, Given, Then, When } from 'quickpickle';
 import type { ConsentPrompt, KernlHost, StorageLike } from '../../src/shell/contract.ts';
 import { createHost, pickStorage, PREVIEW_STORAGE_PREFIX, scopedStorage, type AppletOpener } from '../../src/shell/host.ts';
+import { SHELL_CHORDS, shellShortcut, type ShortcutRunner } from '../../src/shell/shortcuts.ts';
 
 type HostDeps = Parameters<typeof createHost>[0];
 
@@ -18,6 +19,7 @@ interface FakeWindow {
 interface HostScratch {
   readonly host: KernlHost;
   readonly queued: ConsentPrompt[];
+  readonly firewallQueued: unknown[];
   readonly settings: unknown[];
   readonly notices: unknown[];
   readonly windows: Map<string, FakeWindow>;
@@ -27,6 +29,8 @@ interface HostScratch {
   readonly asked: unknown[];
   readonly focused: string[];
   readonly opener: AppletOpener;
+  readonly shortcuts: ShortcutRunner;
+  readonly ran: string[];
 }
 
 interface HostWorld {
@@ -98,16 +102,20 @@ Given('the shell host with window {string} titled {string}', (world: HostWorld, 
   const notices: unknown[] = [];
   const windows = new Map<string, FakeWindow>([[windowId, { title }]]);
   const opened: unknown[][] = [];
+  const firewallQueued: unknown[] = [];
   const confirmations: string[] = [];
   const asked: unknown[] = [];
   const focused: string[] = [];
   const opener: AppletOpener = {};
+  const shortcuts: ShortcutRunner = {};
   const deps = fake<HostDeps>({
+    shortcuts,
     handlers: { ask: async (prompt: unknown) => (asked.push(prompt), { id: 'picked', remember: true }) },
     replies: { ask: async (prompt: unknown) => (asked.push(prompt), { use: 'theirs', remember: 'conversation' }) },
     opener,
     storage: { getItem: () => null, setItem: () => undefined, removeItem: () => undefined },
     consent: { enqueue: (prompt: ConsentPrompt) => void queued.push(prompt) },
+    firewall: { enqueue: (prompt: unknown) => void firewallQueued.push(prompt) },
     settings: { show: (prompt: unknown) => void settings.push(prompt) },
     notices: { push: (notice: unknown) => notices.push(notice) },
     windows: {
@@ -123,7 +131,7 @@ Given('the shell host with window {string} titled {string}', (world: HostWorld, 
       },
     },
   });
-  const scratch: HostScratch = { host: createHost(deps), queued, settings, notices, windows, opened, confirmations, confirm: false, asked, focused, opener };
+  const scratch: HostScratch = { host: createHost(deps), queued, firewallQueued, settings, notices, windows, opened, confirmations, confirm: false, asked, focused, opener, shortcuts, ran: [] };
   vi.stubGlobal('window', {
     confirm: (message: string) => {
       confirmations.push(message);
@@ -161,6 +169,21 @@ When('the shell host is asked to open {string} and the user says {string}', (wor
   const scratch = hostOf(world);
   scratch.confirm = answer === 'yes';
   scratch.host.openLink(url);
+});
+
+When('the shell host is asked to open {string}, which the firewall already let through', (world: HostWorld, url: string) => {
+  hostOf(world).host.openLink(url, { approved: true });
+});
+
+Then('the shell host did not ask again', (world: HostWorld) => {
+  expect(hostOf(world).confirmations).toEqual([]);
+});
+
+Then('the shell host puts a firewall question in the firewall queue', (world: HostWorld) => {
+  const scratch = hostOf(world);
+  const prompt = { summary: { kind: 'link' }, resolve: () => undefined };
+  scratch.host.presentApproval?.(prompt as never);
+  expect(scratch.firewallQueued).toEqual([prompt]);
 });
 
 Then('the shell host asked before opening {string}', (world: HostWorld, url: string) => {
@@ -225,3 +248,27 @@ Then('the preview reads {string} as {string}, and nothing once it removes it', (
   world.scoped?.preview.removeItem(key);
   expect(world.scoped?.preview.getItem(key)).toBeNull();
 });
+
+const pressed = (key: string, code: string, alt: string) => ({ key, code, altKey: alt === 'held', ctrlKey: false, shiftKey: false, metaKey: false });
+
+When('the shell is on screen', (world: HostWorld) => {
+  const scratch = hostOf(world);
+  scratch.shortcuts.run = (key) => void scratch.ran.push(shellShortcut(key) ?? 'none');
+});
+
+When('the shell host is handed the key {string} at {string} with Alt {string}', (world: HostWorld, key: string, code: string, alt: string) => {
+  hostOf(world).host.onShortcut?.(pressed(key, code, alt));
+});
+
+Then('the shell ran the shortcuts {string}', (world: HostWorld, expected: string) => {
+  expect(hostOf(world).ran.filter((shortcut) => shortcut !== 'none').join(',')).toBe(expected);
+});
+
+Then("the key {string} at {string} with Alt {string} is the shell's {string} shortcut", (_world: HostWorld, key: string, code: string, alt: string, shortcut: string) => {
+  expect(shellShortcut(pressed(key, code, alt)) ?? 'none').toBe(shortcut);
+});
+
+Then('an applet cannot bind {string}', (_world: HostWorld, chord: string) => {
+  expect(SHELL_CHORDS).toContain(chord);
+});
+

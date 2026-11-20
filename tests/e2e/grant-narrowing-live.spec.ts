@@ -24,13 +24,27 @@ async function openMessages(page: Page): Promise<void> {
 
 test('taking back a domain a running applet uses stops it, and granting one does not', async ({ page }) => {
   await openMessages(page);
-  await page.getByRole('checkbox', { name: /keyboard shortcuts/ }).check();
+  await page.getByRole('checkbox', { name: /^notifications/ }).check();
   await expect(page.locator('section.window')).toHaveAttribute('data-status', 'running');
   await page.getByRole('checkbox', { name: /^messages/ }).uncheck();
   await page.keyboard.press('Escape');
   await expect(page.locator('section.window')).toHaveAttribute('data-status', 'revoked');
   await expect(page.locator('section.window').getByText('You took back something it was using.', { exact: false })).toBeVisible();
   await expect(page.locator('iframe[data-window-id]')).toHaveCount(0);
+});
+
+test('every grant shows its contract beside its plain words (D-057)', async ({ page }) => {
+  await openMessages(page);
+  const panel = page.getByRole('dialog', { name: 'Grants for Messages' });
+  // The name reads as it looks: the words, then the contract, then the caption under them.
+  for (const [label, contract] of [['messages', 'DM'], ['network', 'RELAY'], ['web fetches', 'RESOURCE'], ['posting to your network', 'OUTBOX']] as const) {
+    await expect(panel.getByRole('checkbox', { name: new RegExp(`^${label} ${contract}( |$)`) }), contract).toHaveCount(1);
+  }
+  const tag = panel.locator('[data-contract]', { hasText: /^RESOURCE$/ });
+  await expect(tag).toBeVisible();
+  // Quieter than the words beside it.
+  const sizes = await tag.evaluate((element) => [parseFloat(getComputedStyle(element).fontSize), parseFloat(getComputedStyle(element.parentElement as Element).fontSize)]);
+  expect(sizes[0]).toBeLessThan(sizes[1] as number);
 });
 
 test('blocking a running applet stops it', async ({ page }) => {

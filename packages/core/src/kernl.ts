@@ -4,11 +4,14 @@ import { RelayPool } from 'applesauce-relay';
 import type { AccountManager, IAccount } from 'applesauce-accounts';
 import type { ISigner } from 'applesauce-signers';
 import type { MessagingRegistry } from '@kernlize/messaging';
+import type { BridgeContext } from '@kernlize/bridges';
 import { buildShellCapabilities, createShellBridge, type ShellAdapter, type ShellBridge } from '@kehto/shell';
 import { createGuardConfig, describeMitigations, type GuardEvent } from '@kernlize/guard';
 import type { AccountFileServers } from './files/file-servers.js';
 import type { AppletIdentity, AppletSummary, Grants, GuardFacade, Kernl, KernlHost, KernlMultiplayer, KernlOptions, RelayTiers, Session } from './types.js';
+import { createKernlDownloads, type KernlDownloads } from './kernl-downloads.js';
 import { createMultiplayerSettings } from './multiplayer/settings.js';
+import { createStorageSecrets, type SecretsProvider } from './secrets/secrets.js';
 import { discoverToolFamilies } from './multiplayer/tool-discovery.js';
 import { createKernlAccounts } from './applesauce/accounts.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
@@ -24,7 +27,7 @@ import { decodePointer } from './applets/pointer.js';
 import { defaultFetchBlob, openDefaultArtifactCache } from './applets/resolve.js';
 import type { MountedApplet } from './applets/mount.js';
 import { createGuardPipeline, type GuardPipeline } from './guard/pipeline.js';
-import { applyRuntimeFirewallProfile, applyRuntimeFirewallRules, createRuntimeFirewallHooks, type RuntimeFirewallState } from './guard/runtime-rules.js';
+import { createShellFirewall } from './kernl-firewall.js';
 import { createEnvironmentResolver, createGrants, type KernlGrants } from './grants/grants.js';
 import { createConsentHandler, createSigningConsent, lookupReplaceable } from './consent/handler.js';
 import { abbreviate } from './consent/describe-change.js';
@@ -41,7 +44,7 @@ import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { createShellAdapter } from './kernl-adapter.js';
 import { createAppletLifecycle } from './kernl-lifecycle.js';
 import { createKernlIntents } from './kernl-intents.js';
-import { loadCatalog, streamCatalog } from './catalog/fetch.js';
+import { loadCatalog, streamCatalog, type LoadCatalogOptions } from './catalog/fetch.js';
 
 /**
  * Describe an account as a session the UI can show.
@@ -61,10 +64,7 @@ export function toSession(account: IAccount, card?: ProfileCard): Session {
 }
 
 interface ShellState {
-  readonly pipeline: GuardPipeline;
-  readonly firewall: RuntimeFirewallState;
   readonly bridge: ShellBridge;
-  readonly handles: ReadonlyMap<string, MountedApplet>;
   readonly accounts: AccountManager;
   readonly session$: BehaviorSubject<Session | null>;
   readonly profiles: Profiles;
@@ -72,13 +72,9 @@ interface ShellState {
   readonly tiers: RelayTiers;
 }
 
-/** Keep the runtime firewall on the guard's profile and the session on the active account. */
-function followShellState({ pipeline, firewall, bridge, handles, accounts, session$, profiles, mailboxes, tiers }: ShellState): Subscription {
+/** Keep the session on the active account and the outbox tier on where it publishes. */
+function followShellState({ bridge, accounts, session$, profiles, mailboxes, tiers }: ShellState): Subscription {
   const subscriptions = new Subscription();
-  subscriptions.add(pipeline.profile$.subscribe(() => {
-    applyRuntimeFirewallProfile(firewall, pipeline.config);
-    for (const handle of handles.values()) applyRuntimeFirewallRules(firewall, pipeline.config, handle.summary.identity.dTag);
-  }));
   subscriptions.add(accounts.active$.subscribe((account) => bridge.publishIdentityChanged(account?.pubkey ?? '')));
   // The session's label follows the account's published name once it arrives.
   const sessions = accounts.active$.pipe(switchMap((account) => (account ? profiles.card$(account.pubkey).pipe(map((card) => toSession(account, card))) : of(null))));
@@ -150,13 +146,30 @@ function createAccountMessaging(options: KernlOptions, parts: MessagingParts): M
   });
 }
 
+/**
+ * The servers a running applet's manifest names, for the applet the bridges say asked. An applet's
+ * own assets sit beside its artifact, and a `blossom:` reference usually names no server (D-055).
+ */
+function manifestServersOf(handles: ReadonlyMap<string, MountedApplet>, requester: BridgeContext['requester']): readonly string[] {
+  if (requester === 'shell') return [];
+  for (const handle of handles.values()) {
+    const { identity, manifest } = handle.summary;
+    if (identity.dTag === requester.dTag && identity.hash === requester.hash) return manifest.servers;
+  }
+  return [];
+}
+
 /** The host's messaging and bridge registries, or kernl's defaults over the shell's parts. */
-function registriesFor(options: KernlOptions, parts: MessagingParts): Pick<Kernl, 'messaging' | 'bridges'> {
+function registriesFor(options: KernlOptions, parts: MessagingParts, handles: ReadonlyMap<string, MountedApplet>): Pick<Kernl, 'messaging' | 'bridges'> {
   const { host } = options;
   return {
     messaging: options.messaging ?? createAccountMessaging(options, parts),
     // host.openLink asks before leaving kernl, so every hand-off is confirmed by the user (D-010).
-    bridges: options.bridges ?? createDefaultBridges({ handoff: (uri) => host.openLink(uri), ...(options.torrent ? { torrent: options.torrent } : {}) }),
+    bridges: options.bridges ?? createDefaultBridges({
+      handoff: (uri) => host.openLink(uri),
+      blossomServers: (requester) => manifestServersOf(handles, requester),
+      ...(options.torrent ? { torrent: options.torrent } : {}),
+    }),
   };
 }
 
@@ -212,6 +225,26 @@ function directConnectionsFor(options: KernlOptions, appletOf: (windowId: string
   };
 }
 
+/**
+ * The download programs and their services. An NZB an applet names by address is fetched through
+ * the web bridge, so it meets the same address policy and size limit as any other fetch (D-050).
+ */
+function downloadsFor(options: KernlOptions, bridges: Kernl['bridges'], identityOf: (windowId: string) => AppletIdentity | undefined, ownerOf: (windowId: string) => string | undefined): KernlDownloads & { readonly secrets: SecretsProvider } {
+  const secrets = options.secrets ?? createStorageSecrets(options.host.storage);
+  return { secrets, ...createKernlDownloads({
+    host: options.host,
+    options: options.downloads,
+    secrets,
+    identityOf,
+    ownerOf,
+    async fetchDocument(url, signal) {
+      const result = await bridges.resolve(url, { requester: 'shell', signal });
+      if (result.kind !== 'bytes') throw new Error('unavailable:not-a-document');
+      return new Uint8Array(await result.response.arrayBuffer());
+    },
+  }) };
+}
+
 /** The applet a window runs, keyed by its catalogue id so its settings outlive a version. */
 function appletOf(handles: ReadonlyMap<string, MountedApplet>, windowId: string): { key: string; title: string } | undefined {
   const summary = handles.get(windowId)?.summary;
@@ -225,6 +258,8 @@ interface ShellParts {
   readonly network: { readonly directory: { stop(): void }; readonly eventCache: { close(): Promise<void> } };
   readonly intents: { close(): void };
   readonly dm: { dispose(): void };
+  readonly downloads: { dispose(): void };
+  readonly keys: { destroy(): void };
   readonly bridge: ShellBridge;
   /** Closed only when the shell created it. */
   readonly messaging?: MessagingRegistry;
@@ -240,9 +275,35 @@ function tearDown(parts: ShellParts): void {
   void parts.network.eventCache.close();
   parts.intents.close();
   parts.dm.dispose();
+  parts.downloads.dispose();
+  parts.keys.destroy();
   parts.bridge.destroy();
   parts.messaging?.close();
   parts.pool?.close();
+}
+
+/** The guard in front of kehto's bridge, which quarantines and releases through it. */
+function pipelineFor(options: KernlOptions, parts: { readonly handles: ReadonlyMap<string, MountedApplet>; readonly guardEvents$: Subject<GuardEvent>; readonly bridge: () => ShellBridge }): GuardPipeline {
+  const { host } = options;
+  return createGuardPipeline({
+    config: createGuardConfig(options.guard?.profile ?? 'strict'),
+    ...(host.now ? { now: host.now.bind(host) } : {}),
+    onEvent: (event) => parts.guardEvents$.next(event),
+    onQuarantine: (windowId) => {
+      parts.handles.get(windowId)?.revoked('quarantine');
+      parts.bridge().revokeNapplet(windowId, 'host');
+    },
+    getVisibility: (windowId) => host.getVisibility(windowId),
+    onRelease: (windowId) => parts.bridge().releaseDeferred(windowId),
+  });
+}
+
+/** The applet store's catalogue over the shell's pool, tiers and event cache. */
+function catalogFor(pool: RelayPool, tiers: RelayTiers, cached: Required<Pick<LoadCatalogOptions, 'cache' | 'store'>>): Kernl['catalog'] {
+  return {
+    load: (loadOptions) => loadCatalog(pool, tiers, { ...cached, ...loadOptions }),
+    stream: (streamOptions) => streamCatalog(pool, tiers, { ...cached, ...streamOptions }),
+  };
 }
 
 /**
@@ -275,32 +336,23 @@ export function createKernl(options: KernlOptions): Kernl {
   const pool = options.pool ?? new RelayPool(SHELL_RELAY_OPTIONS);
   const accounts = options.accounts ?? createKernlAccounts(host.storage);
   const tiers = createRelayTiers(host.storage, options.relays ?? {});
-  const { messaging, bridges } = registriesFor(options, { eventStore, pool, tiers, accounts });
-
   const handles = new Map<string, MountedApplet>();
+  const { messaging, bridges } = registriesFor(options, { eventStore, pool, tiers, accounts }, handles);
+
   const guardEvents$ = new Subject<GuardEvent>();
   const session$ = new BehaviorSubject<Session | null>(null);
   const destroyed$ = new Subject<void>();
   const subscriptions = new Subscription();
   let grants: KernlGrants;
 
-  const pipeline = createGuardPipeline({
-    config: createGuardConfig(options.guard?.profile ?? 'strict'),
-    ...(host.now ? { now: host.now.bind(host) } : {}),
-    onEvent: (event) => guardEvents$.next(event),
-    onQuarantine: (windowId) => {
-      handles.get(windowId)?.revoked('quarantine');
-      bridge.revokeNapplet(windowId, 'host');
-    },
-    getVisibility: (windowId) => host.getVisibility(windowId),
-    onRelease: (windowId) => bridge.releaseDeferred(windowId),
-  });
+  const pipeline = pipelineFor(options, { handles, guardEvents$, bridge: () => bridge });
 
   const identityOf = (windowId: string): AppletIdentity | undefined => handles.get(windowId)?.summary.identity;
   const { eventCache, replaceableLoader, profiles, people, directory, mailboxes, files, signer } = createKernlNetwork(options, { eventStore, pool, tiers, accounts, destroyed$ });
   const lookupBefore = lookupReplaceable(eventStore, { loader: replaceableLoader, relays: () => [...tiers.get().outbox, ...tiers.get().discovery] });
   const consent = createSigningConsent({ host, lookupBefore, resolveApplet: identityOf, pubkey: () => accounts.active?.pubkey });
   const meeting = meetingFor(options, { pool, tiers, appletOf: (windowId) => handles.get(windowId)?.summary, grants: () => grants });
+  const downloads = downloadsFor(options, bridges, identityOf, (windowId) => handles.get(windowId)?.summary.manifest.catalogId);
   const services = createKernlServices({
     pool,
     tiers,
@@ -317,6 +369,7 @@ export function createKernl(options: KernlOptions): Kernl {
     uploader: uploaderFor(host, files, signer, identityOf),
     ...(isTheme(options.theme) ? { theme: options.theme } : {}),
     ...meeting.deps,
+    shortcuts: { ...options.shortcuts, isFocused: (windowId) => pipeline.getVisibility(windowId).focused },
     resolveIdentity(windowId) {
       const identity = identityOf(windowId);
       return identity ? { dTag: identity.dTag, aggregateHash: identity.hash } : null;
@@ -324,12 +377,8 @@ export function createKernl(options: KernlOptions): Kernl {
   });
 
   const intents = createKernlIntents({ host, pool, tiers, accounts, handles, ...(options.intentRetry ? { retry: options.intentRetry } : {}) });
-  services.registry.intent = intents.handler;
-  const runtimeFirewall = createRuntimeFirewallHooks({
-    storage: host.storage,
-    onEvent: (event) => guardEvents$.next(event),
-    ...(host.now ? { now: host.now.bind(host) } : {}),
-  });
+  Object.assign(services.registry, { intent: intents.handler }, downloads.services);
+  const guarding = createShellFirewall({ host, pipeline, handles, guardEvents$ });
   const adapter: ShellAdapter = createShellAdapter({
     pool,
     tiers,
@@ -340,13 +389,16 @@ export function createKernl(options: KernlOptions): Kernl {
     onNappletRevoked: ({ windowId, reason }) => handles.get(windowId)?.revoked(reason),
     filterNappletMessage: (windowId, message) => pipeline.observe(windowId, identityOf(windowId)?.dTag ?? 'unknown', message),
     getFocusContext: (windowId) => ({ focused: pipeline.getVisibility(windowId).focused }),
-    runtimeFirewall,
+    permissions: guarding.permissions,
+    ...(host.onShortcut ? { onShortcut: host.onShortcut.bind(host) } : {}),
   });
   const bridge = createShellBridge(adapter);
-  grants = createGrants({ acl: bridge.runtime.aclState, storage: host.storage, availableDomains: () => buildShellCapabilities(adapter).domains });
+  grants = createGrants({ acl: bridge.runtime.aclState, storage: host.storage, availableDomains: () => [...buildShellCapabilities(adapter).domains, ...(downloads.extensions?.domains ?? [])] });
   bridge.registerConsentHandler(createConsentHandler(host, lookupBefore, identityOf));
 
-  subscriptions.add(followShellState({ pipeline, firewall: runtimeFirewall.legacyFirewall, bridge, handles, accounts, session$, profiles, mailboxes, tiers }));
+  const { firewall, admissions } = guarding.attach(bridge.runtime);
+  subscriptions.add(() => firewall.close());
+  subscriptions.add(followShellState({ bridge, accounts, session$, profiles, mailboxes, tiers }));
 
   const lifecycle = createAppletLifecycle({
     pool,
@@ -354,7 +406,8 @@ export function createKernl(options: KernlOptions): Kernl {
     adapter,
     bridge,
     pipeline,
-    firewall: runtimeFirewall.legacyFirewall,
+    admissions,
+    remember: guarding.remember,
     grants,
     installed: intents.installed,
     host,
@@ -362,7 +415,7 @@ export function createKernl(options: KernlOptions): Kernl {
     subscriptions,
     openCache: options.artifactCache ?? openDefaultArtifactCache,
     fetchBlob: host.fetchBlob ? host.fetchBlob.bind(host) : defaultFetchBlob,
-    builtins: options.builtins ?? [],
+    builtins: options.builtins ?? [], ...(downloads.extensions ? { extensions: downloads.extensions } : {}),
   });
 
   return {
@@ -375,17 +428,15 @@ export function createKernl(options: KernlOptions): Kernl {
     relays: tiers,
     messaging,
     bridges,
-    catalog: {
-      load: (loadOptions) => loadCatalog(pool, tiers, { cache: eventCache.cacheRequest, store: eventStore, ...loadOptions }),
-      stream: (streamOptions) => streamCatalog(pool, tiers, { cache: eventCache.cacheRequest, store: eventStore, ...streamOptions }),
-    },
+    catalog: catalogFor(pool, tiers, { cache: eventCache.cacheRequest, store: eventStore }),
     profiles,
     people,
     mailboxes,
     files,
-    multiplayer: meeting.multiplayer,
+    multiplayer: meeting.multiplayer, downloads: downloads.programs, secrets: downloads.secrets.description,
     directory,
     intents: intents.intents,
+    firewall,
     session$,
     get session() {
       return session$.value;
@@ -394,6 +445,6 @@ export function createKernl(options: KernlOptions): Kernl {
     decodePointer,
     ...lifecycle,
     destroy: () =>
-      tearDown({ handles, subscriptions, destroyed$, network: { directory, eventCache }, intents, dm: services.dm, bridge, ...(ownsMessaging ? { messaging } : {}), ...(ownsPool ? { pool } : {}) }),
+      tearDown({ handles, subscriptions, destroyed$, network: { directory, eventCache }, intents, dm: services.dm, downloads, keys: services.keys, bridge, ...(ownsMessaging ? { messaging } : {}), ...(ownsPool ? { pool } : {}) }),
   };
 }
