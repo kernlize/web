@@ -1,5 +1,12 @@
 # @kernlize/bridges
 
+## 0.3.0
+
+### Minor Changes
+
+- 9488528: Applets' `blossom:` resources load. `createBlossomBridge` and `parseBlossomReference` are new in `@kernlize/bridges`: the bridge reads BUD-10 references and the `blossom:sha256:<hash>` form, asks the reference's hints and then the requester's servers under the web policy, and returns only bytes whose hash matches. `createDefaultBridges` registers it, with `blossomServers` for each requester's servers, and `createKernl` passes the running applet's manifest servers. Resource failures now reach applets as their NAP-RESOURCE codes (`not-found`, `unsupported-scheme`, `blocked-by-policy`, …) through the new `resourceErrorFor`, instead of all as `network-error`.
+- 06c02fc: Adapters that drive the download programs a person already runs, each through the program's own HTTP API: `createTransmissionClient` and `createUtorrentClient` (`TorrentClient`), `createNzbgetClient` and `createSabnzbdClient` (`NzbClient`), and `createSlskdClient` (`SoulseekClient`). Every method rejects with one of the `ClientFailure` reasons. `checkClientEndpoint`, `endpointCandidates` and `detectClientEndpoint` check a program's address against how the page was loaded and work out its scheme; `readTorrentMetainfo` and `magnetInfoHash` read a v1 info hash from a `.torrent` file or a magnet link.
+
 ## 0.2.1
 
 ### Patch Changes

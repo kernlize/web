@@ -1,5 +1,32 @@
 # @kernlize/core
 
+## 0.13.0
+
+### Minor Changes
+
+- 9488528: Applets' `blossom:` resources load. `createBlossomBridge` and `parseBlossomReference` are new in `@kernlize/bridges`: the bridge reads BUD-10 references and the `blossom:sha256:<hash>` form, asks the reference's hints and then the requester's servers under the web policy, and returns only bytes whose hash matches. `createDefaultBridges` registers it, with `blossomServers` for each requester's servers, and `createKernl` passes the running applet's manifest servers. Resource failures now reach applets as their NAP-RESOURCE codes (`not-found`, `unsupported-scheme`, `blocked-by-policy`, …) through the new `resourceErrorFor`, instead of all as `network-error`.
+- 06c02fc: The `torrent`, `nzb` and `soulseek` domains over programs the person runs, through which an applet can add torrents and NZBs, follow and control their jobs, read a torrent's metadata and change its limits and sharing, and search and browse shared libraries: `createTorrentService`, `createNzbService`, `createSoulseekService`, `createDownloadClients` (`kernl.downloads`) and `createKernlDownloads`. A person may keep any number of connections, several to one program among them (`DownloadConnection`, with a random `id` and a `label`): `check`, `add`, `update`, `remove`, `chooseDefault` and `routing`. kernl sends a new torrent to the connection that already holds it, else the domain's default, sends searches to the default, and keeps each job and query on its connection; NZB applets choose among connections by label. Secrets are kept under `download:<connection id>:password` and `…:apiKey`. New reasons `invalid:label` and `invalid:connection`. The domains are offered only when the installed `@kehto/shell` prelude renders a binding table (`supportsDomainBindings`), or `KernlOptions.downloads.offer` says the host's own does. Passwords and keys go to a `SecretsProvider` the host can replace through `KernlOptions.secrets`; `createStorageSecrets` is the default and `createMemorySecrets` keeps them for the session only.
+
+  **Breaking.** `ConsentSummary.event` is optional: a download question is not about an event, so a `presentConsent` implementation must not assume one. `Kernl` gains the required members `downloads` and `secrets`, so anything that implements the interface itself must supply both.
+
+- 4d19b2a: kehto's firewall is now an approval authority and its temporal engine moved to `@kehto/rate-limit`; kernl adopts both (D-056).
+
+  `@kernlize/guard`: `createFocusFirewall` is `createFocusRateLimiter`, over `@kehto/rate-limit`'s `evaluateRateLimit` with one budget per operation class in `GuardConfig.rateLimits`. `applyNappletRules`, `GuardConfig.firewall` and the legacy engine are gone. A `firewall` mitigation is described.
+
+  `@kernlize/core`: the shell configures kehto's `permissions`. Every applet is admitted by the firewall in `plan`, and every request is put to it. `defaultFirewallRules` allows what the person granted and asks about every link. `Kernl.firewall` sets rules and takes answers back; `KernlHost.presentApproval` shows a question; `KernlHost.openLink` is told when a link was already approved. `createRuntimeRateLimiter` replaces the legacy rate gate, and the `runtime-rules` exports are removed.
+
+- 6bc9b41: Keyboard shortcuts work for every applet. `keys` is now a baseline domain served by `createShortcutsService`: an applet gets the key it asks for, is told its bindings, and has its action run in the focused window. A keymap registered as an applet starts is held through the startup window instead of being refused, a held key's repeats no longer count as a flood, and the guard classifies `keys.*` as `control`. `createKernlServices` requires `shortcuts`, `KernlOptions.shortcuts` reserves the host's own chords, and `KernlHost.onShortcut` receives the keys an applet forwards.
+
+### Patch Changes
+
+- 63b2cc0: A relay is called a relay and shown by its own host. Consent summaries say `relay relay.damus.io` where they said `server damus.io`, `Inbox relays added` and `Outbox relays added` for a changed inbox and outbox, and `Relays asked` in a request to erase an identity. `describeOutcome` says `Saved to 2 of 3 relays`, `No relay accepted it` and `There was no relay to save it to`.
+- Updated dependencies [9488528]
+- Updated dependencies [06c02fc]
+- Updated dependencies [4d19b2a]
+- Updated dependencies [6bc9b41]
+  - @kernlize/bridges@0.3.0
+  - @kernlize/guard@0.3.0
+
 ## 0.12.0
 
 ### Minor Changes
