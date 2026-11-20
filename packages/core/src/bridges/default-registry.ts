@@ -1,4 +1,5 @@
 import {
+  createBlossomBridge,
   createBridgeRegistry,
   createHandoffBackends,
   createHttpBridge,
@@ -6,6 +7,7 @@ import {
   createNzbBridge,
   createSoulseekBridge,
   createTorrentBridge,
+  type BlossomBridgeOptions,
   type BridgeRegistry,
   type BridgeRegistryOptions,
   type HandoffOpener,
@@ -27,11 +29,14 @@ export interface DefaultBridgesOptions extends BridgeRegistryOptions {
    * hand-off for downloads from peers; the other bridges still hand off (D-017).
    */
   readonly torrent?: TorrentBackend;
+  /** The servers to look for a `blossom:` blob on for each requester, after the reference's own hints (D-055). */
+  readonly blossomServers?: BlossomBridgeOptions['serversFor'];
 }
 
 /**
- * The shell's bridge registry: the web bridge, complete, plus the downloads, sharing
- * and mail bridges. With a `handoff` opener those four hand each locator to an app on
+ * The shell's bridge registry: the web bridge, complete, the Blossom bridge, which
+ * fetches through the same web policy and verifies every blob's hash (D-055), plus
+ * the downloads, sharing and mail bridges. With a `handoff` opener those four hand each locator to an app on
  * the user's device; without one they report `unavailable` (D-010). A `torrent` backend
  * replaces the hand-off for magnet links, so they download inside kernl (D-017).
  *
@@ -40,6 +45,7 @@ export interface DefaultBridgesOptions extends BridgeRegistryOptions {
  * @example
  * ```ts
  * createDefaultBridges().forScheme('magnet')?.availability(); // { available: false, reason: 'no-backend' }
+ * createDefaultBridges({ blossomServers: (requester) => serversOf(requester) }).forScheme('blossom')?.id; // 'blossom'
  * const bridges = createDefaultBridges({ handoff: (uri) => host.openLink(uri) });
  * bridges.forScheme('magnet')?.availability(); // { available: true, handoff: true }
  * const inKernl = createDefaultBridges({ handoff, torrent: createWebTorrentBackend({ client }) });
@@ -47,10 +53,11 @@ export interface DefaultBridgesOptions extends BridgeRegistryOptions {
  * ```
  */
 export function createDefaultBridges(options: DefaultBridgesOptions = {}): BridgeRegistry {
-  const { http, handoff, torrent, ...registryOptions } = options;
+  const { http, handoff, torrent, blossomServers, ...registryOptions } = options;
   const registry = createBridgeRegistry(registryOptions);
   const backends = handoff ? createHandoffBackends(handoff) : undefined;
   registry.register(createHttpBridge(http));
+  registry.register(createBlossomBridge({ ...(http ? { http } : {}), ...(blossomServers ? { serversFor: blossomServers } : {}) }));
   registry.register(createTorrentBridge(torrent ?? backends?.torrent));
   registry.register(createNzbBridge(backends?.nzb));
   registry.register(createSoulseekBridge(backends?.soulseek));

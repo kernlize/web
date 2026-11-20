@@ -4,6 +4,7 @@ import { RelayPool } from 'applesauce-relay';
 import type { AccountManager, IAccount } from 'applesauce-accounts';
 import type { ISigner } from 'applesauce-signers';
 import type { MessagingRegistry } from '@kernlize/messaging';
+import type { BridgeContext } from '@kernlize/bridges';
 import { buildShellCapabilities, createShellBridge, type ShellAdapter, type ShellBridge } from '@kehto/shell';
 import { createGuardConfig, describeMitigations, type GuardEvent } from '@kernlize/guard';
 import type { AccountFileServers } from './files/file-servers.js';
@@ -150,13 +151,30 @@ function createAccountMessaging(options: KernlOptions, parts: MessagingParts): M
   });
 }
 
+/**
+ * The servers a running applet's manifest names, for the applet the bridges say asked. An applet's
+ * own assets sit beside its artifact, and a `blossom:` reference usually names no server (D-055).
+ */
+function manifestServersOf(handles: ReadonlyMap<string, MountedApplet>, requester: BridgeContext['requester']): readonly string[] {
+  if (requester === 'shell') return [];
+  for (const handle of handles.values()) {
+    const { identity, manifest } = handle.summary;
+    if (identity.dTag === requester.dTag && identity.hash === requester.hash) return manifest.servers;
+  }
+  return [];
+}
+
 /** The host's messaging and bridge registries, or kernl's defaults over the shell's parts. */
-function registriesFor(options: KernlOptions, parts: MessagingParts): Pick<Kernl, 'messaging' | 'bridges'> {
+function registriesFor(options: KernlOptions, parts: MessagingParts, handles: ReadonlyMap<string, MountedApplet>): Pick<Kernl, 'messaging' | 'bridges'> {
   const { host } = options;
   return {
     messaging: options.messaging ?? createAccountMessaging(options, parts),
     // host.openLink asks before leaving kernl, so every hand-off is confirmed by the user (D-010).
-    bridges: options.bridges ?? createDefaultBridges({ handoff: (uri) => host.openLink(uri), ...(options.torrent ? { torrent: options.torrent } : {}) }),
+    bridges: options.bridges ?? createDefaultBridges({
+      handoff: (uri) => host.openLink(uri),
+      blossomServers: (requester) => manifestServersOf(handles, requester),
+      ...(options.torrent ? { torrent: options.torrent } : {}),
+    }),
   };
 }
 
@@ -275,9 +293,9 @@ export function createKernl(options: KernlOptions): Kernl {
   const pool = options.pool ?? new RelayPool(SHELL_RELAY_OPTIONS);
   const accounts = options.accounts ?? createKernlAccounts(host.storage);
   const tiers = createRelayTiers(host.storage, options.relays ?? {});
-  const { messaging, bridges } = registriesFor(options, { eventStore, pool, tiers, accounts });
-
   const handles = new Map<string, MountedApplet>();
+  const { messaging, bridges } = registriesFor(options, { eventStore, pool, tiers, accounts }, handles);
+
   const guardEvents$ = new Subject<GuardEvent>();
   const session$ = new BehaviorSubject<Session | null>(null);
   const destroyed$ = new Subject<void>();
