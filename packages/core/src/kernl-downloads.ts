@@ -27,6 +27,8 @@ export interface KernlDownloadsDeps {
   readonly secrets: SecretsProvider;
   /** The verified applet a window runs, or undefined. */
   readonly identityOf: (windowId: string) => AppletIdentity | undefined;
+  /** The catalogue id of the applet a window runs, which what it starts is kept under. */
+  readonly ownerOf: (windowId: string) => string | undefined;
   /** Fetches an NZB an applet named by address, under the shell's own fetch policy. */
   readonly fetchDocument: (url: string, signal: AbortSignal) => Promise<Uint8Array>;
 }
@@ -79,7 +81,7 @@ export function describeDownloadQuestion(question: DownloadQuestion, applet: App
  * @returns Settings, handlers, the planning extension and teardown.
  * @example
  * ```ts
- * const downloads = createKernlDownloads({ host, options: undefined, secrets: createStorageSecrets(host.storage), identityOf, fetchDocument });
+ * const downloads = createKernlDownloads({ host, options: undefined, secrets: createStorageSecrets(host.storage), identityOf, ownerOf, fetchDocument });
  * Object.assign(services.registry, downloads.services);
  * ```
  */
@@ -95,6 +97,7 @@ export function createKernlDownloads(deps: KernlDownloadsDeps): KernlDownloads {
 
   const base = (exposesAddress: boolean): DownloadServiceDeps => ({
     appletOf: deps.identityOf,
+    ownerOf: deps.ownerOf,
     storage: host.storage,
     ...(host.now ? { now: host.now.bind(host) } : {}),
     ask(windowId, question) {

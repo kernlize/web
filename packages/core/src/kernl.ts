@@ -218,13 +218,14 @@ function directConnectionsFor(options: KernlOptions, appletOf: (windowId: string
  * The download programs and their services. An NZB an applet names by address is fetched through
  * the web bridge, so it meets the same address policy and size limit as any other fetch (D-050).
  */
-function downloadsFor(options: KernlOptions, bridges: Kernl['bridges'], identityOf: (windowId: string) => AppletIdentity | undefined): KernlDownloads & { readonly secrets: SecretsProvider } {
+function downloadsFor(options: KernlOptions, bridges: Kernl['bridges'], identityOf: (windowId: string) => AppletIdentity | undefined, ownerOf: (windowId: string) => string | undefined): KernlDownloads & { readonly secrets: SecretsProvider } {
   const secrets = options.secrets ?? createStorageSecrets(options.host.storage);
   return { secrets, ...createKernlDownloads({
     host: options.host,
     options: options.downloads,
     secrets,
     identityOf,
+    ownerOf,
     async fetchDocument(url, signal) {
       const result = await bridges.resolve(url, { requester: 'shell', signal });
       if (result.kind !== 'bytes') throw new Error('unavailable:not-a-document');
@@ -324,7 +325,7 @@ export function createKernl(options: KernlOptions): Kernl {
   const lookupBefore = lookupReplaceable(eventStore, { loader: replaceableLoader, relays: () => [...tiers.get().outbox, ...tiers.get().discovery] });
   const consent = createSigningConsent({ host, lookupBefore, resolveApplet: identityOf, pubkey: () => accounts.active?.pubkey });
   const meeting = meetingFor(options, { pool, tiers, appletOf: (windowId) => handles.get(windowId)?.summary, grants: () => grants });
-  const downloads = downloadsFor(options, bridges, identityOf);
+  const downloads = downloadsFor(options, bridges, identityOf, (windowId) => handles.get(windowId)?.summary.manifest.catalogId);
   const services = createKernlServices({
     pool,
     tiers,

@@ -96,6 +96,7 @@ export function openShell(state: RoutingState): KernlDownloads {
     options: { offer: true, pageScheme: () => 'http' },
     secrets: withholdingSecrets(state),
     identityOf: (windowId) => (state.windows.has(windowId) ? { dTag: state.windows.get(windowId) as string, hash: 'cd'.repeat(32) } : undefined),
+    ownerOf: (windowId) => state.windows.get(windowId),
     fetchDocument: () => Promise.reject(new Error('unavailable:not-used')),
   });
   return state.downloads;

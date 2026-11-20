@@ -55,6 +55,7 @@ function seek(world: CoreWorld): Seek {
 function serviceOf(state: Seek): DownloadService {
   state.service ??= createSoulseekService({
     connections: memoryRouting((): SoulseekClient | undefined => (state.configured ? state.daemon : undefined), 'slskd'),
+    ownerOf: (windowId) => (state.live.has(windowId) ? 'pk:35129:crate' : undefined),
     appletOf: (windowId) => (state.live.has(windowId) ? { dTag: 'crate', hash: 'cd'.repeat(32) } : undefined),
     async ask(windowId, question) {
       expect(state.live.has(windowId)).toBe(true);

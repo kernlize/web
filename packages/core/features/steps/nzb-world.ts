@@ -69,6 +69,7 @@ export function setup(state: NzbState, label: string): NzbSetup {
 export function service(state: NzbState): DownloadService {
   state.service ??= createNzbService({
     downloaders: () => state.downloaders,
+    ownerOf: (windowId) => state.applets.get(windowId),
     appletOf: (windowId) => (state.applets.has(windowId) ? { dTag: state.applets.get(windowId) as string, hash: 'cd'.repeat(32) } : undefined),
     async ask(windowId, question) {
       state.questions.push({ windowId, question });

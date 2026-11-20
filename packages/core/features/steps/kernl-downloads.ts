@@ -93,6 +93,7 @@ Given('download services over a sharing daemon, for a window that stops being an
     },
     secrets: createStorageSecrets(storage),
     identityOf: () => (live ? IDENTITY : undefined),
+    ownerOf: () => (live ? IDENTITY.dTag : undefined),
     fetchDocument: () => Promise.reject(new Error('unavailable:not-used')),
   });
   const { lock } = state.slskd;

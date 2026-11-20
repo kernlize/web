@@ -13,6 +13,7 @@ export const ROUTED_POLL_MS = 20;
 /** The torrent service over the store's routing, as a shell starts it; every question is answered yes. */
 export function startTorrents(state: RoutingState): void {
   state.torrent = createTorrentService({
+    ownerOf: (windowId) => state.windows.get(windowId),
     appletOf: (windowId) => (state.windows.has(windowId) ? { dTag: state.windows.get(windowId) as string, hash: 'cd'.repeat(32) } : undefined),
     ask: async (_windowId, question) => {
       state.questions.push(question);

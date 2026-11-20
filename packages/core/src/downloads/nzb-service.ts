@@ -115,8 +115,8 @@ export function createNzbService(options: NzbServiceOptions): DownloadService {
           deliver(body);
         };
         waiting.set(windowId, pending.set(id, reply));
-        const applet = options.appletOf(windowId)?.dTag;
-        const call: NzbCall = { windowId, applet: applet ?? '', live: () => wanted() && options.appletOf(windowId)?.dTag === applet };
+        const applet = options.ownerOf(windowId);
+        const call: NzbCall = { windowId, applet: applet ?? '', live: () => wanted() && options.ownerOf(windowId) === applet };
         void answer(call, applet !== undefined, message).then(reply, (error: unknown) => {
           const { code, message: words, replayUntil } = nzbFaultOf(error, false);
           reply({ error: { code, message: words, ...(replayUntil === undefined ? {} : { replayUntil }) } });

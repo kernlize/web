@@ -14,6 +14,8 @@ type Wire = NappletMessage & Record<string, unknown>;
 interface TorrentWindow {
   readonly windowId: string;
   readonly applet: string | undefined;
+  /** Whose applet it is, when another publisher's applet goes by the same name. */
+  readonly publisher?: string;
   readonly results: Wire[];
   readonly pushes: Wire[];
 }
@@ -76,6 +78,10 @@ function windowOf(world: CoreWorld, name: string): TorrentWindow {
 function startService(world: CoreWorld, scenario: () => Torrents, pollMs: number | undefined): DownloadService {
   const windowWith = (windowId: string): TorrentWindow | undefined => [...scenario().windows.values()].find((window) => window.windowId === windowId);
   const service = createTorrentService({
+    ownerOf: (windowId) => {
+      const window = windowWith(windowId);
+      return window?.applet === undefined ? undefined : `${window.publisher ?? 'pk'}:35129:${window.applet}`;
+    },
     appletOf: (windowId) => {
       const applet = windowWith(windowId)?.applet;
       return applet === undefined ? undefined : { dTag: applet, hash: 'cd'.repeat(32) };
@@ -194,6 +200,10 @@ Given('the person takes the torrent program out of their settings', (world: Core
 
 Given('the applet {string} is open in the torrent window {string}', (world: CoreWorld, applet: string, name: string) => {
   torrents(world).windows.set(name, { windowId: `window-${name}`, applet, results: [], pushes: [] });
+});
+
+Given("another publisher's applet, also called {string}, is open in the torrent window {string}", (world: CoreWorld, applet: string, name: string) => {
+  torrents(world).windows.set(name, { windowId: `window-${name}`, applet, publisher: 'other-pk', results: [], pushes: [] });
 });
 
 Given('the torrent window {string} is not a live applet', (world: CoreWorld, name: string) => {

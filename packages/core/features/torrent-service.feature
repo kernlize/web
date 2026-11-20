@@ -231,6 +231,14 @@ Feature: Torrent downloads through the person's own torrent program
       Then the torrent window "A" gets back exactly '{"type":"torrent.add.result","ack":{"ok":false,"error":"unsupported-transport","reason":"That torrent program is no longer set up."}}'
       And the torrent program was never called
 
+    Scenario: an applet from another publisher with the same name is another applet
+      Given another publisher's applet, also called "reader", is open in the torrent window "B"
+      When the torrent window "A" sends '{"type":"torrent.add","request":{"jobId":"shared-name","source":{"sourceType":"magnet","magnet":"$magnet:ubuntu"},"options":{"retention":"persistent"}}}'
+      And the torrent window "B" sends '{"type":"torrent.jobs"}'
+      Then the torrent window "B" gets back exactly '{"type":"torrent.jobs.result","jobs":[]}'
+      When the torrent window "B" sends '{"type":"torrent.status","jobId":"shared-name"}'
+      Then the torrent window "B" gets back exactly '{"type":"torrent.status.result","error":"job-not-found"}'
+
     Scenario: another applet cannot see, read or change a job by knowing its id
       Given the applet "music" is open in the torrent window "B"
       When the torrent window "A" sends '{"type":"torrent.add","request":{"jobId":"shared-name","source":{"sourceType":"magnet","magnet":"$magnet:ubuntu"},"options":{"retention":"persistent"}}}'
@@ -377,7 +385,7 @@ Feature: Torrent downloads through the person's own torrent program
       And the torrent window "C" is pushed the state "downloading" for "ubuntu"
 
     Scenario: what comes back out of storage is checked, and damaged jobs are dropped
-      Given the torrent job storage holds '[{"applet":"films","jobId":"kept","infoHash":"$hash:ubuntu","connection":"memory","mode":"download","revision":3,"downloadLimit":0,"uploadLimit":0,"paused":false,"title":"ubuntu"},{"applet":"films","jobId":"kept","infoHash":"$hash:debian","connection":"memory","mode":"download","revision":0,"downloadLimit":0,"uploadLimit":0,"paused":false},{"applet":"films","jobId":"no-connection","infoHash":"$hash:debian","mode":"download","revision":0,"downloadLimit":0,"uploadLimit":0,"paused":false},{"applet":"films","jobId":"bad-connection","infoHash":"$hash:debian","connection":7,"mode":"download","revision":0,"downloadLimit":0,"uploadLimit":0,"paused":false},{"applet":"films","jobId":"bad-hash","infoHash":"../../etc","mode":"download","revision":0,"downloadLimit":0,"uploadLimit":0,"paused":false},{"applet":"films","jobId":"bad-mode","infoHash":"$hash:debian","mode":"seed","revision":0,"downloadLimit":0,"uploadLimit":0,"paused":false},{"applet":"films","jobId":"extra","infoHash":"$hash:debian","mode":"download","revision":0,"downloadLimit":0,"uploadLimit":0,"paused":false,"windowId":"window-A"},{"applet":"films","jobId":"partial"},"nonsense",null]'
+      Given the torrent job storage holds '[{"applet":"pk:35129:films","jobId":"kept","infoHash":"$hash:ubuntu","connection":"memory","mode":"download","revision":3,"downloadLimit":0,"uploadLimit":0,"paused":false,"title":"ubuntu"},{"applet":"pk:35129:films","jobId":"kept","infoHash":"$hash:debian","connection":"memory","mode":"download","revision":0,"downloadLimit":0,"uploadLimit":0,"paused":false},{"applet":"pk:35129:films","jobId":"no-connection","infoHash":"$hash:debian","mode":"download","revision":0,"downloadLimit":0,"uploadLimit":0,"paused":false},{"applet":"pk:35129:films","jobId":"bad-connection","infoHash":"$hash:debian","connection":7,"mode":"download","revision":0,"downloadLimit":0,"uploadLimit":0,"paused":false},{"applet":"pk:35129:films","jobId":"bad-hash","infoHash":"../../etc","mode":"download","revision":0,"downloadLimit":0,"uploadLimit":0,"paused":false},{"applet":"pk:35129:films","jobId":"bad-mode","infoHash":"$hash:debian","mode":"seed","revision":0,"downloadLimit":0,"uploadLimit":0,"paused":false},{"applet":"pk:35129:films","jobId":"extra","infoHash":"$hash:debian","mode":"download","revision":0,"downloadLimit":0,"uploadLimit":0,"paused":false,"windowId":"window-A"},{"applet":"pk:35129:films","jobId":"partial"},"nonsense",null]'
       When the shell is reloaded and starts its torrent service again
       And the applet "films" is open in the torrent window "A"
       And the torrent window "A" sends '{"type":"torrent.jobs"}'

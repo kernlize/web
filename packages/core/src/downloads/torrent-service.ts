@@ -404,7 +404,7 @@ const OPERATIONS: Readonly<Record<string, (engine: Engine, call: Call) => Promis
 function answer(engine: Engine, windowId: string, request: Envelope, send: (message: NappletMessage) => void): void {
   const { type, id } = request;
   const serve = async (): Promise<unknown> => {
-    const applet = engine.options.appletOf(windowId)?.dTag;
+    const applet = engine.options.ownerOf(windowId);
     if (applet === undefined) throw new TorrentFailure('policy-denied');
     engine.windows.set(windowId, applet);
     return (OPERATIONS[type] as (engine: Engine, call: Call) => Promise<unknown>)(engine, { windowId, applet, message: request });
