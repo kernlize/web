@@ -27,6 +27,8 @@ export interface ShellAdapterDeps {
   /** The firewall's host side: rules, questions, stored answers and the runtime's rate limiter; see `createFirewallPermissions`. */
   readonly permissions: PermissionAdapter;
   readonly onUnroutedMessage?: (info: UnroutedMessageInfo) => void;
+  /** Hears every envelope on a bound port before the guard decides it; observe-only. */
+  readonly onNappletMessage?: NonNullable<ShellAdapter['onNappletMessage']>;
   /** Takes a key an applet had no shortcut for, so the shell's own shortcuts work while an applet has focus (D-054). */
   readonly onShortcut?: (key: ShortcutKey) => void;
 }
@@ -97,5 +99,6 @@ export function createShellAdapter(deps: ShellAdapterDeps): ShellAdapter {
     permissions: deps.permissions,
     aclDefaultPolicy: 'restrictive',
     ...(deps.onUnroutedMessage ? { onUnroutedMessage: deps.onUnroutedMessage } : {}),
+    ...(deps.onNappletMessage ? { onNappletMessage: deps.onNappletMessage } : {}),
   };
 }

@@ -4,6 +4,7 @@ One task per page, with the exact calls. Each assumes you have the kernl source 
 
 | How-to | What it does |
 | --- | --- |
+| [Inspect an applet's messages](./inspect-applet-messages.md) | See what an applet sent and got back, with failures and the guard's warnings marked. |
 | [Change the guard profile](./change-guard-profile.md) | Switch the shell between `strict`, `balanced` and `relaxed`, and what a profile can and cannot change. |
 | [Change the firewall rules](./change-firewall-rules.md) | Set what applets may do without asking, by request, by kind and per applet, and take back the answers in force. |
 | [Grant and revoke](./grant-and-revoke.md) | What the shell asks when an applet opens, what each answer changes, and the `Kernl` calls behind the grants panel. |

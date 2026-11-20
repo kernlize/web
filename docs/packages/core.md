@@ -95,6 +95,7 @@ The host is the only way the core reaches the user or the page. Applets never re
 | --- | --- |
 | `accounts`, `eventStore`, `pool`, `bridge` | The applesauce `AccountManager`, `EventStore` and `RelayPool`, and kehto's `ShellBridge`. The web shell hides all but `accounts` from its UI. |
 | `guard: GuardFacade` | `config`, `profile$`, `setProfile(profile)`, `events$`, `mitigations()`, `release(windowId)`. `setProfile` rebuilds kernl's guard layers shell-wide; held window-level messages are dropped and counters restart. The runtime's rate limiter reads the new budgets on its next charge, and its counters carry over. It is not persisted. |
+| `traffic$: Observable<AppletMessage>` | Every message between this shell's applets and itself: `direction` (`from-applet` or `to-applet`), `via` (`window` or `port`), `type`, `error` when it reports a failure, the `message` itself and `at`. Window-level messages are reported before kehto sees them, so the one that gets an applet stopped is in the stream. Envelopes can hold private messages and signed events: keep them in memory only. See [Inspect an applet's messages](../how-tos/inspect-applet-messages.md). |
 | `grants: Grants` | The user-facing grants surface, see [Grants](#grants). |
 | `firewall: Firewall` | The rules for what applets may do without the user being asked, and the answers in force, see [The firewall](#the-firewall). |
 | `relays: RelayTiers` | `get()`, `add(tier, url)`, `remove(tier, url)`, `set(tier, urls)`, `changes$`. `add` and `set` throw `invalid:relay-url` for anything that is not `ws://` or `wss://`; `set` with an unchanged list emits nothing. |
@@ -540,6 +541,10 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `resolveAppletEnvironment` | `(adapter: ShellAdapter, summary: Pick<AppletSummary, 'identity'>) => ShellEnvironment` | The environment the grants leave an applet, before the firewall admits it. |
 | `mountApplet` | `(plan: MountPlan, frame: FrameLike, deps: MountDeps) => MountedApplet` | The NIP-5D mount order; throws `invalid:frame-detached`. Calls `frame.setAttribute('sandbox', 'allow-scripts')`. |
 | `CONTROLLER_DENY_POLICY` | `string` | `gamepad 'none'; hid 'none'; usb 'none'`. |
+| `appletMessageFailure` | `(message: unknown) => string \| undefined` | What an envelope says failed: a non-empty `error` string, or for a `*.error` type its `message`, its `reason` or the type. |
+| `describeAppletMessage` | `(windowId: string, direction: AppletMessageDirection, via: 'window' \| 'port', message: unknown) => AppletMessage` | One `traffic$` entry, timestamped now. A host that serves applets itself, like the shell's offline preview, uses it to report the same shape. |
+| `createAppletTraffic` | `(owns: (windowId: string) => boolean) => AppletTraffic` | What `createKernl` feeds `traffic$` from: `fromApplet(windowId, via, message)` for kehto's `onNappletMessage` and window-level messages, and every reply kehto sends through `originRegistry.postToNapplet`, for windows `owns` accepts. `close()` stops it. |
+| `AppletMessage`, `AppletMessageDirection`, `AppletTraffic` | types | See `traffic$` above. |
 | `BLOB_TIMEOUT_MS` | `20_000` | |
 | `MANIFEST_TIMING` | `ManifestTiming` | `{ settleMs: 3_000, patienceMs: 8_000, timeoutMs: 10_000, retryDelayMs: 1_000 }`, the waits of one round of a manifest lookup. |
 | `AppletStopDetails`, `AppletStopLimit` | types | What `host.onRevoked` is told beyond the reason code: kehto's `detail`, and for a quarantine the `limit` crossed (`cause`, `count`, `windowMs` when it is a rate, `profile`). |

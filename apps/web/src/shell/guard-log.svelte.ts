@@ -37,10 +37,15 @@ function because(event: GuardEvent): string {
   return reason;
 }
 
+/** "went over a limit: too many network reads", or "is waiting until you can see it: its publishes are held". */
+export function guardEventWords(event: GuardEvent): string {
+  if (event.reason.startsWith('hidden:')) return `is waiting until you can see it: its ${OP_WORDS[event.opClass]} are held`;
+  return `${VERBS[event.disposition]}: ${because(event)}`;
+}
+
 /** "Applet Notes went over a limit: too many network reads". A hidden applet's held requests read as waiting, not as a limit. */
 export function describeGuardEvent(event: GuardEvent, title: string): string {
-  if (event.reason.startsWith('hidden:')) return `Applet ${title} is waiting until you can see it: its ${OP_WORDS[event.opClass]} are held`;
-  return `Applet ${title} ${VERBS[event.disposition]}: ${because(event)}`;
+  return `Applet ${title} ${guardEventWords(event)}`;
 }
 
 export class GuardLog {

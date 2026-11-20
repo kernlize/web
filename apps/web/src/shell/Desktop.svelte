@@ -3,6 +3,8 @@
   import type { Booted, MountPlan, Session, StorageLike } from './contract';
   import FirewallPanel from './FirewallPanel.svelte';
   import GrantsPanel from './GrantsPanel.svelte';
+  import InspectorPanel from './InspectorPanel.svelte';
+  import type { TrafficLog } from './traffic-log.svelte';
   import type { GuardLog } from './guard-log.svelte';
   import type { AppletOpener } from './host';
   import GuardPanel from './GuardPanel.svelte';
@@ -26,16 +28,17 @@
     storage: StorageLike;
     windows: WindowStore;
     guardLog: GuardLog;
+    traffic: TrafficLog;
     opener: AppletOpener;
     /** Tell the user something went wrong, in the shell's notices. */
     onproblem: (title: string, body: string) => void;
     onsignout: () => void;
   }
 
-  const { booted, session, storage, windows, guardLog, opener, onproblem, onsignout }: Props = $props();
+  const { booted, session, storage, windows, guardLog, traffic, opener, onproblem, onsignout }: Props = $props();
   const kernl = $derived(booted.kernl);
 
-  type Overlay = { kind: 'grants'; windowId: string } | { kind: 'guard' } | { kind: 'firewall' } | { kind: 'downloads' };
+  type Overlay = { kind: 'grants'; windowId: string } | { kind: 'inspect'; windowId: string } | { kind: 'guard' } | { kind: 'firewall' } | { kind: 'downloads' };
 
   let overlay = $state.raw<Overlay | null>(null);
   /** The store is a window like any other (D-048); it is opened at an address when one was shared. */
@@ -54,6 +57,9 @@
   $effect(() => profile.stop);
 
   const grantsWindow = $derived(overlay?.kind === 'grants' ? windows.get(overlay.windowId) : undefined);
+  const inspectedWindow = $derived(overlay?.kind === 'inspect' ? windows.get(overlay.windowId) : undefined);
+  // A closed window's messages go with it.
+  $effect(() => traffic.retain(new Set(windows.windows.map((win) => win.id))));
 
   export function openLauncher(address?: string): void {
     overlay = null;
@@ -174,7 +180,7 @@
 
   <div class="desk" bind:this={desk} role="presentation">
     <div class="wallpaper" onpointerdown={() => windows.blur()}></div>
-    <WindowLayer {windows} ongrants={(windowId) => (overlay = { kind: 'grants', windowId })}>
+    <WindowLayer {windows} {traffic} ongrants={(windowId) => (overlay = { kind: 'grants', windowId })} oninspect={(windowId) => (overlay = { kind: 'inspect', windowId })}>
       {#snippet panel(win)}
         {#if win.panel === SETTINGS}
           <SettingsWindow {kernl} mode={booted.mode} downloads={booted.downloads} section={settingsSection} opened={settingsOpened} onsection={chooseSettingsSection} />
@@ -195,6 +201,8 @@
 
     {#if overlay?.kind === 'grants' && grantsWindow}
       <GrantsPanel {kernl} win={grantsWindow} {guardLog} onclose={() => (overlay = null)} />
+    {:else if overlay?.kind === 'inspect' && inspectedWindow}
+      <InspectorPanel win={inspectedWindow} {traffic} onclose={() => (overlay = null)} />
     {:else if overlay?.kind === 'guard'}
       <GuardPanel {kernl} {guardLog} {windows} onclose={() => (overlay = null)} />
     {:else if overlay?.kind === 'firewall'}
