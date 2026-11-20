@@ -53,7 +53,7 @@ To check a published applet end to end, the way a person would open it, run `KER
 
 **Cause.** A domain the applet `requires` is not granted. kernl never grants a domain because an applet asked for it: the launcher shows the required domains as switches that start off, warns "Without …, this applet may not work. You can still run it.", and `plan.missingRequired` names what is missing. The applet's `shell.init` lists only the baseline and the domains you turned on.
 
-**Fix.** Open the window's **Grants** panel and turn the domain on. The grant reaches the ACL at once, but the domains the applet was told about at mount do not change until it is opened again, so close the window and open the applet again. A domain the shell does not offer cannot be switched on: the launcher lists it disabled as "not available in this shell", and it has no switch in the grants panel (for example `fs`, `llm` or `cache`; see [Architecture](../concepts/architecture.md#where-each-nap-domain-is-served-from)), and the applet cannot get it in kernl. A new build of an applet has a new hash, so it starts with no grants; see [Applets under kernl](../concepts/applets-under-kernl.md).
+**Fix.** Open the window's **Grants** panel and turn the domain on. The grant reaches the ACL at once, but the domains the applet was told about at mount do not change until it starts again, so press **Reload** in its title bar. A domain the shell does not offer cannot be switched on: the launcher lists it disabled as "not available in this shell", and it has no switch in the grants panel (for example `fs`, `llm` or `cache`; see [Architecture](../concepts/architecture.md#where-each-nap-domain-is-served-from)), and the applet cannot get it in kernl. A new build of an applet has a new hash, so it starts with no grants; see [Applets under kernl](../concepts/applets-under-kernl.md).
 
 ## A download program does not answer from the page
 
@@ -73,7 +73,7 @@ To check a published applet end to end, the way a person would open it, run `KER
 
 **Cause.** The applet sent more messages than the profile allows in the rolling window, or used up its `resource.*` allowance while hidden. The guard revokes the applet's binding and removes its frame; the guard state for that window is dropped.
 
-**Fix.** A stopped window does not restart. The window's **Grants** panel offers **Release from quarantine**, which calls `kernl.guard.release(windowId)` and clears the window's quarantine mark; to run the applet again, close the stopped window and open the applet again. It gets a fresh window and fresh guard counters, and its grants are unchanged, because quarantine does not block. If it floods again, either block it (**Block applet**) or, for an applet you trust, switch the guard panel's profile; that applies to every window and resets to `strict` on reload ([Change the guard profile](../how-tos/change-guard-profile.md)).
+**Fix.** Press **Reload** in the stopped window. The applet starts again from the bytes kernl already verified, in a fresh frame under a new window id, where the window was, with fresh guard counters. The window's **Grants** panel also offers **Release from quarantine**, which calls `kernl.guard.release(windowId)` and clears the window's quarantine mark. Its grants are unchanged, because quarantine does not block. If it floods again, either block it (**Block applet**) or, for an applet you trust, switch the guard panel's profile; that applies to every window and resets to `strict` on reload ([Change the guard profile](../how-tos/change-guard-profile.md)).
 
 ## An applet stopped because of something it sent
 
@@ -81,4 +81,4 @@ To check a published applet end to end, the way a person would open it, run `KER
 
 **Cause.** NIP-5D allows exactly one window-level message from an applet, the `napplet.hello` that hands the shell its port. Everything after that goes over the port. Any other `postMessage` to the parent window ends the applet's binding, and kehto removes the frame. The message can come from the applet's own code or from a library it bundles.
 
-**Fix.** Open the applet again. If it stops the same way, the applet has a bug: report the code and the detail line to its author.
+**Fix.** Press **Reload** in the stopped window. If it stops the same way, the applet has a bug: report the code and the detail line to its author.

@@ -3,6 +3,7 @@
   import type { Booted, MountPlan, Session, StorageLike } from './contract';
   import FirewallPanel from './FirewallPanel.svelte';
   import GrantsPanel from './GrantsPanel.svelte';
+  import { createReloader } from './reload';
   import type { GuardLog } from './guard-log.svelte';
   import type { AppletOpener } from './host';
   import GuardPanel from './GuardPanel.svelte';
@@ -53,6 +54,7 @@
   const profile = observe(kernl.guard.profile$, kernl.guard.config.profile);
   $effect(() => profile.stop);
 
+  const reload = $derived(createReloader({ kernl, windows, onproblem }));
   const grantsWindow = $derived(overlay?.kind === 'grants' ? windows.get(overlay.windowId) : undefined);
 
   export function openLauncher(address?: string): void {
@@ -174,7 +176,7 @@
 
   <div class="desk" bind:this={desk} role="presentation">
     <div class="wallpaper" onpointerdown={() => windows.blur()}></div>
-    <WindowLayer {windows} ongrants={(windowId) => (overlay = { kind: 'grants', windowId })}>
+    <WindowLayer {windows} ongrants={(windowId) => (overlay = { kind: 'grants', windowId })} onreload={(windowId) => void reload(windowId)}>
       {#snippet panel(win)}
         {#if win.panel === SETTINGS}
           <SettingsWindow {kernl} mode={booted.mode} downloads={booted.downloads} section={settingsSection} opened={settingsOpened} onsection={chooseSettingsSection} />

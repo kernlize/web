@@ -54,18 +54,18 @@ Feature: The shell host
 
     Examples:
       | window | reason            | title                 | words                                                | by     | next                                                |
-      | w1     | quarantine        | Notes was stopped     | It sent too many messages.                           | applet | Open it again, or loosen the guard profile.         |
-      | w1     | host              | Notes was stopped     | The shell closed it.                                 | shell  | Open it again.                                      |
-      | w1     | grant-narrowed    | Notes was stopped     | You took back something it was using.                | you    | Open it again to run it with what it may use now.   |
+      | w1     | quarantine        | Notes was stopped     | It sent too many messages.                           | applet | Reload it, or loosen the guard profile.         |
+      | w1     | host              | Notes was stopped     | The shell closed it.                                 | shell  | Reload it.                                      |
+      | w1     | grant-narrowed    | Notes was stopped     | You took back something it was using.                | you    | Reload it to run it with what it may use now.   |
       | w1     | blocked           | Notes was stopped     | You blocked it.                                      | you    | Unblock it in its grants to run it.                 |
-      | w1     | firewall          | Notes was stopped     | A firewall rule or answer it ran under changed.      | you    | Open it again.                                      |
-      | w1     | window-message    | Notes was stopped     | It sent a message outside its channel.               | applet | Open it again. If it repeats, the applet has a bug. |
-      | w1     | second-hello      | Notes was stopped     | It tried to connect to the shell twice.              | applet | Open it again. If it repeats, the applet has a bug. |
-      | w1     | invalid-hello     | Notes was stopped     | It connected to the shell the wrong way.             | applet | Open it again. If it repeats, the applet has a bug. |
-      | w1     | second-load       | Notes was stopped     | It reloaded or left its own page.                    | applet | Open it again.                                      |
-      | w1     | port-closed       | Notes was stopped     | Its connection to the shell closed.                  |        | Open it again.                                      |
-      | w1     | deferred-overflow | Notes was stopped     | It sent too much while waiting to be seen.           | applet | Open it again.                                      |
-      | w9     | expired           | An applet was stopped | It was stopped for a reason the shell does not know. |        | Open it again.                                      |
+      | w1     | firewall          | Notes was stopped     | A firewall rule or answer it ran under changed.      | you    | Reload it.                                      |
+      | w1     | window-message    | Notes was stopped     | It sent a message outside its channel.               | applet | Reload it. If it repeats, the applet has a bug. |
+      | w1     | second-hello      | Notes was stopped     | It tried to connect to the shell twice.              | applet | Reload it. If it repeats, the applet has a bug. |
+      | w1     | invalid-hello     | Notes was stopped     | It connected to the shell the wrong way.             | applet | Reload it. If it repeats, the applet has a bug. |
+      | w1     | second-load       | Notes was stopped     | It reloaded or left its own page.                    | applet | Reload it.                                      |
+      | w1     | port-closed       | Notes was stopped     | Its connection to the shell closed.                  |        | Reload it.                                      |
+      | w1     | deferred-overflow | Notes was stopped     | It sent too much while waiting to be seen.           | applet | Reload it.                                      |
+      | w9     | expired           | An applet was stopped | It was stopped for a reason the shell does not know. |        | Reload it.                                      |
 
   Scenario: kehto's own detail is kept for a bug report
     Given the shell host with window "w1" titled "Notes"

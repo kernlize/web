@@ -1,4 +1,5 @@
 /* global $state, $derived */
+import { tick } from 'svelte';
 import type { LayoutChoice, ManagedWindow, Rect, WindowManager, WindowManagerState } from '@kernlize/core/wm';
 import type { WindowVisibility } from '@kernlize/guard';
 import type { AppletHandle, AppletStatus, FrameLike, MountPlan } from './contract';
@@ -158,6 +159,26 @@ export class WindowStore {
     this.#applets = this.#applets.filter((item) => item.id !== id);
     this.#panels = this.#panels.filter((item) => item.id !== id);
     this.manager.close(id);
+  }
+
+  /**
+   * The window's applet starts again under `plan`, whose window id is new: the old applet is closed,
+   * the window keeps its place, and the iframe layer mounts a fresh frame for the new id.
+   */
+  async reload(id: string, plan: MountPlan): Promise<void> {
+    if (!this.#has(id)) return;
+    this.#handles.get(id)?.close();
+    this.#handles.delete(id);
+    this.#update(id, { status: 'closed' });
+    // The old frame's block goes first; the new frame is then drawn beside frames still in the document.
+    await tick();
+    if (!this.#has(id)) return;
+    this.#applets = this.#applets.map((item) => (item.id === id ? { id: plan.windowId, plan, status: 'mounting' } : item));
+    this.manager.replace(id, plan.windowId);
+  }
+
+  #has(id: string): boolean {
+    return this.#applets.some((item) => item.id === id);
   }
 
   markRevoked(id: string, report: StopReport): void {

@@ -7,6 +7,11 @@
   const { kernl, windows }: { kernl: ShellKernl; windows: WindowStore } = $props();
 
   const attachments = new Map<string, Attachment<HTMLIFrameElement>>();
+  /**
+   * The core removes a stopped applet's frame itself (NIP-5D), out from under this list. Its block
+   * goes too, so no new frame is ever placed beside a node that is no longer in the document.
+   */
+  const live = $derived(windows.windows.filter((win) => win.status !== 'revoked' && win.status !== 'closed'));
 
   /**
    * Mount exactly once per frame node. The node is never moved: moving an iframe reloads it. One
@@ -36,7 +41,7 @@
 <svelte:window onblur={onWindowBlur} />
 
 <div class="frames">
-  {#each windows.windows as win (win.id)}
+  {#each live as win (win.id)}
     {@const rect = windows.frameRectOf(win)}
     {@const shown = !win.minimised && !win.stopped}
     <iframe

@@ -7,16 +7,17 @@
   interface Props {
     windows: WindowStore;
     ongrants: (windowId: string) => void;
+    onreload: (windowId: string) => void;
     /** What goes inside a window the shell draws itself. */
     panel: Snippet<[PanelWindow]>;
   }
 
-  const { windows, ongrants, panel }: Props = $props();
+  const { windows, ongrants, onreload, panel }: Props = $props();
 </script>
 
 <div class="chrome">
   {#each windows.windows as win (win.id)}
-    <AppletWindow {win} {windows} {ongrants} />
+    <AppletWindow {win} {windows} {ongrants} {onreload} />
   {/each}
   {#each windows.panels as win (win.id)}
     <WindowFrame {win} {windows} title={win.title} scrolls>

@@ -8,9 +8,10 @@
     win: ShellWindow;
     windows: WindowStore;
     ongrants: (windowId: string) => void;
+    onreload: (windowId: string) => void;
   }
 
-  const { win, windows, ongrants }: Props = $props();
+  const { win, windows, ongrants, onreload }: Props = $props();
   const title = $derived(win.plan.summary.title);
   const BY: Readonly<Record<StopCause, string>> = { applet: 'The applet', you: 'You', shell: 'The shell' };
 </script>
@@ -20,6 +21,7 @@
     <span class="shell-badge" title="Applet identity">{shortId(win.plan.summary.identity.hash)}</span>
   {/snippet}
   {#snippet actions()}
+    {#if !win.revoked}<button type="button" class="shell-button quiet" onclick={() => onreload(win.id)} aria-label="Reload {title}">Reload</button>{/if}
     <button type="button" class="shell-button quiet" onclick={() => ongrants(win.id)} aria-label="Grants for {title}">Grants</button>
   {/snippet}
   {#if win.revoked}
@@ -27,7 +29,10 @@
     <div class="stopped">
       <p><strong>This applet was stopped.</strong></p>
       <p class="shell-muted" data-testid="stop-words">{stop.words}</p>
-      <button type="button" class="shell-button" onclick={() => windows.close(win.id)}>Close window</button>
+      <div class="actions">
+        {#if stop.code !== 'blocked'}<button type="button" class="shell-button primary" onclick={() => onreload(win.id)}>Reload</button>{/if}
+        <button type="button" class="shell-button" onclick={() => windows.close(win.id)}>Close window</button>
+      </div>
       <details class="why">
         <summary>Details</summary>
         <dl>
@@ -56,6 +61,11 @@
 
   .stopped p {
     margin: 0;
+  }
+
+  .actions {
+    display: flex;
+    gap: 0.5rem;
   }
 
   .why {
