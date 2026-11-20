@@ -62,35 +62,47 @@ export function appletMessageFailure(message: unknown): string | undefined {
 export function describeAppletMessage(windowId: string, direction: AppletMessageDirection, via: AppletMessage['via'], message: unknown): AppletMessage {
   const type = isRecord(message) ? text(message.type) : undefined;
   const error = appletMessageFailure(message);
-  return { windowId, direction, via, type: type ?? 'unknown', message, at: Date.now(), ...(error ? { error } : {}) };
+  return { windowId, direction, via, type: clip(type ?? 'unknown', TYPE_LIMIT), message, at: Date.now(), ...(error ? { error: clip(error, ERROR_LIMIT) } : {}) };
 }
 
+// An applet chooses its envelopes' `type` and `error`; neither is let grow without bound.
+const TYPE_LIMIT = 128;
+const ERROR_LIMIT = 512;
+const clip = (value: string, limit: number): string => (value.length > limit ? `${value.slice(0, limit)}…` : value);
+
 type Outgoing = (windowId: string, message: unknown) => void;
-const outgoing = new Set<Outgoing>();
-let kehtoSend: typeof originRegistry.postToNapplet | undefined;
+type Send = typeof originRegistry.postToNapplet;
+
+/** The wrapper in place now, its listeners, and what it wrapped. */
+let installed: { readonly wrapper: Send; readonly original: Send; readonly listeners: Set<Outgoing> } | undefined;
 
 /**
  * Hear every message kehto sends to an applet. kehto's shell adapter has an observe-only hook for
  * what arrives on a port (`onNappletMessage`) and none for what it sends, so this wraps
  * `originRegistry.postToNapplet`, the one function every reply goes through, as kehto's own devtools
- * do. The wrapper is shared by every shell on the page and removed when the last one stops listening.
+ * do. The wrapper is shared by every shell on the page and removed when the last one stops listening,
+ * unless something wrapped it in turn, which is then left in place with the wrapper gone quiet.
+ * Only what kehto delivered is heard.
  */
 function hearOutgoing(listener: Outgoing): () => void {
-  if (!kehtoSend) {
-    const send = originRegistry.postToNapplet;
-    kehtoSend = send;
-    originRegistry.postToNapplet = (windowId, message) => {
-      const delivered = send.call(originRegistry, windowId, message);
-      for (const each of outgoing) each(windowId, message);
+  if (!installed) {
+    const original = originRegistry.postToNapplet;
+    const listeners = new Set<Outgoing>();
+    const wrapper: Send = (windowId, message) => {
+      const delivered = original.call(originRegistry, windowId, message);
+      if (delivered) for (const each of listeners) each(windowId, message);
       return delivered;
     };
+    originRegistry.postToNapplet = wrapper;
+    installed = { wrapper, original, listeners };
   }
-  outgoing.add(listener);
+  const { listeners } = installed;
+  listeners.add(listener);
   return () => {
-    outgoing.delete(listener);
-    if (outgoing.size > 0 || !kehtoSend) return;
-    originRegistry.postToNapplet = kehtoSend;
-    kehtoSend = undefined;
+    listeners.delete(listener);
+    if (listeners.size > 0 || installed?.listeners !== listeners) return;
+    if (originRegistry.postToNapplet === installed.wrapper) originRegistry.postToNapplet = installed.original;
+    installed = undefined;
   };
 }
 
@@ -104,8 +116,9 @@ export interface AppletTraffic {
 }
 
 /**
- * Report what this shell's applets send and receive. Only windows `owns` knows are reported, so a
- * second shell on the page does not see the first one's replies.
+ * Report what this shell's applets send and receive, for the windows `owns` accepts. Window ids
+ * are counted per shell, so two shells on one page can both have an `applet-1` and would each hear
+ * the other's; a host runs one shell per page.
  *
  * @param owns - Whether a window belongs to this shell.
  * @returns The stream and the hooks that feed it.

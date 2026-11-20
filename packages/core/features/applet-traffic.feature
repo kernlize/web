@@ -32,6 +32,21 @@ Feature: What an applet sends and receives
     And the applet posts "debug.log" to the parent window
     Then the watched traffic ended with a "debug.log" from the applet on the "window"
 
+  Scenario: a reply kehto could not deliver is not reported
+    When kehto sends "shell.init" to the mounted window before it has said hello
+    Then nothing was watched
+
+  Scenario: an applet cannot make a message's type or failure grow without bound
+    When the applet sends its hello through the shell
+    And the applet sends a message whose type and failure are 100000 characters long
+    Then the last watched message's type is 129 characters and its failure 513
+
+  Scenario: something that wraps kehto's sending after the shell is left in place when the shell stops
+    Given something else wraps kehto's sending after the shell
+    When the shell is destroyed
+    Then kehto's sending is still wrapped by that something else
+    And a new shell started now hears kehto's replies once
+
   Scenario: a shell that is destroyed stops watching what kehto sends
     When the shell is destroyed
     Then kehto's sending to applets is no longer watched

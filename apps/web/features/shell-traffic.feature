@@ -64,3 +64,9 @@ Feature: An applet's messages, as the inspector shows them
       | nesting eight objects deep  | the first six levels                         |
       | nesting eight arrays deep   | the first six levels of arrays               |
       | a number                    | the number                                   |
+      | a shared value used twice   | the value both times                         |
+      | a million-item array        | its first 50 items and how many more         |
+      | an object with 60 keys      | its first 50 keys and a marker               |
+      | an object with an inherited key | only its own keys                     |
+      | a big integer               | its digits and n                             |
+      | 50 arrays of 50 numbers     | 2000 values, then markers                    |

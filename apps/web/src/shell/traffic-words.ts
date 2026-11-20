@@ -50,10 +50,17 @@ const PAYLOAD_DEPTH_LIMIT = 6;
 const binaryLength = (value: object): number | undefined =>
   value instanceof ArrayBuffer ? value.byteLength : ArrayBuffer.isView(value) ? value.byteLength : typeof Blob !== 'undefined' && value instanceof Blob ? value.size : undefined;
 
+/** Items kept from one array, or keys from one object. */
+const PAYLOAD_ENTRY_LIMIT = 50;
+/** Values kept from one payload in all, however it is shaped. */
+const PAYLOAD_NODE_LIMIT = 2000;
+
 /**
- * A copy of a payload small enough to keep and to show: a long string keeps its start and says how
- * long it was, bytes say how many there were, and nesting past six levels or back into itself stops.
- * The log keeps 200 rows per window, so it must not hold every file an applet fetched.
+ * A copy of a payload small enough to keep and to show. A long string keeps its start and says how
+ * long it was, bytes say how many there were, an array or object keeps its first 50 entries and
+ * says how many it had, nesting stops at six levels or where it leads back into itself, and no
+ * payload keeps more than 2000 values. An applet chooses what it sends, and the log keeps 200 rows
+ * per window, so none of it may grow with the applet.
  *
  * @param payload - What the applet sent or got.
  * @returns The copy the log keeps.
@@ -62,16 +69,43 @@ const binaryLength = (value: object): number | undefined =>
  * trimPayload({ blob: 'QUJD'.repeat(1000) }); // { blob: 'QUJDQUJD… (4000 characters)' }
  * ```
  */
-export function trimPayload(payload: unknown, depth = 0, seen: WeakSet<object> = new WeakSet()): unknown {
-  if (typeof payload === 'string') return payload.length > PAYLOAD_TEXT_LIMIT ? `${payload.slice(0, 64)}… (${payload.length} characters)` : payload;
-  if (typeof payload !== 'object' || payload === null) return payload;
-  const bytes = binaryLength(payload);
-  if (bytes !== undefined) return `<${payload.constructor.name} ${bytes} bytes>`;
-  if (seen.has(payload)) return '<circular>';
-  if (depth >= PAYLOAD_DEPTH_LIMIT) return Array.isArray(payload) ? '<array>' : '<object>';
-  seen.add(payload);
-  if (Array.isArray(payload)) return payload.map((item) => trimPayload(item, depth + 1, seen));
-  return Object.fromEntries(Object.entries(payload).map(([key, value]) => [key, trimPayload(value, depth + 1, seen)]));
+export function trimPayload(payload: unknown): unknown {
+  let budget = PAYLOAD_NODE_LIMIT;
+  const ancestors = new Set<object>();
+  const trim = (value: unknown, depth: number): unknown => {
+    budget -= 1;
+    if (typeof value === 'string') return value.length > PAYLOAD_TEXT_LIMIT ? `${value.slice(0, 64)}… (${value.length} characters)` : value;
+    if (typeof value === 'bigint') return `${value}n`;
+    if (typeof value !== 'object' || value === null) return value;
+    const bytes = binaryLength(value);
+    if (bytes !== undefined) return `<${value.constructor.name} ${bytes} bytes>`;
+    if (ancestors.has(value)) return '<circular>';
+    if (depth >= PAYLOAD_DEPTH_LIMIT || budget <= 0) return Array.isArray(value) ? '<array>' : '<object>';
+    ancestors.add(value);
+    const copy = Array.isArray(value) ? trimArray(value, depth) : trimObject(value, depth);
+    ancestors.delete(value);
+    return copy;
+  };
+  const trimArray = (value: readonly unknown[], depth: number): unknown[] => {
+    const kept = value.slice(0, PAYLOAD_ENTRY_LIMIT).map((item) => trim(item, depth + 1));
+    return value.length > PAYLOAD_ENTRY_LIMIT ? [...kept, `<${value.length - PAYLOAD_ENTRY_LIMIT} more>`] : kept;
+  };
+  const trimObject = (value: object, depth: number): Record<string, unknown> => {
+    const copy: Record<string, unknown> = {};
+    let count = 0;
+    // for…in stops early, where Object.entries would list a million keys first.
+    for (const key in value) {
+      if (!Object.hasOwn(value, key)) continue;
+      count += 1;
+      if (count > PAYLOAD_ENTRY_LIMIT) {
+        copy['…'] = 'more keys';
+        break;
+      }
+      copy[key] = trim((value as Record<string, unknown>)[key], depth + 1);
+    }
+    return copy;
+  };
+  return trim(payload, 0);
 }
 
 /**
