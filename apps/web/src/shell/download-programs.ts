@@ -1,24 +1,53 @@
-import type { DownloadConnection, DownloadProgram, DownloadProgramInfo, DownloadSignIn } from '@kernlize/core';
+import { DOWNLOAD_PROGRAMS, type DownloadClientsState, type DownloadConnection, type DownloadProgram, type DownloadProgramInfo, type DownloadSignIn, type RoutedDomain } from '@kernlize/core';
 
 /** The sign-in field names a program can take. */
 export type SignInField = DownloadProgramInfo['signIn'][number];
 
-/** What the person has typed for one program. Secrets start empty and, left empty, keep what was saved. */
+/** What the person has typed for one connection. Secrets start empty and, left empty, keep what was saved. */
 export interface ProgramDraft {
+  readonly label: string;
   readonly url: string;
   readonly username: string;
   readonly password: string;
   readonly apiKey: string;
 }
 
+/** A group of programs by what they do for the person, and, where kernl routes, the domain and the chooser's words. */
+export interface ProgramGroup {
+  readonly id: string;
+  readonly title: string;
+  readonly help: string;
+  readonly programs: readonly DownloadProgram[];
+  readonly routed?: { readonly domain: RoutedDomain; readonly legend: string };
+}
+
 /** Programs grouped by what they do for the person. */
-export const PROGRAM_GROUPS: readonly { readonly id: string; readonly title: string; readonly help: string; readonly programs: readonly DownloadProgram[] }[] = [
-  { id: 'peers', title: 'From peers', help: 'Peers see the address of the machine running the program.', programs: ['transmission', 'utorrent'] },
-  { id: 'archives', title: 'From archives', help: 'Only your news server sees the transfer.', programs: ['nzbget', 'sabnzbd'] },
-  { id: 'sharing', title: 'Shared libraries', help: 'Peers see your searches and the address of that machine.', programs: ['slskd'] },
+export const PROGRAM_GROUPS: readonly ProgramGroup[] = [
+  { id: 'peers', title: 'Peer sharing', help: 'Peers see the address of the machine running the program.', programs: ['transmission', 'utorrent'], routed: { domain: 'torrent', legend: 'New torrents go to' } },
+  { id: 'archives', title: 'News archives', help: 'Only your news server sees the transfer. Applets pick which.', programs: ['nzbget', 'sabnzbd'] },
+  { id: 'sharing', title: 'Shared libraries', help: 'Peers see your searches and the address of that machine.', programs: ['slskd'], routed: { domain: 'soulseek', legend: 'New searches go to' } },
 ];
 
-const FIELD_LABELS: Readonly<Record<SignInField, string>> = { username: 'Name', password: 'Password', apiKey: 'Key' };
+/** A group's saved connections, in the order they were added. */
+export function connectionsIn(state: DownloadClientsState, group: ProgramGroup): DownloadConnection[] {
+  return state.connections.filter((connection) => group.programs.includes(connection.program));
+}
+
+/** Whether a group shows where new work goes: only where kernl routes and there is more than one to pick from. */
+export function showsChooser(state: DownloadClientsState, group: ProgramGroup): boolean {
+  return group.routed !== undefined && connectionsIn(state, group).length > 1;
+}
+
+/** The program's name beside a connection's label, or nothing when the label already is it. */
+export function programBeside(connection: DownloadConnection): string | undefined {
+  const name = DOWNLOAD_PROGRAMS[connection.program].name;
+  return connection.label === name ? undefined : name;
+}
+
+/** The accessible name of a group's add form. */
+export const addFormName = (group: ProgramGroup): string => `Add a connection to ${group.title}`;
+
+const FIELD_LABELS: Readonly<Record<SignInField, string>> = { username: 'Username', password: 'Password', apiKey: 'Key' };
 const SECRET_FIELDS: readonly SignInField[] = ['password', 'apiKey'];
 
 /** What a sign-in field is called in the form. */
@@ -32,9 +61,14 @@ export function hasSecret(saved: DownloadConnection | undefined, field: SignInFi
   return (field === 'password' && saved?.hasPassword === true) || (field === 'apiKey' && saved?.hasApiKey === true);
 }
 
-/** The form for a program as it opens: its saved address and name, and empty secrets. */
+/** The form for a connection as it opens: its saved label, address and name, and empty secrets. */
 export function draftOf(saved: DownloadConnection | undefined): ProgramDraft {
-  return { url: saved?.url ?? '', username: saved?.username ?? '', password: '', apiKey: '' };
+  return { label: saved?.label ?? '', url: saved?.url ?? '', username: saved?.username ?? '', password: '', apiKey: '' };
+}
+
+/** The label to keep: what was typed, trimmed, or nothing for the shell to name it when left blank. */
+export function labelOf(draft: ProgramDraft): string | undefined {
+  return draft.label.trim() || undefined;
 }
 
 /** What a draft asks the shell to check and keep: only the fields this program takes, and only those typed. */
@@ -47,7 +81,7 @@ export function signInOf(draft: ProgramDraft, fields: readonly SignInField[]): D
 /** Whether a draft differs from what is saved, so there is something to save. */
 export function draftChanged(draft: ProgramDraft, saved: DownloadConnection | undefined): boolean {
   if (!saved) return draft.url.trim() !== '';
-  return draft.url.trim() !== saved.url || draft.username.trim() !== (saved.username ?? '') || draft.password !== '' || draft.apiKey !== '';
+  return draft.label.trim() !== saved.label || draft.url.trim() !== saved.url || draft.username.trim() !== (saved.username ?? '') || draft.password !== '' || draft.apiKey !== '';
 }
 
 const REASON_WORDS: Readonly<Record<string, string>> = {
@@ -56,7 +90,8 @@ const REASON_WORDS: Readonly<Record<string, string>> = {
   'invalid:credentials-in-address': 'Put the name and password in their own fields.',
   'invalid:mixed-content': 'kernl is open over https, so the address must be https too, or on this device.',
   'invalid:sign-in': 'That name, password or key is too long.',
-  'invalid:program': 'Set that program up first.',
+  'invalid:label': 'Give it a name, up to 60 characters.',
+  'invalid:connection': 'That connection is no longer set up.',
   'denied:credentials': 'The program refused that sign-in.',
   'denied:secrets': 'The sign-in could not be kept. Nothing was saved.',
   'unavailable:secrets': 'The sign-in could not be kept. Nothing was saved.',
@@ -85,9 +120,8 @@ export function noteWords(note: string): string | undefined {
   return NOTE_WORDS[note];
 }
 
-/** How a program's card says where things stand. */
-export function programStatus(saved: DownloadConnection | undefined, version: string | undefined, locked = false): string {
-  if (!saved) return 'Not set up';
+/** How a connection's row says where things stand. */
+export function programStatus(version: string | undefined, locked = false): string {
   if (locked) return 'Sign-in locked';
   return version ? `Connected · ${version}` : 'Set up';
 }
