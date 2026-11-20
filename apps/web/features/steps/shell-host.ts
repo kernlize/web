@@ -1,8 +1,10 @@
 import { expect, vi } from 'vitest';
 import { After, Given, Then, When } from 'quickpickle';
-import type { ConsentPrompt, KernlHost, StorageLike } from '../../src/shell/contract.ts';
+import type { GuardProfile } from '@kernlize/guard';
+import type { AppletStopLimit, ConsentPrompt, KernlHost, StorageLike } from '../../src/shell/contract.ts';
 import { createHost, pickStorage, PREVIEW_STORAGE_PREFIX, scopedStorage, type AppletOpener } from '../../src/shell/host.ts';
 import { SHELL_CHORDS, shellShortcut, type ShortcutRunner } from '../../src/shell/shortcuts.ts';
+import { describeStop, type StopReport } from '../../src/shell/stop-words.ts';
 
 type HostDeps = Parameters<typeof createHost>[0];
 
@@ -13,7 +15,7 @@ function fake<T>(value: unknown): T {
 
 interface FakeWindow {
   readonly title: string;
-  revokedWith?: string;
+  revokedWith?: StopReport;
 }
 
 interface HostScratch {
@@ -125,9 +127,9 @@ Given('the shell host with window {string} titled {string}', (world: HostWorld, 
       },
       visibilityOf: (id: string) => ({ visible: windows.has(id), focused: false }),
       focus: (id: string) => void focused.push(id),
-      markRevoked: (id: string, reason: string) => {
+      markRevoked: (id: string, report: StopReport) => {
         const window = windows.get(id);
-        if (window) window.revokedWith = reason;
+        if (window) window.revokedWith = report;
       },
     },
   });
@@ -202,8 +204,29 @@ When('the shell host hears window {string} was revoked for {string}', (world: Ho
   hostOf(world).host.onRevoked(windowId, reason);
 });
 
-Then('the shell host marks window {string} stopped because {string}', (world: HostWorld, windowId: string, words: string) => {
-  expect(hostOf(world).windows.get(windowId)?.revokedWith).toBe(words);
+When('the shell host hears window {string} was revoked for {string} with the detail {string}', (world: HostWorld, windowId: string, reason: string, detail: string) => {
+  hostOf(world).host.onRevoked(windowId, reason, { detail });
+});
+
+When('the shell host hears window {string} was quarantined for {string} at {int} per {int} ms under {string}', (world: HostWorld, windowId: string, cause: AppletStopLimit['cause'], count: number, span: number, profile: GuardProfile) => {
+  hostOf(world).host.onRevoked(windowId, 'quarantine', { limit: { cause, count, profile, ...(span > 0 ? { windowMs: span } : {}) } });
+});
+
+const reportOf = (world: HostWorld, windowId: string): StopReport | undefined => hostOf(world).windows.get(windowId)?.revokedWith;
+
+Then('window {string} stopped by {string}, with {string} next and code {string}', (world: HostWorld, windowId: string, by: string, next: string, code: string) => {
+  // A window the host does not know about is not marked; the notice still goes out.
+  const report = reportOf(world, windowId) ?? describeStop(code, undefined, 0);
+  expect({ by: report.by ?? '', next: report.next, code: report.code }).toEqual({ by, next, code });
+});
+
+Then('window {string} stopped with the detail {string} and no limit', (world: HostWorld, windowId: string, detail: string) => {
+  expect(reportOf(world, windowId)).toMatchObject({ detail, code: 'window-message' });
+  expect(reportOf(world, windowId)?.limit).toBeUndefined();
+});
+
+Then('window {string} stopped at the limit {string}', (world: HostWorld, windowId: string, limit: string) => {
+  expect(reportOf(world, windowId)?.limit).toBe(limit);
 });
 
 Then('the shell host warns {string} because {string} for window {string}', (world: HostWorld, title: string, words: string, windowId: string) => {

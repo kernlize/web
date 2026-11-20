@@ -6,6 +6,7 @@ import type { NoticeStore } from './notice-store.svelte';
 import type { ReplyQueue } from './reply-queue.svelte';
 import type { SettingsQueue } from './settings-queue.svelte';
 import type { ShortcutRunner } from './shortcuts';
+import { describeStop } from './stop-words';
 import type { WindowStore } from './window-store.svelte';
 
 interface HostDeps {
@@ -62,17 +63,6 @@ export function scopedStorage(storage: StorageLike, prefix: string): StorageLike
 /** The prefix the offline preview keeps its state under. */
 export const PREVIEW_STORAGE_PREFIX = 'preview:';
 
-const REVOKE_REASONS: Readonly<Record<string, string>> = {
-  quarantine: 'The guard stopped it because it kept flooding the shell.',
-  host: 'The shell closed it.',
-  'grant-narrowed': 'You took back something it was using. Open it again to run it with what it may use now.',
-  blocked: 'You blocked it.',
-  firewall: 'A firewall rule or answer it ran under changed. Open it again.',
-};
-
-/** Plain words for a revocation reason; reasons the shell does not know pass through. */
-const revokeReason = (reason: string): string => REVOKE_REASONS[reason] ?? reason;
-
 /** The UI's side of the contract: dialogs, firewall questions, applet settings, the handler chooser, the reply question, toasts, link confirmation, opening and focusing windows. */
 export function createHost(deps: HostDeps): KernlHost {
   return {
@@ -92,11 +82,11 @@ export function createHost(deps: HostDeps): KernlHost {
     openApplet: async (address) => deps.opener.open?.(address),
     focusApplet: (windowId) => deps.windows.focus(windowId),
     onShortcut: (key) => deps.shortcuts.run?.(key),
-    onRevoked(windowId, reason) {
+    onRevoked(windowId, reason, details) {
       const title = deps.windows.get(windowId)?.plan.summary.title ?? 'An applet';
-      const words = revokeReason(reason);
-      deps.windows.markRevoked(windowId, words);
-      deps.notices.push({ title: `${title} was stopped`, body: words, tone: 'warning', windowId });
+      const report = describeStop(reason, details, Date.now());
+      deps.windows.markRevoked(windowId, report);
+      deps.notices.push({ title: `${title} was stopped`, body: report.words, tone: 'warning', windowId });
     },
   };
 }
