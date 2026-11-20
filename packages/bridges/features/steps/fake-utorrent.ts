@@ -5,15 +5,12 @@ import { decodeTorrent, magnetHash } from './fake-transmission-torrents';
 /**
  * A stand-in for uTorrent's WebUI that speaks its API over a real socket.
  *
- * uTorrent has no maintained container to copy answers from, so everything here follows
- * the published WebUI API pages ("Torrent/labels List", "Files List", "Torrent Job
- * Properties", "Actions"): the torrent row's nineteen positions and its status bits,
- * `getfiles`, `getprops` and `setprops`, `setprio`, `start`, `stop`, `pause`, `unpause`,
- * `remove`, `removedata`, `add-url` and the multipart `add-file`. The token page, its
- * `GUID` cookie and the 400 "invalid request" for a token the program does not know
- * follow how long-lived clients of the API are written. Two things are from the same
- * sources rather than the API pages, and are marked where they appear: the status line
- * uTorrent 3.x appends to a row, and an `error` member in an answer that declines.
+ * The answers are copied from a real uTorrent Server 3.5 for Linux (build 30470, the
+ * `ekho/utorrent` image): the token page and its `GUID` cookie, the 400 "invalid
+ * request" for a token or cookie the program does not know, the thirty positions of a
+ * torrent row with the status line at 21, `getfiles` naming a torrent with no metadata
+ * yet with an empty list, `getprops` taking several `hash` and leaving out the ones it
+ * does not have, and the `error` member of a declined `add-file`.
  */
 
 type Json = Record<string, unknown>;
@@ -37,7 +34,8 @@ export interface FakeUtorrentTorrent {
   seedsInSwarm: number;
   remaining: number;
   /** The status line uTorrent 3.x puts at position 21; absent, the row has the nineteen published positions. */
-  message?: string;
+  /** The status line at row position 21; `null` stands for an older program whose rows stop at the published nineteen. */
+  message?: string | null;
   /** Name, size, downloaded, priority; undefined until the metadata is known. */
   files: [string, number, number, number][] | undefined;
   props: { trackers: string; ulrate: number; dlrate: number; superseed: number; dht: number; pex: number; seed_override: number; seed_ratio: number; seed_time: number; ulslots: number };
@@ -83,11 +81,13 @@ export interface FakeUtorrent {
   close(): Promise<void>;
 }
 
-const BUILD = 44_994;
+const BUILD = 30_470;
 /** Loaded, queued, checked and started: an ordinary running torrent. */
 export const UTORRENT_RUNNING = 201;
 /** Loaded and checked: stopped. */
 export const UTORRENT_STOPPED = 136;
+const STARTED = 1;
+const CHECKING = 2;
 const PAUSED = 32;
 
 function blank(hash: string): FakeUtorrentTorrent {
@@ -110,6 +110,15 @@ function blank(hash: string): FakeUtorrentTorrent {
     files: undefined,
     props: { trackers: '', ulrate: 0, dlrate: 0, superseed: 0, dht: 1, pex: 1, seed_override: 0, seed_ratio: 0, seed_time: 0, ulslots: 0 },
   };
+}
+
+/** The wording the program puts at row position 21 for the states the scenarios use. */
+function statusLine(torrent: FakeUtorrentTorrent): string {
+  const has = (bit: number): boolean => Math.floor(torrent.status / bit) % 2 === 1;
+  if (has(CHECKING)) return 'Checking';
+  if (has(PAUSED)) return 'Paused';
+  if (has(STARTED)) return torrent.remaining === 0 && torrent.size > 0 ? 'Seeding' : 'Connecting to peers';
+  return torrent.progress === 1000 ? 'Finished' : 'Stopped';
 }
 
 function row(torrent: FakeUtorrentTorrent, order: number): unknown[] {
@@ -135,7 +144,8 @@ function row(torrent: FakeUtorrentTorrent, order: number): unknown[] {
     order,
     torrent.remaining,
   ];
-  return torrent.message === undefined ? published : [...published, '', '', torrent.message, '0', 1_700_000_000, 0, '', ''];
+  if (torrent.message === null) return published;
+  return [...published, '', '', torrent.message ?? statusLine(torrent), '1', 1_795_172_328, 0, '', '/data', 0, 'EE9E7DDC', false];
 }
 
 function readBody(request: IncomingMessage): Promise<Buffer> {
@@ -187,8 +197,7 @@ function addUrl(program: Program, link: string): void {
 
 function addFile(program: Program, bytes: Buffer): Json {
   const decoded = decodeTorrent(bytes);
-  // Not on the API pages: the wording uTorrent is known to answer a file it cannot read with.
-  if (!decoded) return { error: "Can't add torrent: torrent is not valid bencoding!" };
+  if (!decoded) return { error: "Can't add torrent: torrent is not valid bencoding" };
   const size = decoded.files.reduce((sum, file) => sum + file.length, 0);
   const files = decoded.files.map((file): [string, number, number, number] => [file.path.replaceAll('/', '\\'), file.length, 0, 2]);
   arrive(program, { hash: decoded.infoHash, name: decoded.name, size, remaining: size, files, props: { ...blank('').props, ...(decoded.private ? { dht: -1, pex: -1 } : {}) } });
@@ -218,8 +227,8 @@ function change(program: Program, action: string, torrent: FakeUtorrentTorrent, 
 function act(program: Program, action: string, params: URLSearchParams, upload: UtorrentRequest['upload']): Json {
   const chosen = params.getAll('hash').flatMap((hash) => program.torrents.get(hash.toLowerCase()) ?? []);
   const [first] = chosen;
-  if (action === 'list') return { label: [], torrents: [...program.torrents.values()].map(row), torrentc: '1367230263' };
-  if (action === 'getfiles') return first?.files ? { files: [first.hash, first.files] } : {};
+  if (action === 'list') return { torrents: [...program.torrents.values()].map(row), label: [], torrentc: '629415112', rssfeeds: [], rssfilters: [] };
+  if (action === 'getfiles') return first ? { files: [first.hash, first.files ?? []] } : {};
   if (action === 'getprops') return program.reportsProps && chosen.length > 0 ? { props: chosen.map((torrent) => ({ hash: torrent.hash, ...torrent.props })) } : {};
   if (action === 'add-file') return addFile(program, upload?.field === 'torrent_file' ? upload.bytes : Buffer.alloc(0));
   if (action === 'setprops') setProps(program, params);
