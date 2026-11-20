@@ -174,7 +174,13 @@ The backend has no `handoff` trait, so the bridge reports `{ available: true }` 
 
 ### Why NZB, Soulseek and mail still hand off
 
-A browser page can open HTTP requests, WebSockets and WebRTC connections, and nothing else. NZB downloads need NNTP to a news server, Soulseek its own protocol to a central server and to peers, and mail SMTP and IMAP; all of them run over raw TCP sockets, which no page can open. They stay hand-off until kernl can reach a companion service that opens those sockets for the user ([Roadmap](../roadmap.md#_2-bridge-backends)). Supplying another backend is a shell change plus a docs change; see [Add a bridge backend](../how-tos/add-a-bridge-backend.md).
+A browser page can open HTTP requests, WebSockets and WebRTC connections, and nothing else. NZB downloads need NNTP to a news server, Soulseek its own protocol to a central server and to peers, and mail SMTP and IMAP; all of them run over raw TCP sockets, which no page can open. For a link the person opens, they stay hand-off. The programs people already run for these networks do open those sockets, and each has an HTTP API a page can call; kernl drives them for applets (below), and using them for the person's own links as well is on the [Roadmap](../roadmap.md#_2-bridge-backends). Supplying another backend is a shell change plus a docs change; see [Add a bridge backend](../how-tos/add-a-bridge-backend.md).
+
+### Applets and the person's own programs
+
+The bridges above serve a locator: a link the person opens, or one an applet asks for through the `resource` domain. They are not how an applet runs a download. For that kernl offers three domains of their own, `torrent`, `nzb` and `soulseek`, served by driving a program the person already runs (Transmission or uTorrent, NZBGet or SABnzbd, slskd) through its own API ([D-050](../decisions.md#d-050)). The adapters live in this package beside the bridges and share none of their contract: there is no locator, no `Bridge`, and no `BridgeRegistry`. [Connected programs](./download-programs.md) explains them, and [Connect a program](../how-tos/connect-a-download-program.md) sets one up.
+
+The one place the two meet is an NZB an applet names by `https` address: the `nzb` service fetches it through this registry, so the HTTP bridge's policy applies to it.
 
 ## The resource resolver
 
@@ -207,4 +213,5 @@ An applet could, in principle, be given a WebRTC or WebSocket path and speak the
 ## Related
 
 - [`@kernlize/bridges`](../packages/bridges.md)
+- [Connected programs](./download-programs.md): how applets download through programs the person runs.
 - [Security posture](../policies/security-posture.md)

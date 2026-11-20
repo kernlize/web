@@ -11,7 +11,16 @@ import {
 } from '@kehto/shell';
 import { createAppletCsp, renderInsertionLockScript, type GuardProfile } from '@kernlize/guard';
 import { renderRandomUuidFallbackScript } from '../crypto/install.js';
+import type { BoundPreludeOptions, DomainBinding } from '../downloads/bindings.js';
 import type { AppletSummary, MountPlan } from '../types.js';
+
+/** Domains kernl serves that kehto's shell does not list, as one applet is to see them. */
+export interface PlannedExtensions {
+  /** The extension domains in force for this applet, already narrowed by its grants. */
+  readonly domains: readonly string[];
+  /** What each one offers inside the applet. */
+  readonly bindings: Readonly<Record<string, DomainBinding>>;
+}
 
 /** Inputs for {@link planMount}. */
 export interface PlanMountOptions {
@@ -22,6 +31,8 @@ export interface PlanMountOptions {
   readonly adapter: ShellAdapter;
   readonly guardProfile: GuardProfile;
   readonly windowId: string;
+  /** Domains beyond kehto's own to add to the applet's environment and bind in its namespace. */
+  readonly extensions?: PlannedExtensions;
 }
 
 /**
@@ -68,9 +79,15 @@ function assertNoFrame(html: string): void {
  * the shell is not a secure context. `@kehto/shell` has no hook for a second
  * prelude, so the pair is re-rendered and located in the srcdoc.
  */
-function addInsertionLock(srcdoc: string, csp: NappletCspOptions, domains: readonly string[]): string {
-  const head = renderNappletCspMeta(csp, true) + renderNappletNamespacePrelude({ domains, experimental: NESTED_CONTEXT_LOCK });
+function addInsertionLock(srcdoc: string, csp: NappletCspOptions, prelude: BoundPreludeOptions): string {
+  const head = renderNappletCspMeta(csp, true) + renderNappletNamespacePrelude(prelude);
   return spliceOnce(srcdoc, head, head + renderInsertionLockScript() + renderRandomUuidFallbackScript());
+}
+
+/** The bindings for exactly the extension domains this applet holds; none leaves the prelude as kehto renders it alone. */
+function bindingsFor(extensions: PlannedExtensions | undefined): Pick<BoundPreludeOptions, 'bindings'> {
+  const held = Object.entries(extensions?.bindings ?? {}).filter(([domain]) => extensions?.domains.includes(domain));
+  return held.length > 0 ? { bindings: Object.fromEntries(held) } : {};
 }
 
 /**
@@ -84,6 +101,8 @@ function addInsertionLock(srcdoc: string, csp: NappletCspOptions, domains: reado
  * directives and the mandatory namespace prelude installs kehto's creation
  * lock. kernl's insertion lock follows the prelude. Markup that declares a
  * nested frame is refused by kehto's scan before any of that (D-014).
+ * `extensions` adds the domains kernl serves beyond kehto's list, with the
+ * bindings kehto's prelude turns into `window.napplet.<domain>` (D-050).
  * `missingRequired` lists what the applet asked for and will not get, so the
  * host can warn before mounting.
  *
@@ -100,14 +119,17 @@ function addInsertionLock(srcdoc: string, csp: NappletCspOptions, domains: reado
 export function planMount(options: PlanMountOptions): MountPlan {
   const { summary } = options;
   assertNoFrame(options.indexHtml);
-  const environment = resolveShellEnvironment(options.adapter, { dTag: summary.identity.dTag, aggregateHash: summary.identity.hash });
-  const domains = environment.capabilities.domains;
+  const live = resolveShellEnvironment(options.adapter, { dTag: summary.identity.dTag, aggregateHash: summary.identity.hash });
+  const domains = Object.freeze([...live.capabilities.domains, ...(options.extensions?.domains ?? [])]);
+  // kehto reads a window's domains from the environment the host sets at mount, so an extension domain is admitted by being in it.
+  const environment = Object.freeze({ capabilities: Object.freeze({ domains }), services: live.services });
+  const prelude: BoundPreludeOptions = { domains, experimental: NESTED_CONTEXT_LOCK, ...bindingsFor(options.extensions) };
   const guardCsp = createAppletCsp(options.guardProfile);
   const csp: NappletCspOptions = { connectOrigins: guardCsp.connectOrigins, directives: guardCsp.directives as NappletCspDirectives };
   return {
     windowId: options.windowId,
     summary,
-    srcdoc: addInsertionLock(prepareNappletSrcdoc(options.indexHtml, { domains, csp, experimental: NESTED_CONTEXT_LOCK }), csp, domains),
+    srcdoc: addInsertionLock(prepareNappletSrcdoc(options.indexHtml, { ...prelude, csp }), csp, prelude),
     sandbox: 'allow-scripts',
     environment,
     missingRequired: Object.freeze(summary.requires.filter((domain) => !domains.includes(domain))),

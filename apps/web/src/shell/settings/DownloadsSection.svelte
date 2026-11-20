@@ -2,6 +2,7 @@
   import { bridgeName, bridgeRows } from '../bridge-names';
   import type { BootMode, ShellKernl } from '../contract';
   import type { DownloadMode, ShellDownloads } from '../downloads';
+  import DownloadPrograms from './DownloadPrograms.svelte';
 
   interface Props {
     kernl: ShellKernl;
@@ -38,6 +39,7 @@
     {/each}
   </fieldset>
 </section>
+<DownloadPrograms {kernl} />
 <section class="shell-section" aria-labelledby="bridges-heading">
   <h3 id="bridges-heading">Bridges</h3>
   <p class="shell-muted small">They fetch from other networks for you.</p>

@@ -1,6 +1,7 @@
 import { BehaviorSubject, EMPTY } from 'rxjs';
 import type { ShellKernl } from './contract';
-import { createMultiplayerSettings, createRelayDirectory, DEFAULT_FILE_SERVERS, DEFAULT_SUGGESTIONS, type AccountFileServers, type AccountMailboxes, type FileServerState, type KernlMultiplayer, type MailboxState, type RelayDirectory, type StorageLike } from '@kernlize/core';
+import { detectClientEndpoint } from '@kernlize/bridges';
+import { createDownloadClients, createMultiplayerSettings, createStorageSecrets, createRelayDirectory, currentPageScheme, DEFAULT_FILE_SERVERS, DEFAULT_SUGGESTIONS, type AccountFileServers, type AccountMailboxes, type DownloadClients, type FileServerState, type KernlMultiplayer, type MailboxState, type RelayDirectory, type StorageLike } from '@kernlize/core';
 
 /** The preview's directory hears from no monitor, so it suggests from kernl's built-in list and completes nothing. */
 export function createPreviewDirectory(): RelayDirectory {
@@ -52,7 +53,25 @@ export function createPreviewMultiplayer(storage: StorageLike): KernlMultiplayer
   };
 }
 
-/** The preview account's servers, file servers, meeting settings and directory, together. */
-export function createPreviewAccountServices(storage: StorageLike): Pick<ShellKernl, 'mailboxes' | 'files' | 'multiplayer' | 'directory'> {
-  return { mailboxes: createPreviewMailboxes(), files: createPreviewFileServers(), multiplayer: createPreviewMultiplayer(storage), directory: createPreviewDirectory() };
+const PREVIEW_PROBE = Object.freeze({ version: 'preview' });
+
+/**
+ * The preview's download programs: the real settings and the real check of an address against
+ * how this page was loaded, but no program is asked whether it is there, because the preview
+ * reaches nothing. Every allowed address "answers", so the form can be tried offline.
+ */
+export function createPreviewDownloads(storage: StorageLike): DownloadClients {
+  const settings = createDownloadClients({ storage, fetch: () => Promise.reject(new TypeError('offline')) });
+  return {
+    ...settings,
+    async check(_program, typed) {
+      const { endpoint } = await detectClientEndpoint(typed.url, currentPageScheme(), () => Promise.resolve(PREVIEW_PROBE));
+      return { signIn: { ...typed, url: endpoint.url }, notes: endpoint.notes, probe: PREVIEW_PROBE };
+    },
+  };
+}
+
+/** The preview account's servers, file servers, meeting settings, download programs and directory, together. */
+export function createPreviewAccountServices(storage: StorageLike): Pick<ShellKernl, 'mailboxes' | 'files' | 'multiplayer' | 'downloads' | 'secrets' | 'directory'> {
+  return { mailboxes: createPreviewMailboxes(), files: createPreviewFileServers(), multiplayer: createPreviewMultiplayer(storage), downloads: createPreviewDownloads(storage), secrets: createStorageSecrets(storage).description, directory: createPreviewDirectory() };
 }

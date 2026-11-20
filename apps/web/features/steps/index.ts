@@ -10,4 +10,5 @@ import './messages.ts';
 import './mailboxes.ts';
 import './settings.ts';
 import './preview-settings.ts';
+import './download-programs.ts';
 import './settings-window.ts';

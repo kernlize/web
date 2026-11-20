@@ -11,7 +11,9 @@ import type { NappletArtifactCache, NappletManifest } from '@kehto/nip/5d';
 import type { NostrEvent } from '@napplet/core';
 import type { GuardConfig, GuardEvent, GuardProfile, MitigationDescription, WindowVisibility } from '@kernlize/guard';
 import type { MessagingBackend, MessagingRegistry, ReplyAnswer, ReplyPrompt } from '@kernlize/messaging';
-import type { BridgeRegistry, TorrentBackend } from '@kernlize/bridges';
+import type { BridgeRegistry, ClientFetch, PageScheme, TorrentBackend } from '@kernlize/bridges';
+import type { DownloadClients } from './downloads/download-clients.js';
+import type { SecretsDescription, SecretsProvider } from './secrets/secrets.js';
 import type { CatalogEntry } from './catalog/entry.js';
 import type { Profiles } from './profiles/profiles.js';
 import type { People } from './people/person.js';
@@ -167,8 +169,8 @@ export interface ConsentSummary {
   readonly severity: 'routine' | 'destructive' | 'public' | 'direct';
   readonly lines: readonly ConsentLine[];
   readonly applet: AppletIdentity;
-  /** The raw event, for an "advanced" disclosure. */
-  readonly event: NostrEvent;
+  /** The raw event, for an "advanced" disclosure; absent when what is asked about is not an event. */
+  readonly event?: NostrEvent;
 }
 
 /** What the host must answer. */
@@ -316,6 +318,24 @@ export interface KernlOptions {
   readonly remoteTools?: RemoteToolsSettings;
   /** How applets connect people directly: the relays that introduce them and the ICE servers that help (D-042). */
   readonly directConnections?: DirectConnectionsSettings;
+  /** How the shell reaches the person's download programs, and whether their domains are offered (D-050). */
+  readonly downloads?: DownloadsOptions;
+  /** Where the shell keeps passwords and keys of services it signs in to; the host's storage, as typed, by default (D-052). */
+  readonly secrets?: SecretsProvider;
+}
+
+/** The host's settings for the `torrent`, `nzb` and `soulseek` domains. */
+export interface DownloadsOptions {
+  /** How the page running the shell was loaded; read from `location` by default, `http` where there is none. */
+  readonly pageScheme?: () => PageScheme;
+  /** `fetch` for every download program; the global one by default. */
+  readonly fetch?: ClientFetch;
+  /**
+   * Whether the three domains are offered to applets. By default they are offered exactly when
+   * the installed `@kehto/shell` can bind a domain it does not build in; a host whose own
+   * prelude binds them says `true`.
+   */
+  readonly offer?: boolean;
 }
 
 /** A STUN or TURN server, as `RTCPeerConnection` takes it. Its credentials stay in the shell. */
@@ -400,6 +420,10 @@ export interface Kernl {
   readonly files: AccountFileServers;
   /** The person's servers, helpers and trusted tool families for meeting people and calling remote tools (D-043). */
   readonly multiplayer: KernlMultiplayer;
+  /** The download programs the person set up on this device, and the check an address goes through before it is kept (D-050). */
+  readonly downloads: DownloadClients;
+  /** How the shell's secrets are kept, so a settings screen can say so (D-052). */
+  readonly secrets: SecretsDescription;
   /** Monitored servers (NIP-66) for completing and suggesting; idle until `start()`. */
   readonly directory: RelayDirectory;
   readonly intents: Intents;

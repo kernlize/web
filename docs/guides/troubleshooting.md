@@ -55,6 +55,18 @@ To check a published applet end to end, the way a person would open it, run `KER
 
 **Fix.** Open the window's **Grants** panel and turn the domain on. The grant reaches the ACL at once, but the domains the applet was told about at mount do not change until it is opened again, so close the window and open the applet again. A domain the shell does not offer cannot be switched on: the launcher lists it disabled as "not available in this shell", and it has no switch in the grants panel (for example `fs`, `llm` or `cache`; see [Architecture](../concepts/architecture.md#where-each-nap-domain-is-served-from)), and the applet cannot get it in kernl. A new build of an applet has a new hash, so it starts with no grants; see [Applets under kernl](../concepts/applets-under-kernl.md).
 
+## A download program does not answer from the page
+
+**Symptom.** Under **Settings**, **Downloads**, saving a program fails with "No answer. Check the address, the sign-in, and that the program accepts this page." (`unavailable:unreachable`), or with "kernl is open over https, so the address must be https too, or on this device." (`invalid:mixed-content`). The program's own web interface opens fine in another tab.
+
+**Cause.** One of three browser rules. None applies to the program's own page, because the program itself serves it:
+
+- **Mixed content.** A page loaded over `https` may not call a plain `http` address unless that address is this device (`localhost`, `127.0.0.0/8`, `[::1]`). kernl refuses such an address before it tries it.
+- **Cross-origin requests.** A page may read an answer from another origin only when the answer carries headers that allow it. SABnzbd, NZBGet and slskd send them. Transmission and uTorrent send none, so the browser withholds every answer and kernl sees no answer at all.
+- **A wrong NZBGet password.** NZBGet sends the cross-origin headers with a correct sign-in and leaves them off the answer to a wrong one. The browser hides that answer, so a wrong password reads as "No answer" and never as "The program refused that sign-in."
+
+**Fix.** For mixed content, give the program an `https` address or reach it at `localhost`. For NZBGet, check the name and password in its own settings before anything else. For Transmission and uTorrent, put a reverse proxy in front that adds the headers. [Connect a program](../how-tos/connect-a-download-program.md#let-the-page-in) has a working configuration.
+
 ## An applet was quarantined
 
 **Symptom.** A notice says "… was stopped", the window shows "This applet was stopped." with the reason `quarantine`, and the guard panel (*Guard · strict · N*) lists "Applet … was quarantined: it kept flooding the shell" (`flood:quarantine`) or "…: too many web fetches while hidden" (`flood:hidden-resource`).

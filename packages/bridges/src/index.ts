@@ -47,3 +47,38 @@ export { createBridgeResourceResolver } from './resource-resolver';
 export type { BridgeResourceResolver, BridgeResourceResolverOptions, ResourceResolveInit } from './resource-resolver';
 export { describeBridge } from './describe';
 export type { DescriptionRow } from './describe';
+export type {
+  ClientEndpoint,
+  ClientFailure,
+  ClientFetch,
+  ClientOptions,
+  ClientProbe,
+  NzbClient,
+  NzbClientAction,
+  NzbClientAdd,
+  NzbClientAddOption,
+  NzbClientCategory,
+  NzbClientJob,
+  NzbClientState,
+  SoulseekClient,
+  SoulseekClientFailure,
+  SoulseekClientFile,
+  SoulseekClientSearch,
+  SoulseekClientTransfer,
+  SoulseekClientTransferState,
+  TorrentClient,
+  TorrentClientFile,
+  TorrentClientJob,
+  TorrentClientLimits,
+  TorrentClientSource,
+  TorrentClientState,
+  TorrentMetainfo,
+} from './clients/types';
+export { checkClientEndpoint, detectClientEndpoint, endpointCandidates } from './clients/endpoint';
+export type { EndpointCheck, EndpointNote, PageScheme } from './clients/endpoint';
+export { magnetInfoHash, readTorrentMetainfo } from './clients/torrent-metainfo';
+export { createTransmissionClient } from './clients/transmission';
+export { createUtorrentClient } from './clients/utorrent';
+export { createNzbgetClient } from './clients/nzbget';
+export { createSabnzbdClient } from './clients/sabnzbd';
+export { createSlskdClient } from './clients/slskd';

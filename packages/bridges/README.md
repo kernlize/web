@@ -1,6 +1,6 @@
 # @kernlize/bridges
 
-Locator parsing, bridge contract, registry and HTTP bridge with SSRF policy for the kernl shell.
+Locator parsing, bridge contract, registry and HTTP bridge with SSRF policy for the kernl shell. Also adapters that drive Transmission, uTorrent, NZBGet, SABnzbd and slskd through each program's own HTTP API, behind one contract per kind of program.
 
 | Registry | Package |
 | --- | --- |

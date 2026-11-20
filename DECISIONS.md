@@ -745,6 +745,25 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 
 **Reversal cost.** Low. The sections are components that do not know they are in a window; a sheet could hold the same tabs.
 
+## D-050 · Applets work through the programs the person already runs
+
+**Context.** Three NAP drafts let an applet ask the shell for transfers it could never make itself: NAP-TORRENT (napplet/naps#72), NAP-NZB (#136) and NAP-SOULSEEK (#135). Each says the runtime may be its own engine or may adapt a program the user configured, and names Transmission-style daemons, NZBGet, SABnzbd and slskd. D-017 put a browser-peer engine in the page for magnet links and left everything else to a hand-off, because a page cannot open the sockets those networks need. The programs people already run for this do open them, and each has an HTTP API a page can call. kehto's runtime dispatches a domain it does not build in to a service that lists its message types (`messageCapabilities`), but `@kehto/shell` 0.35 advertises a fixed list of domains, and the port an applet talks through is private to kehto's injected prelude, which builds a domain it does not know as an empty object.
+
+**Decision.**
+
+- **Five adapters, one contract each.** `@kernlize/bridges` gains `createTransmissionClient`, `createUtorrentClient` (`TorrentClient`), `createNzbgetClient`, `createSabnzbdClient` (`NzbClient`) and `createSlskdClient` (`SoulseekClient`). Each speaks only its program's own API, takes `fetch` as an option, and rejects with one of a fixed set of reasons. The package still has no dependencies. Nothing above an adapter sees a backend's method names, ids or paths.
+- **Three services, one per draft.** `createTorrentService`, `createNzbService` and `createSoulseekService` in `@kernlize/core` speak each NAP's wire format and call an adapter. They are remote controls: kernl cannot read what the program wrote to its disk, so every operation that would hand an applet file bytes, or save or open a file, answers with the draft's own "unsupported" (or, for NAP-SOULSEEK's `read`, `denied`), and each domain's discovery call says so before an applet tries.
+- **Handles are the shell's.** An applet never sees a backend's id, address or category name. Torrent jobs and NZB jobs belong to the applet that started them, by its catalogue id (publisher, kind and name, the same across versions), so another publisher's applet with the same name is another applet, and are found again after a reload; Soulseek handles belong to one window and end with it, as that draft requires. An applet sees and controls only what it started: what the person, or another applet, put in the same program is concealed.
+- **The person is asked.** Before every torrent or NZB an applet adds, before a window's first search or download through the sharing daemon, and again before anything is deleted. The prompt says what peers or servers will see. A session-scoped torrent is paused, not removed, when its window closes; kernl never removes from the person's program something it was not asked to.
+- **Settings are the person's, on this device.** `createDownloadClients` keeps each program's address and name at `kernl:download-programs:v1` and exposes them as `kernl.downloads`. Passwords and keys go to the secrets provider (D-052); they are never put in an address, a prompt, an error, the settings record or anything an applet receives.
+- **An address is checked against how kernl itself was loaded.** A page loaded over `https` may call a plain `http` address only on the same device, so `checkClientEndpoint` refuses anything else as `invalid:mixed-content` before it is saved, rather than letting it fail later with no explanation. An address typed without a scheme has it worked out by asking the program, `https` first, and only at addresses the page may call; a program that answers but refuses the sign-in ends the search, so credentials are not offered to a second address. An unencrypted address on another machine is allowed with a warning that the password travels in the clear. What comes back out of storage is checked again.
+- **The domains are offered only where an applet can call them.** kernl adds the three domains to the environment it sets at mount, which is what kehto's runtime reads to admit a domain, and passes kehto's prelude a binding table per domain (kehto/web#413). `supportsDomainBindings` asks the installed prelude whether it renders one; until a released `@kehto/shell` does, the domains are not offered, the services are not registered, and the store marks an applet that requires one as it marks any other it cannot run. `KernlOptions.downloads.offer` is for a host whose own prelude binds them. No second channel into the applet is built to get around the private port: that would be a copy of the one primitive kehto exists to own (D-001).
+- **Sealed applets get none of the three.** They are not on the list of domains that may be held together with messages (D-046): a search term, a file name or an NZB is a way out.
+
+**Consequences.** A browser applies its own rule on top of the scheme check: the program has to accept requests from the page's origin. SABnzbd, NZBGet and slskd send the headers that allow it; Transmission and uTorrent do not, so from a page they need a small reverse proxy that adds them, which the how-to shows. A host outside a browser has neither limit. The in-page engine and the hand-offs of D-017 are unchanged: they serve links the person opens, while these domains serve applets.
+
+**Reversal cost.** Low for any one program: an adapter is one file behind a contract. Medium for a domain: the service and its stored handles.
+
 ## D-051 · In the shell a relay is called a relay, and shown by its own address
 
 **Context.** [D-006](#d-006) kept the word "relay" out of everything a person reads, and [D-031](#d-031) named relays by the role they play. The shell therefore said "servers that introduce you", "People lookup" and "Applet catalogue", shortened `relay.damus.io` to `damus.io`, and replaced a host that contained a denied word with a nickname such as "Applet catalogue server 1". On 2026-11-20 the owner ruled that "servers that introduce you" is not technically accurate, "They are relays", and that a nickname in place of an address is "unintuitive, confusing and not user friendly". The same review found the Settings window carrying more help text than a settings window should.
@@ -762,3 +781,36 @@ This amends D-006 and D-031 for the shell only.
 **Consequences.** A person who knows the network finds the word they expect, and one who does not sees an address they can search for. An address someone else chose can put a protocol word on screen; that is the address, not the shell's copy. `@kernlize/core` consent summaries and `describeOutcome` change wording, a patch release.
 
 **Reversal cost.** Low. One pattern, one function and the labels.
+
+## D-052 · Secrets are kept by a provider the host can replace
+
+**Context.** The download programs of D-050 are the first services kernl signs in to with a password or a key. A page's own storage keeps such a thing as plain text that any script on the origin can read. Where kernl runs decides what better keeper exists: a browser extension, a service on the device, the platform's keychain in a native shell. None of them is kernl's to pick for every host, and identity keys already have their own rule: they live only in signers (SOUL opinion 1).
+
+**Decision.**
+
+- **One small contract.** `SecretsProvider` is `get(name)`, `set(name, value)`, `delete(name)` and a `description` of how it keeps things (`plain`, `protected` or `session`, with a short label). Names are the shell's own, such as `download:transmission:password`. A provider may reject with `unavailable:secrets` or `denied:secrets`; a caller reads both as "not available now", never as "there is none".
+- **The host chooses.** `KernlOptions.secrets` takes any provider. The default, `createStorageSecrets(host.storage)`, keeps secrets in the host's storage as typed and says so (`keeps: 'plain'`); `createMemorySecrets()` keeps them for the session only. `kernl.secrets` is the description, so a settings screen can say truthfully where sign-ins are kept.
+- **Settings never hold a secret.** A download program's record holds its address, its name and whether a password or key is kept. The secrets are read from the provider once, held in memory for the clients that sign in with them, and handed to nothing else: not to settings, not to the settings form, not to an applet. A secret left empty in the form means "the kept one", and only for the address it was kept for.
+- **A provider that says no is not an empty provider.** If it will not keep a secret, nothing is saved. If it will not hand a kept one over, that program is `locked`: it serves no applet until the person signs in to it again, and the settings say so.
+- **Identity keys are out of scope.** They stay inside applesauce signers.
+
+**Consequences.** On kernl.run the default still keeps sign-ins readable to the origin, which the settings line states. A host with a keychain, an extension or a local service closes that by passing one object. Other secrets the shell holds as plain settings today, the connection helpers' credentials (D-043), should move behind the same provider.
+
+**Reversal cost.** Low. One interface and one caller.
+
+## D-053 · Connections are many, and kernl routes
+
+**Context.** D-050 kept one connection per program, so a person with two Transmission daemons, or a Transmission and a uTorrent, could use only one of them at a time. NAP-NZB lets an applet choose among several downloaders. NAP-TORRENT and NAP-SOULSEEK have no way for an applet to name a backend, and should not: which machine a download runs on is the person's business.
+
+**Decision.**
+
+- **A connection is a record of its own.** It has a random id, a program, a label the person can change, an address and a sign-in. Any number may exist, several of one program among them. Secrets are kept under the connection's id (D-052) and go with it when it is removed.
+- **kernl routes torrent and Soulseek work.** Each domain has a default connection, the first of its kind until the person picks another; removing the default makes the next one the default. A new torrent goes to the connection that already holds that torrent for kernl, else to the default. A search or browse goes to the default. A torrent job, and a Soulseek query with its files and transfers, remembers the connection it went to and is served by that connection from then on. The add prompt names the connection by its label.
+- **NZB connections are each a downloader.** The applet chooses among them as NAP-NZB says, by the person's label and an opaque id.
+- **An address change starts a new routing key.** NZB handles and Soulseek queries and transfers are keyed by it, so a handle issued at the old address can never reach a different server's job that happens to have the same id; it answers "not found" instead. A torrent job follows its connection across an address change and asks the new address for the same info hash: an info hash names the content, so it cannot meet a different torrent.
+- **A connection that is gone leaves nothing stuck.** A job on a removed or locked connection reports the torrent as unavailable, and removing that job succeeds without touching any program.
+- **Uploads will ask.** When NAP-UPLOAD reaches these programs, seeding through a torrent connection is the person's choice, asked in the prompt sequence when more than one connection could take it. Only the torrent domain has a way to seed; NAP-NZB and NAP-SOULSEEK define none.
+
+**Consequences.** Two connections to the same daemon are two connections: kernl does not detect that they are one program. Routing is not load balancing; a default that cannot be reached is not replaced by another for new work.
+
+**Reversal cost.** Low. Routing is one interface the services read.

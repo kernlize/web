@@ -33,6 +33,10 @@ export const DOMAIN_CAPABILITIES: Readonly<Record<string, readonly Capability[]>
   cache: ['cache:read', 'cache:write'],
   // kehto's ACL has no capability for direct connections; the service checks the grant itself (D-042).
   webrtc: [],
+  // Not kehto domains at all: its runtime admits each by the window's environment and the service's own message list (D-050).
+  torrent: [],
+  nzb: [],
+  soulseek: [],
 });
 
 /**

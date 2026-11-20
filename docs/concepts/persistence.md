@@ -31,6 +31,13 @@ The prefix keeps kernl's keys apart from kehto's and from the host app's in the 
 | `kernl:intent-sync:v1` | `createHandlerDefaults` | `true` when the user chose to publish their choices with their account; absent or `false` otherwise. |
 | `kernl:event-cache:v1` | `createSqliteOpfsCacheAdapter` | The event cache's current database filename, written only after a damaged database could not be wiped and the cache moved to a new file. Absent means `/kernl-events.sqlite3`. See [Events kept between visits](#events-kept-between-visits). |
 | `kernl:firewall:v1` | `createRuntimeFirewallHooks`, as the persistence of the `legacyFirewall` it constructs | kehto's serialised runtime firewall configuration: the per-applet rates kernl installs, the unfocused multiplier and the startup burst guard. Counters are never stored. kehto writes it whenever kernl changes the configuration and loads it when the bridge is created; kernl reapplies the profile on every boot, so a stored value never loosens the profile in force. The string is kehto's format and is written as is, not through `createNamespacedStore`. See [Guard](./guard.md#where-enforcement-happens). |
+| `kernl:download-programs:v1` | `createDownloadClients` | The person's connections to the programs they run: `{ connections, defaults }`, where each connection is `{ id, program, label, url, username?, hasPassword, hasApiKey, routingKey }` and `defaults` names, by id, where new `torrent` and `soulseek` work goes ([D-053](../decisions.md#d-053)). It never holds a password or a key, only whether one is kept. Each address is checked again when it is read back and dropped when this page may no longer call it. See [Connected programs](./download-programs.md). |
+| `kernl:secrets:v1:<name>` | `createStorageSecrets`, the default secrets provider | One key per secret, the value as typed and not JSON, for example `kernl:secrets:v1:download:<connection id>:password`. Readable by anything that can read the storage. Absent when the host passes its own provider. See [Secrets](./secrets.md). |
+| `kernl:torrent-jobs:v1` | `createTorrentService` | The persistent torrent jobs applets started: `{ applet, jobId, infoHash, connection, mode, revision, downloadLimit, uploadLimit, paused, title? }` each, `connection` being the id of the connection the torrent went to. Session jobs are held in memory only. An entry that does not pass a field-by-field check is dropped on read. |
+| `kernl:nzb-handles:v1` | `createNzbService` | The handles each applet knows downloaders, categories and jobs by, with the downloader's own category name or job id each one stands for, so a handle means the same thing after a reload. |
+| `kernl:nzb-replay:v1` | `createNzbService` | One record per `nzb.add` or `nzb.control` operation key, kept until its `replayUntil`, 24 hours after it was last written: `{ applet, digest, replayUntil, dispatched, jobIds, outcome? }`. `digest` is a SHA-256 of the request; the request itself, the NZB document included, is not kept. |
+
+The last three are written only while the download domains are offered ([Connected programs](./download-programs.md#when-the-domains-are-offered)); the first two are written as soon as the person sets a connection up.
 
 On boot, `createKernlAccounts` restores the accounts and makes the stored id active if that account still exists. `createGrants` loads its records, and `createRelayTiers` and `createDefaultMessaging` start from the stored value when there is one.
 
@@ -84,6 +91,7 @@ Damage met while the cache is in use goes through the same steps. Calls that mee
 
 - **Plaintext private keys.** `KernlAccountManager.addAccount` refuses the account types whose serialised form carries a raw secret (`PLAINTEXT_KEY_ACCOUNT_TYPES`: `nsec` and `seed-words`) with `denied:plaintext-key-persistence`, and restore drops any such entry it finds in storage. The only stored form of a local key is applesauce's `PasswordAccount`, whose `ncryptsec` is NIP-49 encrypted with the user's password. The password itself is never stored.
 - **A throwaway identity.** "Just look around" in the live shell and "Try the preview" in the preview sign in with `createThrowawayIdentity()`. `ThrowawayIdentity` refuses to serialise, so the account manager skips it when it persists; it disappears on reload, and the shell removes it on sign-out ([D-044](../decisions.md#d-044)).
+- **A download program's password or key in settings.** `kernl:download-programs:v1` records only that one is kept. The secret itself goes to the [secrets provider](./secrets.md), which by default is this same storage under `kernl:secrets:v1:` and says so.
 - **The guard profile.** `GuardFacade.setProfile` changes the profile for the running shell only. Every boot starts `strict` ([D-003](../decisions.md#d-003)).
 - **Open windows.** The window manager persists only the layout. Applets are not reopened on reload; the recent list is how the user gets back to them.
 
@@ -97,4 +105,6 @@ Signing out clears the active account and keeps the account in the list, so it c
 
 - [Identity and grants](./identity-and-grants.md)
 - [Relay tiers](./relay-tiers.md)
+- [Secrets](./secrets.md)
+- [Connected programs](./download-programs.md)
 - [Alpha status](../alpha-status.md#what-does-not-work-yet)
