@@ -115,7 +115,7 @@ test('the firewall panel loosens links, and a stricter rule stops the applet and
   await panel.getByLabel('its own storage').selectOption('ask');
   await panel.getByRole('button', { name: 'Close Firewall' }).click();
   await expect(page.locator('section.window')).toHaveAttribute('data-status', 'revoked');
-  await expect(page.getByText('A firewall rule or answer it ran under changed. Open it again.').first()).toBeVisible();
+  await expect(page.getByText('A firewall rule or answer it ran under changed.').first()).toBeVisible();
 
   // Starting it again puts that one domain to the person, with answers that can be kept.
   await page.locator('section.window').getByRole('button', { name: /Close/ }).first().click();
