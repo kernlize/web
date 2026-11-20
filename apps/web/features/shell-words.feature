@@ -24,17 +24,19 @@ Feature: Shell words
     And the shell text "Sign in to your account" names the protocol
     And the shell text "Remembered accounts" names the protocol
 
-  Scenario Outline: grant domains read as plain words
+  Scenario Outline: grant domains read as plain words, with the contract beside them
     Then the shell calls the domain "<domain>" "<label>"
+    And the shell writes the contract of "<domain>" as "<contract>"
 
     Examples:
-      | domain   | label                    |
-      | identity | your identity            |
-      | relay    | network                  |
-      | outbox   | posting to your network  |
-      | common   | social actions           |
-      | zap      | another capability       |
-      | toString | another capability       |
+      | domain   | label                    | contract |
+      | identity | your identity            | IDENTITY |
+      | relay    | network                  | RELAY    |
+      | outbox   | posting to your network  | OUTBOX   |
+      | resource | web fetches              | RESOURCE |
+      | common   | social actions           | COMMON   |
+      | zap      | another capability       | ZAP      |
+      | toString | another capability       | TOSTRING |
 
   Scenario: an applet's first run lists required domains first and presets the account
     Given an applet that requires "identity, storage" and may use "storage, relay, zap"

@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ShellKernl } from './contract';
   import { shortId } from './contract';
-  import { domainLabel, formatBytes, withheldByMessages, WITHHELD_NOTE } from './domains';
+  import { contractName, domainLabel, formatBytes, withheldByMessages, WITHHELD_NOTE } from './domains';
   import type { GuardLog } from './guard-log.svelte';
   import Overlay from './Overlay.svelte';
   import type { ShellWindow } from './window-store.svelte';
@@ -61,7 +61,7 @@
       {@const always = baseline.includes(domain) && !withheld}
       <li class="shell-toggle">
         <label class="text" for="domain-{domain}">
-          <span>{domainLabel(domain)}</span>
+          <span>{domainLabel(domain)} <span class="shell-contract" data-contract>{contractName(domain)}</span></span>
           <small>{withheld ? WITHHELD_NOTE : always ? 'always on' : win.plan.summary.requires.includes(domain) ? 'the applet says it needs this' : win.plan.summary.optional.includes(domain) ? 'optional for this applet' : 'not requested'}</small>
         </label>
         <input id="domain-{domain}" type="checkbox" checked={always || (granted.includes(domain) && !withheld)} disabled={always || withheld || record?.blocked} onchange={(event) => toggle(domain, event.currentTarget.checked)} />
