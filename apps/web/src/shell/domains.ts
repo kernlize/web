@@ -40,6 +40,13 @@ export const withheldByMessages = (domain: string, on: readonly string[]): boole
 /** What the launcher says for a domain it has no words for: never the wire name. */
 export const UNKNOWN_DOMAIN_LABEL = 'another capability';
 
+/**
+ * The contract a grant stands for, as the shell writes it beside the plain words: the NAP domain in
+ * capitals (`RESOURCE`, `OUTBOX`). It is an identifier, like an address, so it is the one place the
+ * raw name is shown, and only next to words that say what it means (D-057).
+ */
+export const contractName = (domain: string): string => domain.toUpperCase();
+
 /** Plain words for a grant domain. Unknown domains get a generic label, never their raw name. */
 export const domainLabel = (domain: string): string => (Object.hasOwn(LABELS, domain) ? (LABELS[domain] as string) : UNKNOWN_DOMAIN_LABEL);
 

@@ -2,7 +2,7 @@ import { expect } from 'vitest';
 import { Given, Then, When, type DataTable } from 'quickpickle';
 import type { Bridge, BridgeAvailability } from '@kernlize/bridges';
 import { abbreviate, DEFAULT_WINDOW_SIZE, LAYOUT_KEY, publisherWords, RECENT_KEY, shortId, type ConsentSummary } from '../../src/shell/contract.ts';
-import { choiceNote, domainChoices, domainLabel, formatBytes, withheldByMessages, WITHHELD_NOTE, type DomainChoice } from '../../src/shell/domains.ts';
+import { choiceNote, contractName, domainChoices, domainLabel, formatBytes, withheldByMessages, WITHHELD_NOTE, type DomainChoice } from '../../src/shell/domains.ts';
 import { openFailure } from '../../src/shell/launcher-reasons.ts';
 import { serverAddress, serverLabel, serverName } from '../../src/shell/servers.ts';
 import { helperFrom, toolSearchWords } from '../../src/shell/meeting-words.ts';
@@ -67,6 +67,10 @@ Then('the shell text {string} does not name the protocol', (_world: WordsWorld, 
 
 Then('the shell calls the domain {string} {string}', (_world: WordsWorld, domain: string, label: string) => {
   expect(domainLabel(domain)).toBe(label);
+});
+
+Then('the shell writes the contract of {string} as {string}', (_world: WordsWorld, domain: string, contract: string) => {
+  expect(contractName(domain)).toBe(contract);
 });
 
 Given('an applet that requires {string} and may use {string}', (world: WordsWorld, requires: string, optional: string) => {

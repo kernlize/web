@@ -1,7 +1,7 @@
 <script lang="ts">
   import Publisher from './Publisher.svelte';
   import type { AppletSummary, ShellKernl } from './contract';
-  import { choiceNote, domainChoices, domainLabel, withheldByMessages, WITHHELD_NOTE, type DomainChoice } from './domains';
+  import { choiceNote, contractName, domainChoices, domainLabel, withheldByMessages, WITHHELD_NOTE, type DomainChoice } from './domains';
   import { explainOpenFailure } from './launcher-reasons';
   import { acceptsWords } from './store';
 
@@ -80,7 +80,7 @@
       {#each choices as choice (choice.domain)}
         <li class="shell-toggle">
           <label class="text" for="grant-{choice.domain}">
-            <span>{choice.label}</span>
+            <span>{choice.label} <span class="shell-contract" data-contract>{contractName(choice.domain)}</span></span>
             <small>{withheld(choice) ? WITHHELD_NOTE : choiceNote(choice)}</small>
           </label>
           <input id="grant-{choice.domain}" type="checkbox" checked={choice.on && !withheld(choice)} onchange={(event) => (choice.on = event.currentTarget.checked)} disabled={choice.baseline || !choice.available || withheld(choice)} />
