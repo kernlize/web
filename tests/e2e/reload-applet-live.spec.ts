@@ -78,6 +78,10 @@ test('reloading a running applet starts it fresh in a new frame, where its windo
   await page.setViewportSize({ width: 700, height: 800 });
   await expect(page.getByRole('button', { name: 'Reload Feed applet' })).toBeVisible();
   await proof(page, '04-narrow');
+  // On a phone every button in the bar still fits, Close included.
+  await page.setViewportSize({ width: 390, height: 800 });
+  await expect(page.getByRole('button', { name: 'Close Feed applet' })).toBeInViewport({ ratio: 1 });
+  await proof(page, '05-phone');
 });
 
 test('a stopped applet can be reloaded from its stopped window', async ({ page }) => {

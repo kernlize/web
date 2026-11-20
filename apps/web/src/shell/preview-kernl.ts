@@ -24,7 +24,7 @@ import {
   type VisibilityGate,
   type WindowVisibility,
 } from '@kernlize/guard';
-import { domainsInForce, grantNarrowingReason } from '@kernlize/core';
+import { describeAppletMessage, domainsInForce, grantNarrowingReason, type AppletMessage, type AppletMessageDirection } from '@kernlize/core';
 import { BehaviorSubject, of, Subject, type Subscription } from 'rxjs';
 import type {
   AppletHandle,
@@ -445,11 +445,14 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
   const { perform, firewall } = createActions({ host, bridges, pubkeyOf: pubkey, intents, config });
   const mount = createMounter(host, guard, mounted, config);
   const narrowing = stopNarrowed(grants, mounted);
-  const ports = createPreviewPorts({ messaging, profiles, pubkey: () => PREVIEW_OWNER, notify: (notice) => host.notify(notice), ...(theme ? { theme: { initialTheme: theme } } : {}) });
+  const traffic$ = new Subject<AppletMessage>();
+  const report = (windowId: string, direction: AppletMessageDirection, message: unknown): void => traffic$.next(describeAppletMessage(windowId, direction, 'port', message));
+  const ports = createPreviewPorts({ messaging, profiles, pubkey: () => PREVIEW_OWNER, notify: (notice) => host.notify(notice), report, ...(theme ? { theme: { initialTheme: theme } } : {}) });
 
   return {
     accounts,
     guard,
+    traffic$: traffic$.asObservable(),
     grants,
     relays,
     messaging,
@@ -517,6 +520,7 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
     applets: () => [...mounted.values()].map((entry) => entry.handle),
     handleWindowMessage(event) {
       const entry = [...mounted.values()].find((candidate) => candidate.frame.contentWindow === event.source);
+      if (entry) traffic$.next(describeAppletMessage(entry.plan.windowId, 'from-applet', 'window', event.data));
       if (entry?.plan.summary.builtin) return bindPort(entry, event, { ports, guard, host });
       if (!entry || !isPreviewMessage(event.data)) return;
       const envelope = ENVELOPES[event.data.kernlPreview] ?? { type: 'generic' };
@@ -532,6 +536,7 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
       for (const entry of mounted.values()) entry.handle.close();
       ports.close();
       messaging.close();
+      traffic$.complete();
     },
   };
 }

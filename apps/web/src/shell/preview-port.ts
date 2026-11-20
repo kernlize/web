@@ -1,6 +1,6 @@
 import { createDmService, createIdentityService, createNotifyService, createThemeService } from '@kehto/services';
 import type { MessagingRegistry } from '@kernlize/messaging';
-import { labelConversations, locateRecipients, type Profiles } from '@kernlize/core';
+import { labelConversations, locateRecipients, type AppletMessageDirection, type Profiles } from '@kernlize/core';
 import { createPreviewPeople } from './preview-people';
 import type { KernlHost } from './contract';
 
@@ -27,6 +27,8 @@ export interface PreviewPortDeps {
   readonly profiles: Pick<Profiles, 'settled'>;
   /** The shell's colours, so the applet matches the page it sits in. */
   readonly theme?: Parameters<typeof createThemeService>[0];
+  /** Hears every envelope on a port, both ways, as the live shell reports its traffic. */
+  readonly report?: (windowId: string, direction: AppletMessageDirection, message: unknown) => void;
 }
 
 export interface PortBinding {
@@ -66,13 +68,18 @@ export function createPreviewPorts(deps: PreviewPortDeps): PreviewPorts {
 
   return {
     bind({ windowId, port, domains, admit }) {
+      const send = (reply: unknown): void => {
+        deps.report?.(windowId, 'to-applet', reply);
+        port.postMessage(reply);
+      };
       port.onmessage = (event) => {
         const envelope = event.data;
+        deps.report?.(windowId, 'from-applet', envelope);
         if (!isEnvelope(envelope) || !admit(envelope)) return;
         const domain = envelope.type.split('.')[0] as string;
         const service = domains.includes(domain) ? services[domain] : undefined;
-        if (service) service.handleMessage(windowId, envelope as never, (reply) => port.postMessage(reply));
-        else port.postMessage({ type: `${envelope.type}.result`, id: envelope.id, error: 'unavailable' });
+        if (service) service.handleMessage(windowId, envelope as never, send);
+        else send({ type: `${envelope.type}.result`, id: envelope.id, error: 'unavailable' });
       };
       port.start();
       return () => {

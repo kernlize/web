@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { expect } from 'vitest';
 import { After, Given, Then, When } from 'quickpickle';
 import { MemoryStorage } from '../../../../packages/core/features/steps/world.ts';
-import type { AppletHandle, AppletSummary, BuiltinApplet, FrameLike, KernlHost, MountPlan, ShellKernl } from '../../src/shell/contract.ts';
+import type { AppletHandle, AppletMessage, AppletSummary, BuiltinApplet, FrameLike, KernlHost, MountPlan, ShellKernl } from '../../src/shell/contract.ts';
 import { createPreviewKernl } from '../../src/shell/preview-kernl.ts';
 import type { PortLike } from '../../src/shell/preview-port.ts';
 
@@ -40,6 +40,7 @@ interface BuiltinScratch {
   window?: Window;
   error?: Error;
   requests: number;
+  traffic?: AppletMessage[];
 }
 
 interface BuiltinWorld {
@@ -254,3 +255,17 @@ Then('the preview host heard the applet revoked for {string}', (world: BuiltinWo
 When('the shipped applet is closed', (world: BuiltinWorld) => scratchOf(world).handle?.close());
 
 When('the preview is destroyed', (world: BuiltinWorld) => scratchOf(world).kernl.destroy());
+
+Given('the preview\'s traffic is watched', (world: BuiltinWorld) => {
+  const seen: AppletMessage[] = [];
+  scratchOf(world).traffic = seen;
+  scratchOf(world).kernl.traffic$.subscribe((message) => void seen.push(message));
+});
+
+Then('the preview reported {string}', (world: BuiltinWorld, expected: string) => {
+  expect((scratchOf(world).traffic ?? []).map((message) => `${message.direction} ${message.via} ${message.type}`).join(', ')).toBe(expected);
+});
+
+Then('the preview reported the failure {string} on {string}', (world: BuiltinWorld, failure: string, type: string) => {
+  expect(scratchOf(world).traffic?.find((message) => message.type === type)?.error).toBe(failure);
+});

@@ -69,6 +69,7 @@ export const sidebar = [
     text: 'How-tos',
     items: [
       { text: 'How-to index', link: '/how-tos/' },
+      { text: 'Inspect an applet\'s messages', link: '/how-tos/inspect-applet-messages' },
       { text: 'Change the guard profile', link: '/how-tos/change-guard-profile' },
       { text: 'Change the firewall rules', link: '/how-tos/change-firewall-rules' },
       { text: 'Add a messaging provider', link: '/how-tos/add-a-messaging-provider' },

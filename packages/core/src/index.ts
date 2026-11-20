@@ -96,6 +96,7 @@ export {
   type ResolvedApplet,
 } from './applets/resolve.js';
 export { planMount, resolveAppletEnvironment, type PlanMountOptions } from './applets/plan.js';
+export { appletMessageFailure, createAppletTraffic, describeAppletMessage, type AppletMessage, type AppletMessageDirection, type AppletTraffic } from './applets/traffic.js';
 export { CONTROLLER_DENY_POLICY, mountApplet, type MountDeps, type MountGuardHooks, type MountedApplet } from './applets/mount.js';
 
 export {
