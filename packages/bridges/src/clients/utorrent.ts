@@ -49,7 +49,7 @@ const PEERS_CONNECTED = 12;
 const PEERS_IN_SWARM = 13;
 const SEEDS_CONNECTED = 14;
 const SEEDS_IN_SWARM = 15;
-/** Not in the published row format: uTorrent 3.x appends its own status line here, which is the only wording an error comes with. */
+/** Not in the published row format: uTorrent 3.x appends its own status line here ("Stopped", "Connecting to peers"), which is the only wording an error comes with. */
 const STATUS_MESSAGE = 21;
 const UNEXPLAINED_ERROR = 'uTorrent reports an error for this torrent';
 
@@ -242,12 +242,11 @@ async function propsFor(webui: Transport, hashes: readonly string[]): Promise<Re
   return found;
 }
 
-/** `getfiles` answers without a `files` entry both for a torrent it does not have and for one whose metadata has not arrived. */
+/** `getfiles` leaves `files` out for a torrent it does not have, and lists none for a magnet whose metadata has not arrived. */
 async function fileRows(webui: Transport, infoHash: string): Promise<readonly Row[]> {
   const answer = await webui.send(`action=getfiles&${hashQuery(checkedHash(infoHash))}`);
-  if (answer.files !== undefined) return jsonList(jsonList(answer.files)[1]).map(jsonList);
-  await knownRow(webui, infoHash);
-  return [];
+  if (answer.files === undefined) throw clientError('unavailable:not-found');
+  return jsonList(jsonList(answer.files)[1]).map(jsonList);
 }
 
 function sendTorrent(webui: Transport, source: TorrentClientSource, infoHash: string): Promise<void> {

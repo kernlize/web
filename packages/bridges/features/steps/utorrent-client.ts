@@ -121,7 +121,7 @@ Given('the uTorrent has a torrent in error saying {string}', (world: object, mes
 });
 
 Given('the uTorrent has a torrent in error without saying why', (world: object) => {
-  seedFile(world, 'night-mix.flac', { status: 152, progress: 250 });
+  seedFile(world, 'night-mix.flac', { status: 152, progress: 250, message: null });
 });
 
 Given('the uTorrent has {int} torrents', (world: object, count: number) => {
