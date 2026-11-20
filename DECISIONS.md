@@ -745,7 +745,7 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 
 **Reversal cost.** Low. The sections are components that do not know they are in a window; a sheet could hold the same tabs.
 
-## D-050 · Applets download through the programs the person already runs
+## D-050 · Applets work through the programs the person already runs
 
 **Context.** Three NAP drafts let an applet ask the shell for transfers it could never make itself: NAP-TORRENT (napplet/naps#72), NAP-NZB (#136) and NAP-SOULSEEK (#135). Each says the runtime may be its own engine or may adapt a program the user configured, and names Transmission-style daemons, NZBGet, SABnzbd and slskd. D-017 put a browser-peer engine in the page for magnet links and left everything else to a hand-off, because a page cannot open the sockets those networks need. The programs people already run for this do open them, and each has an HTTP API a page can call. kehto's runtime dispatches a domain it does not build in to a service that lists its message types (`messageCapabilities`), but `@kehto/shell` 0.35 advertises a fixed list of domains, and the port an applet talks through is private to kehto's injected prelude, which builds a domain it does not know as an empty object.
 
@@ -807,7 +807,7 @@ This amends D-006 and D-031 for the shell only.
 - **A connection is a record of its own.** It has a random id, a program, a label the person can change, an address and a sign-in. Any number may exist, several of one program among them. Secrets are kept under the connection's id (D-052) and go with it when it is removed.
 - **kernl routes torrent and Soulseek work.** Each domain has a default connection, the first of its kind until the person picks another; removing the default makes the next one the default. A new torrent goes to the connection that already holds that torrent for kernl, else to the default. A search or browse goes to the default. A torrent job, and a Soulseek query with its files and transfers, remembers the connection it went to and is served by that connection from then on. The add prompt names the connection by its label.
 - **NZB connections are each a downloader.** The applet chooses among them as NAP-NZB says, by the person's label and an opaque id.
-- **An address change starts a new routing key.** What a service hands an applet is keyed by it, so a handle issued for jobs at the old address can never reach a different server's job that happens to have the same id; it answers "not found" instead.
+- **An address change starts a new routing key.** NZB handles and Soulseek queries and transfers are keyed by it, so a handle issued at the old address can never reach a different server's job that happens to have the same id; it answers "not found" instead. A torrent job follows its connection across an address change and asks the new address for the same info hash: an info hash names the content, so it cannot meet a different torrent.
 - **A connection that is gone leaves nothing stuck.** A job on a removed or locked connection reports the torrent as unavailable, and removing that job succeeds without touching any program.
 - **Uploads will ask.** When NAP-UPLOAD reaches these programs, seeding through a torrent connection is the person's choice, asked in the prompt sequence when more than one connection could take it. Only the torrent domain has a way to seed; NAP-NZB and NAP-SOULSEEK define none.
 

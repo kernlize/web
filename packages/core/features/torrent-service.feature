@@ -51,7 +51,7 @@ Feature: Torrent downloads through the person's own torrent program
 
     Scenario: the question says what is added, how long it shares and who sees what
       When the torrent window "A" adds "ubuntu"
-      Then the person was asked "Download with your torrent program" as a torrent "add" question
+      Then the person was asked "Add a torrent to Transmission" as a torrent "add" question
       And the torrent question says "Name" is "ubuntu"
       And the torrent question says "Torrent" is "$hash:ubuntu"
       And the torrent question says "Program" is "Transmission"
@@ -284,7 +284,7 @@ Feature: Torrent downloads through the person's own torrent program
     Scenario: the last applet holding the torrent can remove it, and is asked before files go
       When the torrent window "B" asks to remove "ubuntu"
       And the torrent window "A" asks to remove "ubuntu" and delete its files
-      Then the person was asked "Delete downloaded files" as a torrent "delete" question
+      Then the person was asked "Delete the torrent's files" as a torrent "delete" question
       And the torrent question says "Name" is "ubuntu"
       And the torrent question says "Torrent" is "$hash:ubuntu"
       And the torrent question says "Deletes" is "The files this torrent downloaded, on the machine running your torrent program"

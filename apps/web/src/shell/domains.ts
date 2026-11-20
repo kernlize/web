@@ -26,8 +26,8 @@ const LABELS: Readonly<Record<string, string>> = {
   count: 'counting',
   lists: 'your lists',
   common: 'social actions',
-  torrent: 'downloads from peers',
-  nzb: 'downloads from archives',
+  torrent: 'peer sharing',
+  nzb: 'news archives',
   soulseek: 'shared libraries',
 };
 

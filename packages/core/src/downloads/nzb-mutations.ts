@@ -148,7 +148,7 @@ export async function addNzb(session: NzbSession, call: NzbCall, raw: unknown): 
       ...(plan.category === undefined ? [] : [{ label: 'Category', value: plan.category }]),
       { label: 'Keeps going', value: `This download carries on in ${label} after this applet is closed` },
     ];
-    need(await session.options.ask(call.windowId, { kind: 'add', title: `Download with ${label}`, lines }), 'permission_denied', 'The person declined this download');
+    need(await session.options.ask(call.windowId, { kind: 'add', title: `Add an NZB job to ${label}`, lines }), 'permission_denied', 'The person declined this download');
     need(call.live(), 'permission_denied', REVOKED);
     const submission: NzbClientAdd = {
       bytes,

@@ -82,7 +82,7 @@ Feature: NZB downloads through the person's own downloaders
         | priority    | high      |
         | startPaused | true      |
         | password    | open-says |
-      Then the person was asked the NZB question "Download with Home" as an "add" for "reader"
+      Then the person was asked the NZB question "Add an NZB job to Home" as an "add" for "reader"
       And the NZB question says "Name" is "Holiday"
       And the NZB question says "Files" is "2 files"
       And the NZB question says "Category" is "films"

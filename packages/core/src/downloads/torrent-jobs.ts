@@ -256,13 +256,13 @@ function naming(subject: { readonly title?: string; readonly infoHash: string })
  * @returns What is added, where, how long it shares, who sees what, and what closing the applet does.
  * @example
  * ```ts
- * describeTorrentAdd(plan, 'Home').title; // 'Download with your torrent program'
+ * describeTorrentAdd(plan, 'Home').title; // 'Add a torrent to Home'
  * ```
  */
 export function describeTorrentAdd(plan: TorrentAddPlan, program: string): DownloadQuestion {
   return {
     kind: 'add',
-    title: 'Download with your torrent program',
+    title: `Add a torrent to ${program}`,
     lines: [
       ...naming(plan),
       { label: 'Program', value: program },
@@ -286,7 +286,7 @@ export function describeTorrentAdd(plan: TorrentAddPlan, program: string): Downl
 export function describeTorrentDelete(record: TorrentJobRecord): DownloadQuestion {
   return {
     kind: 'delete',
-    title: 'Delete downloaded files',
+    title: 'Delete the torrent\'s files',
     lines: [...naming(record), { label: 'Deletes', value: 'The files this torrent downloaded, on the machine running your torrent program' }],
   };
 }

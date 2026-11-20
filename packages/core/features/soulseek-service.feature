@@ -55,7 +55,7 @@ Feature: Searching and downloading through the person's own Soulseek daemon
     Scenario: the first search asks, in words, and a yes lasts for the window
       When window "A" searches Soulseek for "field recording"
       Then the person was asked the Soulseek question 1 times
-      And the Soulseek question is titled "Search and download through your sharing program"
+      And the Soulseek question is titled "Search, browse and fetch through your sharing program"
       And the Soulseek question says "see your search words, the names of the files you ask for, and the network address of the machine running the program"
       And the Soulseek question says "Nothing is encrypted end to end"
       And the Soulseek question says "Downloads stop when this applet's window closes"

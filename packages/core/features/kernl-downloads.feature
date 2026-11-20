@@ -23,7 +23,7 @@ Feature: Download domains in the composed shell
     Given a mounted applet granted "torrent" that has said hello
     Then the applet received a "shell.init" with domains "shell,storage,inc,theme,torrent"
     When the applet asks to add the magnet for "abcdef0123456789abcdef0123456789abcdef01" over its port
-    Then the host is asked "Download with your torrent program" as a "direct" question with no record to show
+    Then the host is asked "Add a torrent to Transmission" as a "direct" question with no record to show
     When the host answers yes to the download question
     Then the applet is told the torrent was added
     And the real program was asked to add that torrent

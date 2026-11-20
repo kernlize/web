@@ -53,12 +53,12 @@ export const DEFAULT_SOULSEEK_LIMITS: SoulseekLimits = {
  *
  * @example
  * ```ts
- * SOULSEEK_SESSION_QUESTION.title; // 'Search and download through your sharing program'
+ * SOULSEEK_SESSION_QUESTION.title; // 'Search, browse and fetch through your sharing program'
  * ```
  */
 export const SOULSEEK_SESSION_QUESTION: DownloadQuestion = {
   kind: 'session',
-  title: 'Search and download through your sharing program',
+  title: 'Search, browse and fetch through your sharing program',
   lines: [
     { label: 'Who sees it', value: "The network's server and the people whose files are involved see your search words, the names of the files you ask for, and the network address of the machine running the program" },
     { label: 'Privacy', value: 'Nothing is encrypted end to end' },
