@@ -193,7 +193,7 @@ Open the shell, either the hosted one at `https://kernl.run/app/` or your own fr
 1. Click **Open an applet**, paste the address into the store's search, "Find an applet", and click **Look up**. kernl fetches the manifest, verifies its signature, fetches your file by hash and verifies it.
 2. The launcher shows the title, publisher and description, and under "What it may use" switches for *your account* and *network*, each marked "optional" and off. Click **Run** with both off first.
 3. The window shows "Allow your account to see who is signed in." and "Allow network access to see and post notes." That is your feature detection at work.
-4. Click the window's **Grants** button and turn *your account* and *network* on. The grant applies to the running window's next request, but the domains an applet was told about at start-up do not change until it is opened again, so close the window and open the applet again from "Recent" in the launcher.
+4. Click the window's **Grants** button and turn *your account* and *network* on. The grant applies to the running window's next request, but the domains an applet was told about at start-up do not change until it starts again, so press **Reload** in the window's title bar.
 5. Now the window shows "Signed in as …", the notes appear, and **Post** works without a prompt.
 
 If you published to a relay that is not in kernl's catalogue tier and the address carries no relay hint, the lookup finds nothing: add the relay under **Settings**, **Servers**, "Applet relays", and try again.

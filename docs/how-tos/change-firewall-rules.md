@@ -9,7 +9,7 @@ Grants decide which domains an applet holds. The firewall decides, inside those,
 3. Under *For one applet*, give an open applet its own rule for opening links. The rule follows that applet across versions.
 4. **Back to the starting rules** restores the two shipped rules.
 
-A stricter rule applies to applets that are already running. An applet that started, or opened a link, under what the old rule allowed is stopped, and its window says a firewall rule or answer it ran under changed. Open it again to run it under the new rule.
+A stricter rule applies to applets that are already running. An applet that started, or opened a link, under what the old rule allowed is stopped, and its window says a firewall rule or answer it ran under changed. Press **Reload** in its window to run it under the new rule.
 
 *Answers you gave* lists the answers in force that the user gave: what was allowed or refused, for which applet, and whether it lasts until the window closes or is kept across visits. **Take back** removes one and stops the applet that ran under it. If the stored answers cannot be read, the panel says so and offers **Clear stored answers**; until then no applet starts. Answers about links are never listed, because a link is answered for one opening only.
 

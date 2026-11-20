@@ -3,6 +3,7 @@
   import type { Booted, MountPlan, Session, StorageLike } from './contract';
   import FirewallPanel from './FirewallPanel.svelte';
   import GrantsPanel from './GrantsPanel.svelte';
+  import { createReloader } from './reload';
   import InspectorPanel from './InspectorPanel.svelte';
   import type { TrafficLog } from './traffic-log.svelte';
   import type { GuardLog } from './guard-log.svelte';
@@ -56,6 +57,7 @@
   const profile = observe(kernl.guard.profile$, kernl.guard.config.profile);
   $effect(() => profile.stop);
 
+  const reload = $derived(createReloader({ kernl, windows, onproblem }));
   const grantsWindow = $derived(overlay?.kind === 'grants' ? windows.get(overlay.windowId) : undefined);
   const inspectedWindow = $derived(overlay?.kind === 'inspect' ? windows.get(overlay.windowId) : undefined);
   // A closed window's messages go with it.
@@ -180,7 +182,7 @@
 
   <div class="desk" bind:this={desk} role="presentation">
     <div class="wallpaper" onpointerdown={() => windows.blur()}></div>
-    <WindowLayer {windows} {traffic} ongrants={(windowId) => (overlay = { kind: 'grants', windowId })} oninspect={(windowId) => (overlay = { kind: 'inspect', windowId })}>
+    <WindowLayer {windows} {traffic} ongrants={(windowId) => (overlay = { kind: 'grants', windowId })} oninspect={(windowId) => (overlay = { kind: 'inspect', windowId })} onreload={(windowId) => void reload(windowId)}>
       {#snippet panel(win)}
         {#if win.panel === SETTINGS}
           <SettingsWindow {kernl} mode={booted.mode} downloads={booted.downloads} section={settingsSection} opened={settingsOpened} onsection={chooseSettingsSection} />

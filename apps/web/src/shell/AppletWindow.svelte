@@ -9,12 +9,13 @@
     win: ShellWindow;
     windows: WindowStore;
     ongrants: (windowId: string) => void;
+    onreload: (windowId: string) => void;
     oninspect: (windowId: string) => void;
     /** Errors and warnings in this applet's messages, for the chrome's Inspect button. */
     marks: TrafficMarks;
   }
 
-  const { win, windows, ongrants, oninspect, marks }: Props = $props();
+  const { win, windows, ongrants, onreload, oninspect, marks }: Props = $props();
   const title = $derived(win.plan.summary.title);
   const problems = $derived(marks.errors + marks.warnings);
   const problemWords = $derived(describeMarks(marks));
@@ -27,6 +28,7 @@
   {/snippet}
   {#snippet actions()}
     <button type="button" class="shell-button quiet inspect" class:errors={marks.errors > 0} onclick={() => oninspect(win.id)} aria-label="Inspect {title}{problemWords ? `, ${problemWords}` : ''}" title={problemWords || undefined}>Inspect{#if problems > 0}<span class="count" data-testid="inspect-count">{problems}</span>{/if}</button>
+    {#if !win.revoked}<button type="button" class="shell-button quiet" onclick={() => onreload(win.id)} aria-label="Reload {title}">Reload</button>{/if}
     <button type="button" class="shell-button quiet" onclick={() => ongrants(win.id)} aria-label="Grants for {title}">Grants</button>
   {/snippet}
   {#if win.revoked}
@@ -34,7 +36,10 @@
     <div class="stopped">
       <p><strong>This applet was stopped.</strong></p>
       <p class="shell-muted" data-testid="stop-words">{stop.words}</p>
-      <button type="button" class="shell-button" onclick={() => windows.close(win.id)}>Close window</button>
+      <div class="actions">
+        {#if stop.code !== 'blocked'}<button type="button" class="shell-button primary" onclick={() => onreload(win.id)}>Reload</button>{/if}
+        <button type="button" class="shell-button" onclick={() => windows.close(win.id)}>Close window</button>
+      </div>
       <details class="why">
         <summary>Details</summary>
         <dl>
@@ -76,6 +81,11 @@
 
   .inspect.errors .count {
     background: #e07a5f;
+  }
+
+  .actions {
+    display: flex;
+    gap: 0.5rem;
   }
 
   .why {

@@ -27,6 +27,7 @@ The manager holds no DOM. The shell draws from the state it publishes and calls 
 | `minimise(id)`, `close(id)` | The window's buttons. | Hide it, or forget it and stop reporting to it. |
 | `move(id, rect)` | A drag, a resize or an arrow key on the title bar, only while `state.freeform` is true. | Move it, or ignore the call. |
 | `stop(id)` | The core stopped the applet, for example after a quarantine. The frame is already gone. | Keep the window so the person can read why and close it; give it no focus and report to it no more. |
+| `replace(id, next)` | The person reloaded the applet; it starts again under a new id. | Keep the window where it was, under `next`, shown, not stopped and focused; report to the old target no more. |
 | `setArea(rect)` | The desktop was measured or resized. | Lay windows out inside it. |
 | `setPageVisible(visible)` | The browser tab was hidden or shown. | Hide or show every window to the guard. |
 | `visibilityOf(id)` | The guard asks about a window synchronously, through `KernlHost.getVisibility`. | Answer by the same rule as the reports. An id you do not know is `{ visible: false, focused: false }`. |
@@ -145,6 +146,13 @@ export function createOneAtATimeManager(now: () => number = Date.now): WindowMan
       targets.delete(id);
       if (shown === id) focused = false;
       changed();
+    },
+    replace(id, next) {
+      if (!ids.includes(id) || ids.includes(next)) return;
+      ids[ids.indexOf(id)] = next;
+      targets.delete(id);
+      stopped.delete(id);
+      show(next);
     },
     attach(id, target) {
       if (!ids.includes(id) || targets.has(id)) return;

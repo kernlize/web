@@ -14,4 +14,5 @@ import './download-programs.ts';
 import './settings-window.ts';
 import './firewall-words.ts';
 import './preview-firewall.ts';
+import './reload.ts';
 import './traffic-words.ts';

@@ -106,7 +106,10 @@ export function mountApplet(plan: MountPlan, frame: FrameLike, deps: MountDeps):
     get status() {
       return status$.value;
     },
-    setVisibility: (visibility) => deps.guard.setVisibility(windowId, visibility),
+    // A closed or stopped applet's guard state is forgotten; a late report must not bring it back.
+    setVisibility: (visibility) => {
+      if (!finished) deps.guard.setVisibility(windowId, visibility);
+    },
     close() {
       if (finished) return;
       finished = true;

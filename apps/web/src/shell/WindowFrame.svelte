@@ -139,6 +139,13 @@
 
   .window.compact .buttons {
     margin-left: auto;
+    gap: 0;
+  }
+
+  /* A phone-width bar holds Inspect, with its count, Reload, Grants, Minimise and Close beside the title. */
+  .window.compact .buttons :global(.shell-button) {
+    padding-inline: 0.25rem;
+    font-size: 0.68rem;
   }
 
   .window.hidden {

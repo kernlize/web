@@ -65,7 +65,7 @@ test('an applet that posts to the parent window is stopped with plain words, and
   await window.getByText('Details').click();
   await expect(window.locator('dd')).toContainText([
     'The applet',
-    'Open it again. If it repeats, the applet has a bug.',
+    'Reload it. If it repeats, the applet has a bug.',
     'window-message',
     'A window-level message other than the single napplet.hello arrived from the frame',
   ]);
@@ -79,6 +79,6 @@ test('an applet that floods the shell is stopped with the limit it crossed', asy
   const window = stopped(page);
   await expect(window.getByTestId('stop-words')).toHaveText('It sent too many messages.');
   await window.getByText('Details').click();
-  await expect(window.locator('dd')).toContainText(['The applet', '300 messages in 10 s · strict', 'Open it again, or loosen the guard profile.', 'quarantine']);
+  await expect(window.locator('dd')).toContainText(['The applet', '300 messages in 10 s · strict', 'Reload it, or loosen the guard profile.', 'quarantine']);
   await proof(page, '03-quarantine-details');
 });

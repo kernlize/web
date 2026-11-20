@@ -27,14 +27,14 @@ interface StopWords {
   readonly next: string;
 }
 
-const AGAIN = 'Open it again.';
-const BUG = 'Open it again. If it repeats, the applet has a bug.';
+const AGAIN = 'Reload it.';
+const BUG = 'Reload it. If it repeats, the applet has a bug.';
 
 // kehto's codes are its `NappletRevocationReason`; the others are kernl's own.
 const STOPS: Readonly<Record<string, StopWords>> = {
-  quarantine: { words: 'It sent too many messages.', by: 'applet', next: 'Open it again, or loosen the guard profile.' },
+  quarantine: { words: 'It sent too many messages.', by: 'applet', next: 'Reload it, or loosen the guard profile.' },
   host: { words: 'The shell closed it.', by: 'shell', next: AGAIN },
-  'grant-narrowed': { words: 'You took back something it was using.', by: 'you', next: 'Open it again to run it with what it may use now.' },
+  'grant-narrowed': { words: 'You took back something it was using.', by: 'you', next: 'Reload it to run it with what it may use now.' },
   blocked: { words: 'You blocked it.', by: 'you', next: 'Unblock it in its grants to run it.' },
   firewall: { words: 'A firewall rule or answer it ran under changed.', by: 'you', next: AGAIN },
   'window-message': { words: 'It sent a message outside its channel.', by: 'applet', next: BUG },

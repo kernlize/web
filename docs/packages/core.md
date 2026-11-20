@@ -415,6 +415,7 @@ A `LayoutRegistry` holds the layouts a window manager offers, as `LayoutEntry` v
 | `focus(id)`, `blur()`, `minimise(id)` | Give a window the person's attention, showing it if minimised; take attention from every window; hide one. |
 | `move(id, rect)` | Move or resize a window, kept inside the area and no smaller than `minSize`. Ignored unless the state is `freeform`. |
 | `stop(id)` | The window's applet was stopped: it loses focus, is reported to no more and waits to be closed. |
+| `replace(id, next)` | The window's applet starts again under `next`: it keeps its rectangle and its place in the opening order and the arrangement, is shown and no longer stopped, and comes to the front, focused. The old target is reported to no more. Does nothing when `id` is not open or `next` is. |
 | `attach(id, target)` | Report the window's visibility to `target.setVisibility`, now and after every change. An `AppletHandle` is a `VisibilityTarget`. A second call for the same window is ignored. |
 | `visibilityOf(id)` | The `WindowVisibility` to answer `KernlHost.getVisibility` with. An unknown window is neither visible nor focused. |
 | `setArea(rect)`, `setLayout(id)`, `setPageVisible(visible)` | Change where windows are laid out, which layout arranges them (`invalid:unknown-layout` for an id nobody registered), and whether the page itself can be seen. |
