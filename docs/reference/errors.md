@@ -202,7 +202,7 @@ kehto's runtime charges what it carries out against the same per-class budgets, 
 
 ## Revocation reasons
 
-`KernlHost.onRevoked(windowId, reason)` receives kehto's revocation reasons (`window-message`, `second-hello`, `invalid-hello`, `second-load`, `port-closed`, `deferred-overflow`, `host`), `quarantine` when the guard quarantined the window, `grant-narrowed` or `blocked` when the user took back a grant the window was started with or blocked the applet ([D-038](../decisions.md#d-038)), or `firewall` when a firewall answer or rule the window ran under was taken back or tightened ([D-056](../decisions.md#d-056)). See [Architecture](../concepts/architecture.md#the-mount-path).
+`KernlHost.onRevoked(windowId, reason, details)` receives kehto's revocation reasons (`window-message`, `second-hello`, `invalid-hello`, `second-load`, `port-closed`, `deferred-overflow`, `host`), `quarantine` when the guard quarantined the window, `grant-narrowed` or `blocked` when the user took back a grant the window was started with or blocked the applet ([D-038](../decisions.md#d-038)), or `firewall` when a firewall answer or rule the window ran under was taken back or tightened ([D-056](../decisions.md#d-056)). `details.detail` is kehto's diagnostic line for a reason kehto observed. It never carries a message payload. `details.limit` is the guard limit behind a `quarantine`: `{ cause: 'flood', count, windowMs, profile }` for too many messages in the rolling window, or `{ cause: 'hidden-resource', count, profile }` for too many web fetches while hidden. See [Architecture](../concepts/architecture.md#the-mount-path).
 
 ## Related
 

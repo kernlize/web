@@ -18,6 +18,7 @@ import {
   type KernlOptions,
   type MountPlan,
   type Session,
+  type AppletStopDetails,
 } from '@kernlize/core';
 import type { DmSendRequest } from '@napplet/core';
 import { attempt, author, createFakeArtifactCache, createFakeFrame, createFakePool, passwordAccount, passwordSigner, scratch, signManifest, splitList, type CoreWorld, type FakeFrame, type ManifestVector } from './world.js';
@@ -27,6 +28,8 @@ interface HostRecord {
   notices: unknown[];
   links: string[];
   revoked: Array<{ windowId: string; reason: string }>;
+  /** What came with each revocation beyond its reason, in the same order. */
+  stops: Array<AppletStopDetails | undefined>;
   blobFetches: number;
   cacheOpens: number;
 }
@@ -72,7 +75,10 @@ function makeHost(world: CoreWorld, record: HostRecord, extra: Partial<KernlHost
     notify: (notice) => void record.notices.push(notice),
     openLink: (url) => void record.links.push(url),
     getVisibility: () => ({ visible: true, focused: true }),
-    onRevoked: (windowId, reason) => void record.revoked.push({ windowId, reason }),
+    onRevoked: (windowId, reason, details) => {
+      record.revoked.push({ windowId, reason });
+      record.stops.push(details);
+    },
     ...extra,
   };
 }
@@ -87,7 +93,7 @@ export function blobFetcher(world: CoreWorld): Pick<KernlHost, 'fetchBlob'> {
 }
 
 export function boot(world: CoreWorld, options: Partial<KernlOptions> = {}, hostExtra: Partial<KernlHost> = {}): void {
-  const record: HostRecord = { prompts: [], notices: [], links: [], revoked: [], blobFetches: 0, cacheOpens: 0 };
+  const record: HostRecord = { prompts: [], notices: [], links: [], revoked: [], stops: [], blobFetches: 0, cacheOpens: 0 };
   const host = makeHost(world, record, hostExtra);
   const kernl = createKernl({ host, pool: scratch(world).pool, ...options });
   const sessions: Array<Session | null> = [];
@@ -252,7 +258,7 @@ Then('the supplied artifact cache was consulted', (world: CoreWorld) => {
 });
 
 Given('a kernl shell over that host without a pool', (world: CoreWorld) => {
-  const record: HostRecord = { prompts: [], notices: [], links: [], revoked: [], blobFetches: 0, cacheOpens: 0 };
+  const record: HostRecord = { prompts: [], notices: [], links: [], revoked: [], stops: [], blobFetches: 0, cacheOpens: 0 };
   const host = makeHost(world, record);
   const kernl = createKernl({ host });
   scratch(world).kernl = { kernl, host, record, sessions: [], guardEvents: [], profiles: [], received: [], bridgeCalls: [] } satisfies KernlScratch;
@@ -423,7 +429,7 @@ Then('the mounted frame was removed', (world: CoreWorld) => {
 });
 
 /** A window-level message as the bridge sees it: a real Event carrying the NIP-5D fields. */
-function windowMessage(source: MessageEventSource | null, data: unknown, ports: MessagePort[]): MessageEvent {
+export function windowMessage(source: MessageEventSource | null, data: unknown, ports: MessagePort[]): MessageEvent {
   return Object.assign(new Event('message'), { source, data, ports, origin: 'null' }) as MessageEvent;
 }
 

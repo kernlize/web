@@ -258,6 +258,7 @@ Feature: The composed shell
     Then the applet received no "identity.getPublicKey.result"
     When the applet floods "storage.get" over its port until the guard quarantines it
     Then the host was told the window was revoked for "quarantine"
+    And the host was told it crossed the "flood" limit of 300 per 10000 ms under "strict"
     And the mounted frame was removed
     And the shell guard events included "flood:quarantine"
     And the shell has 0 applets
@@ -393,6 +394,23 @@ Feature: The composed shell
     Then the host was told the window was revoked for "deferred-overflow"
     And the mounted frame was removed
     And the shell has 0 applets
+
+  Scenario: kehto's own words for why it stopped an applet reach the host
+    Given a kernl shell over that host and pool
+    And a mounted applet
+    When the applet sends its hello through the shell
+    And the applet posts a "debug.log" message on the window
+    Then the host was told the window was revoked for "window-message"
+    And the host was told kehto's detail "A window-level message other than the single napplet.hello arrived from the frame"
+    And the host was told no limit
+
+  Scenario: a hidden applet that keeps fetching is stopped for that, not for flooding
+    Given a kernl shell over that host and pool with fake bridges and a manual clock
+    And a mounted applet granted "resource" that has said hello
+    When the applet window becomes "hidden"
+    And the applet sends 9 "resource.bytes" requests over its port, 0 ms apart
+    Then the host was told the window was revoked for "quarantine"
+    And the host was told it crossed the "hidden-resource" limit of 8 under "strict"
 
   Scenario: the retired rate gate's stored configuration is cleared
     Given the host storage holds "{}" under "kernl:firewall:v1"

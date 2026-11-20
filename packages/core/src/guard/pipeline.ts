@@ -34,8 +34,11 @@ export interface GuardPipelineOptions {
   readonly now?: () => number;
   /** Receives every guard event from every layer. */
   readonly onEvent?: (event: GuardEvent) => void;
-  /** Called once when a window crosses the quarantine threshold; kernl revokes it here, before the triggering envelope is dispatched. */
-  readonly onQuarantine?: (windowId: string, napplet: string) => void;
+  /**
+   * Called once when a window crosses the quarantine threshold; kernl revokes it here, before the
+   * triggering envelope is dispatched. `reason` is the guard's: `flood:quarantine` or `flood:hidden-resource`.
+   */
+  readonly onQuarantine?: (windowId: string, napplet: string, reason: string) => void;
   /** Visibility for a window the pipeline has not been told about yet. */
   readonly getVisibility?: (windowId: string) => WindowVisibility;
   /** Called when a window becomes visible; kernl releases the port envelopes kehto held for it here. */
@@ -175,6 +178,21 @@ function createKeyTraffic(startupMs: () => number, release: (windowId: string) =
 }
 
 /**
+ * The ingress guard says why it quarantined only in its event, emitted inside `admit`, so the
+ * pipeline keeps the last quarantine reason for the callback that follows.
+ */
+function trackQuarantines(sink: ((event: GuardEvent) => void) | undefined): { readonly onEvent: (event: GuardEvent) => void; reason(): string } {
+  let last = '';
+  return {
+    onEvent(event) {
+      if (event.disposition === 'quarantine') last = event.reason;
+      sink?.(event);
+    },
+    reason: () => last,
+  };
+}
+
+/**
  * Compose the guard: ingress flood control, then the visibility gate, then the
  * focus-aware rate limiter, then kehto's bridge.
  *
@@ -207,10 +225,11 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
   const handOn = (windowId: string): void => options.onRelease?.(windowId);
   // A hidden window's envelopes stay held; becoming visible hands them on with the keymap.
   const keys = createKeyTraffic(() => KEYMAP_HOLD_MS, (windowId) => visibilityOf(windowId).visible && handOn(windowId));
+  const quarantines = trackQuarantines(options.onEvent);
   const layerOptions = () => ({
     config,
     ...(options.now ? { now: options.now } : {}),
-    ...(options.onEvent ? { onEvent: options.onEvent } : {}),
+    onEvent: quarantines.onEvent,
   });
   // The gate only asks for the applet while `defer` runs, which always follows `admit`.
   let deferring = '';
@@ -250,7 +269,7 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
 
   function admit(windowId: string, napplet: string, envelope: GuardEnvelope, admitOptions?: AdmitOptions): GuardDisposition {
     const disposition = layers.ingress.admit(windowId, napplet, envelope, visibilityOf(windowId), admitOptions);
-    if (disposition === 'quarantine') options.onQuarantine?.(windowId, napplet);
+    if (disposition === 'quarantine') options.onQuarantine?.(windowId, napplet, quarantines.reason());
     return disposition;
   }
 

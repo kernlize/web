@@ -1,7 +1,7 @@
 import { BehaviorSubject } from 'rxjs';
 import { denyNappletControllerAccess, type OriginRegistry, type ShellBridge } from '@kehto/shell';
 import type { WindowVisibility } from '@kernlize/guard';
-import type { AppletHandle, AppletStatus, FrameLike, MountPlan } from '../types.js';
+import type { AppletHandle, AppletStatus, AppletStopDetails, FrameLike, MountPlan } from '../types.js';
 import { permissionPrincipalFor } from '../firewall/permissions.js';
 
 /**
@@ -27,13 +27,13 @@ export interface MountDeps {
   readonly originRegistry: Pick<OriginRegistry, 'register' | 'setEnvironment' | 'unregister'>;
   readonly guard: MountGuardHooks;
   /** Called after the frame was removed because the bridge revoked the binding. */
-  readonly onRevoked?: (windowId: string, reason: string) => void;
+  readonly onRevoked?: (windowId: string, reason: string, details?: AppletStopDetails) => void;
 }
 
 /** An {@link AppletHandle} with the entry point the bridge's revocation hook calls. */
 export interface MountedApplet extends AppletHandle {
   /** Mark the applet revoked and remove its frame. Idempotent with `close`. */
-  revoked(reason: string): void;
+  revoked(reason: string, details?: AppletStopDetails): void;
 }
 
 function hasGetAttribute(frame: FrameLike): frame is FrameLike & { getAttribute(name: string): string | null } {
@@ -114,10 +114,10 @@ export function mountApplet(plan: MountPlan, frame: FrameLike, deps: MountDeps):
       deps.originRegistry.unregister(windowId);
       teardown('closed');
     },
-    revoked(reason) {
+    revoked(reason, details) {
       if (finished) return;
       teardown('revoked');
-      deps.onRevoked?.(windowId, reason);
+      deps.onRevoked?.(windowId, reason, details);
     },
   };
 }

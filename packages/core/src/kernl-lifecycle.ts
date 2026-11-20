@@ -195,7 +195,7 @@ export function createAppletLifecycle(context: LifecycleContext): AppletLifecycl
         bridge,
         originRegistry,
         guard: pipeline,
-        onRevoked: (windowId, reason) => context.host.onRevoked(windowId, reason),
+        onRevoked: (windowId, reason, details) => context.host.onRevoked(windowId, reason, details),
       });
       handles.set(plan.windowId, handle);
       const narrowed = context.grants.changes$.subscribe((record) => {
