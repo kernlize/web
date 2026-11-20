@@ -40,7 +40,38 @@ export interface TrafficMarks {
  */
 export function entryOfMessage(message: AppletMessage, id: number): TrafficEntry {
   const { windowId, at, direction, via, type, error } = message;
-  return { id, windowId, at, direction, via, type, payload: message.message, ...(error ? { mark: 'error', note: error } : {}) };
+  return { id, windowId, at, direction, via, type, payload: trimPayload(message.message), ...(error ? { mark: 'error', note: error } : {}) };
+}
+
+/** Longest string kept whole; a fetched file arrives as one base64 string of all its bytes. */
+export const PAYLOAD_TEXT_LIMIT = 512;
+const PAYLOAD_DEPTH_LIMIT = 6;
+
+const binaryLength = (value: object): number | undefined =>
+  value instanceof ArrayBuffer ? value.byteLength : ArrayBuffer.isView(value) ? value.byteLength : typeof Blob !== 'undefined' && value instanceof Blob ? value.size : undefined;
+
+/**
+ * A copy of a payload small enough to keep and to show: a long string keeps its start and says how
+ * long it was, bytes say how many there were, and nesting past six levels or back into itself stops.
+ * The log keeps 200 rows per window, so it must not hold every file an applet fetched.
+ *
+ * @param payload - What the applet sent or got.
+ * @returns The copy the log keeps.
+ * @example
+ * ```ts
+ * trimPayload({ blob: 'QUJD'.repeat(1000) }); // { blob: 'QUJDQUJD… (4000 characters)' }
+ * ```
+ */
+export function trimPayload(payload: unknown, depth = 0, seen: WeakSet<object> = new WeakSet()): unknown {
+  if (typeof payload === 'string') return payload.length > PAYLOAD_TEXT_LIMIT ? `${payload.slice(0, 64)}… (${payload.length} characters)` : payload;
+  if (typeof payload !== 'object' || payload === null) return payload;
+  const bytes = binaryLength(payload);
+  if (bytes !== undefined) return `<${payload.constructor.name} ${bytes} bytes>`;
+  if (seen.has(payload)) return '<circular>';
+  if (depth >= PAYLOAD_DEPTH_LIMIT) return Array.isArray(payload) ? '<array>' : '<object>';
+  seen.add(payload);
+  if (Array.isArray(payload)) return payload.map((item) => trimPayload(item, depth + 1, seen));
+  return Object.fromEntries(Object.entries(payload).map(([key, value]) => [key, trimPayload(value, depth + 1, seen)]));
 }
 
 /**

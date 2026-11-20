@@ -902,7 +902,7 @@ This amends D-006 and D-031 for the shell only.
 - **Replies are heard the way Paja hears them.** `createAppletTraffic` wraps `originRegistry.postToNapplet`, the one function every reply goes through. The wrapper is shared by every shell on the page and put back when the last one stops listening. It goes when kehto has a hook for outgoing messages.
 - **Window-level messages are reported before kehto sees them.** The one that gets an applet stopped (`window-message`) is then in the stream.
 - **A failure is what the envelope says.** `appletMessageFailure`: a non-empty `error` string, or for a `*.error` type its `message`, `reason` or type. kehto's runtime answers a failed request with a `*.result` carrying `error`. The shell marks guard events as warnings, except a hidden window's held requests, which are normal.
-- **Payloads stay in memory.** The shell's log keeps 200 rows per window while the window is open, shows a payload only when its row is opened, and never writes one to storage.
+- **Payloads stay in memory, and small.** The shell's log keeps 200 rows per window while the window is open, shows a payload only when its row is opened, and never writes one to storage. It keeps a trimmed copy: a fetched file arrives as one base64 string of all its bytes, so strings past 512 characters keep their start and length, bytes keep their count, and nesting stops at six levels.
 
 **Consequences.** Every reply kehto sends now passes through one more function on the page. A second kernl on the same page shares the wrapper but sees only its own windows. The offline preview reports its own port the same way with `describeAppletMessage`.
 

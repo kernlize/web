@@ -49,3 +49,18 @@ Feature: An applet's messages, as the inspector shows them
       | object    | two-space JSON of its type     |
       | undefined | undefined                      |
       | circular  | [object Object]                |
+
+  Scenario Outline: what the log keeps of a payload is small enough to keep
+    Then the inspector keeps <payload> as <kept>
+
+    Examples:
+      | payload                     | kept                                         |
+      | a 4000-character string     | its first 64 characters and its length       |
+      | a 512-character string      | the whole string                             |
+      | 2048 bytes                  | <Uint8Array 2048 bytes>                      |
+      | a 10-byte buffer            | <ArrayBuffer 10 bytes>                       |
+      | a 3-byte blob               | <Blob 3 bytes>                               |
+      | an object inside itself     | a marker where it repeats                    |
+      | nesting eight objects deep  | the first six levels                         |
+      | nesting eight arrays deep   | the first six levels of arrays               |
+      | a number                    | the number                                   |

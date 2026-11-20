@@ -2,7 +2,7 @@ import { expect } from 'vitest';
 import { Then, When } from 'quickpickle';
 import type { GuardEvent } from '@kernlize/guard';
 import type { AppletMessage } from '../../src/shell/contract.ts';
-import { countMark, describeMarks, directionLabel, entryOfGuardEvent, entryOfMessage, formatPayload, type TrafficEntry, type TrafficMarks } from '../../src/shell/traffic-words.ts';
+import { countMark, describeMarks, directionLabel, entryOfGuardEvent, entryOfMessage, formatPayload, trimPayload, type TrafficEntry, type TrafficMarks } from '../../src/shell/traffic-words.ts';
 
 interface TrafficWorld {
   row?: TrafficEntry;
@@ -49,4 +49,25 @@ Then('the payload {word} is shown as {}', (_world: TrafficWorld, payload: string
 
 Then('the inspector row\'s type is {string}', (world: TrafficWorld, type: string) => {
   expect(world.row?.type).toBe(type);
+});
+
+const nested = (depth: number, wrap: (inner: unknown) => unknown): unknown => (depth === 0 ? 'bottom' : wrap(nested(depth - 1, wrap)));
+const selfish: Record<string, unknown> = { name: 'loop' };
+selfish.again = selfish;
+const LONG = 'A'.repeat(4000);
+const KEPT: Readonly<Record<string, [unknown, unknown]>> = {
+  'a 4000-character string': [{ blob: LONG }, { blob: `${'A'.repeat(64)}… (4000 characters)` }],
+  'a 512-character string': ['B'.repeat(512), 'B'.repeat(512)],
+  '2048 bytes': [new Uint8Array(2048), '<Uint8Array 2048 bytes>'],
+  'a 10-byte buffer': [new ArrayBuffer(10), '<ArrayBuffer 10 bytes>'],
+  'a 3-byte blob': [new Blob(['abc']), '<Blob 3 bytes>'],
+  'an object inside itself': [selfish, { name: 'loop', again: '<circular>' }],
+  'nesting eight objects deep': [nested(8, (inner) => ({ inner })), { inner: { inner: { inner: { inner: { inner: { inner: '<object>' } } } } } }],
+  'nesting eight arrays deep': [nested(8, (inner) => [inner]), [[[[[['<array>']]]]]]],
+  'a number': [42, 42],
+};
+
+Then('the inspector keeps {} as {}', (_world: TrafficWorld, payload: string) => {
+  const [given, kept] = KEPT[payload] ?? [];
+  expect(trimPayload(given)).toEqual(kept);
 });

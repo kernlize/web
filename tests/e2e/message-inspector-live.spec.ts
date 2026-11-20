@@ -10,12 +10,14 @@ import { fakeNetwork, signApplet } from './live-network';
 
 const proofs = process.env.KERNL_PROOFS_DIR;
 const MISSING = 'https://files.test/missing.txt';
+const BIG = 'https://files.test/big.txt';
 
 /** An applet that stores a value, fetches a file that is not there, and sends a burst the guard holds back. */
 const CHATTY_APPLET = `<!doctype html><html><head><meta charset="utf-8"><title>Chatty</title></head><body><h1>Chatty</h1>
 <button id="store" type="button">Store a value</button>
 <button id="fetch" type="button">Fetch a missing file</button>
 <button id="burst" type="button">Send a burst</button>
+<button id="big" type="button">Fetch a big file</button>
 <p id="out">idle</p>
 <script>
 const out = document.getElementById('out');
@@ -31,6 +33,10 @@ document.getElementById('fetch').addEventListener('click', async () => {
     out.textContent = 'fetch failed';
   }
 });
+document.getElementById('big').addEventListener('click', async () => {
+  const blob = await window.napplet.resource.bytes(${JSON.stringify(BIG)});
+  out.textContent = 'big ' + blob.size;
+});
 document.getElementById('burst').addEventListener('click', () => {
   for (let i = 0; i < 12; i += 1) window.napplet.storage.getItem('greeting').catch(() => undefined);
   out.textContent = 'burst sent';
@@ -41,6 +47,7 @@ async function runChattyApplet(page: Page): Promise<void> {
   const applet = signApplet({ servers: ['https://blobs.test/'], requires: [], optional: ['resource'], html: CHATTY_APPLET });
   await fakeNetwork(page, applet, { 'catalogue.test': 'holds' }, { 'blobs.test': 'has' });
   await page.route(MISSING, (route) => route.abort('connectionrefused'));
+  await page.route(BIG, (route) => route.fulfill({ status: 200, contentType: 'text/plain', headers: { 'access-control-allow-origin': '*' }, body: 'x'.repeat(100_000) }));
   await page.goto('/app/');
   await page.getByRole('button', { name: 'Create' }).click();
   await page.getByLabel(/^Password/).fill('correct horse battery');
@@ -87,6 +94,22 @@ test('the inspector lists what the applet sent and got back, newest first', asyn
   await expect(sent.locator('pre')).toBeVisible();
   await expect(sent.locator('pre')).toContainText('"greeting"');
   await proof(page, '01-inspector');
+});
+
+test('a fetched file is kept as its start and its length, not every byte', async ({ page }) => {
+  await runChattyApplet(page);
+  await appletFrame(page).getByRole('button', { name: 'Fetch a big file' }).click();
+  await expect(appletFrame(page).locator('#out')).toHaveText('big 100000');
+  await page.getByRole('button', { name: 'Inspect Feed applet' }).click();
+  const fetched = inspector(page).locator('li').filter({ has: page.locator('code.type', { hasText: /^resource\.bytes\.result$/ }) });
+  await fetched.locator('summary').click();
+  await expect(fetched.locator('pre')).toContainText(/"blob": "[A-Za-z0-9+/]{64}… \(\d+ characters\)"/);
+  await page.keyboard.press('Escape');
+
+  // At 720 wide or less every window fills the desktop; the title bar keeps Inspect.
+  await page.setViewportSize({ width: 700, height: 800 });
+  await expect(page.getByRole('button', { name: 'Inspect Feed applet' })).toBeVisible();
+  await proof(page, '04-narrow');
 });
 
 test('a failed reply is an error and a held-back burst is a warning, counted on the button', async ({ page }) => {

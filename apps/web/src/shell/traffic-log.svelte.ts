@@ -1,4 +1,5 @@
 /* global $state */
+import { untrack } from 'svelte';
 import type { GuardEvent } from '@kernlize/guard';
 import type { AppletMessage } from './contract';
 import { guardEventWords } from './guard-log.svelte';
@@ -36,9 +37,12 @@ export class TrafficLog {
 
   /** Forget every window not in `ids`: a closed window's log goes with it. */
   retain(ids: ReadonlySet<string>): void {
-    if ([...this.#rows.keys(), ...this.#marks.keys()].every((id) => ids.has(id))) return;
-    this.#rows = new Map([...this.#rows].filter(([id]) => ids.has(id)));
-    this.#marks = new Map([...this.#marks].filter(([id]) => ids.has(id)));
+    // Read without tracking: the effect that calls this follows the windows, not every message.
+    untrack(() => {
+      if ([...this.#rows.keys(), ...this.#marks.keys()].every((id) => ids.has(id))) return;
+      this.#rows = new Map([...this.#rows].filter(([id]) => ids.has(id)));
+      this.#marks = new Map([...this.#marks].filter(([id]) => ids.has(id)));
+    });
   }
 
   #add(entry: TrafficEntry): void {
