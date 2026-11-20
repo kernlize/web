@@ -727,3 +727,20 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Consequences.** The store can be tiled next to applets, moved, resized and minimised to the bar. Browser tests find it as the "Applets window" region, not a dialog.
 
 **Reversal cost.** Low. One store method and one snippet.
+
+## D-049 · Settings are a window with sections
+
+**Context.** Settings was one long modal sheet: inbox and outbox, file servers, meeting people, the lookup servers, messaging providers, downloads, bridges, appearance and About, in the order they had been written. Nothing was grouped, so finding a setting meant scrolling past all the others. Being modal, the sheet also hid the applet a setting was being changed for, and it was the last large surface that ignored the layout the person chose ([D-048](#d-048) had moved the store).
+
+**Decision.**
+
+- **Settings is the second shell-drawn window.** `Desktop.openSettings(section?)` calls `WindowStore.openPanel('settings', 'Settings')`, so the one `WindowManager` places, focuses, tiles, moves, minimises and closes it like the store and every applet window, and the bar lists it. Asking for it again brings it forward.
+- **Five sections, one showing at a time**, named for where a person looks: General (appearance, About), Servers (inbox and outbox, file servers, the lookup servers), Messages (providers and their order, replies), Connections (meeting people and remote tools), Downloads (where links go, bridges). They are tabs with the usual semantics and keys: a list down the side of the window, and one row across the top when the window is narrow. "Narrow" is the window's own width, by a container query, because a window is resized and tiled independently of the page. The list and its key handling live in `settings/sections.ts`.
+- **The section is remembered** under `kernl:settings:section:v1`, and another part of the shell can open Settings at a section by its id (the Downloads sheet does).
+- **A section is drawn when first chosen and kept until the window closes**, so a list half edited in Servers survives a look at Messages, and the monitored-server lookup starts only when Servers is opened.
+- **Escape closes the shell-drawn window the person is working in**, or else the one in front; a minimised one is left alone (`panelToClose` in `windows.ts`). The store follows the same rule.
+- **The guard, grants and Downloads stay sheets.** They are short, and each is about something else on the desktop that it is right to pause over.
+
+**Consequences.** No setting does anything different; each is in a section. Browser tests find Settings as the "Settings window" region and name the section they need, and the vocabulary walk visits every section, because a section that is not showing is not rendered text. The count of unread messages is taken again when Settings loses focus, not when a sheet closes.
+
+**Reversal cost.** Low. The sections are components that do not know they are in a window; a sheet could hold the same tabs.

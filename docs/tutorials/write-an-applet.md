@@ -197,7 +197,7 @@ Open the shell, either the hosted one at `https://kernl.run/app/` or your own fr
 4. Click the window's **Grants** button and turn *your account* and *network* on. The grant applies to the running window's next request, but the domains an applet was told about at start-up do not change until it is opened again, so close the window and open the applet again from "Recent" in the launcher.
 5. Now the window shows "Signed in as …", the notes appear, and **Post** works without a prompt.
 
-If you published to a relay that is not in kernl's catalogue tier and the address carries no relay hint, the lookup finds nothing: add the relay under **Settings**, "Applet catalogue", "Server address", and try again.
+If you published to a relay that is not in kernl's catalogue tier and the address carries no relay hint, the lookup finds nothing: add the relay under **Settings**, **Servers**, "Applet catalogue", and try again.
 
 **You should now see** your applet in a window titled "Hello kernl", and *Guard · strict · 0* in the bar: a well-behaved applet triggers no guard events. Click it to see the protections and, if you push the applet past a limit, the events it caused, each naming your applet.
 

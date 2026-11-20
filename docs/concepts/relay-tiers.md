@@ -8,9 +8,9 @@ kehto's `RelayConfigHooks` knows three tiers: `discovery`, `super` and `outbox`.
 
 | Tier | Settings label | What it serves | Default relays (`DEFAULT_RELAY_TIERS`) |
 | --- | --- | --- | --- |
-| `discovery` | Discovery | Profiles, follow lists and relay lists (kinds `0`, `3`, `10002`) | `wss://purplepag.es`, `wss://relay.nos.social` |
+| `discovery` | People lookup | Profiles, follow lists and relay lists (kinds `0`, `3`, `10002`) | `wss://purplepag.es`, `wss://relay.nos.social` |
 | `apps` | Applet catalogue | Applet manifests (kehto's `NAPPLET_KINDS`, `5129`, `15129` and `35129`, plus the legacy catalogue kind `32267`) | `wss://relay.napplet.soy`, `wss://relay.ditto.pub`, `wss://relay.nostr.com` (the catalogues the public napplet stores read; with `super` they hold every napplet either lists) |
-| `outbox` | Your connections | Where what the user publishes is delivered | none |
+| `outbox` | not listed; it follows "Inbox and outbox" | Where what the user publishes is delivered | none |
 | `super` | General | Everything that is not discovery or manifests | `wss://relay.damus.io`, `wss://nos.lol`, `wss://relay.primal.net` |
 
 `DEFAULT_RELAY_TIERS` is exported from `@kernlize/core` as a frozen `TierMap`, each tier a frozen array. The outbox tier starts empty: kernl does not guess where the user publishes.
@@ -52,9 +52,9 @@ The same function is used everywhere the shell picks relays on its own:
 
 ## How Settings edits them
 
-The shell's Settings panel (`apps/web/src/shell/SettingsPanel.svelte`) has a Network section with one block per tier, labelled as in the table above. It subscribes to `kernl.relays.changes$`, lists each server by name with a Remove button that calls `kernl.relays.remove`, and has a "Server address" field that calls `kernl.relays.add`. A bare hostname is given the secure scheme before it is added (`serverAddress` in `servers.ts`), so typing `relay.example` stores `wss://relay.example`. When `add` throws an `invalid:` reason the panel asks for a server address; any other failure says the server could not be added.
+The Settings window's Servers section ends with "How the shell finds things" (`apps/web/src/shell/settings/LookupServerSettings.svelte`), one block per tier the person edits directly, labelled as in the table above. The outbox tier has no block: it is the identity's published outbox, edited in the same section under "Inbox and outbox" ([Inbox, outbox and finding servers](./inbox-outbox-and-servers.md)). Each block subscribes to `kernl.relays.changes$`, lists each server by name with a Remove button that calls `kernl.relays.remove`, and has an "Add a server to …" field that calls `kernl.relays.add`. A bare hostname is given the secure scheme before it is added (`serverAddress` in `servers.ts`), so typing `relay.example` stores `wss://relay.example`. When `add` throws an `invalid:` reason the section asks for a server address; any other failure says the server could not be added.
 
-The panel never shows the word relay or a protocol scheme to the user ([Public vocabulary](../policies/public-vocabulary.md)). A change takes effect for the next request; subscriptions already open keep the relays they were opened with.
+The section never shows the word relay or a protocol scheme to the user ([Public vocabulary](../policies/public-vocabulary.md)). A change takes effect for the next request; subscriptions already open keep the relays they were opened with.
 
 The offline preview keeps its own tier state at `kernl:preview:relays:v1`, so editing tiers in the preview never changes the live shell's.
 

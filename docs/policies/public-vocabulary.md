@@ -19,7 +19,7 @@ The public website and the shell UI never name a protocol. The person is the poi
 Two checks enforce it:
 
 - **Build time.** `scripts/check-public-vocabulary.mjs` reads every HTML, Markdown, text, JSON and XML file in the Pages artifact outside `docs/`, so Astro pages, JSON-LD, `llms.txt` and the Markdown twins are covered.
-- **In a browser.** `tests/e2e/public-vocabulary.spec.ts` loads every public page and walks the shell (sign-in, launcher, applet summary, a running applet's frame, the consent dialog with its record view open, and the guard, messages, grants and settings panels). It reads what a person can perceive: rendered text, `title`, `aria-label`, `placeholder` and `alt`. Copy rendered by scripts, which the file scan cannot see, is covered here.
+- **In a browser.** `tests/e2e/public-vocabulary.spec.ts` loads every public page and walks the shell (sign-in, launcher, applet summary, a running applet's frame, the consent dialog with its record view open, the guard, grants and downloads sheets, and every section of the Settings window). It reads what a person can perceive: rendered text, `title`, `aria-label`, `placeholder` and `alt`. Copy rendered by scripts, which the file scan cannot see, is covered here.
 
 Identifiers inside JavaScript bundles are not copy and are not checked. The consent dialog's record view shows every field of the event it will sign, with plain labels ("Signed by", "Type", "Labels") instead of wire field names.
 

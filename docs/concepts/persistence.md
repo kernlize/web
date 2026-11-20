@@ -39,6 +39,7 @@ On boot, `createKernlAccounts` restores the accounts and makes the stored id act
 | Key | Written by | Holds |
 | --- | --- | --- |
 | `kernl:recent:v1` | `recent.ts`, through the host storage | The recently opened applets: up to eight `{ address, title, publisher, openedAt }`, newest first. Opening an applet moves it to the front; the launcher can forget one. |
+| `kernl:settings:section:v1` | `settings/sections.ts`, through the host storage | The id of the Settings section the person was last in: `general`, `servers`, `messages`, `connections` or `downloads`. Anything else is ignored and Settings opens on General ([D-049](../decisions.md#d-049)). |
 | `kernl:layout:v1` | `windows.ts`, through the host storage | The id of the layout the person chose, as a plain string: `floating`, `dwindle`, `columns`, `master-stack`, or one a developer registered. An id nobody registered is ignored and the first layout is used; `tiled`, which earlier builds stored, reads as `dwindle`. See [Layouts](./layouts.md). |
 | `kernl:preview:grants:v1`, `kernl:preview:relays:v1`, `kernl:preview:messaging:v1`, `kernl:preview:installed:v1`, `kernl:preview:intent-defaults:v1` | the offline preview (`?preview=1`) | The preview's own grants, tiers, messaging preferences, installed applets and default applets, kept apart so that trying the preview never changes the live shell's state. |
 

@@ -105,6 +105,10 @@ An embedding host that renders its own windows can use the same pieces: any `Lay
 
 Not every window holds an applet. The store is one: `WindowStore.openPanel('launcher', 'Applets')` asks the same `WindowManager` to `open` an id of its own (`panel:launcher`), so the store is placed, focused, stacked, tiled, moved, resized and minimised exactly like an applet's window, and it is listed in the bar with them. The shell draws its body in the window chrome, where it scrolls; there is no frame, no handle is attached, and the guard is told nothing about it, because nothing in it is an applet. A window manager you write needs no change for this: it is handed an id and never asked what is inside ([D-048](../decisions.md#d-048)).
 
+Settings is the other: `Desktop.openSettings(section?)` opens `panel:settings`, or brings it forward. Its body is a list of sections (General, Servers, Messages, Connections, Downloads) beside the one that is showing. The list runs down the side of the window and becomes a row across the top when the window is narrower than 34 rem, by a container query on the window, since a tiled or resized window's width has little to do with the page's. The section last used is stored under `kernl:settings:section:v1` ([Persistence](./persistence.md)). Escape closes whichever shell-drawn window the person is working in, or else the one in front, and leaves a minimised one alone ([D-049](../decisions.md#d-049)).
+
+The guard, an applet's grants and the Downloads list are sheets over the desktop, not windows.
+
 ## Related
 
 - [Change the shell's layout](../how-tos/change-the-shells-layout.md)
