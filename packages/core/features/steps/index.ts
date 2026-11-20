@@ -51,3 +51,7 @@ import './nzb-service.js';
 import './soulseek-service.js';
 import './download-clients.js';
 import './kernl-downloads.js';
+import './download-routing.js';
+import './torrent-routing.js';
+import './nzb-routing.js';
+import './soulseek-routing.js';

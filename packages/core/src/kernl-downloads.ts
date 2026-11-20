@@ -103,10 +103,12 @@ export function createKernlDownloads(deps: KernlDownloadsDeps): KernlDownloads {
       return new Promise((resolve) => host.presentConsent({ summary: describeDownloadQuestion(question, applet, exposesAddress), resolve }));
     },
   });
+  // An NZB downloader is keyed by its connection's routing key, so a handle issued for jobs at an old address never reaches the new one's.
+  const nzb = programs.routing('nzb');
   const created: Readonly<Record<string, DownloadService>> = {
-    torrent: createTorrentService({ ...base(true), client: programs.torrent }),
-    nzb: createNzbService({ ...base(false), downloaders: programs.nzb, fetchDocument: deps.fetchDocument }),
-    soulseek: createSoulseekService({ ...base(true), client: programs.soulseek }),
+    torrent: createTorrentService({ ...base(true), connections: programs.routing('torrent') }),
+    nzb: createNzbService({ ...base(false), downloaders: () => nzb.all().map(({ connection, client }) => ({ key: connection.routingKey, label: connection.label, client })), fetchDocument: deps.fetchDocument }),
+    soulseek: createSoulseekService({ ...base(true), connections: programs.routing('soulseek') }),
   };
   return {
     programs,

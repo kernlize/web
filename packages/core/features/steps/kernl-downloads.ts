@@ -59,14 +59,14 @@ Given('a kernl shell that offers the download domains', (world: CoreWorld) => {
 Given('a kernl shell that offers the download domains, with a Transmission program set up', async (world: CoreWorld) => {
   bag(world).transmission = await startFakeTransmission();
   boot(world, { downloads: { offer: true } }, blobFetcher(world));
-  await k(world).kernl.downloads.save('transmission', { url: bag(world).transmission?.url as string });
+  await k(world).kernl.downloads.add('transmission', { url: bag(world).transmission?.url as string });
 });
 
 async function bootWithNzbget(world: CoreWorld, result: () => BridgeResult): Promise<void> {
   bag(world).nzbget = await startFakeNzbget();
   boot(world, { downloads: { offer: true }, bridges: bridgesAnswering(world, result) }, blobFetcher(world));
   const { url, login } = bag(world).nzbget as FakeNzbget;
-  await k(world).kernl.downloads.save('nzbget', { url, ...login });
+  await k(world).kernl.downloads.add('nzbget', { url, ...login });
 }
 
 Given('a kernl shell that offers the download domains, with an NZBGet program set up and bridges that fetch an archive listing', (world: CoreWorld) =>
@@ -96,7 +96,7 @@ Given('download services over a sharing daemon, for a window that stops being an
     fetchDocument: () => Promise.reject(new Error('unavailable:not-used')),
   });
   const { lock } = state.slskd;
-  await state.services.programs.save('slskd', { url: state.slskd.url, ...(lock?.apiKey ? { apiKey: lock.apiKey } : {}) });
+  await state.services.programs.add('slskd', { url: state.slskd.url, ...(lock?.apiKey ? { apiKey: lock.apiKey } : {}) });
   live = true;
 });
 
@@ -146,7 +146,7 @@ Then('a prelude that renders bindings can', () => {
 });
 
 Then("the shell's download settings name nothing set up, kept on {string}", (world: CoreWorld, label: string) => {
-  expect(k(world).kernl.downloads.state()).toEqual({ connections: {}, locked: [] });
+  expect(k(world).kernl.downloads.state()).toEqual({ connections: [], defaults: {}, locked: [] });
   expect(k(world).kernl.secrets).toEqual({ label, keeps: 'plain' });
 });
 
