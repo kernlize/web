@@ -7,9 +7,9 @@ import type { AddressInfo } from 'node:net';
  *
  * Statuses, bodies and wording for the key and session handshake, `/application`,
  * `/server`, an offline daemon's refusals, unknown ids and malformed ids were copied
- * from a real slskd 0.26.2 container. Search answers, browse listings and transfers in
- * progress need a Soulseek login, so those shapes follow the DTOs in slskd's source
- * (`Search`, `Response`, `File`, `Transfer`) and Soulseek.NET's `BrowseResponse`.
+ * from a real slskd 0.26.2 container. Search answers, browse listings, transfers,
+ * cancelling and removal were checked against two real slskd 0.26.2 daemons signed in
+ * to a local Soulfind server.
  */
 
 type Json = Record<string, unknown>;
@@ -202,10 +202,11 @@ function enqueue(exchange: Exchange, username: string): void {
 function oneDownload({ fake, request, response, query }: Exchange, id: string): void {
   if (!GUID.test(id)) return send(response, 400);
   const transfer = fake.transfers.get(id);
-  if (request.method === 'GET') return transfer === undefined || transfer.removed === true ? send(response, 404) : send(response, 200, transfer);
+  // 0.26.2 keeps a removed transfer and still serves it by id, marked `removed: true`; only the per-peer list leaves it out.
+  if (request.method === 'GET') return transfer === undefined ? send(response, 404) : send(response, 200, transfer);
   // 0.26.2 answers 204 whether or not it has the transfer.
   if (transfer !== undefined) {
-    const cancelled = String(transfer.state).includes('Completed') ? {} : { state: 'Completed, Cancelled', exception: 'The operation was canceled.', endedAt: new Date().toISOString() };
+    const cancelled = String(transfer.state).includes('Completed') ? {} : { state: 'Completed, Cancelled', exception: 'A task was canceled.', endedAt: new Date().toISOString() };
     fake.transfers.set(id, { ...transfer, ...cancelled, removed: query.get('remove') === 'true' });
   }
   send(response, 204);

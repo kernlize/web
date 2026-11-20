@@ -362,7 +362,10 @@ async function transfer(daemon: Daemon, username: string, id: string): Promise<S
   const response = await daemon.call('GET', `/transfers/downloads/${segment(username, 'username')}/${segment(id, 'id')}`);
   // 400 is slskd's answer to an id that is not one of its own, which it therefore cannot have.
   if (response.status === 404 || response.status === 400) return undefined;
-  const found = toTransfer(await readRecord(response));
+  const body = await readRecord(response);
+  // A transfer cancelled with removal is still served by id, marked `removed`; it is forgotten all the same.
+  if (body.removed === true) return undefined;
+  const found = toTransfer(body);
   // slskd looks a transfer up by id alone; one that belongs to another peer is not the one asked for.
   return found.username === username ? found : undefined;
 }

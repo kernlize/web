@@ -821,6 +821,7 @@ Feature: slskd client
     Scenario: cancelling with removal makes the daemon forget the transfer
       When the slskd client cancels the transfer and has the daemon forget it
       Then the slskd client answers nothing
+      And the slskd daemon still holds the transfer, marked removed
       When the slskd client reads the transfer
       Then the slskd client answers nothing
 

@@ -104,7 +104,7 @@ A host that embeds `@kernlize/core` outside a browser has neither rule: it passe
 | Transmission | 4.1.4 | The adapter against the daemon, and the reverse proxy in the how-to in front of it. |
 | NZBGet | 26.3 | The adapter against the program, and its answers to a page on another origin. |
 | SABnzbd | 5.1.3 | The same. |
-| slskd | 0.26.2 | The adapter against the daemon and its answers to a page on another origin. Search results and transfers could not be observed without a network login. |
+| slskd | 0.26.2 | The adapter against the daemon and its answers to a page on another origin. Search, browse, a download, cancel and removal between two daemons signed in to a local Soulfind server, never the public network. |
 | uTorrent | not run | The adapter follows the documented WebUI API. |
 
 ## When the domains are offered
