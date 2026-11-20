@@ -7,6 +7,7 @@ import { createAuthHooks } from './applesauce/auth-hooks.js';
 import type { SigningConsent } from './consent/handler.js';
 import { createRelayPoolHooks, type ApplesaucePool } from './applesauce/relay-hooks.js';
 import type { RuntimeFirewallHooks } from './guard/runtime-rules.js';
+import type { ShortcutKey } from './keys/shortcuts.js';
 
 const TIERS: readonly string[] = ['discovery', 'apps', 'outbox', 'super'];
 
@@ -27,6 +28,8 @@ export interface ShellAdapterDeps {
   /** The runtime firewall's persistence and event sink; see `createRuntimeFirewallHooks`. */
   readonly runtimeFirewall: RuntimeFirewallHooks;
   readonly onUnroutedMessage?: (info: UnroutedMessageInfo) => void;
+  /** Takes a key an applet had no shortcut for, so the shell's own shortcuts work while an applet has focus (D-049). */
+  readonly onShortcut?: (key: ShortcutKey) => void;
 }
 
 const UPLOAD_BACKEND = Object.freeze({ rails: Object.freeze(['blossom']) });
@@ -40,8 +43,8 @@ function isTier(tier: string): tier is RelayTier {
  *
  * Choices kehto left open, decided here: windows are created by the host,
  * which opens an intent's target for it, not by applets (`createWindow`
- * returns null); the `intent` domain is offered, served by kernl's router; hotkeys are
- * not forwarded; there is no worker relay, the applesauce pool is the only
+ * returns null); the `intent` domain is offered, served by kernl's router; a key an
+ * applet had no shortcut for goes to the host's `onShortcut`; there is no worker relay, the applesauce pool is the only
  * event source; every signature made for an applet window passes the consent
  * gate; update behaviour is `banner`; event signatures are verified by
  * applesauce; every applet's environment is narrowed by the grants layer; the
@@ -75,7 +78,7 @@ export function createShellAdapter(deps: ShellAdapterDeps): ShellAdapter {
     windowManager: { createWindow: () => null },
     auth: createAuthHooks(deps.accounts, deps.consent),
     config: { getNappUpdateBehavior: () => 'banner' },
-    hotkeys: { executeHotkeyFromForward: () => undefined },
+    hotkeys: { executeHotkeyFromForward: (key) => deps.onShortcut?.(key) },
     workerRelay: { getWorkerRelay: () => null },
     // kehto offers the upload domain only when both the service and this backend are present; kernl's uploads are Blossom (D-033).
     upload: { getUploader: () => (deps.services.upload ? UPLOAD_BACKEND : null) },

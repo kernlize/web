@@ -46,3 +46,4 @@ import './remote-tools.js';
 import './direct-connections.js';
 import './kernl-direct.js';
 import './multiplayer-settings.js';
+import './shortcuts.js';

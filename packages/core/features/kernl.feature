@@ -211,14 +211,14 @@ Feature: The composed shell
     When the shell resolves the manifest address
     Then the shell summary is "chat" requiring "relay"
     When the shell plans the summary
-    Then the shell plan is for window "applet-1" with domains "shell,storage,inc,theme"
+    Then the shell plan is for window "applet-1" with domains "shell,storage,inc,theme,keys"
     And the shell plan is missing "relay"
     When the shell mounts the plan into a fake frame
     Then the shell has 1 applets and the frame holds the plan srcdoc
     When the shell closes the mounted applet
     Then the shell has 0 applets
     When the shell plans the summary
-    Then the shell plan is for window "applet-2" with domains "shell,storage,inc,theme"
+    Then the shell plan is for window "applet-2" with domains "shell,storage,inc,theme,keys"
 
   Scenario: planning an applet that was never resolved is refused
     Given a kernl shell over that host and pool
@@ -251,7 +251,7 @@ Feature: The composed shell
     And a mounted applet
     When the applet sends its hello through the shell
     And the applet asks "shell.ready" over its port
-    Then the applet received a "shell.init" with domains "shell,storage,inc,theme"
+    Then the applet received a "shell.init" with domains "shell,storage,inc,theme,keys"
     When the applet asks "theme.get" over its port
     Then the applet received a "theme.get.result"
     When the applet asks "identity.getPublicKey" over its port
@@ -277,7 +277,7 @@ Feature: The composed shell
     When the shell resolves the manifest address
     And the shell allows "resource" for the resolved applet
     And the shell plans the summary
-    Then the shell plan is for window "applet-1" with domains "shell,storage,inc,theme,resource"
+    Then the shell plan is for window "applet-1" with domains "shell,storage,inc,theme,resource,keys"
     When the shell mounts the plan into a fake frame
     And the applet sends its hello through the shell
     And the applet asks "resource.bytes" for "https://files.example/a.txt" over its port
@@ -544,7 +544,7 @@ Feature: The composed shell
   Scenario: an applet the person did not grant direct connections reaches nothing and nobody is asked
     Given a kernl shell over that host and pool that makes peer connections
     And a mounted applet granted "notify" that has said hello
-    Then the applet received a "shell.init" with domains "shell,storage,inc,theme,notify"
+    Then the applet received a "shell.init" with domains "shell,storage,inc,theme,notify,keys"
     When the applet asks to open the room "lobby-1234" over its port
     Then the host was not asked anything
     And the applet got no answer to opening the room
@@ -563,7 +563,7 @@ Feature: The composed shell
     Given a kernl shell over that host and pool with fake bridges
     And the shell is signed in
     And a mounted applet granted each of "resource,relay,dm" that has said hello
-    Then the applet received a "shell.init" with domains "shell,storage,theme,dm"
+    Then the applet received a "shell.init" with domains "shell,storage,theme,dm,keys"
     When the applet asks "resource.bytes" for "https://files.example/a.txt" over its port
     Then the applet received no "resource.bytes.result"
     And the fake bridges were asked for nothing
@@ -571,7 +571,7 @@ Feature: The composed shell
   Scenario: an applet that reads messages opens no direct connection, and nobody is asked (D-046)
     Given a kernl shell over that host and pool that makes peer connections
     And a mounted applet granted each of "webrtc,dm" that has said hello
-    Then the applet received a "shell.init" with domains "shell,storage,theme,dm"
+    Then the applet received a "shell.init" with domains "shell,storage,theme,dm,keys"
     When the applet asks to open the room "lobby-1234" over its port
     Then the host was not asked anything
     And the applet got no answer to opening the room

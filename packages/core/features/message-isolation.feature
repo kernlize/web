@@ -95,5 +95,5 @@ Feature: An applet that reads messages is sealed
 
   Scenario: the seal is told apart from an ordinary grant
     Then grants "dm,relay" seal an applet and grants "relay,upload" do not
-    And grants "dm,relay,upload" leave "shell,theme,storage,dm" in force over the usual baseline
-    And grants "relay" leave "shell,inc,theme,storage,relay" in force over the usual baseline
+    And grants "dm,relay,upload" leave "shell,theme,storage,keys,dm" in force over the usual baseline
+    And grants "relay" leave "shell,inc,theme,storage,keys,relay" in force over the usual baseline

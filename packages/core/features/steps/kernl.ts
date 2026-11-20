@@ -382,7 +382,7 @@ Then('the shell plan is missing {string}', (world: CoreWorld, domains: string) =
   expect(k(world).plan?.missingRequired).toEqual(splitList(domains));
 });
 
-function mountFrame(world: CoreWorld): void {
+export function mountFrame(world: CoreWorld): void {
   const s = k(world);
   if (!s.plan) throw new Error('plan first');
   s.frame = createFakeFrame();
@@ -428,7 +428,7 @@ function windowMessage(source: MessageEventSource | null, data: unknown, ports: 
   return Object.assign(new Event('message'), { source, data, ports, origin: 'null' }) as MessageEvent;
 }
 
-function hello(world: CoreWorld, win: Window): MessageChannel {
+export function hello(world: CoreWorld, win: Window): MessageChannel {
   const channel = new MessageChannel();
   channel.port1.onmessage = (event) => void k(world).received.push(event.data as Record<string, unknown>);
   const message = windowMessage(win, { type: 'napplet.hello' }, [channel.port2]);

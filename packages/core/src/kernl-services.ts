@@ -31,6 +31,7 @@ import type { DirectConnectionsSettings, KernlHost, RelayTiers, RemoteToolsSetti
 import { createDirectConnectionsService, type DirectConnectionsOptions } from './multiplayer/direct-connections.js';
 import { createRemoteToolsService, mergeFamilies } from './multiplayer/remote-tools.js';
 import { createWindowIdentities, type WindowIdentities } from './multiplayer/window-identities.js';
+import { createShortcutsService, type ShortcutsOptions, type ShortcutsService } from './keys/shortcuts.js';
 import type { MultiplayerSettings } from './multiplayer/settings.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { createAppletRelayService, createOutboxRelayPool } from './applesauce/relay-backend.js';
@@ -104,6 +105,8 @@ export interface KernlServiceDeps {
   readonly directConnections?: DirectConnectionsDeps | undefined;
   /** The person's own choices, which come before the host's (D-043). */
   readonly multiplayer?: Pick<MultiplayerSettings, 'state'>;
+  /** Reserved chords, the key listener's target and the focus source for the `keys` domain (D-049). */
+  readonly shortcuts: ShortcutsOptions;
 }
 
 /** What the `webrtc` service needs beyond the pool and the window identities. */
@@ -116,6 +119,8 @@ export interface KernlServices {
   readonly registry: ServiceRegistry;
   readonly theme: ThemeService;
   readonly dm: DmService;
+  /** The `keys` service; `destroy()` gives back its key listener. */
+  readonly keys: ShortcutsService;
 }
 
 function toRelayListEntry(relays: RelayPermissions): RelayListEntry {
@@ -262,15 +267,16 @@ function gateOutboxPublish(outbox: ServiceHandler, consent: SigningConsent): Ser
 /**
  * Register kehto's reference services over the shell's applesauce layer.
  *
- * `relay`, `identity`, `theme`, `notify`, `link`, `resource`, `dm`, `outbox`
- * and `cvm` are wired; every network path goes through the one pool, every
+ * `relay`, `identity`, `theme`, `keys`, `notify`, `link`, `resource`, `dm`,
+ * `outbox` and `cvm` are wired; every network path goes through the one pool, every
  * resource fetch through the bridge registry's SSRF policy, links open only
  * over `https:` and `mailto:`, notifications surface through the host, outbox
  * publishes pass the consent gate before they are signed, and remote tools are
- * called under each window's own key.
+ * called under each window's own key. An applet's shortcut runs in the focused
+ * window only.
  *
  * @param deps - Pool, tiers, store, auth, consent gate, host, registries and identity resolver.
- * @returns The service registry and the theme and dm handles.
+ * @returns The service registry and the theme, dm and keys handles.
  * @example
  * ```ts
  * const services = createKernlServices(deps);
@@ -286,11 +292,13 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
   const identities = deps.identities ?? createWindowIdentities();
   const direct = deps.directConnections;
   const chosen = () => deps.multiplayer?.state();
+  const keys = createShortcutsService(deps.shortcuts);
 
   const registry: ServiceRegistry = {
     relay: createAppletRelayService(deps.pool, deps.tiers),
     identity: createIdentityService({ getSigner: createIdentitySigner(deps.auth), ...identity }),
     theme: theme.handler,
+    keys,
     notify: createNotifyService({
       present: ({ windowId, message }) => deps.host.notify({ title: message.title, windowId, tone: 'info', ...(message.body ? { body: message.body } : {}) }),
     }),
@@ -325,5 +333,5 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
     ...(deps.common ? { common: createCommonService(deps.common) } : {}),
     ...(deps.uploader ? { upload: createUploadService({ uploader: deps.uploader, uploadInfo: { rails: [{ rail: 'blossom', enabled: true }] } }) } : {}),
   };
-  return { registry, theme, dm };
+  return { registry, theme, dm, keys };
 }

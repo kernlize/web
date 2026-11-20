@@ -19,6 +19,8 @@ import {
   type VisibilityGate,
   type WindowVisibility,
 } from '@kernlize/guard';
+import { createForwardedKeys } from '../keys/forwarded-keys.js';
+import { createKeymapHold } from '../keys/keymap-hold.js';
 
 /** The window a message came from, as the shell resolved it. Never taken from the message. */
 export interface WindowResolution {
@@ -66,8 +68,10 @@ export interface GuardPipeline {
    * Decide one envelope that arrived over a bound port, for kehto's
    * `filterNappletMessage`. `defer` holds every non-control envelope from a
    * window that is not visible (reason `hidden:<class>`) until it is visible
-   * again, up to `deferQueue` envelopes. `drop` discards an envelope over its
-   * size cap, a burst above the per-second rate, a request over the
+   * again, up to `deferQueue` envelopes, and a shortcut registration from a
+   * window in its first second until that second is over (D-049). `drop` discards an envelope over its
+   * size cap, a forwarded key that is a held key's repeat or comes from a
+   * window that is not focused (D-049), a burst above the per-second rate, a request over the
    * focus-aware firewall's budget, a hidden window's envelope past the defer
    * queue, and the envelope that triggers a quarantine. Control envelopes are
    * dispatched unless the window is quarantined.
@@ -129,6 +133,39 @@ function judgePort(port: PortEnvelope, admitted: GuardDisposition, firewall: Foc
   return firewall.observe(windowId, napplet, envelope, visibility).decision === 'pass' ? 'dispatch' : 'drop';
 }
 
+function push(queue: Map<string, Pending[]>, windowId: string, pending: Pending): void {
+  const list = queue.get(windowId) ?? [];
+  list.push(pending);
+  queue.set(windowId, list);
+}
+
+function take(queue: Map<string, Pending[]>, windowId: string, count: number): Pending[] {
+  const list = queue.get(windowId) ?? [];
+  return list.splice(0, count);
+}
+
+/**
+ * What the pipeline does with shortcut traffic before the guard counts anything
+ * (D-049). A held key is the person's typing, not the applet's traffic, so its
+ * repeats are dropped; an applet's keymap arrives as it starts, so it waits out
+ * the runtime's startup window.
+ */
+function createKeyTraffic(startupMs: () => number, release: (windowId: string) => void) {
+  const forwarded = createForwardedKeys();
+  const keymap = createKeymapHold({ startupMs, release });
+  return {
+    decide(windowId: string, message: unknown, focused: boolean, at: number): NappletMessageDecision | undefined {
+      if (forwarded.drops(windowId, message, focused, at)) return 'drop';
+      return keymap.holds(windowId, message, at) ? 'defer' : undefined;
+    },
+    holding: keymap.holding,
+    forget(windowId: string): void {
+      forwarded.forget(windowId);
+      keymap.forget(windowId);
+    },
+  };
+}
+
 /**
  * Compose the guard: ingress flood control, then the visibility gate, then the
  * focus-aware firewall, then kehto's bridge.
@@ -159,6 +196,9 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
   const known = new Map<string, WindowVisibility>();
   const heldByIngress = new Map<string, Pending[]>();
   const heldByGate = new Map<string, Pending[]>();
+  const handOn = (windowId: string): void => options.onRelease?.(windowId);
+  // A hidden window's envelopes stay held; becoming visible hands them on with the keymap.
+  const keys = createKeyTraffic(() => config.firewall.burstGuard.windowMs, (windowId) => visibilityOf(windowId).visible && handOn(windowId));
   const layerOptions = () => ({
     config,
     ...(options.now ? { now: options.now } : {}),
@@ -180,17 +220,6 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
       layers.gate.setVisibility(windowId, visibility);
     }
     return layers.gate.getVisibility(windowId);
-  }
-
-  function push(queue: Map<string, Pending[]>, windowId: string, pending: Pending): void {
-    const list = queue.get(windowId) ?? [];
-    list.push(pending);
-    queue.set(windowId, list);
-  }
-
-  function take(queue: Map<string, Pending[]>, windowId: string, count: number): Pending[] {
-    const list = queue.get(windowId) ?? [];
-    return list.splice(0, count);
   }
 
   function pastGate(windowId: string, pending: Pending): GuardDisposition {
@@ -258,8 +287,11 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
       return disposition === 'pass' ? pastGate(windowId, pending) : disposition;
     },
     observe(windowId, napplet, message) {
+      const visibility = visibilityOf(windowId);
+      const shortcut = keys.decide(windowId, message, visibility.focused, clock());
+      if (shortcut) return shortcut;
       const envelope = toEnvelope(message);
-      const port: PortEnvelope = { windowId, napplet, envelope, visibility: visibilityOf(windowId) };
+      const port: PortEnvelope = { windowId, napplet, envelope, visibility };
       return judgePort(port, admit(windowId, napplet, envelope, { hold: false }), layers.firewall, holdPort);
     },
     setVisibility(windowId, visibility) {
@@ -267,7 +299,8 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
       layers.gate.setVisibility(windowId, visibility);
       if (!visibility.visible) return;
       drainAll(windowId);
-      options.onRelease?.(windowId);
+      // kehto hands on everything it holds for a window at once, so a held keymap keeps the rest until its wait is over.
+      if (!keys.holding(windowId)) handOn(windowId);
     },
     getVisibility: visibilityOf,
     release: (windowId) => layers.ingress.release(windowId),
@@ -276,6 +309,7 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
       layers.ingress.forget(windowId);
       layers.gate.forget(windowId);
       layers.firewall.forget(windowId);
+      keys.forget(windowId);
       heldByIngress.delete(windowId);
       heldByGate.delete(windowId);
       known.delete(windowId);

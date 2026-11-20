@@ -23,6 +23,7 @@ import type { RelayDirectory } from './relays/directory.js';
 import type { LoadCatalogOptions } from './catalog/fetch.js';
 import type { HandlerDefaults } from './intents/defaults.js';
 import type { InstalledApplet } from './intents/installed.js';
+import type { ShortcutKey, ShortcutSettings } from './keys/shortcuts.js';
 
 
 /** The two values an applet's grants are keyed on. Both come from verification, never from the applet. */
@@ -270,6 +271,11 @@ export interface KernlHost {
   chooseReply?(prompt: ReplyPrompt): Promise<ReplyAnswer | undefined>;
   /** Verify an artifact blob. Defaults to `fetch` over the manifest's servers. */
   fetchBlob?(sha256: string, servers: readonly string[]): Promise<Uint8Array>;
+  /**
+   * Take a key pressed inside an applet that the applet has no shortcut for. Without it the
+   * shell's own shortcuts do nothing while an applet has focus (D-049).
+   */
+  onShortcut?(key: ShortcutKey): void;
   now?(): number;
 }
 
@@ -316,6 +322,8 @@ export interface KernlOptions {
   readonly remoteTools?: RemoteToolsSettings;
   /** How applets connect people directly: the relays that introduce them and the ICE servers that help (D-042). */
   readonly directConnections?: DirectConnectionsSettings;
+  /** The chords the shell keeps from applets' keyboard shortcuts, and where key presses are heard (D-049). */
+  readonly shortcuts?: ShortcutSettings;
 }
 
 /** A STUN or TURN server, as `RTCPeerConnection` takes it. Its credentials stay in the shell. */
