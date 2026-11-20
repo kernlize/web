@@ -1,6 +1,6 @@
-# Download programs
+# Connected programs
 
-An applet cannot join a swarm, talk to a news server or search a sharing network: its frame has no network at all. A page cannot either, for most of these, because a browser gives it no raw sockets. The programs people already run for this can. kernl drives them through their own HTTP APIs, for the applets the person allows, behind three NAP domains ([D-050](../decisions.md#d-050)).
+An applet cannot join a swarm, talk to a news server or search a sharing network: its frame has no network at all. A page cannot either, for most of these, because a browser gives it no raw sockets. The programs people already run for this can. kernl drives them through their own HTTP APIs, for the applets the person allows, behind three NAP domains ([D-050](../decisions.md#d-050)). Through them an applet can add torrents and NZBs, follow and control their jobs, read a torrent's metadata and change its speed limits and sharing, and search and browse shared libraries; downloading is one of these, not the whole.
 
 | Domain | Draft | Programs | Adapter (`@kernlize/bridges`) | Service (`@kernlize/core`) |
 | --- | --- | --- | --- | --- |
@@ -36,23 +36,37 @@ Each domain says this in its discovery call (`torrent.capabilities`, `nzb.downlo
 ## What the person controls
 
 - **Which applets.** Each domain is a grant like any other, off until the person switches it on for that applet. An applet that can read messages holds none of the three ([D-046](../decisions.md#d-046)).
-- **Each download.** The person is asked before every torrent or NZB an applet adds, before a window's first search or download through the sharing daemon, and before anything is deleted. The prompt says what peers or servers will see.
+- **Each addition and each deletion.** The person is asked before every torrent or NZB an applet adds, before a window's first search or download through the sharing daemon, and before anything is deleted. The prompt says what peers or servers will see.
 - **What an applet sees.** Only what it started. A torrent the person added themselves, or one another applet added, does not exist as far as it can tell. Handles are the shell's own; an applet never sees the program's ids, its address or its category names.
 - **What happens when an applet closes.** A torrent added for the session is paused in the program, not removed. A torrent the applet asked to keep, and every NZB, carries on in the program, and the prompt said so. Searches and unfinished transfers through the sharing daemon are stopped, as that draft requires, and finished files stay where the daemon put them. Closing an applet deletes nothing, and kernl never removes from the person's program something it was not asked to.
 
 ## Connection settings
 
-`kernl.downloads` (`createDownloadClients`) holds what the person set up. Per program, the settings record at `kernl:download-programs:v1` is `{ url, username?, hasPassword, hasApiKey }`: the address, the name, and whether a password or a key is kept. The password and the key themselves are not in it. They go to the [secrets provider](./secrets.md), are read from it once when the shell starts, and are held in memory for the client that signs in with them and for nothing else ([D-052](../decisions.md#d-052)). [Connect a download program](../how-tos/connect-a-download-program.md) is the walk-through.
+`kernl.downloads` (`createDownloadClients`) holds what the person set up: any number of connections, several to the same program among them ([D-053](../decisions.md#d-053)). Each connection in the settings record at `kernl:download-programs:v1` is `{ id, program, label, url, username?, hasPassword, hasApiKey, routingKey }`: a random id that is never shown and never sent to an applet, the program, the person's name for it, the address, the username, and whether a password or a key is kept. The password and the key themselves are not in it. They go to the [secrets provider](./secrets.md) under the connection's id, are read from it once when the shell starts, and are held in memory for the client that signs in with them and for nothing else ([D-052](../decisions.md#d-052)). [Connect a program](../how-tos/connect-a-download-program.md) is the walk-through.
 
 | Call | What it does |
 | --- | --- |
-| `check(program, typed)` | Works out the scheme, checks the address, asks the program for its version. Resolves `{ signIn, notes, probe }`; saves nothing. A password or key left empty is the kept one, when the address is the one it was kept for. |
-| `save(program, signIn)` | Hands the secrets to the provider, then writes the record. Resolves when both are done; rejects, with nothing saved, when the address may not be used or the provider will not keep the secret. |
-| `remove(program)` | Deletes the program's secrets from the provider and its record. |
-| `chooseTorrent(program)` | Picks which of the two torrent programs serves applets. The first one set up serves until the person chooses. |
-| `state()`, `state$` | `{ connections, torrentProgram?, locked }`. |
+| `check(program, typed, existing?)` | Works out the scheme, checks the address, asks the program for its version. Resolves `{ signIn, notes, probe }`; saves nothing. With `existing`, a connection's id, a password or key left empty is that connection's kept one, when the address is the one it was kept for. |
+| `add(program, signIn, label?)` | Hands the secrets to the provider, then writes the record. The label is the program's name, numbered when taken ("Transmission 2"), unless one is given; 1 to 60 characters. Resolves the new `DownloadConnection`; rejects, with nothing saved, when the address, label or sign-in may not be used or the provider will not keep the secret. |
+| `update(id, { label?, signIn? })` | Changes a connection's label or sign-in; what is left out stays. A new address gives it a new `routingKey`. |
+| `remove(id)` | Deletes the connection's secrets from the provider and its record. |
+| `chooseDefault(domain, id)` | Picks the connection new `torrent` or `soulseek` work goes to. |
+| `routing(domain)` | What a service reads: `all()`, `byId(id)` and `preferred()`, each a `{ connection, client }`, only for connections that can serve now. |
+| `state()`, `state$` | `{ connections, defaults, locked }`. |
 
-`locked` lists the programs whose kept sign-in the provider would not hand over when the shell started. A locked program serves no applet until the person saves its sign-in again; a provider that says no is never read as "there is no password".
+`locked` lists the ids of connections whose kept sign-in the provider would not hand over when the shell started. A locked connection serves no applet until the person saves its sign-in again; a provider that says no is never read as "there is no password".
+
+### Where work goes
+
+NAP-TORRENT and NAP-SOULSEEK give an applet no way to name a backend, so kernl routes:
+
+- **Each domain has a default.** `defaults.torrent` and `defaults.soulseek` name a connection by id: the first of its kind until the person picks another. Removing the default makes the next one the default.
+- **A new torrent** goes to the connection that already holds that torrent for kernl, so it is never fetched twice, else to the default. The question before it is added names the connection by its label.
+- **A search or browse** goes to the default.
+- **Work remembers its connection.** A torrent job, and a Soulseek query with its files and transfers, is served from then on by the connection it went to. When that connection is removed or locked, the job reports the torrent as unavailable and the query answers that the program is no longer set up; removing such a torrent job succeeds without touching any program.
+- **NZB connections are each a downloader.** `nzb.downloaders` lists them by the person's label and an opaque id, and the applet chooses, as NAP-NZB says.
+
+A change of address starts a new `routingKey`. The NZB handles an applet holds, and the Soulseek work in flight, are keyed by it, so a handle issued for jobs at the old address never reaches a different server's job with the same id; it answers "not found" instead. Two connections to the same daemon are two connections: kernl does not notice they are one program. Routing is not load balancing; a default that cannot be reached is not replaced by another for new work.
 
 ### The address is checked against how kernl was loaded
 
@@ -101,7 +115,7 @@ When they are offered, kernl adds the granted ones to the environment it sets fo
 
 ## Related
 
-- [Connect a download program](../how-tos/connect-a-download-program.md)
+- [Connect a program](../how-tos/connect-a-download-program.md)
 - [Secrets](./secrets.md)
 - [Bridges](./bridges.md)
 - [Identity and grants](./identity-and-grants.md)

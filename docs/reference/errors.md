@@ -68,7 +68,7 @@ Thrown reasons are the `message` of an `Error`. A few carry a detail after a spa
 
 ## Download programs
 
-The reasons behind the `torrent`, `nzb` and `soulseek` domains ([Download programs](../concepts/download-programs.md)). There are three layers: an adapter rejects with a `ClientFailure` reason, the settings reject with their own, and each service turns whatever went wrong into the error code its NAP draft names before an applet sees it. An applet never receives an adapter's reason or its detail.
+The reasons behind the `torrent`, `nzb` and `soulseek` domains ([Connected programs](../concepts/download-programs.md)). There are three layers: an adapter rejects with a `ClientFailure` reason, the settings reject with their own, and each service turns whatever went wrong into the error code its NAP draft names before an applet sees it. An applet never receives an adapter's reason or its detail.
 
 ### Adapter reasons
 
@@ -96,13 +96,14 @@ Every method of `createTransmissionClient`, `createUtorrentClient`, `createNzbge
 
 | Reason | Package | Thrown by | Meaning |
 | --- | --- | --- | --- |
-| `invalid:address` | `@kernlize/bridges` | `checkClientEndpoint`, as `EndpointCheck.reason`; thrown by `detectClientEndpoint`, so by `DownloadClients.check`, and by `DownloadClients.save` | Not a URL, or one with a query or a fragment. |
-| `invalid:scheme` | `@kernlize/bridges` | the same | The scheme is not `http` or `https`. `save` takes a complete address, so one without a scheme is refused this way; `check` works the scheme out first. |
+| `invalid:address` | `@kernlize/bridges` | `checkClientEndpoint`, as `EndpointCheck.reason`; thrown by `detectClientEndpoint`, so by `DownloadClients.check`, and by `DownloadClients.add` and `update` | Not a URL, or one with a query or a fragment. |
+| `invalid:scheme` | `@kernlize/bridges` | the same | The scheme is not `http` or `https`. `add` and `update` take a complete address, so one without a scheme is refused this way; `check` works the scheme out first. |
 | `invalid:credentials-in-address` | `@kernlize/bridges` | the same | The address carries a name or password (`http://name:pass@host`). They have their own fields. |
 | `invalid:mixed-content` | `@kernlize/bridges` | the same | kernl's page was loaded over `https` and the address is plain `http` on another machine. A browser would block every request, so the address is refused before it is saved or tried. |
-| `invalid:sign-in` | `@kernlize/core` | `DownloadClients.check`, `DownloadClients.save` | A name, password or key is not text, or is longer than 512 characters. |
-| `invalid:program` | `@kernlize/core` | `DownloadClients.chooseTorrent` | The torrent program chosen is not set up. |
-| `unavailable:secrets` | a `SecretsProvider` | `get`, `set` or `delete`, so `DownloadClients.save` and `remove` | The keeper cannot be reached. Nothing is saved. When it happens while the shell reads the kept sign-ins at start, the program is listed in `state().locked` instead. The built-in providers never reject. |
+| `invalid:sign-in` | `@kernlize/core` | `DownloadClients.check`, `add`, `update` | A name, password or key is not text, or is longer than 512 characters. |
+| `invalid:label` | `@kernlize/core` | `DownloadClients.add`, `update` | The connection's name, trimmed, is not 1 to 60 characters. Settings show "Give it a name, up to 60 characters." |
+| `invalid:connection` | `@kernlize/core` | `DownloadClients.check` (with `existing`), `update`, `chooseDefault` | No connection has that id, `check`'s `existing` is a connection to another program, or `chooseDefault` names a connection that does not serve that domain. Settings show "That connection is no longer set up." |
+| `unavailable:secrets` | a `SecretsProvider` | `get`, `set` or `delete`, so `DownloadClients.add`, `update` and `remove` | The keeper cannot be reached. Nothing is saved. When it happens while the shell reads the kept sign-ins at start, the connection's id is listed in `state().locked` instead. The built-in providers never reject. |
 | `denied:secrets` | a `SecretsProvider` | the same | The keeper, or the person, said no. Handled exactly as `unavailable:secrets`: "not available now", never "there is no secret". |
 
 `DownloadClients.check` also rejects with any adapter reason from the table above, from the program's `probe()`.
@@ -119,7 +120,7 @@ Each service answers a failed request with the code its draft defines, and a rea
 | `unsupported-mode` | `add` with mode `seed`. |
 | `unsupported-source` | `add` with a `runtime-file-set` source. |
 | `unsupported-format` | A v2-only magnet link, hash or torrent file. |
-| `unsupported-transport` | `add` when no torrent program is set up, or with a `transport` other than `auto` or `bittorrent`. |
+| `unsupported-transport` | `add` when no torrent connection can serve, or when the one the person said yes to was removed before the torrent was handed over, or with a `transport` other than `auto` or `bittorrent`. |
 | `unsupported-setting` | `add` with `trackers` or `webSeeds`; `update` with a setting outside `mutableSettings`. |
 | `storage-denied` | `add` with `storage` other than `persistent` (the program chooses where files go); or a persistent job could not be written to the shell's storage. |
 | `invalid-magnet`, `invalid-infohash`, `invalid-source` | The source is malformed: not a magnet link or one without a hash; a hash that is not lowercase hex of the right length; a torrent file that does not parse, two sources at once, or an unknown kind. `invalid-source` is also what a program declining the torrent reads as (`unavailable:rejected`). |
@@ -131,7 +132,7 @@ Each service answers a failed request with the code its draft defines, and a rea
 | `user-denied` | The person said no to the add, or to deleting the data. |
 | `policy-denied` | The window is not a live applet, or stopped being one while the person was deciding. |
 | `job-not-found` | The job id is not one this window may see: unknown, another applet's, or another window's session job. Also a program that reports it does not have the torrent while changing it (`unavailable:not-found`). |
-| `source-unavailable` | The program no longer has the torrent. Also pushed as `torrent.error`, followed by `torrent.state` `error`. |
+| `source-unavailable` | The program no longer has the torrent, or the job's connection was removed or is locked; removing that job then succeeds without touching any program. Also pushed as `torrent.error`, followed by `torrent.state` `error`. |
 | `metadata-unavailable` | `selectFiles` before the program knows the file list; `metadata` while the program has not read the torrent or cannot say whether it is private. |
 | `revision-conflict` | `update` with an `expectedRevision` that is not the current one. The result carries the current `settings`. |
 | `network-error` | No program is set up (for anything but `add`), it could not be reached, did not answer in time, answered unreadably or refused kernl's sign-in. Also pushed as `torrent.error`, once per outage. |
@@ -166,10 +167,10 @@ Each service answers a failed request with the code its draft defines, and a rea
 | `unsupported` | `save` of a finished download (`info` reports `canSave: false`). |
 | `invalid_state` | `read` or `save` of a download that has not finished; `pause` or `resume` of one that has ended. |
 | `invalid_request` | A field that is missing, of the wrong type, out of range or not defined for the operation; a request id that is too long; a `read` offset past the end of the file. |
-| `unavailable` | New work (`search`, `browse`, a new `download`, `resume`) when no sharing program is set up, or it is unreachable or not signed in to its network. What the window already holds stays readable. |
+| `unavailable` | New work (`search`, `browse`, a new `download`, `resume`) when no Soulseek connection can serve, or it is unreachable or not signed in to its network. What the window already holds stays readable. |
 | `not_found` | A query, file or transfer handle this window does not hold, including one issued to another window of the same applet. |
 | `limit_exceeded` | The window already holds `maxQueries` searches or `maxTransfers` downloads. |
-| `backend_error` | The daemon turned the request down or failed in any other way. |
+| `backend_error` | The daemon turned the request down or failed in any other way; or the query or transfer's connection was removed, is locked or has a new address ("That sharing program is no longer set up"). |
 
 A search, a browse or a transfer that fails after it was accepted is not an error answer: the query or transfer reports it in its own state, with `peer_unavailable`, `peer_denied`, `timeout`, `limit_exceeded`, `source_changed` (the file is not the size it was listed with) or `backend_error`.
 

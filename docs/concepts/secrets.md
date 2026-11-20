@@ -13,7 +13,7 @@ The reason is that the best keeper depends on where kernl runs. A page's own sto
 | `set(name, value)` | Keeps a secret under a name, replacing any that was there. |
 | `delete(name)` | Forgets the secret under a name. Forgetting one that is not there succeeds. |
 
-Names are the shell's own. The download programs use `download:<program>:password` and `download:<program>:apiKey`, for example `download:transmission:password`. A provider keeps them apart from anything else it holds and never interprets them.
+Names are the shell's own. The download programs use `download:<connection id>:password` and `download:<connection id>:apiKey`, where the id is the connection's own, random and never shown ([D-053](../decisions.md#d-053)). Two connections to the same program keep two passwords. A provider keeps them apart from anything else it holds and never interprets them.
 
 `keeps` is one of three words, so the shell can say truthfully where a sign-in went:
 
@@ -34,25 +34,25 @@ Any method may reject with `unavailable:secrets`, when the keeper cannot be reac
 
 `createKernl` uses `createStorageSecrets(host.storage)` unless the host passes `KernlOptions.secrets`. On kernl.run that is the browser's `localStorage`, so a download program's password is readable to any script running on the origin. The Settings form says "Sign-ins are kept by this device." from the description; it is `kernl.secrets`, the only part of the provider the shell's UI can reach.
 
-With `createMemorySecrets()` a sign-in lasts until the shell closes. The settings record outlives it and still says a password is kept, so after a reload the program is listed as set up, its client signs in without the password, and a program that asks for one refuses it (`denied:credentials`) until the person saves the sign-in again.
+With `createMemorySecrets()` a sign-in lasts until the shell closes. The settings record outlives it and still says a password is kept, so after a reload the provider has nothing for it and the connection is [locked](#locked) until the person saves the sign-in again.
 
 ## Settings never hold a secret
 
-A download program's record at `kernl:download-programs:v1` is `{ url, username?, hasPassword, hasApiKey }`. The two flags say whether a secret is kept; the secret is not there. The flow:
+A download connection's record at `kernl:download-programs:v1` is `{ id, program, label, url, username?, hasPassword, hasApiKey, routingKey }`. The two flags say whether a secret is kept; the secret is not there. The flow:
 
-1. **Saving.** `kernl.downloads.save` hands the password and key to the provider first. Only when the provider has kept them does the record say they are kept. If the provider rejects, nothing is saved and what was there before stays.
+1. **Saving.** `kernl.downloads.add` and `update` hand the password and key to the provider first. Only when the provider has kept them does the record say they are kept. If the provider rejects, nothing is saved and what was there before stays.
 2. **Starting.** `createDownloadClients` reads each kept secret from the provider once and holds it in memory for the client that signs in with it. `kernl.downloads.ready` settles when that is done.
 3. **Using.** The secret is handed to the adapter for that program and to nothing else: not to `state()`, not to the settings form, not to an applet, a prompt, an error or a log.
 4. **Editing.** The form opens with empty password and key boxes. A box left empty means "the kept one", and only when the address is the one it was kept for. Change the address and the kept secret is not sent to it; it is deleted when the new address is saved without one.
-5. **Removing.** `kernl.downloads.remove` deletes the program's secrets from the provider and its record from settings.
+5. **Removing.** `kernl.downloads.remove(id)` deletes the connection's secrets from the provider and its record from settings.
 
 ## Locked
 
-A provider that says no is not an empty provider. When the shell starts and the provider rejects `get` for a program's kept secret, or resolves `undefined` for a secret the settings say is kept (as `createMemorySecrets` does after a reload), kernl does not treat the program as having no password. It lists the program in `kernl.downloads.state().locked`:
+A provider that says no is not an empty provider. When the shell starts and the provider rejects `get` for a connection's kept secret, or resolves `undefined` for a secret the settings say is kept (as `createMemorySecrets` does after a reload), kernl does not treat the connection as having no password. It lists the connection's id in `kernl.downloads.state().locked`:
 
-- No client is offered for a locked program, so it serves no applet. A `torrent` applet sees no torrent program; an `nzb` applet does not see that downloader.
-- The settings still show the program, marked "Sign-in locked".
-- Saving the sign-in again unlocks it, once the provider accepts the secret. Removing the program works while it is locked, when the provider accepts the delete.
+- No client is offered for a locked connection, so it serves no applet. New torrents and searches go to the domain's default only while it can serve, else to the first that can; an `nzb` applet does not see that downloader.
+- The settings still show the connection, marked "Sign-in locked".
+- Saving the sign-in again unlocks it, once the provider accepts the secret. Removing the connection works while it is locked, when the provider accepts the delete.
 
 `locked` describes the running shell only. It is not written to storage, so the next start asks the provider again.
 
@@ -66,7 +66,7 @@ A provider that says no is not an empty provider. When the shell starts and the 
 ## Related
 
 - [Swap the secrets provider](../how-tos/swap-the-secrets-provider.md)
-- [Download programs](./download-programs.md)
+- [Connected programs](./download-programs.md)
 - [Persistence](./persistence.md)
 - [Security posture](../policies/security-posture.md)
 - [`@kernlize/core`](../packages/core.md#download-programs-and-secrets)

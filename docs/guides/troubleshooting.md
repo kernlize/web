@@ -65,7 +65,7 @@ To check a published applet end to end, the way a person would open it, run `KER
 - **Cross-origin requests.** A page may read an answer from another origin only when the answer carries headers that allow it. SABnzbd, NZBGet and slskd send them. Transmission and uTorrent send none, so the browser withholds every answer and kernl sees no answer at all.
 - **A wrong NZBGet password.** NZBGet sends the cross-origin headers with a correct sign-in and leaves them off the answer to a wrong one. The browser hides that answer, so a wrong password reads as "No answer" and never as "The program refused that sign-in."
 
-**Fix.** For mixed content, give the program an `https` address or reach it at `localhost`. For NZBGet, check the name and password in its own settings before anything else. For Transmission and uTorrent, put a reverse proxy in front that adds the headers. [Connect a download program](../how-tos/connect-a-download-program.md#let-the-page-in) has a working configuration.
+**Fix.** For mixed content, give the program an `https` address or reach it at `localhost`. For NZBGet, check the name and password in its own settings before anything else. For Transmission and uTorrent, put a reverse proxy in front that adds the headers. [Connect a program](../how-tos/connect-a-download-program.md#let-the-page-in) has a working configuration.
 
 ## An applet was quarantined
 

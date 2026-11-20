@@ -32,7 +32,7 @@ Neither registry has a release yet, so both commands fail. During the alpha the 
 
 A bridge resolves a protocol-specific locator to bytes, a job or a conversation on the user's behalf, behind the same grant and quota as everything else (the composed shell wires no per-request consent), and is named by what it does rather than by its protocol. The HTTP bridge is complete. The torrent, NZB, Soulseek and mail bridges are complete up to the backend interface they call; `createHandoffBackends` supplies all four by handing the locator to an app on the user's device, `createWebTorrentBackend` downloads magnet links inside the page instead ([D-017](../decisions.md#d-017)), and without any backend they report `unavailable`. The concepts are in [Bridges](../concepts/bridges.md); the opinion is [D-010](../decisions.md#d-010).
 
-The download program adapters are a separate surface. They serve no locator and are not bridges: each normalises one program's API to a contract, `TorrentClient`, `NzbClient` or `SoulseekClient`, that the `torrent`, `nzb` and `soulseek` services in `@kernlize/core` call for applets ([Download programs](../concepts/download-programs.md), [D-050](../decisions.md#d-050)).
+The download program adapters are a separate surface. They serve no locator and are not bridges: each normalises one program's API to a contract, `TorrentClient`, `NzbClient` or `SoulseekClient`, that the `torrent`, `nzb` and `soulseek` services in `@kernlize/core` call for applets ([Connected programs](../concepts/download-programs.md), [D-050](../decisions.md#d-050)).
 
 ## Exports
 
@@ -155,7 +155,7 @@ Each factory takes `ClientOptions` and returns one of three contracts. Every met
 | `SoulseekClientTransferState` | type | `'queued' \| 'transferring' \| 'complete' \| 'cancelled' \| 'failed'`. |
 | `SoulseekClientFailure` | type | `'peer_unavailable' \| 'peer_denied' \| 'timeout' \| 'limit_exceeded' \| 'backend_error'`: why a transfer failed, as NAP-SOULSEEK names it. |
 
-A browser adds its own rule: the program has to accept requests from the page's origin. SABnzbd, NZBGet and slskd do; Transmission and uTorrent do not, and reject as `unavailable:unreachable` from a page on another origin. See [Connect a download program](../how-tos/connect-a-download-program.md#let-the-page-in).
+A browser adds its own rule: the program has to accept requests from the page's origin. SABnzbd, NZBGet and slskd do; Transmission and uTorrent do not, and reject as `unavailable:unreachable` from a page on another origin. See [Connect a program](../how-tos/connect-a-download-program.md#let-the-page-in).
 
 ### Program addresses
 

@@ -178,7 +178,7 @@ A browser page can open HTTP requests, WebSockets and WebRTC connections, and no
 
 ### Applets and the person's own programs
 
-The bridges above serve a locator: a link the person opens, or one an applet asks for through the `resource` domain. They are not how an applet runs a download. For that kernl offers three domains of their own, `torrent`, `nzb` and `soulseek`, served by driving a program the person already runs (Transmission or uTorrent, NZBGet or SABnzbd, slskd) through its own API ([D-050](../decisions.md#d-050)). The adapters live in this package beside the bridges and share none of their contract: there is no locator, no `Bridge`, and no `BridgeRegistry`. [Download programs](./download-programs.md) explains them, and [Connect a download program](../how-tos/connect-a-download-program.md) sets one up.
+The bridges above serve a locator: a link the person opens, or one an applet asks for through the `resource` domain. They are not how an applet runs a download. For that kernl offers three domains of their own, `torrent`, `nzb` and `soulseek`, served by driving a program the person already runs (Transmission or uTorrent, NZBGet or SABnzbd, slskd) through its own API ([D-050](../decisions.md#d-050)). The adapters live in this package beside the bridges and share none of their contract: there is no locator, no `Bridge`, and no `BridgeRegistry`. [Connected programs](./download-programs.md) explains them, and [Connect a program](../how-tos/connect-a-download-program.md) sets one up.
 
 The one place the two meet is an NZB an applet names by `https` address: the `nzb` service fetches it through this registry, so the HTTP bridge's policy applies to it.
 
@@ -213,5 +213,5 @@ An applet could, in principle, be given a WebRTC or WebSocket path and speak the
 ## Related
 
 - [`@kernlize/bridges`](../packages/bridges.md)
-- [Download programs](./download-programs.md): how applets download through programs the person runs.
+- [Connected programs](./download-programs.md): how applets download through programs the person runs.
 - [Security posture](../policies/security-posture.md)

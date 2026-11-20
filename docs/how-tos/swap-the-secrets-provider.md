@@ -60,9 +60,9 @@ export const keeperSecrets: SecretsProvider = {
 
 The rules a provider keeps:
 
-- **`get` resolves `undefined` only when there is no secret.** When the keeper is down, slow or says no, reject. kernl reads a rejection as "not available now" and locks the program; it would read `undefined` as "no password" and sign in without one.
+- **`get` resolves `undefined` only when there is no secret.** When the keeper is down, slow or says no, reject. kernl reads a rejection as "not available now" and locks the connection; it would read `undefined` as "no password" and sign in without one.
 - **Reject with `unavailable:secrets` or `denied:secrets`.** `unavailable:` when the keeper cannot be reached, `denied:` when it or the person refused. The Settings form has words for both. Any other rejection is handled the same way but shown as a generic failure.
-- **`delete` of a name that is not there succeeds.** kernl deletes both of a program's names on every save that leaves one empty, and on every remove.
+- **`delete` of a name that is not there succeeds.** kernl deletes a connection's name for a field left empty on every save, and both of its names on every remove.
 - **Treat a name as opaque.** Names look like `download:sabnzbd:apiKey`. Encode them for your transport; do not parse them.
 - **Describe yourself truthfully.** `label` completes the sentence "Sign-ins are kept by …". Report `protected` only when something guards the secret from the page's other scripts; a provider that writes to `localStorage` under another key is `plain`.
 - **Never log a value.** Not on failure either.
@@ -84,7 +84,7 @@ kernl.secrets; // { label: 'the keeper on this device', keeps: 'protected' }
 
 `kernl.secrets` is the description only. The provider is not reachable from the `Kernl` surface, and no applet domain reads from it.
 
-Sign-ins saved under the previous provider stay where that provider kept them. The settings record still says a password is kept, the new provider has none, and the program refuses the sign-in until the person saves it again. To move them, read each name from the old provider and `set` it on the new one before you create the shell; the names are `download:<program>:password` and `download:<program>:apiKey` for the programs in `DOWNLOAD_PROGRAMS`.
+Sign-ins saved under the previous provider stay where that provider kept them. The settings record still says a password is kept, the new provider has none, and the connection is locked until the person saves the sign-in again. To move them, read each name from the old provider and `set` it on the new one before you create the shell; the names are `download:<connection id>:password` and `download:<connection id>:apiKey`, one pair per connection in the settings record at `kernl:download-programs:v1`.
 
 ## 4. Check it
 
@@ -92,18 +92,18 @@ Sign-ins saved under the previous provider stay where that provider kept them. T
 
 ```ts
 await kernl.downloads.ready;
-kernl.downloads.state().locked; // programs whose kept sign-in the keeper would not hand over
+kernl.downloads.state().locked; // ids of connections whose kept sign-in the keeper would not hand over
 
-await kernl.downloads.save('sabnzbd', { url: 'http://localhost:8080', apiKey: 'k1' }).catch((error: Error) => error.message);
+await kernl.downloads.add('sabnzbd', { url: 'http://localhost:8080', apiKey: 'k1' }).catch((error: Error) => error.message);
 // 'denied:secrets' or 'unavailable:secrets' when the keeper refused; nothing was saved
-kernl.downloads.state().connections.sabnzbd; // { url: 'http://localhost:8080', hasPassword: false, hasApiKey: true }
+kernl.downloads.state().connections.find((connection) => connection.program === 'sabnzbd'); // { id, program: 'sabnzbd', label: 'SABnzbd', url: 'http://localhost:8080', hasPassword: false, hasApiKey: true, routingKey }
 ```
 
-Stop the keeper and reload: the program should be listed in `locked` and marked "Sign-in locked" in Settings, and should come back when the sign-in is saved with the keeper running. `packages/core/features/download-clients.feature` has the scenarios for a provider that will not keep a secret and one that will not hand it over.
+Stop the keeper and reload: the connection should be listed in `locked` and marked "Sign-in locked" in Settings, and should come back when the sign-in is saved with the keeper running. `packages/core/features/download-clients.feature` has the scenarios for a provider that will not keep a secret and one that will not hand it over.
 
 ## Related
 
 - [Secrets](../concepts/secrets.md)
-- [Connect a download program](./connect-a-download-program.md)
+- [Connect a program](./connect-a-download-program.md)
 - [Embed kernl core](./embed-kernl-core.md)
 - [Error reasons](../reference/errors.md#download-programs)
