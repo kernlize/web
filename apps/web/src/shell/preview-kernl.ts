@@ -406,7 +406,8 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
   const environmentFor = (summary: AppletSummary): readonly string[] => {
     const granted = grants.get(summary.identity)?.domains ?? [];
     // Settings only where the host can show their form, as the live shell offers them (D-036).
-    return domainsInForce(granted, baselineDomains()).filter((domain) => config !== undefined || domain !== 'config');
+    // Shortcuts are baseline in the live shell, but the preview has no keys service, so it does not advertise them (D-049).
+    return domainsInForce(granted, baselineDomains()).filter((domain) => domain !== 'keys' && (config !== undefined || domain !== 'config'));
   };
 
   const intents = createPreviewIntents({

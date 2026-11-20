@@ -330,7 +330,7 @@ Then('the preview kernl plan is for window {string}', (world: PreviewWorld, wind
 
 Then('the preview kernl plan grants {string} beyond the baseline', (world: PreviewWorld, domains: string) => {
   const plan = preview(world).plan;
-  expect(plan?.environment.capabilities.domains).toEqual([...BASELINE_DOMAINS, ...list(domains)]);
+  expect(plan?.environment.capabilities.domains).toEqual([...BASELINE_DOMAINS.filter((domain) => domain !== 'keys'), ...list(domains)]);
   expect(plan?.environment.services).toEqual([]);
 });
 
@@ -619,4 +619,8 @@ Then('the preview kernl finds the same person from hex, the short shareable form
 
 Then('the preview kernl refuses {string} as a person with {string}', async (world: PreviewWorld, text: string, reason: string) => {
   await expect(preview(world).kernl.people.locate(text)).rejects.toThrow(reason);
+});
+
+Then('the preview kernl plan does not offer {string}', (world: PreviewWorld, domain: string) => {
+  expect(preview(world).plan?.environment.capabilities.domains).not.toContain(domain);
 });
