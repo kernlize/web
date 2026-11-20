@@ -46,3 +46,8 @@ import './remote-tools.js';
 import './direct-connections.js';
 import './kernl-direct.js';
 import './multiplayer-settings.js';
+import './torrent-service.js';
+import './nzb-service.js';
+import './soulseek-service.js';
+import './download-clients.js';
+import './kernl-downloads.js';

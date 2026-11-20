@@ -5,11 +5,11 @@ import type { AppletHandle, AppletIdentity, AppletPointer, AppletSummary, Builti
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { resolveBuiltin } from './applets/builtin.js';
 import { fetchManifestEvent, resolveApplet, type PublishedPointer, type ResolvedApplet } from './applets/resolve.js';
-import { planMount } from './applets/plan.js';
+import { planMount, type PlannedExtensions } from './applets/plan.js';
 import { mountApplet, type MountedApplet } from './applets/mount.js';
 import type { GuardPipeline, WindowResolution } from './guard/pipeline.js';
 import { applyRuntimeFirewallRules, type RuntimeFirewallState } from './guard/runtime-rules.js';
-import type { KernlGrants } from './grants/grants.js';
+import { createEnvironmentResolver, type KernlGrants } from './grants/grants.js';
 import type { InstalledApplets } from './intents/installed.js';
 
 /** What the applet lifecycle needs from the composed shell. */
@@ -32,6 +32,16 @@ export interface LifecycleContext {
   readonly fetchBlob: (sha256: string, servers: readonly string[]) => Promise<Uint8Array>;
   /** Applets the host ships with itself. */
   readonly builtins: readonly BuiltinApplet[];
+  /** Domains kernl serves beyond kehto's list, and their bindings; `domains` here is everything offered, before grants. */
+  readonly extensions?: PlannedExtensions;
+}
+
+/** The offered extension domains this applet holds: the same grants rule as every other domain, blocked and sealed applets included. */
+function heldExtensions(context: LifecycleContext, identity: AppletIdentity): PlannedExtensions | undefined {
+  const { extensions } = context;
+  if (!extensions) return undefined;
+  const held = createEnvironmentResolver(context.grants)({ dTag: identity.dTag, aggregateHash: identity.hash }, { domains: extensions.domains, services: [] });
+  return { domains: held.domains, bindings: extensions.bindings };
 }
 
 /**
@@ -148,7 +158,8 @@ export function createAppletLifecycle(context: LifecycleContext): AppletLifecycl
       context.grants.ensure(summary.identity);
       context.installed.install(summary);
       windowCounter += 1;
-      return planMount({ summary, indexHtml, adapter: context.adapter, guardProfile: pipeline.config.profile, windowId: `applet-${windowCounter}` });
+      const extensions = heldExtensions(context, summary.identity);
+      return planMount({ summary, indexHtml, adapter: context.adapter, guardProfile: pipeline.config.profile, windowId: `applet-${windowCounter}`, ...(extensions ? { extensions } : {}) });
     },
     mount(plan: MountPlan, frame: FrameLike): AppletHandle {
       applyRuntimeFirewallRules(context.firewall, pipeline.config, plan.summary.identity.dTag);
