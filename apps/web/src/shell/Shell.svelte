@@ -96,7 +96,7 @@
   }
 
   async function signOut(): Promise<void> {
-    for (const win of [...windows.windows]) windows.close(win.id);
+    for (const win of [...windows.windows, ...windows.panels]) windows.close(win.id);
     while (handlers.current) handlers.answer(undefined);
     while (replies.current) replies.answer(undefined);
     while (settings.current) settings.close();

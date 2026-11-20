@@ -1,6 +1,6 @@
-import type { Frame, Page } from '@playwright/test';
-import { expect } from './fixtures';
-import { DENIED_WORDS } from '../../apps/web/src/shell/vocabulary';
+import type { Frame, Locator, Page } from '@playwright/test';
+import { expect, openSettings, SETTINGS_SECTIONS } from './fixtures';
+import { DENIED_WORDS, withoutAddresses } from '../../apps/web/src/shell/vocabulary';
 
 /** Everything a person can perceive in a frame: text, accessible names and hints, and the values of fields. */
 export async function perceivable(frame: Frame | Page): Promise<string> {
@@ -18,11 +18,26 @@ export async function perceivable(frame: Frame | Page): Promise<string> {
   });
 }
 
-/** Fail when any frame of the page shows a word the shell's own denylist forbids (D-006). */
+/**
+ * Fail when any frame of the page shows a word the shell's own denylist forbids (D-006). Addresses are
+ * blanked first: a relay is shown by its own host, whatever words that host contains (D-051).
+ */
 export async function expectClean(page: Page, where: string): Promise<void> {
   for (const frame of page.frames()) {
     const text = await perceivable(frame);
-    const hit = DENIED_WORDS.exec(text);
+    const hit = DENIED_WORDS.exec(withoutAddresses(text));
     expect(hit?.[0], `${where} (${frame === page.mainFrame() ? 'page' : 'applet frame'})`).toBeUndefined();
   }
+}
+
+/** Open Settings and read every section in turn, with what is folded away opened: only the section showing is rendered text. */
+export async function expectCleanSettings(page: Page, where: string): Promise<Locator> {
+  const settings = await openSettings(page);
+  for (const section of SETTINGS_SECTIONS) {
+    await settings.getByRole('tab', { name: section }).click();
+    await expect(settings.getByRole('tabpanel', { name: section })).toBeVisible();
+    await settings.locator('details').evaluateAll((all) => all.forEach((d) => d.setAttribute('open', '')));
+    await expectClean(page, `${where}: ${section}`);
+  }
+  return settings;
 }

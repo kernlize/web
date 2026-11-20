@@ -4,7 +4,8 @@ import type { NostrEvent } from '@napplet/core';
 import { describeChange, type ConsentSummary } from '@kernlize/core';
 import { scratch, signEvent, splitList, type CoreWorld } from './world.js';
 
-const PROTOCOL_VOCABULARY = /\b(nostr|nip-?\d+|napplets?|relays?|pubkeys?|npub\w*|nsec\w*|naddr\w*|nevent\w*|wss?:\/\/|kind)\b/i;
+// A relay is called a relay and shown by its host (D-051); the scheme and the protocol's other words stay out.
+const PROTOCOL_VOCABULARY = /\b(nostr|nip-?\d+|napplets?|pubkeys?|npub\w*|nsec\w*|naddr\w*|nevent\w*|wss?:\/\/|kind)\b/i;
 const IDENTITY = { dTag: 'chat', hash: 'ab'.repeat(32) };
 
 function hex(seed: string): string {
@@ -43,7 +44,7 @@ When('the shell describes signing a kind 5 event deleting {string} of kinds {str
   scratch(world).summary = describeChange(await signEvent({ kind: 5, tags }), undefined, scratch(world).applet as typeof IDENTITY);
 });
 
-Then('no consent summary for kinds {string} names a protocol, a key format, a server address or a kind', async (world: CoreWorld, kinds: string) => {
+Then('no consent summary for kinds {string} names a protocol, a key format, a relay scheme or a kind', async (world: CoreWorld, kinds: string) => {
   const summaries: ConsentSummary[] = [];
   for (const kind of splitList(kinds).map(Number)) summaries.push(await summarise(kind));
   for (const summary of summaries) {

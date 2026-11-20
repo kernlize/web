@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { MailboxState, PublishOutcome } from '@kernlize/core';
-  import type { BootMode, ShellKernl } from './contract';
-  import { completionsFor, draftChanged, draftOf, progressWords, savedWords, suggestionsFor, withoutServer, withServer, type MailboxDraft, type MailboxSide } from './mailbox-draft';
-  import { observe } from './observe.svelte';
-  import { serverName } from './servers';
+  import type { BootMode, ShellKernl } from '../contract';
+  import { completionsFor, draftChanged, draftOf, progressWords, savedWords, suggestionsFor, withoutServer, withServer, type MailboxDraft, type MailboxSide } from '../mailbox-draft';
+  import { observe } from '../observe.svelte';
+  import { hostOf } from '../servers';
 
   interface Props {
     kernl: ShellKernl;
@@ -14,8 +14,8 @@
   const { kernl, mode }: Props = $props();
 
   const SIDES: readonly { id: MailboxSide; label: string; help: string; field: string }[] = [
-    { id: 'inboxes', label: 'Inbox', help: 'Where people send things to you: replies, mentions and messages.', field: 'Add an inbox server' },
-    { id: 'outboxes', label: 'Outbox', help: 'Where your posts are kept, and where others look for them.', field: 'Add an outbox server' },
+    { id: 'inboxes', label: 'Inbox relays', help: 'Where others reach you.', field: 'Add an inbox relay' },
+    { id: 'outboxes', label: 'Outbox relays', help: 'Where your posts are kept.', field: 'Add an outbox relay' },
   ];
 
   const published = observe<MailboxState>(kernl.mailboxes.state$, kernl.mailboxes.state());
@@ -36,7 +36,7 @@
   const canSave = $derived(draft !== undefined && !readOnly && !saving && draftChanged(draft, published.value) && (draft.inboxes.length > 0 || draft.outboxes.length > 0));
 
   onMount(() => {
-    // Monitored servers complete what the person types; the subscription lives only while Settings is open.
+    // Monitored relays complete what the person types; the subscription lives only while Settings is open.
     kernl.directory.start();
     return () => kernl.directory.stop();
   });
@@ -59,7 +59,7 @@
       edited = withServer(draft, side, input);
       typed[side] = '';
     } catch {
-      error = 'Enter a server address such as nos.lol.';
+      error = 'Enter a relay address such as nos.lol.';
     }
   }
 
@@ -79,7 +79,7 @@
       saved = savedWords(outcome, describeOutcome);
       if (outcome.ok) edited = undefined;
     } catch {
-      error = 'The list could not be signed. Check that your signer is open, then try again.';
+      error = 'The list could not be signed. Check your signer.';
     } finally {
       saving = false;
     }
@@ -88,29 +88,26 @@
 
 <section class="shell-section" aria-labelledby="mailboxes-heading">
   <h3 id="mailboxes-heading">Inbox and outbox</h3>
-  <p class="shell-muted small">
-    The servers that carry your posts and messages. Other apps read this same list, so a change here follows your identity everywhere. Pictures and applet files live on separate file servers.
-  </p>
-  {#if mode === 'preview'}<p class="shell-muted small">The preview keeps this list in the page and sends it nowhere.</p>{/if}
+  <p class="shell-muted small">{mode === 'preview' ? 'The preview publishes nothing.' : 'Published with your identity. Other apps use this list too.'}</p>
 
   {#if !draft}
     <p class="shell-muted" role="status">Looking for your inbox and outbox…</p>
   {:else}
     {#if published.value.status === 'missing'}
-      <p class="small" role="status">This identity has not said where it can be reached yet. The servers below are suggested; change them if you like, then publish the list.</p>
+      <p class="small" role="status">Nothing published yet. These are suggestions.</p>
     {/if}
-    {#if readOnly}<p class="shell-muted small">Signed in read-only: you can see this list but not change it.</p>{/if}
+    {#if readOnly}<p class="shell-muted small">Read-only: this list cannot be changed.</p>{/if}
     <div class="sides">
       {#each SIDES as side (side.id)}
         {@const listId = `mailbox-${side.id}-completions`}
         <div class="shell-card side">
           <h4>{side.label}</h4>
           <p>{side.help}</p>
-          <ul class="shell-list urls" aria-label="{side.label} servers">
+          <ul class="shell-list urls" aria-label={side.label}>
             {#each draft[side.id] as url (url)}
               <li data-address={url}>
-                <span class="server">{serverName(url)}</span>
-                {#if !readOnly}<button type="button" class="shell-button quiet" onclick={() => remove(side.id, url)} aria-label="Remove {serverName(url)} from {side.label}">Remove</button>{/if}
+                <span class="server">{hostOf(url)}</span>
+                {#if !readOnly}<button type="button" class="shell-button quiet" onclick={() => remove(side.id, url)} aria-label="Remove {hostOf(url)} from {side.label}">Remove</button>{/if}
               </li>
             {:else}
               <li class="shell-muted">None yet.</li>
@@ -161,7 +158,8 @@
     gap: 0.75rem;
   }
 
-  @media (min-width: 760px) {
+  /* The window's own width, not the page's: Settings is resized and tiled on its own (D-049). */
+  @container (min-width: 36rem) {
     .sides {
       grid-template-columns: 1fr 1fr;
     }

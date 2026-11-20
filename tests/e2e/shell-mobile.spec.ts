@@ -1,5 +1,5 @@
-import type { Page } from '@playwright/test';
-import { expect, test } from './fixtures';
+import type { Locator, Page } from '@playwright/test';
+import { expect, SETTINGS_SECTIONS, test } from './fixtures';
 
 const base = process.env.PLAYWRIGHT_BASE_URL ?? '';
 
@@ -17,6 +17,18 @@ async function noHorizontalOverflow(page: Page, where: string): Promise<void> {
   });
   expect(overflow.page, `${where}: page scrolls sideways`).toBeLessThanOrEqual(0);
   expect(overflow.wide, `${where}: elements past the right edge`).toEqual([]);
+}
+
+/** On a phone the tabs are one row across the top; each section is reached from it and stays inside the screen. */
+async function everySettingsSectionFits(page: Page, settings: Locator): Promise<void> {
+  await expect(settings.getByRole('tablist', { name: 'Settings sections' })).toHaveAttribute('aria-orientation', 'horizontal');
+  for (const section of SETTINGS_SECTIONS) {
+    const tab = settings.getByRole('tab', { name: section });
+    await tab.click();
+    await expect(tab).toBeInViewport({ ratio: 1 });
+    await expect(settings.getByRole('tabpanel', { name: section })).toBeVisible();
+    await noHorizontalOverflow(page, `Settings, ${section}`);
+  }
 }
 
 test('at 390px the shell fits the screen and every panel is reachable', async ({ page }) => {
@@ -38,17 +50,19 @@ test('at 390px the shell fits the screen and every panel is reachable', async ({
   await expect(page.getByRole('button', { name: 'Close Pulse' })).toBeInViewport({ ratio: 1 });
   await noHorizontalOverflow(page, 'applet window');
 
+  // The guard is a sheet and Settings is a window; on a phone both take the whole width.
   const menu = page.getByRole('button', { name: /^Menu/ });
-  for (const [entry, heading] of [[/^Guard/, 'Guard'], [/^Settings$/, 'Settings']] as const) {
+  for (const [entry, heading, role, name] of [[/^Guard/, 'Guard', 'dialog', 'Guard'], [/^Settings$/, 'Settings', 'region', 'Settings window']] as const) {
     await menu.click();
     const item = page.getByRole('navigation', { name: 'Shell menu' }).getByRole('button', { name: entry });
     await expect(item).toBeInViewport({ ratio: 1 });
     await item.click();
-    const sheet = page.getByRole('dialog', { name: heading });
+    const sheet = page.getByRole(role, { name });
     await expect(sheet).toBeVisible();
     const box = await sheet.boundingBox();
-    expect(box?.width, `${heading} is a full-width sheet`).toBe(390);
-    await noHorizontalOverflow(page, `${heading} sheet`);
+    expect(box?.width, `${heading} takes the full width`).toBe(390);
+    await noHorizontalOverflow(page, heading);
+    if (heading === 'Settings') await everySettingsSectionFits(page, sheet);
     await sheet.getByRole('button', { name: `Close ${heading}` }).click();
   }
 

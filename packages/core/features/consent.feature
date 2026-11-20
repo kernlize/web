@@ -93,23 +93,23 @@ Feature: Consent summaries
     When the shell describes signing a kind 5 event deleting "e1,e2" of kinds "1,7"
     Then the summary is "destructive" titled "Delete 2 items"
 
-  Scenario: a request to vanish asks services to erase the account
+  Scenario: a request to vanish asks relays to erase the identity
     When the shell describes signing a kind 62 request naming services "ALL_RELAYS"
-    Then the summary is "destructive" titled "Ask services to erase your identity"
+    Then the summary is "destructive" titled "Ask relays to erase your identity"
     And the summary lines are:
       | label          | before                                | after         |
       | Erase          | Everything this identity has published |               |
-      | Services asked |                                       | Every service |
+      | Relays asked   |                                       | Every relay   |
     When the shell describes signing a kind 62 request naming services ""
     Then the summary lines are:
       | label          | before                                | after         |
       | Erase          | Everything this identity has published |               |
-      | Services asked |                                       | Every service |
+      | Relays asked   |                                       | Every relay   |
     When the shell describes signing a kind 62 request naming services "wss://relay.damus.io/,wss://nos.lol,wss://relay.example"
     Then the summary lines are:
       | label          | before                                | after                                 |
       | Erase          | Everything this identity has published |                                       |
-      | Services asked |                                       | damus.io, nos.lol, relay.example |
+      | Relays asked   |                                       | relay.damus.io, nos.lol, relay.example |
 
   Scenario: any other replaceable or addressable record is destructive and diffed
     When the shell describes signing a kind 17375 record "" with content "sealed" and entries "mint:m1"
@@ -141,17 +141,17 @@ Feature: Consent summaries
     And the summary lines are:
       | label          | before    | after                                                                                          |
       | What this is   |           | Your inbox is where people send things to you; your outbox is where your posts are kept and found. |
-      | Inbox added    |           | 1: c.test                                                                                      |
-      | Inbox removed  | 1: a.test |                                                                                                |
-      | Outbox added   |           | 1: a.test                                                                                      |
+      | Inbox relays added    |           | 1: c.test                                                                                      |
+      | Inbox relays removed  | 1: a.test |                                                                                                |
+      | Outbox relays added   |           | 1: a.test                                                                                      |
 
   Scenario: a relay list that changes nothing, or arrives with nothing before it, says so plainly
     When the shell describes signing a kind 10002 event with relays "wss://a.test="
     Then the summary lines are:
       | label          | before | after                                                                                          |
       | What this is   |        | Your inbox is where people send things to you; your outbox is where your posts are kept and found. |
-      | Inbox added    |        | 1: a.test                                                                                      |
-      | Outbox added   |        | 1: a.test                                                                                      |
+      | Inbox relays added    |        | 1: a.test                                                                                      |
+      | Outbox relays added   |        | 1: a.test                                                                                      |
     Given the current relay list is "wss://a.test="
     When the shell describes signing a kind 10002 event with relays "wss://a.test="
     Then the summary lines are:
@@ -266,5 +266,5 @@ Feature: Consent summaries
     And the host was not asked
 
   Scenario: no summary of a replacing or erasing write speaks protocol
-    Then no consent summary for kinds "0,3,5,62,10002,17375,30311" names a protocol, a key format, a server address or a kind
+    Then no consent summary for kinds "0,3,5,62,10002,17375,30311" names a protocol, a key format, a relay scheme or a kind
     And every one of those summaries carries the raw event for the record view

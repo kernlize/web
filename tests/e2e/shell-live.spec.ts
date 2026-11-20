@@ -161,7 +161,7 @@ test('relays that are down are said as nothing to connect to, on this side, neve
   await fakeNetwork(page, applet, {}, { 'blobs.test': 'has' });
   await signInFresh(page);
   await lookUp(page, applet.address(['wss://dead.test', 'wss://gone.test']));
-  await expect(page.getByRole('alert')).toHaveText(/^The shell could not connect to any server\./, { timeout: 30_000 });
+  await expect(page.getByRole('alert')).toHaveText(/^The shell could not connect to any relay\./, { timeout: 30_000 });
   // The shell had words for this, so nothing was left in the console as unexpected.
   expect(warnings.filter((text) => text.includes('unexpected reason'))).toEqual([]);
 });
@@ -172,7 +172,7 @@ test('relays that hold the connection and say nothing are said as not answering 
   await fakeNetwork(page, applet, { 'dead.test': 'silent', 'gone.test': 'silent' }, { 'blobs.test': 'has' });
   await signInFresh(page);
   await lookUp(page, applet.address(['wss://dead.test', 'wss://gone.test']));
-  await expect(page.getByRole('alert')).toHaveText('The servers that list applets did not answer in time. Try again in a moment.', { timeout: 40_000 });
+  await expect(page.getByRole('alert')).toHaveText('The applet relays did not answer in time. Try again in a moment.', { timeout: 40_000 });
 });
 
 test('text that is not an address is searched for, never looked up', async ({ page }) => {

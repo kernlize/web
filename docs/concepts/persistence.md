@@ -24,7 +24,7 @@ The prefix keeps kernl's keys apart from kehto's and from the host app's in the 
 | `kernl:active-account:v1` | `createKernlAccounts` | The active account's id. Removed when no account is active. |
 | `kernl:grants:v1` | `createGrants` | One record per verified applet build, keyed `<dTag>:<hash>`: `{ dTag, hash, domains, blocked }`. See [Identity and grants](./identity-and-grants.md). |
 | `kernl:relays:v1` | `createRelayTiers` | The four relay tiers, each a list of URLs. See [Relay tiers](./relay-tiers.md). |
-| `kernl:multiplayer:v1` | `createMultiplayerSettings` | The person's own servers that introduce them and find tools, connection helpers (`{ urls, username?, credential? }`, the credential stored as typed), and trusted tool families. Absent fields leave the host's choices ([D-043](../decisions.md#d-043)). |
+| `kernl:multiplayer:v1` | `createMultiplayerSettings` | The person's own relays for meeting people and finding tools, connection helpers (`{ urls, username?, credential? }`, the credential stored as typed), and trusted tool families. Absent fields leave the host's choices ([D-043](../decisions.md#d-043)). |
 | `kernl:messaging:v1` | `createDefaultMessaging` | `MessagingPreferences`: the provider ids the user wants on, their `order`, the `reply` rule and the per-person `replyChoices` (public keys of people the user settled the reply question for). See [Messaging](./messaging.md). |
 | `kernl:installed:v1` | `createInstalledApplets` | The installed applets: `{ catalogId, address, title, publisher, contracts, installedAt }` each, where `contracts` are the roles and requests from the verified manifest. See [The store and intents](./store-and-intents.md#installing). |
 | `kernl:intent-defaults:v1` | `createHandlerDefaults` | The user's default applet per role, `{ <role>: <catalogId> }`, on this device. |
@@ -39,6 +39,7 @@ On boot, `createKernlAccounts` restores the accounts and makes the stored id act
 | Key | Written by | Holds |
 | --- | --- | --- |
 | `kernl:recent:v1` | `recent.ts`, through the host storage | The recently opened applets: up to eight `{ address, title, publisher, openedAt }`, newest first. Opening an applet moves it to the front; the launcher can forget one. |
+| `kernl:settings:section:v1` | `settings/sections.ts`, through the host storage | The id of the Settings section the person was last in: `general`, `servers`, `messages`, `connections` or `downloads`. Anything else is ignored and Settings opens on General ([D-049](../decisions.md#d-049)). |
 | `kernl:layout:v1` | `windows.ts`, through the host storage | The id of the layout the person chose, as a plain string: `floating`, `dwindle`, `columns`, `master-stack`, or one a developer registered. An id nobody registered is ignored and the first layout is used; `tiled`, which earlier builds stored, reads as `dwindle`. See [Layouts](./layouts.md). |
 | `kernl:preview:grants:v1`, `kernl:preview:relays:v1`, `kernl:preview:messaging:v1`, `kernl:preview:installed:v1`, `kernl:preview:intent-defaults:v1` | the offline preview (`?preview=1`) | The preview's own grants, tiers, messaging preferences, installed applets and default applets, kept apart so that trying the preview never changes the live shell's state. |
 

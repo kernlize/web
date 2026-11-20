@@ -50,13 +50,13 @@ function tagValues(event: NostrEvent | undefined, name: string): string[] {
 }
 
 const HEX_KEY = /^[0-9a-f]{64}$/i;
-const SERVER_ADDRESS = /^wss?:\/\//i;
-const SERVER_TAGS = new Set(['r', 'relay', 'relays']);
+const RELAY_ADDRESS = /^wss?:\/\//i;
+const RELAY_TAGS = new Set(['r', 'relay', 'relays']);
 const TYPE_TAGS = new Set(['k', 'kind']);
 
-/** A server address as the user knows it: no scheme, no trailing slash, no leading `relay.` or `nostr.` label while the rest still names a domain. */
-function serverName(address: string): string {
-  return address.replace(SERVER_ADDRESS, '').replace(/\/+$/, '').replace(/^(?:relay|nostr)\.(?=[^/]*\.)/i, '');
+/** A relay as the person reads it: its own host and path, without the scheme or a trailing slash. Nothing else is dropped (D-051). */
+function relayName(address: string): string {
+  return address.replace(RELAY_ADDRESS, '').replace(/\/+$/, '');
 }
 
 function recordNoun(kind: number | string): string {
@@ -75,7 +75,7 @@ function entryLabel(name: string, value: string): string {
   if (name === 'a') return coordinate(value);
   if (name === 't') return `topic ${value}`;
   if (TYPE_TAGS.has(name)) return `type ${value}`;
-  if (SERVER_TAGS.has(name) || SERVER_ADDRESS.test(value)) return `server ${serverName(value)}`;
+  if (RELAY_TAGS.has(name) || RELAY_ADDRESS.test(value)) return `relay ${relayName(value)}`;
   // A bare key is named for what it is; an unfamiliar tag name could be protocol vocabulary.
   if (HEX_KEY.test(value)) return `key ${abbreviate(value)}`;
   return `${name} ${value}`;
@@ -146,9 +146,9 @@ const MAILBOX_HELP: ConsentLine = { label: 'What this is', after: 'Your inbox is
  * and where they publish. An unmarked entry is both and appears in each.
  */
 function mailboxLines(event: NostrEvent, before: NostrEvent | undefined): ConsentLine[] {
-  const names = (urls: string[]): string[] => urls.map(serverName);
-  const inbox = changeLines(names(before ? getInboxes(before) : []), names(getInboxes(event)), 'Inbox', (item) => item);
-  const outbox = changeLines(names(before ? getOutboxes(before) : []), names(getOutboxes(event)), 'Outbox', (item) => item);
+  const names = (urls: string[]): string[] => urls.map(relayName);
+  const inbox = changeLines(names(before ? getInboxes(before) : []), names(getInboxes(event)), 'Inbox relays', (item) => item);
+  const outbox = changeLines(names(before ? getOutboxes(before) : []), names(getOutboxes(event)), 'Outbox relays', (item) => item);
   const changed = [...inbox, ...outbox].filter((line) => line.label !== 'Change');
   return [MAILBOX_HELP, ...(changed.length > 0 ? changed : [{ label: 'Change', after: 'No entries change' }])];
 }
@@ -220,8 +220,8 @@ function vanish(event: NostrEvent, applet: AppletIdentity): ConsentSummary {
   const services = tagValues(event, 'relay');
   const everywhere = services.length === 0 || services.includes(ALL_SERVICES);
   const lines: ConsentLine[] = [{ label: 'Erase', before: 'Everything this identity has published' }];
-  lines.push({ label: 'Services asked', after: everywhere ? 'Every service' : describeItems(services, serverName) });
-  return destructive(event, applet, 'Ask services to erase your identity', lines);
+  lines.push({ label: 'Relays asked', after: everywhere ? 'Every relay' : describeItems(services, relayName) });
+  return destructive(event, applet, 'Ask relays to erase your identity', lines);
 }
 
 /** The user's preferred applets for an archetype; an applet writing it could route other applets' requests to itself. */

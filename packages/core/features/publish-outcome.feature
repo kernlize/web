@@ -13,7 +13,7 @@ Feature: Publish outcome
     Then the publish succeeded
     And it was accepted by "wss://a.example/,wss://b.example/"
     And "wss://c.example/" refused it with "blocked: spam"
-    And the person is told "Saved to 2 of 3 servers"
+    And the person is told "Saved to 2 of 3 relays"
 
   Scenario: every server refuses
     Given the servers answered a publish with
@@ -24,7 +24,7 @@ Feature: Publish outcome
     And it was accepted by ""
     And "wss://a.example/" refused it with "auth-required: log in"
     And "wss://b.example/" refused it with "rate-limited: slow"
-    And the person is told "No server accepted it"
+    And the person is told "No relay accepted it"
 
   Scenario: every server accepts
     Given the servers answered a publish with
@@ -33,13 +33,13 @@ Feature: Publish outcome
       | wss://b.example | yes      |        |
       | wss://c.example | yes      |        |
     Then the publish succeeded
-    And the person is told "Saved to all 3 servers"
+    And the person is told "Saved to all 3 relays"
 
   Scenario: the only server accepts
     Given the servers answered a publish with
       | server          | accepted | reason |
       | wss://a.example | yes      |        |
-    Then the person is told "Saved to 1 server"
+    Then the person is told "Saved to 1 relay"
 
   Scenario: a refusal without a reason still has one
     Given the servers answered a publish with
@@ -47,7 +47,7 @@ Feature: Publish outcome
       | wss://a.example | yes      |        |
       | wss://b.example | no       |        |
     Then "wss://b.example/" refused it with "refused"
-    And the person is told "Saved to 1 of 2 servers"
+    And the person is told "Saved to 1 of 2 relays"
 
   Scenario: a server that answers twice counts once, and an acceptance wins
     Given the servers answered a publish with
@@ -59,10 +59,10 @@ Feature: Publish outcome
     Then the publish succeeded
     And it was accepted by "wss://a.example/"
     And "not a server" refused it with "invalid: url"
-    And the person is told "Saved to 1 of 2 servers"
+    And the person is told "Saved to 1 of 2 relays"
 
   Scenario: nothing was asked
     Given the servers answered a publish with
       | server | accepted | reason |
     Then the publish failed
-    And the person is told "There was no server to save it to"
+    And the person is told "There was no relay to save it to"

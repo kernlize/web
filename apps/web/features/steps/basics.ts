@@ -4,9 +4,9 @@ import type { Bridge, BridgeAvailability } from '@kernlize/bridges';
 import { abbreviate, DEFAULT_WINDOW_SIZE, LAYOUT_KEY, publisherWords, RECENT_KEY, shortId, type ConsentSummary } from '../../src/shell/contract.ts';
 import { choiceNote, domainChoices, domainLabel, formatBytes, withheldByMessages, WITHHELD_NOTE, type DomainChoice } from '../../src/shell/domains.ts';
 import { openFailure } from '../../src/shell/launcher-reasons.ts';
-import { serverAddress, serverLabel, serverName } from '../../src/shell/servers.ts';
+import { hostOf, serverAddress } from '../../src/shell/servers.ts';
 import { helperFrom, toolSearchWords } from '../../src/shell/meeting-words.ts';
-import { namesProtocol } from '../../src/shell/vocabulary.ts';
+import { namesProtocol, withoutAddresses } from '../../src/shell/vocabulary.ts';
 import { messagingError, unavailableWhy } from '../../src/shell/messaging-reasons.ts';
 import { eventDetails, type EventDetail } from '../../src/shell/event-details.ts';
 import { bridgeName, bridgeRows } from '../../src/shell/bridge-names.ts';
@@ -130,15 +130,19 @@ Then('the shell shows {float} bytes as {string}', (_world: WordsWorld, bytes: nu
   expect(formatBytes(bytes)).toBe(text);
 });
 
-Then('the shell reads the server {string} as {string}', (_world: WordsWorld, address: string, name: string) => {
-  expect(serverName(address)).toBe(name);
+Then('the shell shows the relay {string} as {string}', (_world: WordsWorld, address: string, host: string) => {
+  expect(hostOf(address)).toBe(host);
 });
 
-Then('the shell labels the server {string} in {string} at index {int} as {string}', (_world: WordsWorld, address: string, tier: string, index: number, label: string) => {
-  expect(serverLabel(address, tier, index)).toBe(label);
+Then('the shell text {string} without its addresses names the protocol', (_world: WordsWorld, text: string) => {
+  expect(namesProtocol(withoutAddresses(text))).toBe(true);
 });
 
-Then('the shell stores the typed server {string} as {string}', (_world: WordsWorld, input: string, address: string) => {
+Then('the shell text {string} without its addresses does not name the protocol', (_world: WordsWorld, text: string) => {
+  expect(namesProtocol(withoutAddresses(text))).toBe(false);
+});
+
+Then('the shell stores the typed relay {string} as {string}', (_world: WordsWorld, input: string, address: string) => {
   expect(serverAddress(input)).toBe(address);
 });
 
