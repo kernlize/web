@@ -7,6 +7,7 @@ import { createPreviewTorrentClient } from './preview-downloads';
 import { MESSAGES_APPLET } from './messages-applet';
 import { createPreviewKernl } from './preview-kernl';
 import type { ShellTheme } from './shell-theme';
+import { SHELL_CHORDS } from './shortcuts';
 import { loadWebTorrent } from './webtorrent-client';
 
 /** The preview's downloads reach nobody, so they work in every browser. */
@@ -41,7 +42,7 @@ export async function boot(host: KernlHost, search: URLSearchParams, theme?: She
     const createKernl = core.createKernl as (options: KernlOptions) => Kernl;
     // The library loads on the first download, never with the page (D-017).
     const downloads = createShellDownloads({ storage: host.storage, client: loadWebTorrent, open: (uri) => host.openLink(uri), inKernl: canReachPeers() });
-    const kernl = createKernl({ host, torrent: downloads.torrent, builtins: [MESSAGES_APPLET], eventCache: openShellEventCache, ...(theme ? { theme } : {}) });
+    const kernl = createKernl({ host, torrent: downloads.torrent, builtins: [MESSAGES_APPLET], eventCache: openShellEventCache, shortcuts: { reserved: SHELL_CHORDS }, ...(theme ? { theme } : {}) });
     NostrConnectSigner.pool = kernl.pool;
     return { kernl, mode: 'live', downloads };
   } catch (error) {

@@ -33,6 +33,7 @@ export type {
   RelayTiers,
   Session,
   SettingsPrompt,
+  ShortcutKey,
   StorageLike,
 } from '@kernlize/core';
 

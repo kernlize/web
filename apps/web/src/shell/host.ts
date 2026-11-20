@@ -4,6 +4,7 @@ import type { HandlerQueue } from './handler-queue.svelte';
 import type { NoticeStore } from './notice-store.svelte';
 import type { ReplyQueue } from './reply-queue.svelte';
 import type { SettingsQueue } from './settings-queue.svelte';
+import type { ShortcutRunner } from './shortcuts';
 import type { WindowStore } from './window-store.svelte';
 
 interface HostDeps {
@@ -15,6 +16,7 @@ interface HostDeps {
   readonly handlers: Pick<HandlerQueue, 'ask'>;
   readonly replies: Pick<ReplyQueue, 'ask'>;
   readonly opener: AppletOpener;
+  readonly shortcuts: ShortcutRunner;
 }
 
 /**
@@ -84,6 +86,7 @@ export function createHost(deps: HostDeps): KernlHost {
     chooseReply: (prompt) => deps.replies.ask(prompt),
     openApplet: async (address) => deps.opener.open?.(address),
     focusApplet: (windowId) => deps.windows.focus(windowId),
+    onShortcut: (key) => deps.shortcuts.run?.(key),
     onRevoked(windowId, reason) {
       const title = deps.windows.get(windowId)?.plan.summary.title ?? 'An applet';
       const words = revokeReason(reason);
