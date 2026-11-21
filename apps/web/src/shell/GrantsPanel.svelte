@@ -1,7 +1,8 @@
 <script lang="ts">
   import type { ShellKernl } from './contract';
   import { shortId } from './contract';
-  import { contractName, domainLabel, formatBytes, withheldByMessages, WITHHELD_NOTE } from './domains';
+  import { formatBytes, grantGroups, startingChoices, type GrantInput } from './domains';
+  import GrantList from './GrantList.svelte';
   import type { GuardLog } from './guard-log.svelte';
   import Overlay from './Overlay.svelte';
   import type { ShellWindow } from './window-store.svelte';
@@ -15,13 +16,21 @@
 
   const { kernl, win, guardLog, onclose }: Props = $props();
   const identity = $derived(win.plan.summary.identity);
-  const baseline = kernl.grants.baselineDomains();
   let version = $state(0);
   const record = $derived.by(() => {
     void version;
     return kernl.grants.get(identity);
   });
-  const granted = $derived(record?.domains ?? []);
+  const input = $derived<GrantInput>({
+    requires: win.plan.summary.requires,
+    optional: win.plan.summary.optional,
+    baseline: kernl.grants.baselineDomains(),
+    available: kernl.grants.availableDomains(),
+    receives: win.plan.summary.manifest.archetypes.length > 0,
+    others: kernl.grants.availableDomains(),
+  });
+  // Edits to a running applet's grants are as lasting as the start was: one run without remembering is edited without remembering.
+  const groups = $derived(grantGroups(input, startingChoices(input, { granted: record?.domains ?? [], unsafe: record?.unsafe ?? [] }, false)));
   const quarantined = $derived(guardLog.quarantined.has(win.id));
 
   $effect(() => {
@@ -31,9 +40,12 @@
     return () => subscription.unsubscribe();
   });
 
-  function toggle(domain: string, on: boolean): void {
-    if (on) kernl.grants.allowDomain(identity, domain);
-    else kernl.grants.revokeDomain(identity, domain);
+  function toggle(domain: string, group: string, on: boolean): void {
+    const remember = record?.temporary !== true;
+    // An unsafe row is the person's override: off drops the exception and keeps the grant.
+    if (group === 'unsafe') kernl.grants.allowDomain(identity, domain, { unsafe: on, remember });
+    else if (on) kernl.grants.allowDomain(identity, domain, { remember });
+    else kernl.grants.revokeDomain(identity, domain, { remember });
     version += 1;
   }
 
@@ -54,20 +66,7 @@
     <span class="shell-badge">{shortId(identity.hash)}</span>
     Grants are tied to this exact applet code. Taking one back, or blocking the applet, stops the running window; one you add arrives the next time it opens.
   </p>
-  {#if granted.includes('dm')}<p class="shell-muted lead" role="note">This applet can read your messages, so it gets nothing that could send them anywhere else.</p>{/if}
-  <ul class="shell-list domains">
-    {#each kernl.grants.availableDomains() as domain (domain)}
-      {@const withheld = withheldByMessages(domain, granted)}
-      {@const always = baseline.includes(domain) && !withheld}
-      <li class="shell-toggle">
-        <label class="text" for="domain-{domain}">
-          <span>{domainLabel(domain)} <span class="shell-contract" data-contract>{contractName(domain)}</span></span>
-          <small>{withheld ? WITHHELD_NOTE : always ? 'always on' : win.plan.summary.requires.includes(domain) ? 'the applet says it needs this' : win.plan.summary.optional.includes(domain) ? 'optional for this applet' : 'not requested'}</small>
-        </label>
-        <input id="domain-{domain}" type="checkbox" checked={always || (granted.includes(domain) && !withheld)} disabled={always || withheld || record?.blocked} onchange={(event) => toggle(domain, event.currentTarget.checked)} />
-      </li>
-    {/each}
-  </ul>
+  <GrantList {groups} frozen={record?.blocked === true} onchange={(row, group, on) => toggle(row.domain, group, on)} />
   <section class="shell-section">
     <h3>Standing</h3>
     <dl class="shell-rows">
@@ -95,10 +94,5 @@
     gap: 0.5rem;
     margin: 0 0 0.5rem;
     font-size: 0.9rem;
-  }
-
-  .domains {
-    gap: 0;
-    margin-bottom: 1rem;
   }
 </style>

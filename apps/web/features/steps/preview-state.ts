@@ -80,6 +80,39 @@ When('the preview state allows {string} for {string}', (world: StateWorld, domai
   grants(world).allowDomain(identityOf(applet), domain);
 });
 
+When('the preview state allows {string} beside messages for {string}', (world: StateWorld, domain: string, applet: string) => {
+  grants(world).allowDomain(identityOf(applet), domain, { unsafe: true });
+});
+
+When('the preview state allows {string} not beside messages for {string}', (world: StateWorld, domain: string, applet: string) => {
+  grants(world).allowDomain(identityOf(applet), domain, { unsafe: false });
+});
+
+When('the preview state allows {string} for {string} for now', (world: StateWorld, domain: string, applet: string) => {
+  grants(world).allowDomain(identityOf(applet), domain, { remember: false });
+});
+
+When('the preview state revokes {string} for {string} for now', (world: StateWorld, domain: string, applet: string) => {
+  grants(world).revokeDomain(identityOf(applet), domain, { remember: false });
+});
+
+When('the preview state forgets what was granted for now for {string}', (world: StateWorld, applet: string) => {
+  grants(world).forgetTemporary(identityOf(applet));
+});
+
+Then('the preview state withholds {string} from {string} and keeps {string} beside messages', (world: StateWorld, withheld: string, applet: string, kept: string) => {
+  const record = grants(world).get(identityOf(applet));
+  expect([record?.withheld, record?.unsafe]).toEqual([split(withheld), split(kept)]);
+});
+
+Then('the preview state survives reopening with {string} keeping {string}', (world: StateWorld, applet: string, kept: string) => {
+  expect(createPreviewGrants(state(world).storage).get(identityOf(applet))?.unsafe).toEqual(split(kept));
+});
+
+Then(/^"([^"]*)" is (granted for now|not granted for now)$/, (world: StateWorld, applet: string, which: string) => {
+  expect(grants(world).get(identityOf(applet))?.temporary).toBe(which === 'granted for now');
+});
+
 When('the preview state revokes {string} for {string}', (world: StateWorld, domain: string, applet: string) => {
   grants(world).revokeDomain(identityOf(applet), domain);
 });

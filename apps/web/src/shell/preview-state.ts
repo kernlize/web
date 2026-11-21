@@ -41,6 +41,8 @@ export const baselineDomains = (): readonly string[] => baseline;
 
 interface StoredGrant {
   readonly domains: readonly string[];
+  /** Domains the person kept beside messages (D-060); absent in records written before it existed. */
+  readonly unsafe?: readonly string[];
   readonly blocked: boolean;
   readonly stateQuotaBytes: number;
 }
@@ -59,31 +61,44 @@ export function readStored<T>(storage: StorageLike, key: string): T | undefined 
   }
 }
 
-/** Grants kept in the host's storage; every mutation emits the new record. */
+/** Grants kept in the host's storage; every mutation emits the new record. What is granted for now stays in memory (D-060). */
 export function createPreviewGrants(storage: StorageLike): Grants {
   const records = new Map<string, StoredGrant>(Object.entries(readStored<Record<string, StoredGrant>>(storage, GRANTS_KEY) ?? {}));
+  const temporary = new Map<string, StoredGrant>();
   const identities = new Map<string, AppletIdentity>();
   const changes$ = new Subject<GrantRecord>();
 
   const persist = (): void => storage.setItem(GRANTS_KEY, JSON.stringify(Object.fromEntries(records)));
+  const kept = (stored: StoredGrant): readonly string[] => stored.unsafe ?? [];
+  const emptyEntry = (): StoredGrant => ({ domains: [], blocked: false, stateQuotaBytes: DEFAULT_QUOTA_BYTES });
 
-  const recordOf = (identity: AppletIdentity, stored: StoredGrant): GrantRecord => ({
+  const recordOf = (identity: AppletIdentity, stored: StoredGrant, isTemporary: boolean): GrantRecord => ({
     identity,
     domains: stored.domains,
+    unsafe: kept(stored),
     capabilities: [],
-    withheld: withheldDomains(stored.domains, baselineDomains()),
+    withheld: withheldDomains(stored.domains, baselineDomains(), kept(stored)),
     blocked: stored.blocked,
+    temporary: isTemporary,
     stateQuotaBytes: stored.stateQuotaBytes,
   });
 
-  const update = (identity: AppletIdentity, change: (current: StoredGrant) => StoredGrant): void => {
+
+  /** Apply `change` to the stored entry when remembering, and to the one granted for now when there is one or when not remembering. */
+  const update = (identity: AppletIdentity, change: (current: StoredGrant) => StoredGrant, remember = true): void => {
     const key = keyOf(identity);
     identities.set(key, identity);
-    const current = records.get(key) ?? { domains: [], blocked: false, stateQuotaBytes: DEFAULT_QUOTA_BYTES };
-    const next = change(current);
-    records.set(key, next);
-    persist();
-    changes$.next(recordOf(identity, next));
+    const before = records.get(key) ?? emptyEntry();
+    const aside = temporary.get(key);
+    const next = remember ? change(before) : before;
+    const asideNext = remember ? (aside && change(aside)) : change(aside ?? before);
+    if (!remember && asideNext === (aside ?? before)) return;
+    if (remember) {
+      records.set(key, next);
+      persist();
+    }
+    if (asideNext) temporary.set(key, asideNext);
+    changes$.next(recordOf(identity, asideNext ?? next, asideNext !== undefined));
   };
 
   const identityOf = (key: string): AppletIdentity => {
@@ -93,17 +108,31 @@ export function createPreviewGrants(storage: StorageLike): Grants {
     return { dTag, hash };
   };
 
+  const withDomain = (domain: string, unsafe: boolean | undefined) => (current: StoredGrant): StoredGrant => {
+    const domains = current.domains.includes(domain) ? current.domains : [...current.domains, domain];
+    const holds = kept(current).includes(domain);
+    const keep = unsafe === true && !holds ? [...kept(current), domain] : unsafe === false && holds ? kept(current).filter((item) => item !== domain) : current.unsafe;
+    return domains === current.domains && keep === current.unsafe ? current : { ...current, domains, ...(keep ? { unsafe: keep } : {}) };
+  };
+
+  const withoutDomain = (domain: string) => (current: StoredGrant): StoredGrant =>
+    current.domains.includes(domain)
+      ? { ...current, domains: current.domains.filter((item) => item !== domain), unsafe: kept(current).filter((item) => item !== domain) }
+      : current;
+
   return {
-    list: () => [...records].map(([key, stored]) => recordOf(identityOf(key), stored)),
+    list: () => [...new Set([...records.keys(), ...temporary.keys()])].map((key) => recordOf(identityOf(key), (temporary.get(key) ?? records.get(key)) as StoredGrant, temporary.has(key))),
     get(identity) {
-      const stored = records.get(keyOf(identity));
-      return stored && recordOf(identity, stored);
+      const key = keyOf(identity);
+      const stored = temporary.get(key) ?? records.get(key);
+      return stored && recordOf(identity, stored, temporary.has(key));
     },
-    allowDomain(identity, domain) {
-      update(identity, (current) => (current.domains.includes(domain) ? current : { ...current, domains: [...current.domains, domain] }));
-    },
-    revokeDomain(identity, domain) {
-      update(identity, (current) => ({ ...current, domains: current.domains.filter((item) => item !== domain) }));
+    allowDomain: (identity, domain, choice = {}) => update(identity, withDomain(domain, choice.unsafe), choice.remember ?? true),
+    revokeDomain: (identity, domain, choice = {}) => update(identity, withoutDomain(domain), choice.remember ?? true),
+    forgetTemporary(identity) {
+      const key = keyOf(identity);
+      if (!temporary.delete(key)) return;
+      changes$.next(recordOf(identity, records.get(key) ?? emptyEntry(), false));
     },
     block: (identity) => update(identity, (current) => ({ ...current, blocked: true })),
     unblock: (identity) => update(identity, (current) => ({ ...current, blocked: false })),

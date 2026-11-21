@@ -382,3 +382,33 @@ Feature: The preview kernl
       | the preview kernl desktop opens a window that is gone   | It needs "opening other applets" switched on in its grants. |
       | the preview kernl mounts "profiles" in frame "p"        | It needs "opening other applets" switched on in its grants. |
       | the preview kernl runs "profiles" in frame "p"          | It needs "opening other applets" switched on in its grants. |
+
+  Scenario: a grant made for now ends with the applet's last window, and a window about to start keeps it
+    Given a preview kernl
+    When the preview kernl user grants "notes" "notify" for now
+    And the preview kernl mounts "notes" in frame "a"
+    And the preview kernl plans "notes"
+    And the preview kernl closes the applet in frame "a"
+    Then "notes" is still granted for now in the preview kernl
+    When the preview kernl mounts the plan in frame "b"
+    And the preview kernl closes the applet in frame "b"
+    Then "notes" is no longer granted for now in the preview kernl
+
+  Scenario: a window beside another of the same applet keeps what was granted for now
+    Given a preview kernl
+    When the preview kernl user grants "notes" "notify" for now
+    And the preview kernl mounts "notes" in frame "a"
+    And the preview kernl mounts "notes" in frame "b"
+    And the preview kernl closes the applet in frame "a"
+    Then "notes" is still granted for now in the preview kernl
+    When the preview kernl closes the applet in frame "b"
+    Then "notes" is no longer granted for now in the preview kernl
+
+  Scenario: more windows are planned than the preview waits for, and the oldest stops counting
+    Given a preview kernl
+    When the preview kernl user grants "notes" "notify" for now
+    And the preview kernl mounts "notes" in frame "a"
+    And the preview kernl plans "notes" 17 times
+    And the preview kernl closes the applet in frame "a"
+    Then "notes" is still granted for now in the preview kernl
+

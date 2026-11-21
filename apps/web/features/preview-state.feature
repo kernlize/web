@@ -32,6 +32,77 @@ Feature: Preview state
     And the preview state revokes "notify" for "notes@aa"
     Then the preview state grants "notes@aa" the domains "media"
 
+  Scenario: a domain kept beside messages is recorded, kept in force and taken back with the domain
+    Given the preview state baseline has not been loaded
+    When the preview state baseline is loaded twice
+    And the preview state grants are opened
+    And the preview state allows "dm" for "notes@aa"
+    And the preview state allows "upload" for "notes@aa"
+    Then the preview state withholds "inc,upload" from "notes@aa" and keeps "" beside messages
+    When the preview state allows "upload" beside messages for "notes@aa"
+    Then the preview state withholds "inc" from "notes@aa" and keeps "upload" beside messages
+    And the preview state survives reopening with "notes@aa" keeping "upload"
+    When the preview state revokes "upload" for "notes@aa"
+    Then the preview state withholds "inc" from "notes@aa" and keeps "" beside messages
+
+  Scenario: the exception can be dropped while the grant stays
+    When the preview state grants are opened
+    And the preview state allows "dm" for "notes@aa"
+    And the preview state allows "upload" beside messages for "notes@aa"
+    And the preview state allows "upload" not beside messages for "notes@aa"
+    And the preview state allows "upload" not beside messages for "notes@aa"
+    Then the preview state grants "notes@aa" the domains "dm,upload"
+    And the preview state survives reopening with "notes@aa" keeping ""
+
+  Scenario: a grant for now is in force, never stored, and gone when it is forgotten
+    When the preview state grants are opened
+    And the preview state allows "notify" for "notes@aa"
+    And the preview state allows "media" for "notes@aa" for now
+    Then the preview state grants "notes@aa" the domains "notify,media"
+    And "notes@aa" is granted for now
+    And the preview state survives reopening with "notes@aa" granted "notify"
+    When the preview state forgets what was granted for now for "notes@aa"
+    Then the preview state grants "notes@aa" the domains "notify"
+    And "notes@aa" is not granted for now
+
+  Scenario: taking a stored grant back for now brings it back when forgotten
+    When the preview state grants are opened
+    And the preview state allows "notify" for "notes@aa"
+    And the preview state revokes "notify" for "notes@aa" for now
+    Then the preview state grants "notes@aa" the domains ""
+    And the preview state survives reopening with "notes@aa" granted "notify"
+    When the preview state forgets what was granted for now for "notes@aa"
+    Then the preview state grants "notes@aa" the domains "notify"
+
+  Scenario: a remembered change made while one is granted for now reaches both
+    When the preview state grants are opened
+    And the preview state allows "media" for "notes@aa" for now
+    And the preview state allows "notify" for "notes@aa"
+    Then the preview state grants "notes@aa" the domains "media,notify"
+    When the preview state forgets what was granted for now for "notes@aa"
+    Then the preview state grants "notes@aa" the domains "notify"
+
+  Scenario: a grant for now that changes nothing is not one, and forgetting nothing changes nothing
+    When the preview state grants are opened
+    And the preview state allows "notify" for "notes@aa"
+    And the preview state allows "notify" for "notes@aa" for now
+    Then "notes@aa" is not granted for now
+    When the preview state forgets what was granted for now for "notes@aa"
+    Then the preview state emitted 1 grant changes
+
+  Scenario: an applet seen only for now is listed, and gone from the list when it is forgotten
+    When the preview state grants are opened
+    And the preview state allows "media" for "pulse@bb" for now
+    Then the preview state lists the applets "pulse@bb"
+    When the preview state forgets what was granted for now for "pulse@bb"
+    Then the preview state lists the applets ""
+
+  Scenario: revoking a domain that was never granted changes nothing
+    When the preview state grants are opened
+    And the preview state allows "notify" for "notes@aa"
+    And the preview state revokes "media" for "notes@aa"
+    Then the preview state grants "notes@aa" the domains "notify"
+
   Scenario: blocking, unblocking and the storage quota
     When the preview state grants are opened
     And the preview state blocks "pulse@bb"

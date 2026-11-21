@@ -53,68 +53,174 @@ export const contractName = (domain: string): string => domain.toUpperCase();
 /** Plain words for a grant domain. Unknown domains get a generic label, never their raw name. */
 export const domainLabel = (domain: string): string => (Object.hasOwn(LABELS, domain) ? (LABELS[domain] as string) : UNKNOWN_DOMAIN_LABEL);
 
-/** Domains that are switched on the first time an applet that requires them is opened. */
-const PRESET_WHEN_REQUIRED: ReadonlySet<string> = new Set(['identity', 'intent']);
-
 /** The domain an applet needs to receive requests other applets hand it. */
 const RECEIVING_DOMAIN = 'intent';
 
-export interface DomainChoice {
+/** Where a grant row sits: the unsafe combination first, then what the applet requires, what it may use, and anything else a screen offers. */
+export type GrantGroupId = 'unsafe' | 'required' | 'optional' | 'other';
+
+/** Small captions that mark where each group starts. They label; they do not divide. */
+export const GROUP_LABELS: Readonly<Record<GrantGroupId, string>> = {
+  unsafe: 'Unsafe with messages',
+  required: 'Required',
+  optional: 'Optional',
+  other: 'Not requested',
+};
+
+/** One switch in the grants list. */
+export interface GrantRow {
   readonly domain: string;
   readonly label: string;
-  readonly required: boolean;
-  readonly baseline: boolean;
-  readonly granted: boolean;
-  /** Switched on before the user decides: a required account grant on an applet's first run. */
-  readonly preset: boolean;
+  /** Whether the switch shows as on. */
+  readonly on: boolean;
+  /** Whether the switch cannot be changed now. */
+  readonly locked: boolean;
+  /** One short line under the label, or empty when the group says it all. */
+  readonly note: string;
   /** False when this shell has nothing behind the domain, so it can be shown but never switched on. */
   readonly available: boolean;
+  readonly baseline: boolean;
+  readonly required: boolean;
 }
 
-interface ChoiceInput {
+export interface GrantGroup {
+  readonly id: GrantGroupId;
+  readonly label: string;
+  readonly rows: readonly GrantRow[];
+}
+
+/** What an applet asks for, and what this shell can give. */
+export interface GrantInput {
   readonly requires: readonly string[];
   readonly optional: readonly string[];
   readonly baseline: readonly string[];
-  readonly granted: readonly string[];
   /** Every domain the shell can offer; an applet may name ones it cannot. */
   readonly available: readonly string[];
-  /** True when the user has never decided anything for this applet. */
-  readonly firstRun: boolean;
-  /** The applet takes requests from other applets, so it needs the intent domain to receive them. */
+  /** The applet takes requests from other applets, so it needs the intent domain to receive them: it is required. */
   readonly receives?: boolean;
+  /** Other domains a screen lets the person grant too, listed after the applet's own. */
+  readonly others?: readonly string[];
+}
+
+/** What stands for the applet now. */
+export interface GrantState {
+  readonly granted: readonly string[];
+  /** Domains the person kept beside messages. */
+  readonly unsafe: readonly string[];
+}
+
+/** What the person has switched on or off on the screen. */
+export interface GrantChoices {
+  /** Domains switched on, other than the ones kept beside messages. */
+  readonly on: ReadonlySet<string>;
+  /** Unsafe domains switched on: the person's override of the seal (D-046, D-060). */
+  readonly kept: ReadonlySet<string>;
+}
+
+const names = (input: GrantInput): { required: string[]; optional: string[]; other: string[] } => {
+  const required = [...new Set([...input.requires, ...(input.receives ? [RECEIVING_DOMAIN] : [])])];
+  const optional = [...new Set(input.optional)].filter((domain) => !required.includes(domain));
+  const other = [...new Set(input.others ?? [])].filter((domain) => !required.includes(domain) && !optional.includes(domain));
+  return { required, optional, other };
+};
+
+/**
+ * The switches a person starts from. What was granted shows as on; with `force`, every required
+ * domain the shell can offer is on too, as when an applet is about to run.
+ *
+ * @param input - What the applet asks for.
+ * @param state - What stands for it now.
+ * @param force - Switch the required domains on.
+ * @returns The starting choices.
+ * @example
+ * ```ts
+ * startingChoices({ requires: ['relay'], optional: [], baseline: [], available: ['relay'] }, { granted: [], unsafe: [] }, true).on; // Set { 'relay' }
+ * ```
+ */
+export function startingChoices(input: GrantInput, state: GrantState, force: boolean): GrantChoices {
+  const on = new Set(state.granted.filter((domain) => !input.baseline.includes(domain)));
+  if (force) for (const domain of names(input).required) if (input.available.includes(domain)) on.add(domain);
+  return { on, kept: new Set(state.unsafe) };
 }
 
 /**
- * One row per domain the applet mentions, required first, pre-set to baseline plus earlier grants.
- * Your account and opening other applets are grants, not baseline; an applet that requires one gets
- * the switch on at first run. An applet that takes requests from other applets gets the intent row
- * even when its manifest did not list it, switched on at first run, because without it nothing reaches it.
- * A domain the shell cannot offer still gets its row, so the person sees what the applet wanted,
- * but it is neither granted nor preset: granting it is refused by the shell, and a row that could
- * be ticked would turn a wish the applet can live without into a failure to open it.
+ * The grants list as groups: required domains on and fixed, optional ones off and free, and, at
+ * the top, the required domains an applet that reads messages cannot have beside them (D-046),
+ * under a caption that says so. Those are off until the person allows them, one at a time. Domains this shell cannot offer, and
+ * optional ones messages withhold, are shown off and fixed.
+ *
+ * @param input - What the applet asks for.
+ * @param choices - What the person has switched.
+ * @returns The groups that have rows, in the order they are shown.
+ * @example
+ * ```ts
+ * grantGroups({ requires: ['dm', 'upload'], optional: [], baseline: [], available: ['dm', 'upload'] }, { on: new Set(['dm']), kept: new Set() })[0]?.id; // 'unsafe'
+ * ```
  */
-export function domainChoices(input: ChoiceInput): DomainChoice[] {
-  const seen = new Set<string>();
-  const rows: DomainChoice[] = [];
-  const push = (domain: string, required: boolean, presetAlways = false): void => {
-    if (seen.has(domain)) return;
-    seen.add(domain);
+export function grantGroups(input: GrantInput, choices: GrantChoices): GrantGroup[] {
+  const { required, optional, other } = names(input);
+  const isAvailable = (domain: string): boolean => input.baseline.includes(domain) || input.available.includes(domain);
+  const sealed = (required.includes('dm') && isAvailable('dm')) || choices.on.has('dm');
+  const rows: Record<GrantGroupId, GrantRow[]> = { unsafe: [], required: [], optional: [], other: [] };
+  const place = (domain: string, group: Exclude<GrantGroupId, 'unsafe'>): void => {
     const baseline = input.baseline.includes(domain);
-    const available = baseline || input.available.includes(domain);
-    const preset = available && input.firstRun && (presetAlways || (required && PRESET_WHEN_REQUIRED.has(domain)));
-    rows.push({ domain, label: domainLabel(domain), required, baseline, granted: baseline || (available && input.granted.includes(domain)), preset, available });
+    const available = isAvailable(domain);
+    const isRequired = required.includes(domain);
+    const withheld = sealed && !MESSAGE_COMPANION_DOMAINS.includes(domain);
+    const row = { domain, label: domainLabel(domain), available, baseline, required: isRequired };
+    if (!available) rows[group].push({ ...row, on: false, locked: true, note: isRequired ? 'needed, and this shell cannot provide it' : 'not available in this shell' });
+    else if (withheld && isRequired) rows.unsafe.push({ ...row, on: choices.kept.has(domain), locked: false, note: '' });
+    else if (withheld) rows[group].push({ ...row, on: false, locked: true, note: WITHHELD_NOTE });
+    else if (baseline) rows[group].push({ ...row, on: true, locked: true, note: 'always on' });
+    else rows[group].push({ ...row, on: choices.on.has(domain), locked: isRequired && choices.on.has(domain), note: '' });
   };
-  for (const domain of input.requires) push(domain, true, input.receives === true && domain === RECEIVING_DOMAIN);
-  for (const domain of input.optional) push(domain, false, input.receives === true && domain === RECEIVING_DOMAIN);
-  if (input.receives) push(RECEIVING_DOMAIN, false, true);
-  return rows;
+  for (const domain of required) place(domain, 'required');
+  for (const domain of optional) place(domain, 'optional');
+  for (const domain of other) place(domain, 'other');
+  return (['unsafe', 'required', 'optional', 'other'] as const).filter((id) => rows[id].length > 0).map((id) => ({ id, label: GROUP_LABELS[id], rows: rows[id] }));
 }
 
-/** How a domain row is captioned under its label in the launcher. */
-export function choiceNote(choice: Pick<DomainChoice, 'available' | 'baseline' | 'required'>): string {
-  if (!choice.available) return choice.required ? 'the applet says it needs this, and this shell cannot provide it' : 'not available in this shell';
-  if (choice.baseline) return 'always on';
-  return choice.required ? 'the applet says it needs this' : 'optional';
+/** One grant to make or take back when the person confirms. */
+export interface GrantOp {
+  readonly kind: 'allow' | 'revoke';
+  readonly domain: string;
+  /** For an allow: true keeps the domain beside messages, false drops that exception and keeps the grant. */
+  readonly unsafe?: boolean;
+}
+
+/**
+ * What confirming comes to: required and switched-on domains granted, switched-off ones taken
+ * back, an allowed unsafe domain kept beside messages and a dropped override dropped. Nothing for what
+ * already stands, for a baseline domain, for one this shell cannot offer, or for one messages
+ * withhold: leaving that off is not taking it back.
+ *
+ * @param input - What the applet asks for.
+ * @param choices - What the person has switched.
+ * @param state - What stands for the applet now.
+ * @returns The operations, in the order the rows are shown.
+ * @example
+ * ```ts
+ * grantsToApply({ requires: ['relay'], optional: [], baseline: [], available: ['relay'] }, { on: new Set(['relay']), kept: new Set() }, { granted: [], unsafe: [] }); // [{ kind: 'allow', domain: 'relay' }]
+ * ```
+ */
+export function grantsToApply(input: GrantInput, choices: GrantChoices, state: GrantState): GrantOp[] {
+  const ops: GrantOp[] = [];
+  for (const group of grantGroups(input, choices)) {
+    for (const row of group.rows) {
+      const { domain } = row;
+      const granted = state.granted.includes(domain);
+      const wasKept = state.unsafe.includes(domain);
+      if (!row.available) continue;
+      if (group.id === 'unsafe') {
+        // A baseline domain is never in the granted list, so for it the exception alone is what stands.
+        if (row.on && !(wasKept && (granted || row.baseline))) ops.push({ kind: 'allow', domain, unsafe: true });
+        else if (!row.on && wasKept) ops.push({ kind: 'allow', domain, unsafe: false });
+      } else if (row.baseline) continue;
+      else if (row.on && !granted) ops.push({ kind: 'allow', domain });
+      else if (!row.on && granted && !row.locked) ops.push({ kind: 'revoke', domain });
+    }
+  }
+  return ops;
 }
 
 const UNITS = ['B', 'KiB', 'MiB', 'GiB'];

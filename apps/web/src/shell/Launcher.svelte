@@ -55,7 +55,7 @@
 <div class="launcher">
   {#if summary}
     {#key summary}
-      <AppletReview {kernl} {summary} action="Run" onback={() => (summary = null)} onconfirm={run} />
+      <AppletReview {kernl} {summary} {storage} action="Run" onback={() => (summary = null)} onconfirm={run} />
     {/key}
   {:else}
     <div class="tabs" role="tablist" aria-label="Applets">

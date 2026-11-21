@@ -64,7 +64,7 @@ function fakeWindow(postMessage: (data: Record<string, unknown>) => void): Windo
   return Object.assign(win, { postMessage });
 }
 
-function createPreviewFrame(detached: boolean): PreviewFrame {
+export function createPreviewFrame(detached: boolean): PreviewFrame {
   const posts: Array<Record<string, unknown>> = [];
   const attributes = new Map<string, string>();
   const win = detached ? null : fakeWindow((data) => void posts.push(data));
@@ -84,7 +84,7 @@ function createPreviewFrame(detached: boolean): PreviewFrame {
   return frame;
 }
 
-function sample(name: string): AppletSummary {
+export function sample(name: string): AppletSummary {
   const summary = sampleSummary(`preview:${name}`);
   if (!summary) throw new Error(`no sample ${name}`);
   return summary;
