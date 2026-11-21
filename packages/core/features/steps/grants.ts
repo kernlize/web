@@ -91,6 +91,38 @@ async function allow(world: CoreWorld, domain: string, dTag: string): Promise<vo
 
 When('the shell allows {string} for {string}', allow);
 
+When('the shell allows {string} for {string} beside messages', async (world: CoreWorld, domain: string, dTag: string) => {
+  await attempt(world, () => grants(world).allowDomain(identity(dTag), domain, { unsafe: true }));
+});
+
+When('the shell allows {string} for {string} not beside messages', async (world: CoreWorld, domain: string, dTag: string) => {
+  await attempt(world, () => grants(world).allowDomain(identity(dTag), domain, { unsafe: false }));
+});
+
+When('the shell allows {string} for {string} for now', async (world: CoreWorld, domain: string, dTag: string) => {
+  await attempt(world, () => grants(world).allowDomain(identity(dTag), domain, { remember: false }));
+});
+
+When('the shell allows {string} for {string} beside messages for now', async (world: CoreWorld, domain: string, dTag: string) => {
+  await attempt(world, () => grants(world).allowDomain(identity(dTag), domain, { unsafe: true, remember: false }));
+});
+
+When('the shell revokes {string} for {string} for now', async (world: CoreWorld, domain: string, dTag: string) => {
+  await attempt(world, () => grants(world).revokeDomain(identity(dTag), domain, { remember: false }));
+});
+
+When('the shell forgets what was granted for now for {string}', (world: CoreWorld, dTag: string) => {
+  grants(world).forgetTemporary(identity(dTag));
+});
+
+Then('the grant record for {string} keeps {string} beside messages', (world: CoreWorld, dTag: string, domains: string) => {
+  expect(grants(world).get(identity(dTag))?.unsafe).toEqual(splitList(domains));
+});
+
+Then(/^the grant record for "([^"]*)" is (temporary|not temporary)$/, (world: CoreWorld, dTag: string, which: string) => {
+  expect(grants(world).get(identity(dTag))?.temporary).toBe(which === 'temporary');
+});
+
 When('the shell revokes {string} for {string}', async (world: CoreWorld, domain: string, dTag: string) => {
   await attempt(world, () => grants(world).revokeDomain(identity(dTag), domain));
 });
@@ -178,6 +210,11 @@ Then('a window of {string} started with {string} is stopped for {string}', (worl
 Then('grants {string} seal an applet and grants {string} do not', (_world: CoreWorld, sealed: string, open: string) => {
   expect(sealsApplet(splitList(sealed))).toBe(true);
   expect(sealsApplet(splitList(open))).toBe(false);
+});
+
+Then('grants {string} with {string} kept leave {string} in force over the usual baseline', (_world: CoreWorld, granted: string, kept: string, inForce: string) => {
+  expect(domainsInForce(splitList(granted), undefined, splitList(kept))).toEqual(splitList(inForce));
+  expect(capabilitiesInForce(splitList(granted), splitList(kept))).toEqual(capabilitiesForDomains(splitList(inForce)));
 });
 
 Then('grants {string} leave {string} in force over the usual baseline', (_world: CoreWorld, granted: string, inForce: string) => {

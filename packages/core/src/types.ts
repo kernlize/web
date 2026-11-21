@@ -148,21 +148,39 @@ export interface AppletHandle {
 export interface GrantRecord {
   readonly identity: AppletIdentity;
   readonly domains: readonly string[];
+  /** Domains the person chose to keep beside messages, against the seal; only they can set it (D-060). */
+  readonly unsafe: readonly string[];
   readonly capabilities: readonly Capability[];
-  /** Domains allowed or baseline that are not in force, because the applet can read messages (D-046). */
+  /** Domains allowed or baseline that are not in force, because the applet can read messages and the person did not keep them (D-046). */
   readonly withheld: readonly string[];
   readonly blocked: boolean;
+  /** Some of this record was granted for now and is not stored; `forgetTemporary` puts the stored record back (D-060). */
+  readonly temporary: boolean;
   readonly stateQuotaBytes: number;
+}
+
+/** How a grant is made. */
+export interface GrantChoice {
+  /** True keeps the domain beside messages, against the seal; false drops that exception and keeps the grant. Only the person's own action may set it. */
+  readonly unsafe?: boolean;
+  /** False grants for now only. Defaults to true. */
+  readonly remember?: boolean;
 }
 
 /** User-facing grant operations. Everything here is per applet identity and reversible. */
 export interface Grants {
   list(): readonly GrantRecord[];
   get(identity: AppletIdentity): GrantRecord | undefined;
-  /** Allow a domain for this applet; maps to the kehto capabilities that domain needs. */
-  allowDomain(identity: AppletIdentity, domain: string): void;
-  /** Withdraw a domain; live sessions lose it immediately. */
-  revokeDomain(identity: AppletIdentity, domain: string): void;
+  /**
+   * Allow a domain for this applet; maps to the kehto capabilities that domain needs. `unsafe`
+   * keeps it in force beside messages, which would otherwise withhold it (D-046, D-060). `remember: false`
+   * grants it for now: in force, never stored, and gone at `forgetTemporary`.
+   */
+  allowDomain(identity: AppletIdentity, domain: string, options?: GrantChoice): void;
+  /** Withdraw a domain, and the exception kept for it; live sessions lose it immediately. With `remember: false` only for now. */
+  revokeDomain(identity: AppletIdentity, domain: string, options?: Pick<GrantChoice, 'remember'>): void;
+  /** Drop what was granted or taken back for now; the stored record is back in force. Does nothing when there was none. */
+  forgetTemporary(identity: AppletIdentity): void;
   block(identity: AppletIdentity): void;
   unblock(identity: AppletIdentity): void;
   setStateQuota(identity: AppletIdentity, bytes: number): void;

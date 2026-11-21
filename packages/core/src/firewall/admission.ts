@@ -31,6 +31,8 @@ export interface AppletAdmissions {
   isCurrent(windowId: string): boolean;
   /** The window was mounted, so it no longer counts as waiting. */
   mounted(windowId: string): void;
+  /** Whether the window was planned and admitted, and is still waiting to be mounted: neither mounted nor given up on. */
+  isWaiting(windowId: string): boolean;
   /** Forget a window and end the session admission opened for it. */
   discard(windowId: string): void;
   /** Call `listener` whenever an answer is taken back; returns the unsubscribe. */
@@ -113,6 +115,7 @@ export function createAppletAdmissions(runtime: AdmissionRuntime, now: () => num
       return admission !== undefined && permissions().isAdmissionCurrent(windowId, admission);
     },
     mounted: (windowId) => void waiting.delete(windowId),
+    isWaiting: (windowId) => waiting.has(windowId),
     discard,
     onInvalidated: (listener) => permissions().subscribeInvalidation(listener),
     close() {

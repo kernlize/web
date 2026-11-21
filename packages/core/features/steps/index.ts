@@ -20,6 +20,7 @@ import './quarantine.js';
 import './runtime-guard.js';
 import './applet-traffic.js';
 import './stop-details.js';
+import './grants-for-now.js';
 import './ratchet-backend.js';
 import './kernl-dm.js';
 import './group-sessions.js';

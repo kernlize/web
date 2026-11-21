@@ -12,6 +12,8 @@ interface StoredGrant {
   readonly dTag: string;
   readonly hash: string;
   readonly domains: readonly string[];
+  /** Domains the person chose to keep beside messages (D-060). Absent in records written before it existed. */
+  readonly unsafe?: readonly string[];
   readonly blocked: boolean;
 }
 
@@ -43,9 +45,14 @@ function keyOf(identity: AppletIdentity): string {
  * covers a domain the user took back and an entry kept from an earlier
  * posture. An applet that holds messages is sealed: only the domains that
  * cannot send what it read anywhere stay in force, and the rest are reported
- * as `withheld` (D-046). The per-identity record is persisted at `kernl:grants:v1`; the ACL
+ * as `withheld`, unless the person chose to keep one beside messages (D-046,
+ * D-060). The per-identity record is persisted at `kernl:grants:v1`; the ACL
  * itself is persisted by kehto. Blocking an applet blocks it in the ACL and empties its
  * environment through {@link createEnvironmentResolver}.
+ *
+ * A change made with `remember: false` lives in memory beside the stored record, takes
+ * precedence over it, and is never written; `forgetTemporary` drops it and puts the
+ * stored record back in force (D-060).
  *
  * @param options - ACL container, storage and the live domain list.
  * @returns The grants surface.
@@ -54,75 +61,124 @@ function keyOf(identity: AppletIdentity): string {
  * const grants = createGrants({ acl: bridge.runtime.aclState, storage, availableDomains });
  * grants.allowDomain(identity, 'relay');
  * grants.get(identity)?.capabilities; // includes 'relay:read' and 'relay:write'
+ * grants.allowDomain(identity, 'outbox', { remember: false }); // until grants.forgetTemporary(identity)
  * ```
  */
 export function createGrants(options: GrantsOptions): KernlGrants {
   const store = createNamespacedStore(options.storage, 'kernl');
   const records = new Map<string, StoredGrant>(Object.entries(store.getJson<Record<string, StoredGrant>>(STORAGE_KEY, {})));
+  /** What was granted for now: in memory only, and ahead of the stored record while it exists. */
+  const temporary = new Map<string, StoredGrant>();
   const changes$ = new Subject<GrantRecord>();
 
   const persist = (): void => store.setJson(STORAGE_KEY, Object.fromEntries(records));
+  const kept = (entry: StoredGrant): readonly string[] => entry.unsafe ?? [];
 
   function stored(identity: AppletIdentity): StoredGrant {
     return records.get(keyOf(identity)) ?? { dTag: identity.dTag, hash: identity.hash, domains: [], blocked: false };
   }
 
-  function record(entry: StoredGrant): GrantRecord {
+  /** The entry in force: what was granted for now, else what is stored. */
+  function inForce(identity: AppletIdentity): StoredGrant {
+    return temporary.get(keyOf(identity)) ?? stored(identity);
+  }
+
+  function record(entry: StoredGrant, isTemporary: boolean): GrantRecord {
     return {
       identity: { dTag: entry.dTag, hash: entry.hash },
       domains: Object.freeze([...entry.domains]),
-      capabilities: capabilitiesInForce(entry.domains),
-      withheld: withheldDomains(entry.domains),
+      unsafe: Object.freeze([...kept(entry)]),
+      capabilities: capabilitiesInForce(entry.domains, kept(entry)),
+      withheld: withheldDomains(entry.domains, undefined, kept(entry)),
       blocked: entry.blocked,
+      temporary: isTemporary,
       stateQuotaBytes: options.acl.getStateQuota('', entry.dTag, entry.hash),
     };
   }
 
-  function syncAcl(entry: StoredGrant): void {
-    const wanted = new Set<Capability>(capabilitiesInForce(entry.domains));
+  function syncAcl(entry: StoredGrant, save = true): void {
+    const wanted = new Set<Capability>(capabilitiesInForce(entry.domains, kept(entry)));
     const held = options.acl.getEntry('', entry.dTag, entry.hash)?.capabilities ?? [];
     for (const capability of held) if (!wanted.has(capability)) options.acl.revoke('', entry.dTag, entry.hash, capability);
     for (const capability of wanted) options.acl.grant('', entry.dTag, entry.hash, capability);
     if (entry.blocked) options.acl.block('', entry.dTag, entry.hash);
     else options.acl.unblock('', entry.dTag, entry.hash);
-    options.acl.persist();
+    // What is only granted for now must not reach the disk through kehto's own persistence.
+    if (save) options.acl.persist();
   }
 
-  function commit(entry: StoredGrant): GrantRecord {
-    records.set(`${entry.dTag}:${entry.hash}`, entry);
-    persist();
-    syncAcl(entry);
-    const result = record(entry);
+  /**
+   * Apply `change` to the stored record when remembering, and to the one granted for now when
+   * there is one or when not remembering. A change that alters nothing is not reported.
+   */
+  function write(identity: AppletIdentity, change: (entry: StoredGrant) => StoredGrant, remember = true): GrantRecord {
+    const key = keyOf(identity);
+    const before = stored(identity);
+    const after = remember ? change(before) : before;
+    const aside = temporary.get(key);
+    const asideAfter = remember ? (aside && change(aside)) : change(aside ?? before);
+    if (remember) {
+      records.set(key, after);
+      persist();
+    }
+    if (asideAfter) temporary.set(key, asideAfter);
+    const entry = asideAfter ?? after;
+    syncAcl(entry, remember);
+    const result = record(entry, asideAfter !== undefined);
     changes$.next(result);
     return result;
   }
 
-  function setDomains(identity: AppletIdentity, domains: readonly string[]): void {
-    commit({ ...stored(identity), domains: [...domains] });
+  /** Whether `change` would alter the entry in force, or the stored one when remembering. */
+  const alters = (identity: AppletIdentity, change: (entry: StoredGrant) => StoredGrant, remember: boolean): boolean =>
+    (remember ? [stored(identity), temporary.get(keyOf(identity))] : [inForce(identity)]).some((entry) => entry !== undefined && change(entry) !== entry);
+
+  /** `unsafe` true keeps the domain beside messages, false drops that exception, and leaving it out leaves it as it is. */
+  const withDomain = (domain: string, unsafe: boolean | undefined) => (entry: StoredGrant): StoredGrant => {
+    const baseline = BASELINE_DOMAINS.includes(domain);
+    const domains = baseline || entry.domains.includes(domain) ? entry.domains : [...entry.domains, domain];
+    const holds = kept(entry).includes(domain);
+    const keep = unsafe === true && !holds ? [...kept(entry), domain] : unsafe === false && holds ? kept(entry).filter((item) => item !== domain) : entry.unsafe;
+    return domains === entry.domains && keep === entry.unsafe ? entry : { ...entry, domains, ...(keep ? { unsafe: keep } : {}) };
+  };
+
+  const withoutDomain = (domain: string) => (entry: StoredGrant): StoredGrant => {
+    if (!entry.domains.includes(domain) && !kept(entry).includes(domain)) return entry;
+    return { ...entry, domains: entry.domains.filter((item) => item !== domain), unsafe: kept(entry).filter((item) => item !== domain) };
+  };
+
+  function apply(identity: AppletIdentity, change: (entry: StoredGrant) => StoredGrant, remember: boolean): void {
+    if (alters(identity, change, remember)) write(identity, change, remember);
   }
 
   return {
-    list: () => [...records.values()].map(record),
+    list: () => [...new Set([...records.keys(), ...temporary.keys()])].map((key) => record((temporary.get(key) ?? records.get(key)) as StoredGrant, temporary.has(key))),
     get: (identity) => {
-      const entry = records.get(keyOf(identity));
-      return entry ? record(entry) : undefined;
+      const key = keyOf(identity);
+      const entry = temporary.get(key) ?? records.get(key);
+      return entry ? record(entry, temporary.has(key)) : undefined;
     },
-    ensure: (identity) => commit(stored(identity)),
-    allowDomain(identity, domain) {
+    ensure: (identity) => write(identity, (entry) => entry),
+    allowDomain(identity, domain, choice = {}) {
       if (!options.availableDomains().includes(domain)) throw new Error('invalid:domain');
-      const current = stored(identity).domains;
-      if (!BASELINE_DOMAINS.includes(domain) && !current.includes(domain)) setDomains(identity, [...current, domain]);
+      apply(identity, withDomain(domain, choice.unsafe), choice.remember ?? true);
     },
-    revokeDomain(identity, domain) {
-      if (BASELINE_DOMAINS.includes(domain)) throw new Error('denied:baseline-domain');
-      const current = stored(identity).domains;
-      if (current.includes(domain)) setDomains(identity, current.filter((entry) => entry !== domain));
+    revokeDomain(identity, domain, choice = {}) {
+      // A baseline domain cannot be taken back, but one the person kept beside messages can be put back under the seal.
+      if (BASELINE_DOMAINS.includes(domain) && !kept(inForce(identity)).includes(domain)) throw new Error('denied:baseline-domain');
+      apply(identity, withoutDomain(domain), choice.remember ?? true);
     },
-    block: (identity) => void commit({ ...stored(identity), blocked: true }),
-    unblock: (identity) => void commit({ ...stored(identity), blocked: false }),
+    forgetTemporary(identity) {
+      if (!temporary.delete(keyOf(identity))) return;
+      const entry = stored(identity);
+      syncAcl(entry);
+      changes$.next(record(entry, false));
+    },
+    block: (identity) => void write(identity, (entry) => ({ ...entry, blocked: true })),
+    unblock: (identity) => void write(identity, (entry) => ({ ...entry, blocked: false })),
     setStateQuota(identity, bytes) {
       options.acl.setStateQuota('', identity.dTag, identity.hash, bytes);
-      commit(stored(identity));
+      write(identity, (entry) => entry);
     },
     availableDomains: () => options.availableDomains(),
     baselineDomains: () => BASELINE_DOMAINS,
@@ -149,7 +205,7 @@ export function createGrants(options: GrantsOptions): KernlGrants {
 export function createEnvironmentResolver(grants: Grants): NonNullable<CapabilityHooks['resolveEnvironment']> {
   return (identity, available) => {
     const record = grants.get({ dTag: identity.dTag, hash: identity.aggregateHash });
-    const allowed = new Set(record?.blocked ? ['shell'] : domainsInForce(record?.domains ?? [], grants.baselineDomains()));
+    const allowed = new Set(record?.blocked ? ['shell'] : domainsInForce(record?.domains ?? [], grants.baselineDomains(), record?.unsafe ?? []));
     return Object.freeze({
       domains: Object.freeze(available.domains.filter((domain) => allowed.has(domain))),
       services: Object.freeze(available.services.filter((service) => allowed.has(service))),

@@ -138,6 +138,13 @@ async function resolveShipped(context: LifecycleContext, id: string): Promise<Re
  */
 export function createAppletLifecycle(context: LifecycleContext): AppletLifecycle {
   const { handles, pipeline, bridge, admissions } = context;
+  // Windows planned and not yet mounted, by the applet they are for. A grant made for now outlives the
+  // window that ends while its replacement is only planned, as when an applet starts again.
+  const planned = new Map<string, string>();
+  const stillRuns = (key: string): boolean => {
+    for (const windowId of planned.keys()) if (!admissions.isWaiting(windowId)) planned.delete(windowId);
+    return [...handles.values()].some((handle) => keyOf(handle.summary.identity) === key) || [...planned.values()].includes(key);
+  };
   // An answer was taken back: a window admitted under it stops, as when a grant it used is taken back (D-038).
   const stopStale = (): void => {
     for (const handle of handles.values()) {
@@ -181,6 +188,7 @@ export function createAppletLifecycle(context: LifecycleContext): AppletLifecycl
       context.installed.install(summary);
       windowCounter += 1;
       const windowId = `applet-${windowCounter}`;
+      planned.set(windowId, keyOf(summary.identity));
       context.remember(summary);
       const extensions = heldExtensions(context, summary.identity);
       // The firewall admits the applet before a plan exists, so no code runs with a domain it refused (D-056).
@@ -191,6 +199,7 @@ export function createAppletLifecycle(context: LifecycleContext): AppletLifecycl
     mount(plan: MountPlan, frame: FrameLike): AppletHandle {
       if (!admissions.isCurrent(plan.windowId)) throw new Error('denied:admission-expired');
       admissions.mounted(plan.windowId);
+      planned.delete(plan.windowId);
       const handle = mountApplet(plan, frame, {
         bridge,
         originRegistry,
@@ -212,6 +221,8 @@ export function createAppletLifecycle(context: LifecycleContext): AppletLifecycl
         narrowed.unsubscribe();
         // A window closed before it said hello has only the session admission opened for it.
         admissions.discard(plan.windowId);
+        // What was granted for now goes with the applet's last window (D-060).
+        if (!stillRuns(keyOf(plan.summary.identity))) context.grants.forgetTemporary(plan.summary.identity);
       }));
       return handle;
     },
