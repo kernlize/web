@@ -38,54 +38,218 @@ Feature: Shell words
       | zap      | another capability       | ZAP      |
       | toString | another capability       | TOSTRING |
 
-  Scenario: an applet's first run lists required domains first and presets the account
-    Given an applet that requires "identity, storage" and may use "storage, relay, zap"
-    And the shell baseline is "storage"
+
+  Scenario: required domains are on and fixed, optional ones are off and free, and each has its group
+    Given an applet that requires "identity, relay" and may use "notify, theme"
+    And the shell baseline is "theme"
+    And the shell can offer "identity, relay, notify"
+    When the shell groups the grants for a first review
+    Then the grant groups are:
+      | group    | domain   | label           | on  | locked | note        |
+      | required | identity | your identity   | yes | yes    |             |
+      | required | relay    | network         | yes | yes    |             |
+      | optional | notify   | notifications   | no  | no     |             |
+      | optional | theme    | your theme      | yes | yes    | always on   |
+
+  Scenario: what was granted before shows as on, and the required ones are on regardless
+    Given an applet that requires "identity" and may use "notify, relay"
+    And the shell can offer "identity, notify, relay"
+    And the applet was earlier granted "relay"
+    When the shell groups the grants for a first review
+    Then the grant groups are:
+      | group    | domain   | label         | on  | locked | note |
+      | required | identity | your identity | yes | yes    |      |
+      | optional | notify   | notifications | no  | no     |      |
+      | optional | relay    | network       | yes | no     |      |
+
+  Scenario: a screen that does not force the required domains shows what is granted, and locks a required one once it is on
+    Given an applet that requires "identity, relay" and may use ""
     And the shell can offer "identity, relay"
     And the applet was earlier granted "relay"
-    When the shell lists the domain choices
-    Then the domain choices are:
-      | domain   | label              | required | baseline | granted | preset | available |
-      | identity | your identity       | yes      | no       | no      | yes    | yes       |
-      | storage  | its own storage    | yes      | yes      | yes     | no     | yes       |
-      | relay    | network            | no       | no       | yes     | no     | yes       |
-      | zap      | another capability | no       | no       | no      | no     | no        |
+    When the shell groups the grants for a running applet
+    Then the grant groups are:
+      | group    | domain   | label         | on  | locked | note |
+      | required | identity | your identity | no  | no     |      |
+      | required | relay    | network       | yes | yes    |      |
 
-  Scenario: the account is not preset once the person has decided before
-    Given an applet that requires "identity" and may use "identity"
-    And the shell can offer "identity"
-    And the person has decided for this applet before
-    When the shell lists the domain choices
-    Then the domain choices are:
-      | domain   | label        | required | baseline | granted | preset | available |
-      | identity | your identity | yes      | no       | no      | no     | yes       |
-
-  Scenario: a domain this shell cannot offer is listed but can never be switched on
-    Given an applet that requires "identity, outbox" and may use "config, theme"
-    And the shell baseline is "theme"
+  Scenario: a domain this shell cannot offer is listed, off and fixed
+    Given an applet that requires "identity, outbox" and may use "config"
     And the shell can offer "outbox"
-    And the applet was earlier granted "config, identity"
-    When the shell lists the domain choices
-    Then the domain choices are:
-      | domain   | label                   | required | baseline | granted | preset | available |
-      | identity | your identity            | yes      | no       | no      | no     | no        |
-      | outbox   | posting to your network | yes      | no       | no      | no     | yes       |
-      | config   | its settings            | no       | no       | no      | no     | no        |
-      | theme    | your theme              | no       | yes      | yes     | no     | yes       |
-    And the domain choices are captioned:
-      | domain   | note                                                            |
-      | identity | the applet says it needs this, and this shell cannot provide it |
-      | outbox   | the applet says it needs this                                   |
-      | config   | not available in this shell                                     |
-      | theme    | always on                                                       |
+    When the shell groups the grants for a first review
+    Then the grant groups are:
+      | group    | domain   | label                   | on  | locked | note                                          |
+      | required | identity | your identity           | no  | yes    | needed, and this shell cannot provide it      |
+      | required | outbox   | posting to your network | yes | yes    |                                               |
+      | optional | config   | its settings            | no  | yes    | not available in this shell                   |
 
-  Scenario: an optional domain the shell can offer is captioned optional
-    Given an applet that requires "" and may use "relay"
+  Scenario: an applet that takes requests from others needs the receiving switch, so it is required
+    Given an applet that requires "identity" and may use "notify"
+    And the shell can offer "identity, notify, intent"
+    And the applet takes requests from other applets
+    When the shell groups the grants for a first review
+    Then the grant groups are:
+      | group    | domain   | label                 | on  | locked | note |
+      | required | identity | your identity         | yes | yes    |      |
+      | required | intent   | opening other applets | yes | yes    |      |
+      | optional | notify   | notifications         | no  | no     |      |
+
+  Scenario: a receiving applet that lists the switch as optional still needs it, and one this shell cannot offer shows it off
+    Given an applet that requires "storage" and may use "intent"
+    And the shell can offer "storage, intent"
+    And the applet takes requests from other applets
+    When the shell groups the grants for a first review
+    Then the grant groups are:
+      | group    | domain  | label                 | on  | locked | note |
+      | required | storage | its own storage       | yes | yes    |      |
+      | required | intent  | opening other applets | yes | yes    |      |
+    Given an applet that requires "" and may use ""
     And the shell can offer "relay"
-    When the shell lists the domain choices
-    Then the domain choices are captioned:
-      | domain | note     |
-      | relay  | optional |
+    And the applet takes requests from other applets
+    When the shell groups the grants for a first review
+    Then the grant groups are:
+      | group    | domain | label                 | on | locked | note                                     |
+      | required | intent | opening other applets | no | yes    | needed, and this shell cannot provide it |
+
+  Scenario: domains the applet did not ask for follow, for a screen that lets the person grant more
+    Given an applet that requires "relay" and may use ""
+    And the shell can offer "relay, notify, media"
+    And the applet was earlier granted "media"
+    And the screen also offers "notify, media, relay"
+    When the shell groups the grants for a running applet
+    Then the grant groups are:
+      | group | domain | label          | on  | locked | note |
+      | required | relay | network      | no  | no     |      |
+      | other | notify | notifications  | no  | no     |      |
+      | other | media  | media controls | yes | no     |      |
+
+  Scenario: group captions read as plain labels
+    Then the grant group captions are "unsafe: Unsafe with messages, required: Required, optional: Optional, other: Not requested"
+
+
+  Scenario: required domains that cannot go with required messages move to the unsafe group, off
+    Given an applet that requires "dm, upload, relay" and may use "notify"
+    And the shell can offer "dm, upload, relay, notify"
+    When the shell groups the grants for a first review
+    Then the grant groups are:
+      | group    | domain | label         | on  | locked | note                                |
+      | unsafe   | upload | uploads       | no  | no     | |
+      | unsafe   | relay  | network       | no  | no     | |
+      | required | dm     | messages      | yes | yes    |                                     |
+      | optional | notify | notifications | no  | no     |                                     |
+
+  Scenario: allowing one is the person's override, and shows as on
+    Given an applet that requires "dm, upload, relay" and may use ""
+    And the shell can offer "dm, upload, relay"
+    And the person keeps "upload" beside messages
+    When the shell groups the grants for a first review
+    Then the grant groups are:
+      | group    | domain | label    | on  | locked | note                               |
+      | unsafe   | upload | uploads  | yes | no     | |
+      | unsafe   | relay  | network  | no  | no     | |
+      | required | dm     | messages | yes | yes    |                                    |
+
+  Scenario: messages the person switches on make the required domains unsafe, and switching them off puts them back
+    Given an applet that requires "upload" and may use "dm"
+    And the shell can offer "upload, dm"
+    When the shell groups the grants for a first review
+    Then the grant groups are:
+      | group    | domain | label    | on  | locked | note |
+      | required | upload | uploads  | yes | yes    |      |
+      | optional | dm     | messages | no  | no     |      |
+    Given the person switches on "dm"
+    When the shell groups the grants for a first review
+    Then the grant groups are:
+      | group    | domain | label    | on  | locked | note                               |
+      | unsafe   | upload | uploads  | no  | no     | |
+      | optional | dm     | messages | yes | no     |                                    |
+
+  Scenario: an optional domain that messages withhold stays off and fixed, in the optional group
+    Given an applet that requires "dm" and may use "relay, notify"
+    And the shell can offer "dm, relay, notify"
+    And the applet was earlier granted "relay"
+    When the shell groups the grants for a first review
+    Then the grant groups are:
+      | group    | domain | label         | on  | locked | note                              |
+      | required | dm     | messages      | yes | yes    |                                   |
+      | optional | relay  | network       | no  | yes    | off while it can read your messages |
+      | optional | notify | notifications | no  | no     |                                   |
+
+  Scenario: a baseline domain the applet requires, such as talking to other applets, can be unsafe too
+    Given an applet that requires "dm, inc" and may use ""
+    And the shell baseline is "inc"
+    And the shell can offer "dm"
+    When the shell groups the grants for a first review
+    Then the grant groups are:
+      | group    | domain | label                    | on | locked | note                               |
+      | unsafe   | inc    | talking to other applets | no | no     | |
+      | required | dm     | messages                 | yes | yes   |                                    |
+
+  Scenario: a baseline domain the applet only mentions is withheld, off and fixed
+    Given an applet that requires "dm" and may use "inc"
+    And the shell baseline is "inc"
+    And the shell can offer "dm"
+    When the shell groups the grants for a first review
+    Then the grant groups are:
+      | group    | domain | label                    | on  | locked | note                                |
+      | required | dm     | messages                 | yes | yes    |                                     |
+      | optional | inc    | talking to other applets | no  | yes    | off while it can read your messages |
+
+  Scenario: required messages that this shell cannot offer seal nothing
+    Given an applet that requires "dm, upload" and may use ""
+    And the shell can offer "upload"
+    When the shell groups the grants for a first review
+    Then the grant groups are:
+      | group    | domain | label    | on  | locked | note                                     |
+      | required | dm     | messages | no  | yes    | needed, and this shell cannot provide it |
+      | required | upload | uploads  | yes | yes    |                                          |
+
+
+  Scenario: on Run the required domains are granted, switched-on optional ones too, and what was switched off is taken back
+    Given an applet that requires "identity" and may use "notify, relay"
+    And the shell can offer "identity, notify, relay"
+    And the applet was earlier granted "relay"
+    And the person switches on "notify"
+    And the person switches off "relay"
+    Then the grants to apply are "allow identity, allow notify, revoke relay"
+
+  Scenario: nothing is applied for what already stands, for a baseline domain, or for one the shell cannot offer
+    Given an applet that requires "identity, outbox" and may use "theme"
+    And the shell baseline is "theme"
+    And the shell can offer "identity"
+    And the applet was earlier granted "identity"
+    Then the grants to apply are ""
+
+  Scenario: an overridden unsafe domain is granted beside messages, and dropping the override keeps the grant
+    Given an applet that requires "dm, upload, relay" and may use ""
+    And the shell can offer "dm, upload, relay"
+    And the person keeps "upload" beside messages
+    Then the grants to apply are "allow upload beside messages, allow dm"
+    Given the applet was earlier granted "dm, upload"
+    And the applet was earlier kept "upload" beside messages
+    And the person keeps nothing beside messages
+    Then the grants to apply are "allow upload outside messages"
+
+  Scenario: an override that already stands is not applied again, for a granted domain or a baseline one
+    Given an applet that requires "dm, upload, inc" and may use ""
+    And the shell baseline is "inc"
+    And the shell can offer "dm, upload"
+    And the applet was earlier granted "dm, upload"
+    And the applet was earlier kept "upload, inc" beside messages
+    And the person keeps "upload" beside messages
+    And the person keeps "inc" beside messages
+    Then the grants to apply are ""
+
+  Scenario: an unsafe domain left off is not granted, and one granted before is left as it is
+    Given an applet that requires "dm, upload" and may use ""
+    And the shell can offer "dm, upload"
+    And the applet was earlier granted "dm, upload"
+    Then the grants to apply are ""
+
+  Scenario: a domain messages withhold is never taken back by leaving it off
+    Given an applet that requires "dm" and may use "relay"
+    And the shell can offer "dm, relay"
+    And the applet was earlier granted "dm, relay"
+    Then the grants to apply are ""
 
   Scenario: every reason an applet cannot be opened has plain words
     Then the shell explains the open failure "invalid:pointer" as "That does not look like an applet address."
@@ -104,51 +268,6 @@ Feature: Shell words
   Scenario: a failure the shell has no reason for is said generically and flagged as unexpected
     Then the shell explains the unexpected open failure "All relays failed" as "Could not open the applet. Try again, or try another address."
     And the shell explains the unexpected open failure "" as "Could not open the applet. Try again, or try another address."
-
-  Scenario: an applet that takes requests gets the receiving switch, on at first run
-    Given an applet that requires "identity" and may use "notify"
-    And the shell can offer "identity, notify, intent"
-    And the applet takes requests from other applets
-    When the shell lists the domain choices
-    Then the domain choices are:
-      | domain   | label                 | required | baseline | granted | preset | available |
-      | identity | your identity          | yes      | no       | no      | yes    | yes       |
-      | notify   | notifications         | no       | no       | no      | no     | yes       |
-      | intent   | opening other applets | no       | no       | no      | yes    | yes       |
-
-  Scenario: a receiving applet that lists the switch itself keeps it where it listed it
-    Given an applet that requires "storage" and may use "intent"
-    And the shell can offer "storage, intent"
-    And the applet takes requests from other applets
-    When the shell lists the domain choices
-    Then the domain choices are:
-      | domain  | label                 | required | baseline | granted | preset | available |
-      | storage | its own storage       | yes      | no       | no      | no     | yes       |
-      | intent  | opening other applets | no       | no       | no      | yes    | yes       |
-    Given an applet that requires "intent" and may use ""
-    And the applet takes requests from other applets
-    And the person has decided for this applet before
-    When the shell lists the domain choices
-    Then the domain choices are:
-      | domain | label                 | required | baseline | granted | preset | available |
-      | intent | opening other applets | yes      | no       | no      | no     | yes       |
-
-  Scenario: an applet that asks others to do things gets that switch on at first run
-    Given an applet that requires "intent" and may use ""
-    And the shell can offer "intent"
-    When the shell lists the domain choices
-    Then the domain choices are:
-      | domain | label                 | required | baseline | granted | preset | available |
-      | intent | opening other applets | yes      | no       | no      | yes    | yes       |
-
-  Scenario: a shell that cannot offer the receiving switch shows it but never switches it on
-    Given an applet that requires "" and may use ""
-    And the shell can offer "relay"
-    And the applet takes requests from other applets
-    When the shell lists the domain choices
-    Then the domain choices are:
-      | domain | label                 | required | baseline | granted | preset | available |
-      | intent | opening other applets | no       | no       | no      | no     | no        |
 
   Scenario Outline: byte counts read in binary units
     Then the shell shows <bytes> bytes as "<text>"

@@ -28,6 +28,8 @@ import { describeAppletMessage, domainsInForce, grantNarrowingReason, type Apple
 import { BehaviorSubject, of, Subject, type Subscription } from 'rxjs';
 import type {
   AppletHandle,
+  AppletIdentity,
+  GrantRecord,
   AppletPointer,
   AppletStatus,
   AppletSummary,
@@ -58,6 +60,9 @@ import type { ShellTheme } from './shell-theme';
 import { baselineDomains, createPreviewGrants, createPreviewRelays, loadBaselineDomains } from './preview-state';
 
 export const PREVIEW_OWNER = 'e8f1a4b7c9d2e5f8a1b4c7d0e3f6a9b2c5d8e1f4a7b0c3d6e9f2a5b8c1d4e7f0';
+
+/** Plans kept while they wait to be mounted, as in the core. */
+const MAX_PLANNED = 16;
 
 interface Mounted {
   readonly plan: MountPlan;
@@ -299,8 +304,39 @@ function createActions({ host, bridges, pubkeyOf, intents, config }: ActionParts
   return { perform, firewall: firewall.firewall };
 }
 
+/**
+ * The domains a sample applet starts with. Settings only where the host can show their form, as the live shell
+ * offers them (D-036). Shortcuts are baseline in the live shell, but the preview has no keys service, so it does
+ * not advertise them (D-054).
+ */
+function previewEnvironment(record: GrantRecord | undefined, showsSettings: boolean): readonly string[] {
+  return domainsInForce(record?.domains ?? [], baselineDomains(), record?.unsafe ?? []).filter((domain) => domain !== 'keys' && (showsSettings || domain !== 'config'));
+}
+
+/**
+ * Windows planned and not yet mounted, oldest first, by the applet they are for. An applet starting again
+ * plans its new window before the old one closes, and what was granted for now must outlive the gap
+ * (D-060). As in the core, only the last 16 plans count.
+ */
+function trackPlans(grants: Grants, mounted: ReadonlyMap<string, Mounted>): { planned(windowId: string, identity: AppletIdentity): void; mounted(plan: MountPlan): void; ended(plan: MountPlan): void } {
+  const waiting = new Map<string, string>();
+  const keyOf = (identity: AppletIdentity): string => `${identity.dTag}:${identity.hash}`;
+  return {
+    planned(windowId, identity) {
+      waiting.set(windowId, keyOf(identity));
+      for (const oldest of [...waiting.keys()].slice(0, Math.max(0, waiting.size - MAX_PLANNED))) waiting.delete(oldest);
+    },
+    mounted: (plan) => void waiting.delete(plan.windowId),
+    ended(plan) {
+      const key = keyOf(plan.summary.identity);
+      const stillRuns = [...mounted.values()].some((entry) => keyOf(entry.plan.summary.identity) === key) || [...waiting.values()].includes(key);
+      if (!stillRuns) grants.forgetTemporary(plan.summary.identity);
+    },
+  };
+}
+
 /** Mount order: sandbox, register, srcdoc. Closing or revoking removes the frame and forgets the window in the guard. */
-function createMounter(host: KernlHost, guard: PreviewGuard, mounted: Map<string, Mounted>, config: PreviewConfig | undefined): (plan: MountPlan, frame: FrameLike) => AppletHandle {
+function createMounter(host: KernlHost, guard: PreviewGuard, mounted: Map<string, Mounted>, config: PreviewConfig | undefined, ended: (plan: MountPlan) => void): (plan: MountPlan, frame: FrameLike) => AppletHandle {
   return (plan, frame) => {
     const status$ = new BehaviorSubject<AppletStatus>('mounting');
     const teardown = (status: AppletStatus): void => {
@@ -311,6 +347,7 @@ function createMounter(host: KernlHost, guard: PreviewGuard, mounted: Map<string
       guard.gate().forget(plan.windowId);
       config?.forget(plan.windowId);
       frame.remove();
+      ended(plan);
     };
     const handle: AppletHandle = {
       windowId: plan.windowId,
@@ -433,17 +470,17 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
   });
   let windowCount = 0;
 
-  const environmentFor = (summary: AppletSummary): readonly string[] => {
-    const granted = grants.get(summary.identity)?.domains ?? [];
-    // Settings only where the host can show their form, as the live shell offers them (D-036).
-    // Shortcuts are baseline in the live shell, but the preview has no keys service, so it does not advertise them (D-054).
-    return domainsInForce(granted, baselineDomains()).filter((domain) => domain !== 'keys' && (config !== undefined || domain !== 'config'));
-  };
+  const environmentFor = (summary: AppletSummary): readonly string[] => previewEnvironment(grants.get(summary.identity), config !== undefined);
 
   const intents = previewIntentsFor(host, mounted, intentRetry);
   const pubkey = (): string => session$.value?.pubkey ?? PREVIEW_OWNER;
   const { perform, firewall } = createActions({ host, bridges, pubkeyOf: pubkey, intents, config });
-  const mount = createMounter(host, guard, mounted, config);
+  const plans = trackPlans(grants, mounted);
+  const mountPlan = createMounter(host, guard, mounted, config, plans.ended);
+  const mount = (plan: MountPlan, frame: FrameLike): AppletHandle => {
+    plans.mounted(plan);
+    return mountPlan(plan, frame);
+  };
   const narrowing = stopNarrowed(grants, mounted);
   const traffic$ = new Subject<AppletMessage>();
   const report = (windowId: string, direction: AppletMessageDirection, message: unknown): void => traffic$.next(describeAppletMessage(windowId, direction, 'port', message));
@@ -507,6 +544,7 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
       // A real applet is offered only what the preview can answer over its port, so nothing it calls hangs.
       const domains = document === undefined ? environmentFor(summary) : environmentFor(summary).filter((domain) => PORT_DOMAINS.includes(domain));
       windowCount += 1;
+      plans.planned(`preview-${windowCount}`, summary.identity);
       return {
         windowId: `preview-${windowCount}`,
         summary,

@@ -63,6 +63,8 @@ export interface Booted {
 export const DEFAULT_WINDOW_SIZE = { w: 720, h: 660 } as const;
 export const RECENT_KEY = 'kernl:recent:v1';
 export const LAYOUT_KEY = 'kernl:layout:v1';
+/** Whether running an applet remembers the grants the person chose; on unless they turned it off (D-060). */
+export const REMEMBER_GRANTS_KEY = 'kernl:remember-grants:v1';
 
 /** Eight characters of an identity, for badges. */
 export const shortId = (value: string): string => value.slice(0, 8);

@@ -12,13 +12,14 @@ test('the preview shell signs in, runs a sample applet, shows the guard and open
   await page.getByRole('listitem').filter({ hasText: 'Notes' }).getByRole('button', { name: 'Open' }).click();
   await expect(page.getByRole('region', { name: 'Applets window' }).getByRole('heading', { name: 'Notes' })).toBeVisible();
 
-  // Your account is a grant, not baseline, in both modes; Notes requires it, so it starts switched on.
+  // Your account is a grant, not baseline, in both modes; Notes requires it, so it is on and cannot be switched off (D-060).
   const account = page.getByRole('checkbox', { name: /your identity/ });
-  await expect(account).toBeEnabled();
   await expect(account).toBeChecked();
+  await expect(account).toBeDisabled();
+  // So does the network, which Notes also requires.
   const network = page.getByRole('checkbox', { name: /network/ });
-  await expect(network).not.toBeChecked();
-  await network.check();
+  await expect(network).toBeChecked();
+  await expect(network).toBeDisabled();
   await page.getByRole('button', { name: 'Run' }).click();
 
   const frame = page.locator('iframe[data-window-id]');

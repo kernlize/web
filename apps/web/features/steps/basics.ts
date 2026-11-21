@@ -2,7 +2,7 @@ import { expect } from 'vitest';
 import { Given, Then, When, type DataTable } from 'quickpickle';
 import type { Bridge, BridgeAvailability } from '@kernlize/bridges';
 import { abbreviate, DEFAULT_WINDOW_SIZE, LAYOUT_KEY, publisherWords, RECENT_KEY, shortId, type ConsentSummary } from '../../src/shell/contract.ts';
-import { choiceNote, contractName, domainChoices, domainLabel, formatBytes, withheldByMessages, WITHHELD_NOTE, type DomainChoice } from '../../src/shell/domains.ts';
+import { contractName, domainLabel, formatBytes, GROUP_LABELS, grantGroups, grantsToApply, startingChoices, withheldByMessages, WITHHELD_NOTE, type GrantChoices, type GrantGroup, type GrantInput, type GrantState } from '../../src/shell/domains.ts';
 import { openFailure } from '../../src/shell/launcher-reasons.ts';
 import { hostOf, serverAddress } from '../../src/shell/servers.ts';
 import { helperFrom, toolSearchWords } from '../../src/shell/meeting-words.ts';
@@ -18,8 +18,10 @@ import './shell-windows.ts';
 type ShellRecord = ConsentSummary['event'];
 
 interface WordsScratch {
-  applet: { requires: string[]; optional: string[]; baseline: string[]; granted: string[]; available: string[]; firstRun: boolean; receives?: boolean };
-  choices: DomainChoice[];
+  applet: { requires: string[]; optional: string[]; baseline: string[]; granted: string[]; unsafe: string[]; available: string[]; receives?: boolean; others?: string[] };
+  /** What the person has switched; made on first use from the applet as given so far. */
+  choices?: GrantChoices;
+  groups: GrantGroup[];
   record: ShellRecord;
   details: readonly EventDetail[];
   bridge?: Bridge;
@@ -31,8 +33,8 @@ interface WordsWorld {
 
 function words(world: WordsWorld): WordsScratch {
   world.shellWords ??= {
-    applet: { requires: [], optional: [], baseline: [], granted: [], available: [], firstRun: true },
-    choices: [],
+    applet: { requires: [], optional: [], baseline: [], granted: [], unsafe: [], available: [] },
+    groups: [],
     record: { id: '', kind: 1, pubkey: '', created_at: 0, content: '', tags: [], sig: '' },
     details: [],
   };
@@ -75,6 +77,8 @@ Then('the shell writes the contract of {string} as {string}', (_world: WordsWorl
 
 Given('an applet that requires {string} and may use {string}', (world: WordsWorld, requires: string, optional: string) => {
   Object.assign(words(world).applet, { requires: list(requires), optional: list(optional) });
+  // A new applet starts from its own switches.
+  delete words(world).choices;
 });
 
 Given('the shell baseline is {string}', (world: WordsWorld, baseline: string) => {
@@ -89,33 +93,58 @@ Given('the applet was earlier granted {string}', (world: WordsWorld, granted: st
   words(world).applet.granted = list(granted);
 });
 
+Given('the applet was earlier kept {string} beside messages', (world: WordsWorld, kept: string) => {
+  words(world).applet.unsafe = list(kept);
+});
+
 Given('the applet takes requests from other applets', (world: WordsWorld) => {
   words(world).applet.receives = true;
 });
 
-Given('the person has decided for this applet before', (world: WordsWorld) => {
-  words(world).applet.firstRun = false;
+Given('the screen also offers {string}', (world: WordsWorld, others: string) => {
+  words(world).applet.others = list(others);
 });
 
-When('the shell lists the domain choices', (world: WordsWorld) => {
-  words(world).choices = domainChoices(words(world).applet);
+const input = (world: WordsWorld): GrantInput => words(world).applet;
+const standing = (world: WordsWorld): GrantState => ({ granted: words(world).applet.granted, unsafe: words(world).applet.unsafe });
+const choicesOf = (world: WordsWorld, force = true): GrantChoices => (words(world).choices ??= startingChoices(input(world), standing(world), force));
+
+When('the shell groups the grants for a first review', (world: WordsWorld) => {
+  words(world).groups = grantGroups(input(world), choicesOf(world));
 });
 
-Then('the domain choices are:', (world: WordsWorld, table: DataTable) => {
-  const expected = table.hashes().map((row) => ({
-    domain: row.domain,
-    label: row.label,
-    required: row.required === 'yes',
-    baseline: row.baseline === 'yes',
-    granted: row.granted === 'yes',
-    preset: row.preset === 'yes',
-    available: row.available === 'yes',
-  }));
-  expect(words(world).choices).toEqual(expected);
+When('the shell groups the grants for a running applet', (world: WordsWorld) => {
+  words(world).groups = grantGroups(input(world), choicesOf(world, false));
 });
 
-Then('the domain choices are captioned:', (world: WordsWorld, table: DataTable) => {
-  expect(words(world).choices.map((choice) => ({ domain: choice.domain, note: choiceNote(choice) }))).toEqual(table.hashes());
+Given('the person switches on {string}', (world: WordsWorld, domain: string) => {
+  choicesOf(world).on.add(domain);
+});
+
+Given('the person switches off {string}', (world: WordsWorld, domain: string) => {
+  choicesOf(world).on.delete(domain);
+});
+
+Given('the person keeps {string} beside messages', (world: WordsWorld, domain: string) => {
+  choicesOf(world).kept.add(domain);
+});
+
+Given('the person keeps nothing beside messages', (world: WordsWorld) => {
+  choicesOf(world).kept.clear();
+});
+
+Then('the grant groups are:', (world: WordsWorld, table: DataTable) => {
+  const shown = words(world).groups.flatMap((group) => group.rows.map((row) => ({ group: group.id, domain: row.domain, label: row.label, on: row.on ? 'yes' : 'no', locked: row.locked ? 'yes' : 'no', note: row.note })));
+  expect(shown).toEqual(table.hashes());
+});
+
+Then('the grant group captions are {string}', (_world: WordsWorld, captions: string) => {
+  expect(Object.entries(GROUP_LABELS).map(([id, label]) => `${id}: ${label}`).join(', ')).toBe(captions);
+});
+
+Then('the grants to apply are {string}', (world: WordsWorld, expected: string) => {
+  const ops = grantsToApply(input(world), choicesOf(world), standing(world)).map((op) => `${op.kind} ${op.domain}${op.unsafe === undefined ? '' : op.unsafe ? ' beside messages' : ' outside messages'}`);
+  expect(ops.join(', ')).toBe(expected);
 });
 
 Then('the shell explains the open failure {string} as {string}', (_world: WordsWorld, reason: string, text: string) => {

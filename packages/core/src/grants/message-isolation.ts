@@ -52,20 +52,24 @@ export function sealsApplet(granted: readonly string[]): boolean {
 /**
  * The domains actually in force for an applet: the baseline plus what the
  * person allowed, cut down to {@link MESSAGE_COMPANION_DOMAINS} when the
- * applet holds messages.
+ * applet holds messages. A domain the person chose to keep beside messages
+ * stays (D-060): `kept` is theirs alone, never an applet's, and frees one
+ * domain at a time.
  *
  * @param granted - The domains the person allowed.
  * @param baseline - Domains every applet holds; {@link BASELINE_DOMAINS} by default.
+ * @param kept - Domains the person chose to keep beside messages.
  * @returns The domains in force, baseline first.
  * @example
  * ```ts
- * domainsInForce(['relay']); // ['shell', 'inc', 'theme', 'storage', 'relay']
- * domainsInForce(['dm', 'relay', 'upload']); // ['shell', 'theme', 'storage', 'dm']
+ * domainsInForce(['relay']); // ['shell', 'inc', 'theme', 'storage', 'keys', 'relay']
+ * domainsInForce(['dm', 'relay', 'upload']); // ['shell', 'theme', 'storage', 'keys', 'dm']
+ * domainsInForce(['dm', 'relay', 'upload'], undefined, ['upload']); // [..., 'dm', 'upload']
  * ```
  */
-export function domainsInForce(granted: readonly string[], baseline: readonly string[] = BASELINE_DOMAINS): readonly string[] {
+export function domainsInForce(granted: readonly string[], baseline: readonly string[] = BASELINE_DOMAINS, kept: readonly string[] = []): readonly string[] {
   const held = [...new Set([...baseline, ...granted])];
-  return Object.freeze(sealsApplet(granted) ? held.filter((domain) => MESSAGE_COMPANION_DOMAINS.includes(domain)) : held);
+  return Object.freeze(sealsApplet(granted) ? held.filter((domain) => MESSAGE_COMPANION_DOMAINS.includes(domain) || kept.includes(domain)) : held);
 }
 
 /**
@@ -74,14 +78,16 @@ export function domainsInForce(granted: readonly string[], baseline: readonly st
  *
  * @param granted - The domains the person allowed.
  * @param baseline - Domains every applet holds; {@link BASELINE_DOMAINS} by default.
+ * @param kept - Domains the person chose to keep beside messages.
  * @returns The withheld domains; empty for an applet without messages.
  * @example
  * ```ts
  * withheldDomains(['dm', 'relay']); // ['inc', 'relay']
+ * withheldDomains(['dm', 'relay'], undefined, ['relay']); // ['inc']
  * ```
  */
-export function withheldDomains(granted: readonly string[], baseline: readonly string[] = BASELINE_DOMAINS): readonly string[] {
-  const inForce = domainsInForce(granted, baseline);
+export function withheldDomains(granted: readonly string[], baseline: readonly string[] = BASELINE_DOMAINS, kept: readonly string[] = []): readonly string[] {
+  const inForce = domainsInForce(granted, baseline, kept);
   return Object.freeze([...new Set([...baseline, ...granted])].filter((domain) => !inForce.includes(domain)));
 }
 
@@ -89,13 +95,14 @@ export function withheldDomains(granted: readonly string[], baseline: readonly s
  * The kehto capabilities an applet's grants come to, after the seal.
  *
  * @param granted - The domains the person allowed.
+ * @param kept - Domains the person chose to keep beside messages.
  * @returns The capabilities to write into the runtime ACL.
  * @example
  * ```ts
  * capabilitiesInForce(['dm', 'intent', 'relay']); // dm, baseline and 'intent:read'; no relay, no 'intent:write'
  * ```
  */
-export function capabilitiesInForce(granted: readonly string[]): readonly Capability[] {
-  const capabilities = capabilitiesForDomains(domainsInForce(granted));
+export function capabilitiesInForce(granted: readonly string[], kept: readonly string[] = []): readonly Capability[] {
+  const capabilities = capabilitiesForDomains(domainsInForce(granted, BASELINE_DOMAINS, kept));
   return sealsApplet(granted) ? capabilities.filter((capability) => !WITHHELD_CAPABILITIES.includes(capability)) : capabilities;
 }

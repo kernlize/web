@@ -47,11 +47,13 @@ test.describe('with one relay and one blob server down', () => {
     // The search that took the address is gone once the applet is found, so it is never echoed back (D-006).
     await expect(dialog.getByRole('searchbox', { name: 'Find an applet' })).toHaveCount(0);
 
-    // Required and offered: on for the account at first run, off for posting until the person says so.
-    await expect(dialog.getByRole('checkbox', { name: /your identity/ })).toBeChecked();
-    const posting = dialog.getByRole('checkbox', { name: /posting to your network/ });
-    await expect(posting).toBeEnabled();
-    await expect(posting).not.toBeChecked();
+    // Required and offered: on and fixed, whatever it is (D-060). Optional ones start off and are the person's to switch on.
+    await expect(dialog.getByRole('group', { name: 'Required' }).getByRole('checkbox')).toHaveCount(2);
+    for (const name of [/your identity/, /posting to your network/]) {
+      const required = dialog.getByRole('checkbox', { name });
+      await expect(required).toBeChecked();
+      await expect(required).toBeDisabled();
+    }
     // Settings are offered now the shell draws their form (D-036); optional, so off until the person says so.
     const settings = dialog.getByRole('checkbox', { name: /its settings/ });
     await expect(settings).toBeEnabled();
@@ -62,7 +64,6 @@ test.describe('with one relay and one blob server down', () => {
     await expect(tools).not.toBeChecked();
     await expect(dialog.getByText('not available in this shell')).toHaveCount(0);
 
-    await posting.check();
     await dialog.getByRole('button', { name: 'Run' }).click();
 
     const frame = page.locator('iframe[data-window-id]');

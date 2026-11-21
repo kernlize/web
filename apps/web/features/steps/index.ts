@@ -16,3 +16,5 @@ import './firewall-words.ts';
 import './preview-firewall.ts';
 import './reload.ts';
 import './traffic-words.ts';
+import './remember-grants.ts';
+import './preview-grants-for-now.ts';

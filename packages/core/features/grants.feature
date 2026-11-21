@@ -105,3 +105,79 @@ Feature: Grants
     And the capabilities for domain "shell" are ""
     And the capabilities for domain "made-up" are ""
     And the capabilities for domains "storage,dm" are "state:read,state:write,dm:read,dm:write"
+
+  Rule: a person may grant for now, without it being remembered (D-060)
+
+    Scenario: a grant for now is in force, and gone when it is forgotten
+      When the shell ensures grants for "chat"
+      And the shell allows "relay" for "chat" for now
+      Then the ACL allows "relay:write" for "chat"
+      And the grant record for "chat" has domains "relay" and is not blocked
+      And the grant record for "chat" is temporary
+      And the resolver gives "chat" domains "shell,inc,theme,storage,relay" and services "" from "shell,inc,theme,storage,relay" and ""
+      When the shell forgets what was granted for now for "chat"
+      Then the ACL denies "relay:write" for "chat"
+      And the grant record for "chat" has domains "" and is not blocked
+      And the grant record for "chat" is not temporary
+
+    Scenario: a grant for now is never written to storage
+      When the shell ensures grants for "chat"
+      And the shell allows "relay" for "chat" for now
+      Then storage key "kernl:grants:v1" records "" for "chat"
+      When kernl grants are created again over the same storage
+      Then the grant record for "chat" has domains "" and is not blocked
+      And the grant record for "chat" is not temporary
+
+    Scenario: after a restart, what the ACL still held from a grant for now is narrowed when the applet is next planned
+      When the shell ensures grants for "chat"
+      And the shell allows "relay" for "chat" for now
+      And kernl grants are created again over the same storage
+      Then the grant record for "chat" has domains "" and is not blocked
+      When the shell ensures grants for "chat"
+      Then the ACL denies "relay:write" for "chat"
+      And the ACL denies "relay:read" for "chat"
+
+    Scenario: what was remembered stays when the grant for now is forgotten
+      When the shell allows "relay" for "chat"
+      And the shell allows "notify" for "chat" for now
+      Then the grant record for "chat" has domains "relay,notify" and is not blocked
+      When the shell forgets what was granted for now for "chat"
+      Then the grant record for "chat" has domains "relay" and is not blocked
+      And the ACL denies "notify:send" for "chat"
+      And the ACL allows "relay:write" for "chat"
+
+    Scenario: taking a remembered grant back for now brings it back when forgotten
+      When the shell allows "relay" for "chat"
+      And the shell revokes "relay" for "chat" for now
+      Then the ACL denies "relay:write" for "chat"
+      And the grant record for "chat" has domains "" and is not blocked
+      And storage key "kernl:grants:v1" records "relay" for "chat"
+      When the shell forgets what was granted for now for "chat"
+      Then the ACL allows "relay:write" for "chat"
+      And the grant record for "chat" has domains "relay" and is not blocked
+
+    Scenario: a remembered change made while one is in force reaches both
+      When the shell allows "relay" for "chat" for now
+      And the shell allows "notify" for "chat"
+      Then storage key "kernl:grants:v1" records "notify" for "chat"
+      When the shell forgets what was granted for now for "chat"
+      Then the grant record for "chat" has domains "notify" and is not blocked
+      And the ACL allows "notify:send" for "chat"
+      And the ACL denies "relay:write" for "chat"
+
+    Scenario: blocking an applet blocks it for good, whatever was granted for now
+      When the shell allows "relay" for "chat" for now
+      And the shell blocks "chat"
+      And the shell forgets what was granted for now for "chat"
+      Then the grant record for "chat" has domains "" and is blocked
+
+    Scenario: forgetting when nothing was granted for now changes nothing
+      When the shell allows "relay" for "chat"
+      And the shell forgets what was granted for now for "chat"
+      And the shell forgets what was granted for now for "nobody"
+      Then 1 grant changes were observed
+
+    Scenario: a grant for now is refused like any other when the shell cannot offer it
+      When the shell allows "llm" for "chat" for now
+      Then the shell refused with "invalid:domain"
+

@@ -1,8 +1,10 @@
 <script lang="ts">
   import Publisher from './Publisher.svelte';
-  import type { AppletSummary, ShellKernl } from './contract';
-  import { choiceNote, contractName, domainChoices, domainLabel, withheldByMessages, WITHHELD_NOTE, type DomainChoice } from './domains';
+  import type { AppletSummary, ShellKernl, StorageLike } from './contract';
+  import { grantGroups, grantsToApply, startingChoices, type GrantChoices, type GrantInput, type GrantState } from './domains';
+  import GrantList from './GrantList.svelte';
   import { explainOpenFailure } from './launcher-reasons';
+  import { readRemember, writeRemember } from './remember-grants';
   import { acceptsWords } from './store';
 
   interface Props {
@@ -10,53 +12,48 @@
     summary: AppletSummary;
     /** The primary button's words: "Run", or "Use this applet" in the chooser. */
     action: string;
+    /** Where "Remember grants" is kept. Without it the grants are always remembered and the checkbox is not shown. */
+    storage?: StorageLike;
     onback: () => void;
     /** Called after the user's grant choices were written. Throw to show an error. */
     onconfirm: (summary: AppletSummary) => Promise<void>;
   }
 
-  const { kernl, summary, action, onback, onconfirm }: Props = $props();
+  const { kernl, summary, action, storage, onback, onconfirm }: Props = $props();
 
-  interface Choice extends DomainChoice {
-    on: boolean;
-  }
-
-  const initialChoices = (): Choice[] => {
-    const record = kernl.grants.get(summary.identity);
-    const input = {
-      requires: summary.requires,
-      optional: summary.optional,
-      baseline: kernl.grants.baselineDomains(),
-      granted: record?.domains ?? [],
-      available: kernl.grants.availableDomains(),
-      firstRun: record === undefined,
-      receives: summary.manifest.archetypes.length > 0,
-    };
-    return domainChoices(input).map((choice) => ({ ...choice, on: choice.granted || choice.preset }));
+  const input: GrantInput = {
+    requires: summary.requires,
+    optional: summary.optional,
+    baseline: kernl.grants.baselineDomains(),
+    available: kernl.grants.availableDomains(),
+    receives: summary.manifest.archetypes.length > 0,
   };
+  const record = kernl.grants.get(summary.identity);
+  const standing: GrantState = { granted: record?.domains ?? [], unsafe: record?.unsafe ?? [] };
 
-  let choices = $state<Choice[]>(initialChoices());
+  let choices = $state.raw<GrantChoices>(startingChoices(input, standing, true));
+  let remember = $state(storage ? readRemember(storage) : true);
   let busy = $state(false);
   let error = $state<string | null>(null);
 
-  const on = $derived(choices.filter((choice) => choice.on).map((choice) => choice.domain));
-  const withheld = (choice: Choice): boolean => withheldByMessages(choice.domain, on);
-  const sealed = $derived(choices.some(withheld));
-  const sealedOut = $derived(choices.filter((choice) => choice.required && choice.available && withheld(choice)));
-  const missing = $derived(choices.filter((choice) => choice.required && choice.available && !choice.on && !withheld(choice)));
-  const unprovided = $derived(choices.filter((choice) => choice.required && !choice.available));
+  const groups = $derived(grantGroups(input, choices));
   const accepts = $derived(acceptsWords(summary.manifest.archetypes.map((entry) => entry.convention)));
-  const listWords = (words: readonly string[]): string => (words.length < 2 ? words.join('') : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`);
+
+  function change(domain: string, group: string, on: boolean): void {
+    const next = { on: new Set(choices.on), kept: new Set(choices.kept) };
+    const set = group === 'unsafe' ? next.kept : next.on;
+    if (on) set.add(domain);
+    else set.delete(domain);
+    choices = next;
+  }
 
   async function confirm(): Promise<void> {
     busy = true;
     error = null;
     try {
-      for (const choice of choices) {
-        // A domain the shell cannot offer is never asked for: granting it is refused, and the applet was told it is absent.
-        if (choice.baseline || !choice.available) continue;
-        if (choice.on && !choice.granted && !withheld(choice)) kernl.grants.allowDomain(summary.identity, choice.domain);
-        if (!choice.on && choice.granted) kernl.grants.revokeDomain(summary.identity, choice.domain);
+      for (const op of grantsToApply(input, choices, standing)) {
+        if (op.kind === 'allow') kernl.grants.allowDomain(summary.identity, op.domain, { remember, ...(op.unsafe === undefined ? {} : { unsafe: op.unsafe }) });
+        else kernl.grants.revokeDomain(summary.identity, op.domain, { remember });
       }
       await onconfirm(summary);
     } catch (reason) {
@@ -74,38 +71,21 @@
   </header>
   {#if summary.description}<p>{summary.description}</p>{/if}
   {#if accepts}<p class="shell-muted">Other applets can ask it to {accepts}.</p>{/if}
-  {#if choices.length}
-    <h4>What it may use</h4>
-    <ul class="shell-list choices">
-      {#each choices as choice (choice.domain)}
-        <li class="shell-toggle">
-          <label class="text" for="grant-{choice.domain}">
-            <span>{choice.label} <span class="shell-contract" data-contract>{contractName(choice.domain)}</span></span>
-            <small>{withheld(choice) ? WITHHELD_NOTE : choiceNote(choice)}</small>
-          </label>
-          <input id="grant-{choice.domain}" type="checkbox" checked={choice.on && !withheld(choice)} onchange={(event) => (choice.on = event.currentTarget.checked)} disabled={choice.baseline || !choice.available || withheld(choice)} />
-        </li>
-      {/each}
-    </ul>
+  {#if groups.length}
+    <GrantList {groups} onchange={(row, group, on) => change(row.domain, group, on)} />
   {:else}
     <p class="shell-muted">This applet asks for nothing beyond the baseline.</p>
-  {/if}
-  {#if sealed}
-    <p class="shell-muted" role="note">An applet that can read your messages gets nothing that could send them anywhere else.</p>
-  {/if}
-  {#if sealedOut.length}
-    <p class="warning" role="status">This applet asks for {listWords(sealedOut.map((choice) => domainLabel(choice.domain)))}, which it cannot have while it can read your messages. It may not work fully.</p>
-  {/if}
-  {#if unprovided.length}
-    <p class="warning" role="status">This shell cannot provide {listWords(unprovided.map((choice) => domainLabel(choice.domain)))}, so this applet may not work here. You can still run it.</p>
-  {/if}
-  {#if missing.length}
-    <p class="warning" role="status">Without {listWords(missing.map((choice) => domainLabel(choice.domain)))}, this applet may not work. You can still run it.</p>
   {/if}
   {#if error}<p class="shell-error" role="alert">{error}</p>{/if}
   <div class="shell-actions">
     <button type="button" class="shell-button primary" onclick={confirm} disabled={busy}>{action}</button>
     <button type="button" class="shell-button quiet" onclick={onback} disabled={busy}>Back</button>
+    {#if storage}
+      <label class="remember">
+        <input type="checkbox" bind:checked={remember} onchange={() => storage && writeRemember(storage, remember)} />
+        <span>Remember grants</span>
+      </label>
+    {/if}
   </div>
 </article>
 
@@ -125,28 +105,22 @@
     font-size: 1.4rem;
   }
 
-  .summary h4 {
-    margin: 0.5rem 0 0;
-    font-size: 0.95rem;
-  }
-
   .summary p {
     margin: 0;
   }
 
-  .choices {
-    gap: 0;
-  }
-
-  .mono {
-    font-family: var(--font-mono);
-    font-size: 0.8rem;
-  }
-
-  .warning {
-    border-left: 2px solid var(--accent);
-    padding-left: 0.75rem;
+  .remember {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-left: auto;
+    font-size: 0.85rem;
     color: var(--ink-muted);
-    font-size: 0.9rem;
+    cursor: pointer;
+  }
+
+  .remember input {
+    margin: 0;
+    accent-color: var(--accent);
   }
 </style>

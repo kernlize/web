@@ -696,6 +696,8 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 
 ## D-046 · An applet that reads messages is sealed
 
+*Amended by [D-060](#d-060): the person may allow a required domain beside messages.*
+
 **Context.** The grants panel listed every domain the shell offers for every applet, so the Messages applet, which asks only for messages, could be given the network, uploads or direct connections with one switch, and a third-party messaging applet could ask for them outright. An applet that can read private messages and also reach anything outside the shell can copy those messages out. The baseline itself included talking to other applets, which is a way out through an applet that does hold the network. No deferred NAP is involved: there is no security-class or direct-network domain in kernl, and none is added here.
 
 **Decision.**
@@ -920,3 +922,20 @@ This amends D-006 and D-031 for the shell only.
 **Consequences.** An applet that requires an unoffered domain is not found by browsing until the person asks. A pasted address still opens it, with the launcher's warning that it may not work here.
 
 **Reversal cost.** Low. One default and one label.
+
+## D-060 · Grants are grouped by what the applet asked for, and the person may allow an unsafe combination
+
+**Context.** The launcher listed an applet's domains as one run of switches, all off on a first run, whether the applet required them or merely mentioned them. A required domain could be switched off, which left an applet that could not work, and an applet that required `dm` together with `upload` or `relay` hit D-046's seal: the second was withheld, with a paragraph of warning and no way to say "I understand". Every choice was written to the stored grants, with no way to run an applet once without leaving its grants behind.
+
+**Decision.**
+
+- **Required is on and fixed; optional is off and free.** A required domain this shell can offer is on and cannot be switched off; an optional one starts where the person left it (off on a first run). An applet that takes requests from others needs `intent`, so that row is required. What the shell vouches for a built-in applet stays granted. A required domain the shell cannot offer, and an optional one messages withhold, are shown off and fixed.
+- **Groups, not headings.** Rows sit in one list under small captions: **Unsafe with messages** first when it has rows, then **Required**, **Optional** and, in a running window's grants panel, **Not requested**. A caption labels what follows; it does not break the list. Rows carry no caption of their own except where something needs saying ("always on", "not available in this shell", D-046's note).
+- **An unsafe combination is the person's to allow.** The seal (D-046) stands. A domain an applet *requires* that the seal would withhold, because it also holds messages, is shown in the unsafe group, off. Allowing one keeps it in force beside messages for that applet: `Grants.allowDomain(identity, domain, { unsafe: true })`, stored as `unsafe` in the record, per identity and exact code. Only the person's own action sets it, never a manifest. It frees that one domain: `intent:write` stays withheld, other withheld domains stay withheld, taking the domain back takes the exception with it, and `{ unsafe: false }` drops the exception and keeps the grant. This changes D-046's "the person cannot switch a withheld domain on" for required domains only; optional ones stay withheld.
+- **Remember grants.** A checkbox on the launcher's review, on by default, kept in the shell's storage at `kernl:remember-grants:v1` as the person leaves it. Off, the choices are made with `{ remember: false }`: an in-memory record ahead of the stored one, never written, not even through kehto's ACL persistence, which the grants layer skips for such a change. `Grants.forgetTemporary` drops it. kernl calls it when the last window of the applet ends, counting a window that is planned and not yet mounted (`AppletAdmissions.isWaiting`), so an applet starting again (**Reload**) keeps its grants across the gap between the old window closing and the new one mounting. After a restart `ensure` narrows the ACL to the stored record before anything runs.
+- **The model is pure.** `grantGroups`, `startingChoices` and `grantsToApply` in `apps/web/src/shell/domains.ts` decide every row and every call; the components only draw them.
+
+**Consequences.** A required domain can no longer be taken back from a running window; blocking the applet is the way to stop it. An applet whose person once switched a required domain off gets it on again at the next Run. A running window's grants panel keeps the unsafe group so an override can be withdrawn, which stops the window. An applet planned and never mounted keeps a grant for now alive until its admission is given up (at most 16 plans wait). The seal itself, the allowlist and `intent:write` are unchanged.
+
+**Reversal cost.** Medium. The grouping is one module; the override is one list in the record and one parameter on three functions in `message-isolation.ts`.
+

@@ -97,3 +97,98 @@ Feature: An applet that reads messages is sealed
     Then grants "dm,relay" seal an applet and grants "relay,upload" do not
     And grants "dm,relay,upload" leave "shell,theme,storage,keys,dm" in force over the usual baseline
     And grants "relay" leave "shell,inc,theme,storage,keys,relay" in force over the usual baseline
+
+  Rule: the person may keep a domain beside messages, one at a time (D-060)
+
+    Scenario: a domain the person keeps beside messages stays in force
+      When the shell allows "dm" for "chat"
+      And the shell allows "upload" for "chat" beside messages
+      Then the grant record for "chat" keeps "upload" beside messages
+      And the grant record for "chat" withholds "inc"
+      And the ACL allows "upload:write" for "chat"
+      And the ACL allows "dm:read" for "chat"
+      And the resolver gives "chat" domains "shell,theme,storage,dm,upload" and services "" from "shell,inc,theme,storage,dm,upload" and ""
+
+    Scenario: keeping one domain does not free the others
+      When the shell allows "dm" for "chat"
+      And the shell allows "relay" for "chat"
+      And the shell allows "upload" for "chat" beside messages
+      Then the grant record for "chat" withholds "inc,relay"
+      And the ACL denies "relay:write" for "chat"
+      And the ACL allows "upload:write" for "chat"
+
+    Scenario: handing a request on stays withheld, whatever is kept
+      When the shell allows "dm" for "chat"
+      And the shell allows "intent" for "chat"
+      And the shell allows "upload" for "chat" beside messages
+      Then the ACL allows "intent:read" for "chat"
+      And the ACL denies "intent:write" for "chat"
+
+    Scenario: a baseline domain, such as talking to other applets, can be kept too
+      When the shell allows "dm" for "chat"
+      And the shell allows "inc" for "chat" beside messages
+      Then the grant record for "chat" keeps "inc" beside messages
+      And the grant record for "chat" withholds ""
+      And the grant record for "chat" has domains "dm" and is not blocked
+      And the resolver gives "chat" domains "shell,inc,theme,storage,dm" and services "" from "shell,inc,theme,storage,dm" and ""
+
+    Scenario: the exception can be dropped while the grant stays
+      When the shell allows "dm" for "chat"
+      And the shell allows "upload" for "chat" beside messages
+      And the shell allows "upload" for "chat" not beside messages
+      Then the grant record for "chat" keeps "" beside messages
+      And the grant record for "chat" has domains "dm,upload" and is not blocked
+      And the grant record for "chat" withholds "inc,upload"
+      And the ACL denies "upload:write" for "chat"
+      When the shell allows "upload" for "chat" not beside messages
+      Then the grant record for "chat" keeps "" beside messages
+
+    Scenario: taking the domain back takes the exception with it
+      When the shell allows "dm" for "chat"
+      And the shell allows "upload" for "chat" beside messages
+      And the shell revokes "upload" for "chat"
+      Then the grant record for "chat" keeps "" beside messages
+      When the shell allows "upload" for "chat"
+      Then the grant record for "chat" withholds "inc,upload"
+      And the ACL denies "upload:write" for "chat"
+
+    Scenario: taking the exception of a baseline domain back withholds it again
+      When the shell allows "dm" for "chat"
+      And the shell allows "inc" for "chat" beside messages
+      And the shell revokes "inc" for "chat"
+      Then the grant record for "chat" keeps "" beside messages
+      And the grant record for "chat" withholds "inc"
+
+    Scenario: the exception belongs to one applet
+      When the shell allows "dm" for "chat"
+      And the shell allows "upload" for "chat" beside messages
+      And the shell allows "dm" for "other"
+      And the shell allows "upload" for "other"
+      Then the grant record for "other" keeps "" beside messages
+      And the grant record for "other" withholds "inc,upload"
+
+    Scenario: without messages there is nothing to keep it beside, and nothing is withheld
+      When the shell allows "upload" for "chat" beside messages
+      Then the grant record for "chat" keeps "upload" beside messages
+      And the grant record for "chat" withholds ""
+      And the ACL allows "upload:write" for "chat"
+
+    Scenario: the exception is remembered
+      When the shell allows "dm" for "chat"
+      And the shell allows "upload" for "chat" beside messages
+      And kernl grants are created again over the same storage
+      Then the grant record for "chat" keeps "upload" beside messages
+      And the grant record for "chat" has domains "dm,upload" and is not blocked
+
+    Scenario: the seal is lifted for the kept domains only
+      Then grants "dm,upload,relay" with "upload" kept leave "shell,theme,storage,keys,dm,upload" in force over the usual baseline
+
+    Scenario: a domain kept beside messages for now is forgotten with it
+      When the shell allows "dm" for "chat"
+      And the shell allows "upload" for "chat" beside messages for now
+      Then the ACL allows "upload:write" for "chat"
+      And the grant record for "chat" keeps "upload" beside messages
+      When the shell forgets what was granted for now for "chat"
+      Then the ACL denies "upload:write" for "chat"
+      And the grant record for "chat" keeps "" beside messages
+
