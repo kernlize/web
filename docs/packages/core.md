@@ -253,7 +253,7 @@ legacyMessages.subscribe({}, (message) => console.log(message.content));
 | `webrtc` | none: kehto's ACL has no capability for it, so the `webrtc` service checks the grant itself ([D-042](../decisions.md#d-042)) |
 | `torrent`, `nzb`, `soulseek` | none: they are not kehto domains. The runtime admits each by the environment the window was mounted with and the service's own message list ([D-050](../decisions.md#d-050)) |
 
-Unknown domains need no capability (`capabilitiesForDomain('made-up')` is `[]`). `createGrants` keeps a per-identity record `{ dTag, hash, domains, blocked }` at `kernl:grants:v1` and, on every commit, writes it into kehto's ACL, which is restrictive (`aclDefaultPolicy`, [D-020](../decisions.md#d-020)): every capability a baseline or allowed domain needs is granted, whatever the applet's stored entry holds beyond that is revoked, then `block`/`unblock` is applied and the ACL persisted. `KernlGrants.ensure(identity)` does this for an applet that has no record yet; `plan` calls it. `createEnvironmentResolver(grants)` is the `capabilities.resolveEnvironment` hook: each applet sees the baseline plus its allowed domains, intersected with what the shell offers; a blocked applet sees only `shell`. The calls are in [Grant and revoke](../how-tos/grant-and-revoke.md).
+Unknown domains need no capability (`capabilitiesForDomain('made-up')` is `[]`). `createGrants` keeps a per-identity record `{ dTag, hash, domains, unsafe?, blocked }` at `kernl:grants:v1` (`unsafe` lists the domains the person kept beside messages, [D-060](../decisions.md#d-060)); what was granted with `remember: false` is held in memory beside it and never written and, on every commit, writes it into kehto's ACL, which is restrictive (`aclDefaultPolicy`, [D-020](../decisions.md#d-020)): every capability a baseline or allowed domain needs is granted, whatever the applet's stored entry holds beyond that is revoked, then `block`/`unblock` is applied and the ACL persisted. `KernlGrants.ensure(identity)` does this for an applet that has no record yet; `plan` calls it. `createEnvironmentResolver(grants)` is the `capabilities.resolveEnvironment` hook: each applet sees the baseline plus its allowed domains, intersected with what the shell offers; a blocked applet sees only `shell`. The calls are in [Grant and revoke](../how-tos/grant-and-revoke.md).
 
 ### The firewall
 
@@ -620,9 +620,9 @@ Removed ([D-056](../decisions.md#d-056)): `runtimeFirewallRules`, `applyRuntimeF
 | `MESSAGES_DOMAIN` | `'dm'` | The domain whose grant seals an applet. |
 | `MESSAGE_COMPANION_DOMAINS` | `readonly string[]` | `['shell', 'dm', 'identity', 'theme', 'storage', 'config', 'notify', 'keys', 'intent']`: all that may be in force together with messages. |
 | `sealsApplet` | `(granted: readonly string[]) => boolean` | Whether the grants include messages. |
-| `domainsInForce` | `(granted, baseline?) => readonly string[]` | Baseline plus grants, cut to the companions when sealed. |
-| `withheldDomains` | `(granted, baseline?) => readonly string[]` | What the seal keeps out of force. |
-| `capabilitiesInForce` | `(granted: readonly string[]) => readonly Capability[]` | What is written to the ACL; no `intent:write` when sealed. |
+| `domainsInForce` | `(granted, baseline?, kept?) => readonly string[]` | Baseline plus grants, cut to the companions when sealed, plus any domain the person `kept` beside messages. |
+| `withheldDomains` | `(granted, baseline?, kept?) => readonly string[]` | What the seal keeps out of force, less what the person kept. |
+| `capabilitiesInForce` | `(granted: readonly string[], kept?: readonly string[]) => readonly Capability[]` | What is written to the ACL; no `intent:write` when sealed. |
 | `describeChange` | `(event: NostrEvent, before: NostrEvent \| undefined, applet: AppletIdentity) => ConsentSummary` | The kind table above. |
 | `isDestructiveKind` | `(kind: number) => boolean` | True for every replaceable kind (0, 3, 10000–19999), every addressable kind (30000–39999), 5 and 62. |
 | `createSigningConsent` | `(options: SigningConsentOptions) => SigningConsent` | The gate both signing routes pass; see [Consent summaries](#consent-summaries). |
@@ -632,7 +632,7 @@ Removed ([D-056](../decisions.md#d-056)): `runtimeFirewallRules`, `applyRuntimeF
 | `LookupReplaceableOptions` | interface | `{ loader?: AddressPointerLoader; relays?: () => readonly string[]; timeoutMs?: number }`. Without `loader` the lookup reads the store only. |
 | `CURRENT_VERSION_TIMEOUT_MS` | `4000` | How long a consent prompt waits for the network to return the current version. |
 | `UNKNOWN_CURRENT_VERSION` | `ConsentLine` | `{ label: 'Current version', after: 'could not be loaded; this replaces it entirely' }`, the first line of a destructive summary whose current version was not found. |
-| `Grants`, `GrantRecord`, `KernlGrants`, `GrantsOptions`, `ConsentSummary`, `ConsentLine`, `ConsentPrompt`, `LookupBefore`, `ResolveAppletIdentity`, `SigningConsent`, `SigningConsentOptions`, `SigningTemplate` | types | `GrantRecord` is `{ identity, domains, capabilities, blocked, stateQuotaBytes }`. |
+| `Grants`, `GrantRecord`, `GrantChoice`, `KernlGrants`, `GrantsOptions`, `ConsentSummary`, `ConsentLine`, `ConsentPrompt`, `LookupBefore`, `ResolveAppletIdentity`, `SigningConsent`, `SigningConsentOptions`, `SigningTemplate` | types | `GrantRecord` is `{ identity, domains, capabilities, blocked, stateQuotaBytes }`. |
 
 ### Applesauce adapters
 

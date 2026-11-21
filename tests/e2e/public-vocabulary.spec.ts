@@ -122,11 +122,12 @@ for (const sample of ['Notes', 'Pulse']) {
     await page.getByRole('button', { name: 'Try the preview' }).click();
     await page.getByRole('button', { name: 'Open an applet' }).click();
     await page.getByRole('listitem').filter({ hasText: sample }).getByRole('button', { name: 'Open' }).click();
-    // The store has a switch of its own; wait for the applet's summary before counting grant switches.
-    await expect(page.getByRole('region', { name: 'Applets window' }).getByRole('heading', { name: 'What it may use' })).toBeVisible();
-    const switches = page.getByRole('checkbox');
+    // The store has a switch of its own; wait for the applet's grants before counting grant switches.
+    const grants = page.getByRole('region', { name: 'Applets window' }).locator('.grants');
+    await expect(grants).toBeVisible();
+    const switches = grants.getByRole('checkbox');
     await expect(switches.first()).toBeVisible();
-    const labels = await page.locator('.choices label > span:first-child').allInnerTexts();
+    const labels = await grants.locator('label > span:first-child').allInnerTexts();
     expect(labels.length).toBe(await switches.count());
     for (const label of labels) expect(RAW_DOMAINS.has(label.trim().toLowerCase()), `"${label}" is a raw domain name`).toBe(false);
     await expectClean(page, `${sample} summary`);

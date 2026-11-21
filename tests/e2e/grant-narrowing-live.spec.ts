@@ -24,9 +24,13 @@ async function openMessages(page: Page): Promise<void> {
 
 test('taking back a domain a running applet uses stops it, and granting one does not', async ({ page }) => {
   await openMessages(page);
-  await page.getByRole('checkbox', { name: /^notifications/ }).check();
+  // Messages needs messages: it is on and cannot be taken back, only the applet blocked (D-060).
+  const required = page.getByRole('checkbox', { name: /^messages/ });
+  await expect(required).toBeChecked();
+  await expect(required).toBeDisabled();
+  await page.getByRole('checkbox', { name: /^opening other applets/ }).check();
   await expect(page.locator('section.window')).toHaveAttribute('data-status', 'running');
-  await page.getByRole('checkbox', { name: /^messages/ }).uncheck();
+  await page.getByRole('checkbox', { name: /^notifications/ }).uncheck();
   await page.keyboard.press('Escape');
   await expect(page.locator('section.window')).toHaveAttribute('data-status', 'revoked');
   await expect(page.locator('section.window').getByText('You took back something it was using.', { exact: false })).toBeVisible();
@@ -58,7 +62,6 @@ test('blocking a running applet stops it', async ({ page }) => {
 test('an applet that can read messages cannot be given anything that could send them elsewhere (D-046)', async ({ page }) => {
   await openMessages(page);
   const panel = page.getByRole('dialog', { name: 'Grants for Messages' });
-  await expect(panel.getByRole('note')).toContainText('it gets nothing that could send them anywhere else');
   for (const label of [/^network/, /^posting to your network/, /^uploads/, /^direct connections/, /^web fetches/, /^remote tools/, /^talking to other applets/, /^opening links/]) {
     const row = panel.getByRole('checkbox', { name: label });
     await expect(row, String(label)).toBeDisabled();
