@@ -2,6 +2,8 @@ import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 import { fakeNetwork, generalRelays, installSignerExtension, signApplet } from './live-network';
 
+const proofs = process.env.KERNL_PROOFS_DIR;
+
 const base = process.env.PLAYWRIGHT_BASE_URL ?? '';
 
 /**
@@ -187,18 +189,31 @@ test('text that is not an address is searched for, never looked up', async ({ pa
   expect(network.lookups).toEqual([]);
 });
 
-test('the store lists an applet this shell cannot fully run, says what it needs, and hides it only when asked', async ({ page }) => {
+test('the store hides an applet this shell cannot fully run until asked, then says what it needs', async ({ page }) => {
   const applet = signApplet({ servers: ['https://blobs.test'], requires: ['mesh'] });
   await fakeNetwork(page, applet, generalRelays('holds'), { 'blobs.test': 'has' });
   await signInFresh(page);
   await page.getByRole('button', { name: 'Open an applet' }).click();
   const listed = page.getByRole('list', { name: 'Applets' }).getByRole('listitem').filter({ hasText: 'Feed applet' });
-  await expect(listed).toBeVisible({ timeout: 15_000 });
-  await expect(listed).toContainText('which this shell does not offer');
-  await expect(page.getByText('1 applet needs something this shell does not offer, marked below')).toBeVisible();
-  await page.getByRole('checkbox', { name: /Only applets that work here/ }).check();
+  const toggle = page.getByRole('checkbox', { name: 'Show incompatible (1)' });
+  await expect(toggle).toBeVisible({ timeout: 15_000 });
+  await expect(toggle).not.toBeChecked();
   await expect(listed).toHaveCount(0);
-  await expect(page.getByText('1 applet needs something this shell does not offer, hidden')).toBeVisible();
+  if (proofs) {
+    await page.screenshot({ path: `${proofs}/01-store-hidden-light.png`, animations: 'disabled' });
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.screenshot({ path: `${proofs}/01-store-hidden.png`, animations: 'disabled' });
+    await page.emulateMedia({ colorScheme: 'light' });
+  }
+  await toggle.check();
+  await expect(listed).toBeVisible();
+  await expect(listed).toContainText('which this shell does not offer');
+  if (proofs) {
+    await page.screenshot({ path: `${proofs}/02-store-shown-light.png`, animations: 'disabled' });
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.screenshot({ path: `${proofs}/02-store-shown.png`, animations: 'disabled' });
+    await page.emulateMedia({ colorScheme: 'light' });
+  }
 });
 
 test('looking around needs no sign-in: a throwaway identity sees the real store and is gone on reload (D-044)', async ({ page }) => {

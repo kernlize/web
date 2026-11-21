@@ -467,7 +467,7 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Decision.**
 
 - **Always look for kind 0.** `createProfiles` asks the lookup relays (`discovery`, then `super`) for the profile and the relay list at once; when the list names write relays the profile was not found on, it asks there (NIP-65). A card never gives up on a timer, and a late profile replaces the short key. The session label follows the account's published name. Every person in the shell is drawn through one component that does this, and the `dm` domain names conversation participants the same way before an applet sees them, so applets get names without asking.
-- **Stream, and bound only at the extremes.** The store emits its list as each relay answers, says "no applets match, more may still arrive" after `CATALOG_SETTLE_MS` (3 s) with nothing, and stops listening at `CATALOG_TIMEOUT_MS` (30 s). Cached manifests are listed first. A manifest its publisher deleted (kind 5) is left out. Every published applet is listed by default, as the public stores list them; one that needs a capability this shell does not offer says which, and "Only applets that work here" hides those when the person asks.
+- **Stream, and bound only at the extremes.** The store emits its list as each relay answers, says "no applets match, more may still arrive" after `CATALOG_SETTLE_MS` (3 s) with nothing, and stops listening at `CATALOG_TIMEOUT_MS` (30 s). Cached manifests are listed first. A manifest its publisher deleted (kind 5) is left out. Every published applet is listed by default, as the public stores list them; one that needs a capability this shell does not offer says which, and "Only applets that work here" hides those when the person asks. (Reversed by [D-059](#d-059): those are hidden until asked for.)
 - **Name servers by role.** Settings has "Inbox and outbox", the account's published list (D-029), with "Inbox: where people send things to you" and "Outbox: where your posts are kept, and where others look for them", and says that pictures and applet files live on separate file servers. The shell's own lists are "People lookup", "Applet catalogue" and "General". The consent for a relay list says "Change your inbox and outbox" and lists what each side gains and loses. The word for the protocol's server still never appears (D-006). [D-051](#d-051) reverses this bullet: the lists are named as relays and each relay is shown by its own host.
 
 **Consequences.** Names appear wherever a key did, from cache at once and from the network as it answers. The store fills from the first relay. The `outbox` tier is no longer edited by hand; it follows the published list.
@@ -908,3 +908,15 @@ This amends D-006 and D-031 for the shell only.
 
 **Reversal cost.** Low. One module, one adapter hook and one wrapper.
 
+## D-059 · The store hides applets this shell cannot fully run until asked
+
+**Context.** D-031 listed every published applet by default and offered "Only applets that work here" to hide the ones needing a capability the shell does not offer. In practice that put applets a person could not use first in the way: of 164 listed on 2026-11-21, 21 were such applets.
+
+**Decision.**
+
+- **Hidden by default.** The store lists only applets whose required domains this shell offers. A switch beside the count, "Show incompatible (N)", lists the others, each still saying what it needs.
+- **No explanation line.** The switch is a label and a count; it appears only when something is hidden.
+
+**Consequences.** An applet that requires an unoffered domain is not found by browsing until the person asks. A pasted address still opens it, with the launcher's warning that it may not work here.
+
+**Reversal cost.** Low. One default and one label.

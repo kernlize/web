@@ -22,8 +22,8 @@
   const PAGE = 40;
   let text = $state(initialText);
   let topics = $state<string[]>([]);
-  // Every published applet is listed, as the public stores do; each one this shell cannot fully run says what it needs (D-031).
-  let workingOnly = $state(false);
+  // Only applets this shell can fully run are listed until the person asks for the rest (D-059).
+  let showIncompatible = $state(false);
   let shown = $state(PAGE);
   let entries = $state.raw<readonly CatalogEntry[] | null>(null);
   let failed = $state(false);
@@ -34,7 +34,7 @@
   const base = $derived(convention === undefined ? {} : { convention });
   const all = $derived(search && entries ? search.searchCatalog(entries, { ...base, text: pasted ? '' : text, topics }) : []);
   const working = $derived(search && entries ? search.searchCatalog(entries, { ...base, text: pasted ? '' : text, topics, available }) : []);
-  const results = $derived(workingOnly ? working : all);
+  const results = $derived(showIncompatible ? all : working);
   const limited = $derived(all.length - working.length);
   const bubbles = $derived(search && entries ? topicBubbles(search.popularTopics(search.searchCatalog(entries, base), 14), topics) : []);
 
@@ -98,13 +98,17 @@
     </div>
   {/if}
 
-  <label class="shell-toggle works">
-    <span class="text">
-      <span>Only applets that work here</span>
-      {#if limited > 0}<small>{limited} {limited === 1 ? 'applet needs' : 'applets need'} something this shell does not offer{workingOnly ? ', hidden' : ', marked below'}</small>{/if}
-    </span>
-    <input type="checkbox" bind:checked={workingOnly} />
-  </label>
+  {#if entries !== null && search !== null && !failed && (results.length > 0 || limited > 0)}
+    <div class="bar">
+      {#if results.length > 0}<p class="shell-muted small tally">{results.length} {results.length === 1 ? 'applet' : 'applets'}{finished ? '' : ' so far'}</p>{/if}
+      {#if limited > 0}
+        <label class="shell-toggle works" title="Applets that need something this shell does not offer">
+          <span class="small">Show incompatible ({limited})</span>
+          <input type="checkbox" bind:checked={showIncompatible} />
+        </label>
+      {/if}
+    </div>
+  {/if}
 
   {#if entries === null || search === null}
     <p class="shell-muted" role="status">Looking for applets…</p>
@@ -113,7 +117,6 @@
   {:else if results.length === 0}
     <p class="shell-muted" role="status">{convention ? 'No listed applet can do this yet.' : 'No applets match.'}{finished ? '' : ' More may still arrive.'}</p>
   {:else}
-    <p class="shell-muted small tally">{results.length} {results.length === 1 ? 'applet' : 'applets'}{finished ? '' : ' so far'}</p>
     <ul class="shell-list results" aria-label="Applets">
       {#each results.slice(0, shown) as entry (entry.catalogId)}
         {@const missing = missingDomains(entry, available)}
@@ -216,8 +219,23 @@
     opacity: 0.75;
   }
 
+  .bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .bar .tally {
+    margin: 0;
+  }
+
   .works {
+    justify-content: flex-end;
+    gap: 0.5rem;
     padding: 0;
+    border-top: 0;
+    margin-left: auto;
   }
 
   .entry {
