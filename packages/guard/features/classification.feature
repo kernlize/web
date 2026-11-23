@@ -28,6 +28,12 @@ Feature: Envelope classification
       | keys.forward           | control          |
       | dm.send                | dm:send          |
       | dm.list                | control          |
+      | media.state            | control          |
+      | media.capabilities     | control          |
+      | media.command          | control          |
+      | media.session.update   | control          |
+      | media.session.destroy  | control          |
+      | media.session.create   | generic          |
       | intent.invoke          | intent:invoke    |
       | intent.open            | intent:invoke    |
       | shell.close            | control          |
