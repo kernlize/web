@@ -1,0 +1,49 @@
+import { expect } from 'vitest';
+import { Given, Then, When } from 'quickpickle';
+import type { AclStateContainer, Capability } from '@kehto/runtime';
+import type { AppletMessage, KernlGrants } from '@kernlize/core';
+import { k } from './kernl.js';
+import { passwordSigner, scratch, unlockPhrase, type CoreWorld } from './world.js';
+
+// The grants steps fix one artifact hash; these name a second build of the same applet.
+const OTHER_HASH = '0d'.repeat(32);
+
+function grants(world: CoreWorld): KernlGrants {
+  return scratch(world).grants as KernlGrants;
+}
+
+function acl(world: CoreWorld): AclStateContainer {
+  return scratch(world).acl as AclStateContainer;
+}
+
+When('the shell ensures grants for {string} built from other code', (world: CoreWorld, dTag: string) => {
+  grants(world).ensure({ dTag, hash: OTHER_HASH });
+});
+
+Then('the ACL allows {string} for {string} built from other code', (world: CoreWorld, capability: Capability, dTag: string) => {
+  expect(acl(world).check('', dTag, OTHER_HASH, capability)).toBe(true);
+});
+
+Then('the ACL denies {string} for {string} built from other code', (world: CoreWorld, capability: Capability, dTag: string) => {
+  expect(acl(world).check('', dTag, OTHER_HASH, capability)).toBe(false);
+});
+
+Then('the grant record for {string} built from other code has domains {string}', (world: CoreWorld, dTag: string, domains: string) => {
+  expect(grants(world).get({ dTag, hash: OTHER_HASH }).domains).toEqual(domains === '' ? [] : domains.split(','));
+});
+
+Given("the shell's traffic is recorded", (world: CoreWorld) => {
+  const traffic: AppletMessage[] = [];
+  k(world).kernl.traffic$.subscribe((message) => traffic.push(message));
+  scratch(world).traffic = traffic;
+});
+
+Then('nothing the shell reported holds the signed-in key or its password', (world: CoreWorld) => {
+  const { guardEvents, record, received } = k(world);
+  const reported = JSON.stringify({ guardEvents, record, received, traffic: scratch(world).traffic });
+  expect((scratch(world).traffic as AppletMessage[]).length).toBeGreaterThan(0);
+  expect(reported).not.toContain(Buffer.from(passwordSigner.key as Uint8Array).toString('hex'));
+  expect(reported).not.toContain(unlockPhrase);
+  expect(reported).not.toContain('nsec1');
+  expect(reported).not.toContain('ncryptsec1');
+});

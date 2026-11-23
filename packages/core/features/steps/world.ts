@@ -156,10 +156,13 @@ export function sha256Hex(bytes: Uint8Array | string): string {
 /** A signing identity for test vectors; the key never leaves the signer. */
 export const author = new PrivateKeySigner();
 
+/** The phrase the shared NIP-49 signer is locked with. */
+export const unlockPhrase = 'correct horse';
+
 async function unlockPasswordSigner(): Promise<PasswordSigner> {
   const signer = new PasswordSigner();
   signer.key = new PrivateKeySigner().key;
-  await signer.setPassword('correct horse');
+  await signer.setPassword(unlockPhrase);
   return signer;
 }
 
