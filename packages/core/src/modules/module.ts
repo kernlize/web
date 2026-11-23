@@ -29,7 +29,7 @@ export interface ReplaceablePointer {
  * What the kernel hands a module at setup. Everything is the shell's own: one store, one pool, the
  * relay tiers, the host's storage. A module signs an applet's write through
  * {@link KernelContext.sign}, which puts one that replaces or erases the person's record to them
- * first, and the host's own writes with {@link KernelContext.signer} (D-064). It never holds
+ * first, and the host's own writes with {@link KernelContext.signer} (D-065). It never holds
  * kehto's bridge (D-061). Accessors are read when called, so a module may keep them for later.
  */
 export interface KernelContext {
@@ -47,7 +47,7 @@ export interface KernelContext {
   sign(windowId: string, template: EventTemplate): Promise<NostrEvent>;
   /**
    * The active identity's signer, or none for a read-only or signed-out session, for a write the
-   * host started for the person, such as saving their relay list from settings (D-064). The key
+   * host started for the person, such as saving their relay list from settings (D-065). The key
    * stays inside the signer.
    */
   signer(): ISigner | undefined;

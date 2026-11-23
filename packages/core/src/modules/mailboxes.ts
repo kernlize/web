@@ -7,7 +7,7 @@ import type { KernlModule } from './module.js';
 /**
  * The signed-in identity's inboxes and outboxes (NIP-65): `kernl.mailboxes`. Where the identity
  * says it publishes becomes the shell's `outbox` tier, and a save is signed for the person with
- * the active signer (D-029, D-064). An identity with no list is offered the directory module's
+ * the active signer (D-029, D-065). An identity with no list is offered the directory module's
  * suggestions when it is loaded, and the well-known servers otherwise. Without this module the
  * `outbox` tier stays as the host and the person set it.
  *
