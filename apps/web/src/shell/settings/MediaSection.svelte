@@ -43,7 +43,7 @@
 
   .choices {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
     gap: 0.5rem;
     border: 0;
     padding: 0;
@@ -67,11 +67,5 @@
 
   .choice.active {
     border-color: var(--accent);
-  }
-
-  @container (max-width: 26rem) {
-    .choices {
-      grid-template-columns: 1fr;
-    }
   }
 </style>

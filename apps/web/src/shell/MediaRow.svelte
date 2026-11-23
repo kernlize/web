@@ -66,7 +66,7 @@
 </script>
 
 <div class="holder" bind:this={holder}>
-<div class="row" class:brief class:current={session.current} class:with-screen={screen !== undefined} role="group" aria-label={title} data-session={session.sessionId} data-status={session.state?.status ?? 'paused'}>
+<div class="row" class:brief class:current={session.current} class:with-screen={screen !== undefined} role="group" aria-label={title} data-session={session.sessionId} data-status={session.state?.status ?? 'paused'} data-detached={session.detached}>
   {#if screen}
     <div class="screen" use:show={screen}></div>
   {/if}

@@ -14,6 +14,7 @@ export const MEDIA_SETTING_GROUPS: readonly MediaSettingGroup[] = [
   { key: 'video', label: 'Videos', choices: [{ id: 'window', label: 'In their own window' }, { id: 'docked', label: 'In the player' }] },
   { key: 'hidden', label: 'Hidden windows', choices: [{ id: 'keep', label: 'Keep playing' }, { id: 'pause', label: 'Pause until shown' }] },
   { key: 'autoplay', label: 'Starting on its own', choices: [{ id: 'allow', label: 'Allowed' }, { id: 'block', label: 'Wait for play' }] },
+  { key: 'closed', label: 'When its applet closes', choices: [{ id: 'keep', label: 'Keep playing' }, { id: 'pause', label: 'Pause' }, { id: 'stop', label: 'Stop' }] },
 ];
 
 /**
@@ -41,11 +42,13 @@ export function mediaTitle(session: Pick<MediaSessionView, 'metadata' | 'video'>
 }
 
 /** The short line under a session's title: who plays it, by what name, and how far along. */
-export function mediaLine(session: Pick<MediaSessionView, 'metadata' | 'state'>, applet: string): string {
+export function mediaLine(session: Pick<MediaSessionView, 'metadata' | 'state'> & Partial<Pick<MediaSessionView, 'detached'>>, applet: string): string {
   const status = session.state?.status ?? 'paused';
   const words: Readonly<Record<string, string>> = { playing: 'Playing', paused: 'Paused', stopped: 'Stopped', buffering: 'Loading' };
   const artist = session.metadata?.artist?.trim();
-  return [artist, applet, words[status] ?? 'Paused'].filter(Boolean).join(' · ');
+  // Played on after its applet closed: the name stays, so the person knows what it was.
+  const from = session.detached ? `${applet} (closed)` : applet;
+  return [artist, from, words[status] ?? 'Paused'].filter(Boolean).join(' · ');
 }
 
 /** True when the player's main button should pause rather than play. */

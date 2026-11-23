@@ -102,3 +102,7 @@ Then('the video box fills the screen', (world: FullscreenWorld) => {
 Then('nothing fills the screen', (world: FullscreenWorld) => {
   expect(world.page?.fullscreenElement).toBeNull();
 });
+
+Then('a {string} session from {string} played on after it closed reads {string}', (_world: unknown, status: string, applet: string, line: string) => {
+  expect(mediaLine({ state: { status } as State, detached: true }, applet)).toBe(line);
+});

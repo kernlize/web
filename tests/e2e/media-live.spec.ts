@@ -384,8 +384,9 @@ test.describe('a missing source', () => {
   });
 });
 
-test("closing the applet ends what it played and closes its video's window", async ({ page }) => {
+test("with Stop, closing the applet ends what it played and closes its video's window", async ({ page }) => {
   const frame = await open(page);
+  await choose(page, 'When its applet closes', 'Stop');
   await frame.locator('#tone').click();
   await frame.locator('#clip').click();
   await expect(page.getByRole('region', { name: 'Test card window' })).toBeVisible();
@@ -397,10 +398,54 @@ test("closing the applet ends what it played and closes its video's window", asy
   await proof(page, '15-applet-closed-media-gone');
 });
 
+test('by default, what the shell plays keeps playing after its applet closes, until the person ends it', async ({ page }) => {
+  const frame = await open(page);
+  await choose(page, 'Playing at once', 'Several at once');
+  await frame.locator('#tone').click();
+  await expect(row(page, 'Morning tone')).toHaveAttribute('data-status', 'playing');
+  await frame.locator('#own').click();
+  await expect(row(page, 'Own radio')).toHaveAttribute('data-status', 'playing');
+  await frame.locator('#clip').click();
+  const video = page.getByRole('region', { name: 'Test card window' });
+  await expect(video.locator('video')).toBeVisible();
+  await page.getByRole('button', { name: 'Minimise Test card' }).click();
+  await page.getByRole('button', { name: 'Close Feed applet' }).click();
+  await expect(page.getByRole('region', { name: 'Feed applet window' })).toHaveCount(0);
+  // The applet's own radio played in its frame and went with it; what the shell played is kept, detached from the applet.
+  await expect(row(page, 'Own radio')).toHaveCount(0);
+  await expect(row(page, 'Morning tone')).toHaveAttribute('data-status', 'playing');
+  await expect(row(page, 'Morning tone')).toHaveAttribute('data-detached', 'true');
+  await expect(row(page, 'Morning tone')).toContainText('Test signal · Feed applet (closed) · Playing');
+  await row(page, 'Test card').getByRole('button', { name: 'Show' }).click();
+  await expect(video.locator('video')).toBeVisible();
+  await advances(page, '[aria-label="Test card window"] video');
+  await proof(page, '24-applet-closed-media-keeps-playing');
+
+  await row(page, 'Morning tone').getByRole('button', { name: 'Pause Morning tone' }).click();
+  await expect(row(page, 'Morning tone')).toHaveAttribute('data-status', 'paused');
+  await row(page, 'Morning tone').getByRole('button', { name: 'End Morning tone' }).click();
+  await expect(row(page, 'Morning tone')).toHaveCount(0);
+  await video.getByRole('button', { name: 'Close Test card' }).click();
+  await expect(player(page)).toHaveCount(0);
+});
+
+test('with Pause, what the shell plays is kept paused when its applet closes, ready to play on', async ({ page }) => {
+  const frame = await open(page);
+  await choose(page, 'When its applet closes', 'Pause');
+  await frame.locator('#tone').click();
+  await expect(row(page, 'Morning tone')).toHaveAttribute('data-status', 'playing');
+  await page.getByRole('button', { name: 'Close Feed applet' }).click();
+  await expect(row(page, 'Morning tone')).toHaveAttribute('data-status', 'paused');
+  await expect(row(page, 'Morning tone')).toContainText('Feed applet (closed)');
+  await proof(page, '25-applet-closed-media-paused');
+  await row(page, 'Morning tone').getByRole('button', { name: 'Play Morning tone' }).click();
+  await expect(row(page, 'Morning tone')).toHaveAttribute('data-status', 'playing');
+});
+
 test('the Media section of Settings offers every choice, and keeps it', async ({ page }) => {
   await signIn(page);
   const settings = await openSettings(page, 'Media');
-  for (const group of ['Playing at once', 'When another starts', 'Videos', 'Hidden windows', 'Starting on its own']) {
+  for (const group of ['Playing at once', 'When another starts', 'Videos', 'Hidden windows', 'Starting on its own', 'When its applet closes']) {
     await expect(settings.getByRole('group', { name: group })).toBeVisible();
   }
   await expect(settings.getByRole('radio', { name: 'One at a time (default)' })).toBeChecked();

@@ -35,6 +35,7 @@ Feature: How the shell's player words media
     And a "paused" session by "" from "Radio" reads "Radio · Paused"
     And a "rewinding" session by "" from "Radio" reads "Radio · Paused"
     And a session with no state from "Radio" reads "Radio · Paused"
+    And a "playing" session from "Radio" played on after it closed reads "Radio (closed) · Playing"
 
   Scenario: the main button pauses what is playing or loading
     Then a "playing" session shows the pause button
@@ -47,8 +48,8 @@ Feature: How the shell's player words media
     And the window "settings" shows no session
 
   Scenario: the settings section asks about an earlier session only while one plays at a time
-    Then with "one" at once the media settings ask "Playing at once,When another starts,Videos,Hidden windows,Starting on its own"
-    And with "many" at once the media settings ask "Playing at once,Videos,Hidden windows,Starting on its own"
+    Then with "one" at once the media settings ask "Playing at once,When another starts,Videos,Hidden windows,Starting on its own,When its applet closes"
+    And with "many" at once the media settings ask "Playing at once,Videos,Hidden windows,Starting on its own,When its applet closes"
 
   Scenario: the full-screen button says what it does
     Then the full-screen button reads "Full screen" outside full screen

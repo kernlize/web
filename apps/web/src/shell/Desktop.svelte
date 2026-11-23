@@ -63,7 +63,13 @@
   $effect(() => media.stop);
   const mediaSettings = observe(kernl.media.settings$, kernl.media.settings());
   $effect(() => mediaSettings.stop);
-  const appletOf = (windowId: string): string => windows.get(windowId)?.plan.summary.title ?? 'An applet';
+  // Remembered past the window: what the shell plays on after an applet closes still says whose it was (D-061).
+  const appletNames = new Map<string, string>();
+  function appletOf(windowId: string): string {
+    const title = windows.get(windowId)?.plan.summary.title;
+    if (title) appletNames.set(windowId, title);
+    return appletNames.get(windowId) ?? 'An applet';
+  }
 
   // A video the shell plays has a window of its own when the person chose that (D-061). Closing the window ends it.
   const windowedVideos = $derived(mediaSettings.value.video === 'window' ? media.value.filter((item) => item.video) : []);
