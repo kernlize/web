@@ -96,6 +96,7 @@ Feature: Modules
         | needs-clock      | invalid:module-missing:clock    |
         | theme,theme      | invalid:module-duplicate:theme  |
         | needs-directory  | invalid:module-missing:directory |
+        | needs-cache      | invalid:module-missing:cache     |
         | profiles         | invalid:module-reserved:profiles |
         | grants           | invalid:module-reserved:grants  |
         | needs-clock,clock | invalid:module-order:clock     |

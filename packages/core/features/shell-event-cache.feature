@@ -47,3 +47,21 @@ Feature: The shell's event cache
     And a kernl shell whose event cache is that database, wrapped with fromEventDatabase
     When the shell logs in read-only as that fresh key
     Then the shell session label eventually is "From the host's database"
+
+  Scenario: a host that names its own modules plugs the cache in as a module
+    Given a kernl host over empty storage
+    And a fake applesauce pool
+    And a kernl shell whose cache module holds a profile named "Through the module" for a fresh key
+    Then the shell has a "cache" member
+    When the shell logs in read-only as that fresh key
+    Then the shell session label eventually is "Through the module"
+    And the shell's event cache closes when the shell is destroyed
+
+  Scenario: without the cache module, the account is named from the network
+    Given a kernl host over empty storage
+    And a fake applesauce pool serving a signed manifest for "chat" requiring "relay"
+    And the fake pool serves a profile named "From the network" for a fresh key
+    And a kernl shell over that host and pool with modules "theme,social"
+    Then the shell has no "cache" member
+    When the shell logs in read-only as that fresh key
+    Then the shell session label eventually is "From the network"
