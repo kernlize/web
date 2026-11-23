@@ -29,6 +29,7 @@ import type { LoadCatalogOptions } from './catalog/fetch.js';
 import type { HandlerDefaults } from './intents/defaults.js';
 import type { InstalledApplet } from './intents/installed.js';
 import type { ShortcutKey, ShortcutSettings } from './keys/shortcuts.js';
+import type { AnyKernlModule } from './modules/module.js';
 
 
 /** The two values an applet's grants are keyed on. Both come from verification, never from the applet. */
@@ -453,7 +454,7 @@ export interface KernlOptions {
    * inside kernl instead of handing off to an app on the device (D-017).
    */
   readonly torrent?: TorrentBackend;
-  /** Theme pushed to applets that hold `theme:read`. */
+  /** Theme pushed to applets that hold `theme:read`. Read only when `modules` is left out; otherwise pass it to `themeModule`. */
   readonly theme?: Record<string, unknown>;
   /** Backends for the messaging providers; absent ones stay unavailable. */
   readonly messagingBackends?: MessagingBackendFactories;
@@ -461,6 +462,12 @@ export interface KernlOptions {
   readonly artifactCache?: () => Promise<NappletArtifactCache | undefined>;
   /** Opens the event cache, such as `() => openEventCache(defaultWebCacheAdapters())` from `@kernlize/core/cache`. Without one the shell keeps events in memory only (D-030). */
   readonly eventCache?: EventCacheOpener;
+  /**
+   * The opinions this shell loads (D-061). `kernlModules()` by default; a module left out is not
+   * offered to applets. Fixed once the shell is composed, because the firewall admits an applet's
+   * domains before its code runs (D-056).
+   */
+  readonly modules?: readonly AnyKernlModule[];
   /** Applets that come with the host, opened by `kernl:<id>` without a lookup. */
   readonly builtins?: readonly BuiltinApplet[];
   /** How intent delivery waits for a target to come up; `DELIVERY_RETRY` by default. */

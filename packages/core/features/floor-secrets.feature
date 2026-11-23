@@ -7,8 +7,10 @@ Feature: Floor: secrets stay out of what the shell reports, whatever modules are
     Given a kernl host over empty storage
     And a fake applesauce pool serving a signed manifest for "chat" requiring "relay"
 
-  Scenario: a change the person is asked about leaves no secret in any report
-    Given a kernl shell over that host and pool
+  Scenario Outline: a change the person is asked about leaves no secret in any report
+    Given the shell loads <modules> modules
+    And a kernl shell over that host and pool
+    And the shell <theme> "theme"
     And the shell's traffic is recorded
     And the shell is signed in
     And a mounted applet granted "relay" that has said hello
@@ -18,11 +20,23 @@ Feature: Floor: secrets stay out of what the shell reports, whatever modules are
     Then the applet's publish failed with "denied:consent"
     And nothing the shell reported holds the signed-in key
 
-  Scenario: a note signed for an applet leaves no secret in any report
-    Given a kernl shell over that host and pool
+    Examples:
+      | modules | theme          |
+      | kernl's | offers         |
+      | no      | does not offer |
+
+  Scenario Outline: a note signed for an applet leaves no secret in any report
+    Given the shell loads <modules> modules
+    And a kernl shell over that host and pool
+    And the shell <theme> "theme"
     And the shell's traffic is recorded
     And the shell is signed in
     And a mounted applet granted "relay" that has said hello
     When the applet publishes a kind 1 event with content 'hello' over its port
     Then the applet's publish succeeded
     And nothing the shell reported holds the signed-in key
+
+    Examples:
+      | modules | theme          |
+      | kernl's | offers         |
+      | no      | does not offer |

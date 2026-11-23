@@ -83,6 +83,27 @@ export function lookupRelaysOf(config: ReturnType<RelayTiers['get']>): string[] 
 }
 
 /**
+ * Load a replaceable event into the store from the cache and the lookup relays, so a caller can
+ * then read it from the store. A miss or a network failure leaves the store as it was.
+ *
+ * @param loader - The shell's replaceable loader.
+ * @param tiers - The relay tiers the lookup relays come from.
+ * @param pointer - The kind, author and, for an addressable event, its identifier.
+ * @returns Resolves when the load is over, whatever came of it; never rejects.
+ * @example
+ * ```ts
+ * await loadReplaceableQuietly(loader, tiers, { kind: 3, pubkey });
+ * store.getReplaceable(3, pubkey);
+ * ```
+ */
+export function loadReplaceableQuietly(loader: AddressPointerLoader, tiers: Pick<RelayTiers, 'get'>, pointer: { readonly kind: number; readonly pubkey: string; readonly identifier?: string }): Promise<void> {
+  return lastValueFrom(loader({ ...pointer, relays: lookupRelaysOf(tiers.get()) }), { defaultValue: undefined }).then(
+    () => undefined,
+    () => undefined,
+  );
+}
+
+/**
  * The applesauce address loader kernl uses for replaceable and addressable
  * events the store does not hold: it asks the pointer's relays, then the
  * discovery and general tiers, and adds what it finds to the store.

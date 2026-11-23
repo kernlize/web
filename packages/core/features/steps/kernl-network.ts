@@ -97,6 +97,17 @@ When('the person answers no to the follow', async (world: CoreWorld) => {
   await settle();
 });
 
+When('the person answers yes to the follow', async (world: CoreWorld) => {
+  k(world).record.prompts.at(-1)?.resolve(true);
+  await settle();
+});
+
+Then('the applet is told its follow succeeded', async (world: CoreWorld) => {
+  await vi.waitFor(() => expect(k(world).received.some((message) => message.type === 'common.follow.result')).toBe(true), { timeout: 3000 });
+  const reply = k(world).received.find((message) => message.type === 'common.follow.result') as { ok?: boolean; result?: { ok: boolean } };
+  expect(reply.result ?? reply).toMatchObject({ ok: true });
+});
+
 Then('the applet is told its follow failed with {string}', async (world: CoreWorld, error: string) => {
   await vi.waitFor(() => expect(k(world).received.some((message) => message.type === 'common.follow.result')).toBe(true), { timeout: 3000 });
   const reply = k(world).received.find((message) => message.type === 'common.follow.result') as { ok?: boolean; error?: string; result?: { ok: boolean; error?: string } };

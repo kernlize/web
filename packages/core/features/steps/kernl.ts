@@ -92,10 +92,16 @@ export function blobFetcher(world: CoreWorld): Pick<KernlHost, 'fetchBlob'> {
   };
 }
 
+/** The module list a scenario chose with "the shell loads … modules", or kernl's own when it chose none. */
+export function modulesOf(world: CoreWorld): Pick<KernlOptions, 'modules'> {
+  const modules = scratch(world).modules as KernlOptions['modules'];
+  return modules ? { modules } : {};
+}
+
 export function boot(world: CoreWorld, options: Partial<KernlOptions> = {}, hostExtra: Partial<KernlHost> = {}): void {
   const record: HostRecord = { prompts: [], notices: [], links: [], revoked: [], stops: [], blobFetches: 0, cacheOpens: 0 };
   const host = makeHost(world, record, hostExtra);
-  const kernl = createKernl({ host, pool: scratch(world).pool, ...options });
+  const kernl = createKernl({ host, pool: scratch(world).pool, ...modulesOf(world), ...options });
   const sessions: Array<Session | null> = [];
   const guardEvents: GuardEvent[] = [];
   const profiles: GuardProfile[] = [];
@@ -260,7 +266,7 @@ Then('the supplied artifact cache was consulted', (world: CoreWorld) => {
 Given('a kernl shell over that host without a pool', (world: CoreWorld) => {
   const record: HostRecord = { prompts: [], notices: [], links: [], revoked: [], stops: [], blobFetches: 0, cacheOpens: 0 };
   const host = makeHost(world, record);
-  const kernl = createKernl({ host });
+  const kernl = createKernl({ host, ...modulesOf(world) });
   scratch(world).kernl = { kernl, host, record, sessions: [], guardEvents: [], profiles: [], received: [], bridgeCalls: [] } satisfies KernlScratch;
 });
 

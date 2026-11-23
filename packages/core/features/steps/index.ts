@@ -66,3 +66,4 @@ import './firewall.js';
 import './firewall-adapters.js';
 import './rogue-window.js';
 import './floor.js';
+import './modules.js';

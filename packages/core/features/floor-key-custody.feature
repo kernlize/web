@@ -19,3 +19,21 @@ Feature: Floor: keys stay inside signers, whatever modules are loaded
     When the shell adds a throwaway identity and makes it active
     Then the wrapped signer signs a kind 1 event for the active pubkey
     And storage key "kernl:accounts:v1" lists 0 accounts of type "throwaway"
+
+  Scenario Outline: an applet granted the identity is told the key's public half and nothing more
+    Given the shell loads <modules> modules
+    And a kernl host over empty storage
+    And a fake applesauce pool serving a signed manifest for "chat" requiring "relay"
+    And a kernl shell over that host and pool
+    And the shell <theme> "theme"
+    And the shell's traffic is recorded
+    And the shell is signed in
+    And a mounted applet granted "identity" that has said hello
+    When the applet asks "identity.getPublicKey" over its port
+    Then the applet received a "identity.getPublicKey.result"
+    And nothing the shell reported holds the signed-in key
+
+    Examples:
+      | modules | theme          |
+      | kernl's | offers         |
+      | no      | does not offer |

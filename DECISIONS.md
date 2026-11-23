@@ -986,6 +986,7 @@ Each of `packages/core/src` is assigned a level. NAP domains are the registry ke
 | `keys/` | default | `keys` | the shortcuts |
 | `intents/`, `kernl-intents.ts` | default | `intent` | the retry policy |
 | `bridges/` and `resource` | default | `resource` | |
+| `media/` | default | `media` | the person's media settings (D-063) |
 | `downloads/`, `kernl-downloads.ts` | default | `torrent`, `nzb`, `soulseek` | the download programs (D-050, D-053) |
 | `multiplayer/` | default | `cvm`, `webrtc` | the ICE servers and relays |
 | `messaging/` | default | `dm` | the providers |
@@ -1005,6 +1006,26 @@ The composition files become the kernel's composition and the preset; they hold 
 
 **Reversal cost.** Low now: one entry, two SOUL passages and eleven features. It rises with each phase that moves code behind the module host.
 
+## D-062 · Modules are composed once, through a context that holds no signer
+
+**Context.** D-061 made every opinion outside the kernel a module. #70 asks for the contract, a module host in `createKernl`, and the first two modules, theme and social, with nothing a current caller uses changing. kehto offers `theme` natively, whether or not a service answers it. The social actions signed with the account's signer directly, after the consent gate. Profiles and people, which the social actions need, are not modules yet.
+
+**Decision.**
+
+- **The contract is `KernlModule`.** An id, optional `requires`, and `setup(context)` returning `services`, `extensions`, `api` and `dispose`. It generalises the download programs' composition (`services` merged into the registry, `extensions` handed to planning and to the offered domains); a module's `extensions` meet the same `supportsDomainBindings` gate.
+- **Checked before anything is built.** A repeated id, an id the kernel uses (`profiles`, `people`), an unmet requirement and one listed after the module that needs it refuse the shell before a pool or store exists: `invalid:module-duplicate:<id>`, `invalid:module-reserved:<id>`, `invalid:module-missing:<id>`, `invalid:module-order:<id>`. Modules are set up in list order, so a requirement comes first.
+- **A module cannot answer a kernel domain.** `KERNEL_DOMAINS` lists what the kernel answers whatever is loaded: kehto's own `shell`, `storage` and `inc`, which never appear in the service registry, the floor services, and the domains kernl answers itself until they become modules. A module answering one is refused while it is set up (`invalid:module-domain:<domain>`). A refusal at setup closes the modules already set up and what the shell had opened, its own pool included. An api id that clashes with a member of the shell is refused once the shell exists (`invalid:module-reserved:<id>`), and the shell is destroyed first.
+- **The context holds no signer.** #70 lists the account manager among what a module is handed. It is not: `accounts.active.signer` is a raw signer. A module gets `identity` (the active pubkey, its changes, whether it can sign) and `sign(windowId, template)`, which refuses `denied:read-only` before asking anyone and otherwise passes the shell's consent gate. `createCommonActions` takes either form, so its existing callers are unchanged.
+- **Profiles and people are kernel parts for now.** `use('profiles')` and `use('people')` return the shell's own, typed as `Kernl['profiles']` and `Kernl['people']`, and a module may `require` them. When they become modules they keep the ids, so a module that uses them does not change. The replaceable loader stays in the kernel, behind `loadReplaceable`, because the consent gate's before lookup needs it whatever modules are loaded.
+- **A native domain no module answers is withheld.** `MODULE_NATIVE_DOMAINS` lists the domains kehto offers natively that kernl answers through a module: `theme`. One the module set leaves unanswered goes to kehto as `capabilities.disabledDomains` and to the grants layer as `unanswered`, which leaves it out of the baseline (D-061, question 4).
+- **Dispose is synchronous and forgiving.** `destroy()` stays synchronous. Modules close last loaded first; one that throws or rejects does not keep the others open.
+- **The type follows the list.** `createKernl({ host })` returns exactly `Kernl`; with `modules: M` it returns `Kernl & ModuleApis<M>`. A module whose id is only known as `string` adds nothing to the type. Core's `type-check` now also checks `src/**/*.test.ts`, where the type assertions live.
+- **The host's theme goes to the module.** `KernlOptions.theme` is read only when `modules` is left out; a host that names its modules passes the theme to `themeModule`.
+
+**Consequences.** `KernlOptions.modules` and the module exports are new; nothing is removed. A shell without the theme module answers no `theme.get`, and an applet that requires `theme` plans with it missing, which the store reads as incompatible (D-059). `KernlServiceDeps.theme` accepts `null`, meaning the theme is a module's. Every floor feature from D-061 now runs twice, with kernl's modules and with none.
+
+**Reversal cost.** Low. The host is two files under `modules/`; removing it means registering theme and common in `createKernlServices` again.
+
 ## D-063 · The shell plays media for applets under six settings the person chooses
 
 **Context.** An applet's frame cannot fetch or play media (`media-src 'none'`). NAP-MEDIA lets it ask the shell to play a source, or tell the shell about media it plays itself, and leaves the shell to decide audio policy. kehto's `createMediaService` keeps the sessions, plays a source through `createBrowserMediaPlayback` and mirrors one session to the browser's media controls, but it never stops one session for another, and every command it sends is stamped `reason: "user"`.
@@ -1018,6 +1039,7 @@ The composition files become the kernel's composition and the preset; they hold 
 - **An applet's own media obeys or ends.** It is asked to pause when another takes over or its window is hidden. If it did not say it can pause, it is ended with `policy`, as NAP-MEDIA requires.
 - **One player, at the bottom of the desktop.** One at a time shows the current session in full and lists the rest under "N more". Several at once gives every session its own row. A video in its own window is a shell-drawn window, placed by the layout; closing it ends the session.
 - **Full screen is the shell's.** A video in its window or docked in the player has **Full screen**, which fills the screen with the shell's own box around it, controls included. NAP-MEDIA gives an applet no way to ask, and the frame is never what fills the screen.
+- **Media is a default part, answered by the kernel for now.** Under D-061 it is a default, not floor. Until it moves behind the module host it is in `KERNEL_DOMAINS` with the other domains kernl answers itself, so no module can answer `media` in its place (D-062).
 - **An applet cannot start around the settings.** Its own `play` on a session the shell plays is dropped under **Wait for play** unless its window is the focused one, and under **Pause until shown** while its window is hidden. Other commands always pass.
 - **A hidden window's sessions stay reachable.** The guard holds a hidden window's messages until it is shown (D-020). `media.state`, `media.capabilities`, `media.command`, `media.session.update` and `media.session.destroy` are classed `control`, so a minimised applet's player is still seen and stopped; `media.session.create` is not, because it makes the shell fetch.
 - **What the shell plays can outlive its applet.** When its applet closes keeps it playing (default), keeps it paused, or stops it. NAP-MEDIA allows shell-promoted persistent playback if the session is detached before the endpoint goes and the person can stop it. kehto retires a closed window's sessions and destroys their playback, so kernl hands kehto a wrapper whose `destroy` spares a playback it adopted a moment before; the kept session gets the id `<window>/<session>`, which no applet can name, is listed as `detached`, and still takes part in one at a time. Media an applet plays in its own frame cannot outlive it.

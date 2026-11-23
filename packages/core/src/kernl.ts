@@ -16,7 +16,7 @@ import { discoverToolFamilies } from './multiplayer/tool-discovery.js';
 import { createKernlAccounts } from './applesauce/accounts.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
 import type { ProfileCard, Profiles } from './profiles/profiles.js';
-import { commonActionsFor, createKernlNetwork } from './kernl-network.js';
+import { createKernlNetwork } from './kernl-network.js';
 import { createAppletConfig } from './applets/applet-config.js';
 import { askUploadConsent, createBlossomUploader, type BlossomUploaderOptions } from './files/uploader.js';
 import type { Uploader } from '@kehto/services';
@@ -46,6 +46,10 @@ import { createShellAdapter } from './kernl-adapter.js';
 import { createAppletLifecycle, resolveWindow } from './kernl-lifecycle.js';
 import { createKernlIntents } from './kernl-intents.js';
 import { loadCatalog, streamCatalog, type LoadCatalogOptions } from './catalog/fetch.js';
+import { checkModules, mergeExtensions, setupModules, type ComposedModules, type KernelContextParts } from './modules/compose.js';
+import { kernlModules } from './modules/default.js';
+import type { AnyKernlModule, ModuleApis } from './modules/module.js';
+import { supportsDomainBindings } from './downloads/bindings.js';
 
 /**
  * Describe an account as a session the UI can show.
@@ -260,6 +264,7 @@ interface ShellParts {
   readonly intents: { close(): void };
   readonly dm: { dispose(): void };
   readonly downloads: { dispose(): void };
+  readonly modules: { dispose(): void };
   readonly keys: { destroy(): void };
   readonly media: { destroy(): void };
   readonly bridge: ShellBridge;
@@ -272,6 +277,7 @@ interface ShellParts {
 /** Close every applet, then everything the shell opened, the parts it was handed excepted. */
 function tearDown(parts: ShellParts): void {
   for (const handle of parts.handles.values()) handle.close();
+  parts.modules.dispose();
   parts.subscriptions.unsubscribe();
   parts.destroyed$.next();
   parts.network.directory.stop();
@@ -319,6 +325,68 @@ function catalogFor(pool: RelayPool, tiers: RelayTiers, cached: Required<Pick<Lo
   };
 }
 
+interface ServiceParts {
+  readonly pool: RelayPool;
+  readonly tiers: RelayTiers;
+  readonly eventStore: EventStore;
+  readonly adapter: () => ShellAdapter;
+  readonly consent: KernlServiceDeps['consent'];
+  readonly bridges: Kernl['bridges'];
+  readonly messaging: MessagingRegistry;
+  readonly network: { readonly profiles: Profiles; readonly people: Kernl['people']; readonly files: AccountFileServers; readonly signer: BlossomUploaderOptions['signer'] };
+  readonly handles: ReadonlyMap<string, MountedApplet>;
+  readonly pipeline: GuardPipeline;
+  readonly meeting: ReturnType<typeof meetingFor>['deps'];
+}
+
+/** kehto's services over the kernel's parts; `theme` and `common` are left to modules (D-062). */
+function servicesFor(options: KernlOptions, parts: ServiceParts): ReturnType<typeof createKernlServices> {
+  const { host } = options;
+  const { handles, network } = parts;
+  const identityOf = (windowId: string): AppletIdentity | undefined => handles.get(windowId)?.summary.identity;
+  return createKernlServices({
+    pool: parts.pool,
+    tiers: parts.tiers,
+    eventStore: parts.eventStore,
+    auth: { getSigner: () => parts.adapter().auth.getSigner(), getUserPubkey: () => parts.adapter().auth.getUserPubkey() },
+    consent: parts.consent,
+    host,
+    bridges: parts.bridges,
+    messaging: parts.messaging,
+    profiles: network.profiles,
+    people: network.people,
+    ...(host.presentSettings ? { config: createAppletConfig({ storage: host.storage, appletOf: (windowId) => appletOf(handles, windowId), present: host.presentSettings.bind(host) }) } : {}),
+    uploader: uploaderFor(host, network.files, network.signer, identityOf),
+    theme: null,
+    ...parts.meeting,
+    shortcuts: { ...options.shortcuts, isFocused: (windowId) => parts.pipeline.getVisibility(windowId).focused },
+    resolveIdentity(windowId) {
+      const identity = identityOf(windowId);
+      return identity ? { dTag: identity.dTag, aggregateHash: identity.hash } : null;
+    },
+  });
+}
+
+/** Set the modules up, or close what the shell had already opened and rethrow why they were refused. */
+function composeOrClose(modules: readonly AnyKernlModule[], parts: KernelContextParts, close: () => void): ComposedModules {
+  try {
+    return setupModules(modules, parts, supportsDomainBindings());
+  } catch (error) {
+    close();
+    throw error;
+  }
+}
+
+/** The shell with each module's api as `kernl[id]`; an id the shell already uses is refused. */
+function withApis<K extends Kernl>(shell: K, composed: ComposedModules): K {
+  const reserved = Object.keys(composed.apis).find((id) => id in shell);
+  if (reserved !== undefined) {
+    shell.destroy();
+    throw new Error(`invalid:module-reserved:${reserved}`);
+  }
+  return Object.assign(shell, composed.apis);
+}
+
 /**
  * Compose the shell: one `EventStore`, one `RelayPool`, one `AccountManager`,
  * the relay tiers, the guard pipeline, the grants layer, the messaging and
@@ -341,8 +409,12 @@ function catalogFor(pool: RelayPool, tiers: RelayTiers, cached: Required<Pick<Lo
  * const handle = kernl.mount(await kernl.plan(summary), iframe);
  * ```
  */
+export function createKernl<const M extends readonly AnyKernlModule[]>(options: KernlOptions & { readonly modules: M }): Kernl & ModuleApis<M>;
+export function createKernl(options: KernlOptions): Kernl;
 export function createKernl(options: KernlOptions): Kernl {
   const { host } = options;
+  const modules = options.modules ?? kernlModules(isTheme(options.theme) ? { theme: options.theme } : {});
+  checkModules(modules, []);
   const ownsPool = !options.pool;
   const ownsMessaging = !options.messaging;
   const eventStore = options.eventStore ?? new EventStore();
@@ -365,33 +437,22 @@ export function createKernl(options: KernlOptions): Kernl {
   const { eventCache, replaceableLoader, profiles, people, directory, mailboxes, files, signer } = createKernlNetwork(options, { eventStore, pool, tiers, accounts, destroyed$ });
   const lookupBefore = lookupReplaceable(eventStore, { loader: replaceableLoader, relays: () => [...tiers.get().outbox, ...tiers.get().discovery] });
   const consent = createSigningConsent({ host, lookupBefore, resolveApplet: identityOf, pubkey: () => accounts.active?.pubkey });
+  const composed = composeOrClose(modules, { eventStore, pool, tiers, storage: host.storage, accounts, consent, network: { profiles, people, replaceableLoader }, appletOf: (windowId) => handles.get(windowId)?.summary }, () => {
+    destroyed$.next();
+    directory.stop();
+    void eventCache.close();
+    traffic.close();
+    if (ownsMessaging) messaging.close();
+    if (ownsPool) pool.close();
+  });
   const meeting = meetingFor(options, { pool, tiers, appletOf: (windowId) => handles.get(windowId)?.summary, grants: () => grants });
   const downloads = downloadsFor(options, bridges, identityOf, (windowId) => handles.get(windowId)?.summary.manifest.catalogId);
-  const services = createKernlServices({
-    pool,
-    tiers,
-    eventStore,
-    auth: { getSigner: () => adapter.auth.getSigner(), getUserPubkey: () => adapter.auth.getUserPubkey() },
-    consent,
-    host,
-    bridges,
-    messaging,
-    profiles,
-    people,
-    ...(host.presentSettings ? { config: createAppletConfig({ storage: host.storage, appletOf: (windowId) => appletOf(handles, windowId), present: host.presentSettings.bind(host) }) } : {}),
-    common: commonActionsFor({ eventStore, pool, tiers, accounts }, { profiles, people, replaceableLoader, signer }, consent),
-    uploader: uploaderFor(host, files, signer, identityOf),
-    ...(isTheme(options.theme) ? { theme: options.theme } : {}),
-    ...meeting.deps,
-    shortcuts: { ...options.shortcuts, isFocused: (windowId) => pipeline.getVisibility(windowId).focused },
-    resolveIdentity(windowId) {
-      const identity = identityOf(windowId);
-      return identity ? { dTag: identity.dTag, aggregateHash: identity.hash } : null;
-    },
-  });
+  const services = servicesFor(options, { pool, tiers, eventStore, adapter: () => adapter, consent, bridges, messaging, network: { profiles, people, files, signer }, handles, pipeline, meeting: meeting.deps });
 
   const intents = createKernlIntents({ host, pool, tiers, accounts, handles, ...(options.intentRetry ? { retry: options.intentRetry } : {}) });
   Object.assign(services.registry, { intent: intents.handler }, downloads.services);
+  Object.assign(services.registry, composed.services);
+  const extensions = mergeExtensions([downloads.extensions, composed.extensions]);
   const guarding = createShellFirewall({ host, pipeline, handles, guardEvents$ });
   const adapter: ShellAdapter = createShellAdapter({
     pool,
@@ -400,6 +461,7 @@ export function createKernl(options: KernlOptions): Kernl {
     consent,
     services: services.registry,
     resolveEnvironment: (identity, available) => createEnvironmentResolver(grants)(identity, available),
+    disabledDomains: composed.unanswered,
     onNappletRevoked: ({ windowId, reason, detail }) => handles.get(windowId)?.revoked(reason, { detail }),
     onNappletMessage: (windowId, message) => traffic.fromApplet(windowId, 'port', message),
     filterNappletMessage: (windowId, message) => pipeline.observe(windowId, identityOf(windowId)?.dTag ?? 'unknown', message),
@@ -408,7 +470,7 @@ export function createKernl(options: KernlOptions): Kernl {
     ...(host.onShortcut ? { onShortcut: host.onShortcut.bind(host) } : {}),
   });
   const bridge = createShellBridge(adapter);
-  grants = createGrants({ acl: bridge.runtime.aclState, storage: host.storage, availableDomains: () => [...buildShellCapabilities(adapter).domains, ...(downloads.extensions?.domains ?? [])] });
+  grants = createGrants({ acl: bridge.runtime.aclState, storage: host.storage, availableDomains: () => [...buildShellCapabilities(adapter).domains, ...(extensions?.domains ?? [])], unanswered: () => composed.unanswered });
   bridge.registerConsentHandler(createConsentHandler(host, lookupBefore, identityOf));
 
   const { firewall, admissions } = guarding.attach(bridge.runtime);
@@ -431,10 +493,10 @@ export function createKernl(options: KernlOptions): Kernl {
     onVisibility: (windowId, visibility) => services.media.setWindowVisible(windowId, visibility.visible),
     openCache: options.artifactCache ?? openDefaultArtifactCache,
     fetchBlob: host.fetchBlob ? host.fetchBlob.bind(host) : defaultFetchBlob,
-    builtins: options.builtins ?? [], ...(downloads.extensions ? { extensions: downloads.extensions } : {}),
+    builtins: options.builtins ?? [], ...(extensions ? { extensions } : {}),
   });
 
-  return {
+  return withApis({
     accounts,
     eventStore,
     pool,
@@ -469,6 +531,6 @@ export function createKernl(options: KernlOptions): Kernl {
       lifecycle.handleWindowMessage(event);
     },
     destroy: () =>
-      tearDown({ traffic, handles, subscriptions, destroyed$, network: { directory, eventCache }, intents, dm: services.dm, downloads, keys: services.keys, media: services.media, bridge, ...(ownsMessaging ? { messaging } : {}), ...(ownsPool ? { pool } : {}) }),
-  };
+      tearDown({ traffic, handles, subscriptions, destroyed$, network: { directory, eventCache }, intents, dm: services.dm, downloads, modules: composed, keys: services.keys, media: services.media, bridge, ...(ownsMessaging ? { messaging } : {}), ...(ownsPool ? { pool } : {}) }),
+  }, composed);
 }

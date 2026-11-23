@@ -1,4 +1,4 @@
-import { lastValueFrom, map, takeUntil, type Observable } from 'rxjs';
+import { map, takeUntil, type Observable } from 'rxjs';
 import type { EventStore } from 'applesauce-core';
 import type { RelayPool } from 'applesauce-relay';
 import type { AccountManager } from 'applesauce-accounts';
@@ -7,7 +7,7 @@ import type { AddressPointerLoader } from 'applesauce-loaders/loaders';
 import type { KernlOptions, RelayTiers } from './types.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
 import { createPeople, type People } from './people/person.js';
-import { createReplaceableLoader, lookupRelaysOf } from './applesauce/identity-providers.js';
+import { createReplaceableLoader, loadReplaceableQuietly, lookupRelaysOf } from './applesauce/identity-providers.js';
 import { connectEventCache, type ConnectedEventCache } from './cache/connect.js';
 import { createProfiles, type Profiles } from './profiles/profiles.js';
 import { createRelayDirectory, type RelayDirectory } from './relays/directory.js';
@@ -113,10 +113,6 @@ export function commonActionsFor(parts: Omit<KernlNetworkParts, 'destroyed$'>, n
     signer: network.signer,
     consent,
     publish: (event) => publishAccepted(pool, selectRelayTier(tiers, [{ kinds: [event.kind] }]), event),
-    loadFollows: (pubkey) =>
-      lastValueFrom(network.replaceableLoader({ kind: 3, pubkey, relays: lookupRelaysOf(tiers.get()) }), { defaultValue: undefined }).then(
-        () => undefined,
-        () => undefined,
-      ),
+    loadFollows: (pubkey) => loadReplaceableQuietly(network.replaceableLoader, tiers, { kind: 3, pubkey }),
   });
 }
