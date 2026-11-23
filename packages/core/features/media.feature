@@ -103,6 +103,26 @@ Feature: Media the shell plays for applets
       When the person presses "play" on "first.webm"
       Then session "first.webm" is "playing"
 
+    Scenario: an applet's own Play does not start a session the person has not
+      Given the person sets media "autoplay" to "block"
+      When window "w1" plays "first.webm"
+      And window "w1" presses its own "play" on "first.webm"
+      Then session "first.webm" is "paused"
+
+    Scenario: an applet's own Play counts while the person is working in it
+      Given the person sets media "autoplay" to "block"
+      And the person is working in window "w1"
+      When window "w1" plays "first.webm"
+      And window "w1" presses its own "play" on "first.webm"
+      Then session "first.webm" is "playing"
+
+    Scenario: an applet's own Pause always counts
+      Given the person sets media "autoplay" to "block"
+      When window "w1" plays "first.webm"
+      And the person presses "play" on "first.webm"
+      And window "w1" presses its own "pause" on "first.webm"
+      Then session "first.webm" is "paused"
+
   Rule: Hidden windows
 
     Scenario: a hidden window keeps playing by default
@@ -125,6 +145,30 @@ Feature: Media the shell plays for applets
       And the person presses "pause" on "first.webm"
       And window "w1" is shown
       Then session "first.webm" is "paused" because "user"
+
+    Scenario: a hidden applet cannot start what the shell paused
+      Given the person sets media "hidden" to "pause"
+      And the person is working in window "w1"
+      When window "w1" plays "first.webm"
+      And window "w1" is hidden
+      And window "w1" presses its own "play" on "first.webm"
+      Then session "first.webm" is "paused" because "focus-lost"
+
+    Scenario: a hidden applet may start media when the person lets hidden windows play
+      When window "w1" plays "first.webm"
+      And the person presses "pause" on "first.webm"
+      And window "w1" is hidden
+      And window "w1" presses its own "play" on "first.webm"
+      Then session "first.webm" is "playing"
+
+    Scenario: a closed window is no longer hidden
+      Given the person sets media "hidden" to "pause"
+      When window "w1" is hidden
+      And the applet in window "w1" is closed
+      And window "w1" plays "first.webm"
+      And the person presses "pause" on "first.webm"
+      And window "w1" presses its own "play" on "first.webm"
+      Then session "first.webm" is "playing"
 
     Scenario: an applet playing media itself is asked to pause and resume
       Given the person sets media "hidden" to "pause"

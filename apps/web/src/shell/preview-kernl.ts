@@ -501,7 +501,7 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
     intents: intents.intents,
     firewall,
     // The preview plays nothing: its applets have no runtime to ask, so only the settings are real.
-    media: createKernlMedia({ storage: host.storage }),
+    media: createKernlMedia({ storage: host.storage, isFocused: () => false }),
     session$,
     get session() {
       return session$.value;

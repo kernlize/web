@@ -398,7 +398,7 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
       }),
   });
   // Built when an applet first asks, so the core runs where there is no document to play in.
-  const media = createKernlMedia({ storage: deps.host.storage, playback: { open: (...args) => createBrowserMediaPlayback({ resource }).open(...args) } });
+  const media = createKernlMedia({ storage: deps.host.storage, playback: { open: (...args) => createBrowserMediaPlayback({ resource }).open(...args) }, isFocused: deps.shortcuts.isFocused });
 
   const registry: ServiceRegistry = {
     relay: createAppletRelayService(deps.pool, deps.tiers),

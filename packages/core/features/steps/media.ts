@@ -15,6 +15,8 @@ interface MediaScratch {
   readonly received: Map<string, Message[]>;
   /** Napplet-owned sessions and what each can do, so the stand-in applet obeys the shell. */
   readonly own: Map<string, readonly MediaAction[]>;
+  /** The window the person is working in. */
+  readonly focus: { window?: string };
 }
 
 const ALL: readonly MediaAction[] = ['play', 'pause', 'stop', 'seek', 'volume'];
@@ -54,8 +56,9 @@ function media(world: CoreWorld): MediaScratch {
 }
 
 function start(world: CoreWorld, storage: MemoryStorage, playback = true): void {
-  const created = createKernlMedia({ storage, hostBridge: SILENT_BRIDGE, ...(playback ? { playback: fakePlayback() } : {}) });
-  const value: MediaScratch = { storage, media: created, sessions: [], received: new Map(), own: new Map() };
+  const focus: MediaScratch['focus'] = {};
+  const created = createKernlMedia({ storage, hostBridge: SILENT_BRIDGE, isFocused: (windowId) => focus.window === windowId, ...(playback ? { playback: fakePlayback() } : {}) });
+  const value: MediaScratch = { storage, media: created, sessions: [], received: new Map(), own: new Map(), focus };
   created.sessions$.subscribe((sessions) => {
     value.sessions = sessions;
   });
@@ -113,7 +116,7 @@ Then('the media settings are {string}, {string}, {string}, {string} and {string}
 });
 
 Then('a media player over the same storage has settings {string}, {string}, {string}, {string} and {string}', (world: CoreWorld, a: string, b: string, c: string, d: string, e: string) => {
-  const again = createKernlMedia({ storage: media(world).storage, hostBridge: SILENT_BRIDGE });
+  const again = createKernlMedia({ storage: media(world).storage, hostBridge: SILENT_BRIDGE, isFocused: () => false });
   expect(settingsOf(again.settings())).toBe([a, b, c, d, e].join(','));
   again.destroy();
 });
@@ -218,4 +221,13 @@ Then('session {string} is not a video', (world: CoreWorld, name: string) => {
 
 Then('window {string} was not asked to {string} session {string}', (world: CoreWorld, windowId: string, action: string, name: string) => {
   expect(media(world).received.get(windowId)).not.toContainEqual(expect.objectContaining({ type: 'media.command', sessionId: name, action }));
+});
+
+Given('the person is working in window {string}', (world: CoreWorld, windowId: string) => {
+  media(world).focus.window = windowId;
+});
+
+When('window {string} presses its own {string} on {string}', async (world: CoreWorld, windowId: string, action: string, name: string) => {
+  deliver(media(world), windowId, { type: 'media.command', sessionId: name, action });
+  await settle();
 });

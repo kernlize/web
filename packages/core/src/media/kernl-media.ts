@@ -43,6 +43,8 @@ export interface KernlMediaOptions {
   readonly playback?: MediaPlaybackBackend;
   /** The operating system's media controls; the browser's by default. */
   readonly hostBridge?: HostMediaBridge;
+  /** Whether the person is working in an applet's window now. */
+  readonly isFocused: (windowId: string) => boolean;
 }
 
 type Send = (message: unknown) => void;
@@ -60,7 +62,7 @@ const ACTIVE = new Set(['playing', 'buffering']);
  * @returns The service and the player's view of it.
  * @example
  * ```ts
- * const media = createKernlMedia({ storage, playback: createBrowserMediaPlayback({ resource }) });
+ * const media = createKernlMedia({ storage, playback: createBrowserMediaPlayback({ resource }), isFocused: (windowId) => wm.isFocused(windowId) });
  * registry.media = media.handler;
  * media.sessions$.subscribe((sessions) => draw(sessions));
  * ```
@@ -71,6 +73,7 @@ export function createKernlMedia(options: KernlMediaOptions): KernlMedia {
   const playbacks = new WeakMap<object, MediaPlayback>();
   const sends = new Map<string, Send>();
   const pausedWhileHidden = new Set<string>();
+  const hiddenWindows = new Set<string>();
   let started: string[] = [];
   let statuses = new Map<string, string | undefined>();
 
@@ -142,14 +145,28 @@ export function createKernlMedia(options: KernlMediaOptions): KernlMedia {
 
   const unsubscribe = service.subscribe(observe);
 
+  /**
+   * An applet's own Play on a session the shell plays: the person's settings decide when media
+   * starts, so it counts only while they are working in the applet and can see it. Dropped
+   * silently, as NAP-MEDIA asks of a command the shell will not carry out.
+   */
+  function refusesPlay(windowId: string, message: unknown): boolean {
+    const { type, action } = message as { type?: unknown; action?: unknown };
+    if (type !== 'media.command' || action !== 'play') return false;
+    const { autoplay, hidden } = settings$.value;
+    return (hidden === 'pause' && hiddenWindows.has(windowId)) || (autoplay === 'block' && !options.isFocused(windowId));
+  }
+
   const handler: ServiceHandler = {
     ...service,
     handleMessage(windowId, message, send) {
       sends.set(windowId, send as Send);
+      if (refusesPlay(windowId, message)) return;
       service.handleMessage(windowId, message, send);
     },
     onWindowDestroyed(windowId) {
       sends.delete(windowId);
+      hiddenWindows.delete(windowId);
       service.onWindowDestroyed?.(windowId);
     },
   };
@@ -173,6 +190,8 @@ export function createKernlMedia(options: KernlMediaOptions): KernlMedia {
     end: (sessionId) => service.retire(sessionId, 'user'),
     element: (sessionId) => service.getElement(sessionId),
     setWindowVisible(windowId, visible) {
+      if (visible) hiddenWindows.delete(windowId);
+      else hiddenWindows.add(windowId);
       if (settings$.value.hidden !== 'pause') return;
       for (const session of service.getSessions()) {
         if (session.windowId !== windowId) continue;
