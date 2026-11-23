@@ -43,6 +43,7 @@ export const sidebar = [
     text: 'Concepts',
     items: [
       { text: 'Architecture', link: '/concepts/architecture' },
+      { text: 'Modules', link: '/concepts/modules' },
       { text: 'Guard', link: '/concepts/guard' },
       { text: 'Identity and grants', link: '/concepts/identity-and-grants' },
       { text: 'Messaging', link: '/concepts/messaging' },
