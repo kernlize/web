@@ -65,3 +65,4 @@ import './blossom-resources.js';
 import './firewall.js';
 import './firewall-adapters.js';
 import './rogue-window.js';
+import './floor.js';
