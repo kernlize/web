@@ -46,7 +46,7 @@ import { createShellAdapter } from './kernl-adapter.js';
 import { createAppletLifecycle, resolveWindow } from './kernl-lifecycle.js';
 import { createKernlIntents } from './kernl-intents.js';
 import { loadCatalog, streamCatalog, type LoadCatalogOptions } from './catalog/fetch.js';
-import { checkModules, mergeExtensions, setupModules, type ComposedModules } from './modules/compose.js';
+import { checkModules, mergeExtensions, setupModules, type ComposedModules, type KernelContextParts } from './modules/compose.js';
 import { kernlModules } from './modules/default.js';
 import type { AnyKernlModule, ModuleApis } from './modules/module.js';
 import { supportsDomainBindings } from './downloads/bindings.js';
@@ -365,10 +365,14 @@ function servicesFor(options: KernlOptions, parts: ServiceParts): ReturnType<typ
   });
 }
 
-/** A module may add domains, never answer one the kernel answers: a floor service is not replaceable (D-061). */
-function claimDomains(registry: object, composed: ComposedModules): void {
-  const taken = Object.keys(composed.services).find((domain) => domain in registry);
-  if (taken !== undefined) throw new Error(`invalid:module-domain:${taken}`);
+/** Set the modules up, or close what the shell had already opened and rethrow why they were refused. */
+function composeOrClose(modules: readonly AnyKernlModule[], parts: KernelContextParts, close: () => void): ComposedModules {
+  try {
+    return setupModules(modules, parts, supportsDomainBindings());
+  } catch (error) {
+    close();
+    throw error;
+  }
 }
 
 /** The shell with each module's api as `kernl[id]`; an id the shell already uses is refused. */
@@ -431,14 +435,20 @@ export function createKernl(options: KernlOptions): Kernl {
   const { eventCache, replaceableLoader, profiles, people, directory, mailboxes, files, signer } = createKernlNetwork(options, { eventStore, pool, tiers, accounts, destroyed$ });
   const lookupBefore = lookupReplaceable(eventStore, { loader: replaceableLoader, relays: () => [...tiers.get().outbox, ...tiers.get().discovery] });
   const consent = createSigningConsent({ host, lookupBefore, resolveApplet: identityOf, pubkey: () => accounts.active?.pubkey });
+  const composed = composeOrClose(modules, { eventStore, pool, tiers, storage: host.storage, accounts, consent, network: { profiles, people, replaceableLoader }, appletOf: (windowId) => handles.get(windowId)?.summary }, () => {
+    destroyed$.next();
+    directory.stop();
+    void eventCache.close();
+    traffic.close();
+    if (ownsMessaging) messaging.close();
+    if (ownsPool) pool.close();
+  });
   const meeting = meetingFor(options, { pool, tiers, appletOf: (windowId) => handles.get(windowId)?.summary, grants: () => grants });
   const downloads = downloadsFor(options, bridges, identityOf, (windowId) => handles.get(windowId)?.summary.manifest.catalogId);
-  const composed = setupModules(modules, { eventStore, pool, tiers, storage: host.storage, accounts, consent, network: { profiles, people, replaceableLoader }, appletOf: (windowId) => handles.get(windowId)?.summary }, supportsDomainBindings());
   const services = servicesFor(options, { pool, tiers, eventStore, adapter: () => adapter, consent, bridges, messaging, network: { profiles, people, files, signer }, handles, pipeline, meeting: meeting.deps });
 
   const intents = createKernlIntents({ host, pool, tiers, accounts, handles, ...(options.intentRetry ? { retry: options.intentRetry } : {}) });
   Object.assign(services.registry, { intent: intents.handler }, downloads.services);
-  claimDomains(services.registry, composed);
   Object.assign(services.registry, composed.services);
   const extensions = mergeExtensions([downloads.extensions, composed.extensions]);
   const guarding = createShellFirewall({ host, pipeline, handles, guardEvents$ });

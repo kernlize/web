@@ -1,7 +1,7 @@
 import { describe, expectTypeOf, it } from 'vitest';
 import { createKernl } from '../kernl.js';
 import type { Kernl, KernlOptions } from '../types.js';
-import type { KernlModule, ModuleApis } from './module.js';
+import type { AnyKernlModule, KernlModule, ModuleApis } from './module.js';
 
 type Clock = KernlModule<'clock', { now(): number }>;
 type Plain = KernlModule<'plain'>;
@@ -19,5 +19,9 @@ describe('the shell type follows the module list', () => {
     expectTypeOf<ModuleApis<[Clock, Plain]>>().toEqualTypeOf<{ readonly clock: { now(): number } }>();
     expectTypeOf<ReturnType<typeof withClock>>().toEqualTypeOf<Kernl & { readonly clock: { now(): number } }>();
     expectTypeOf<ReturnType<typeof withClock>>().not.toHaveProperty('plain');
+  });
+
+  it('adds nothing for a list whose ids are only known as strings', () => {
+    expectTypeOf<ModuleApis<AnyKernlModule[]>>().toEqualTypeOf<unknown>();
   });
 });

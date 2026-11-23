@@ -91,8 +91,8 @@ export interface KernlModule<Id extends string = string, Api = void> {
 /** A module of any id and api, as a list of them is typed. */
 export type AnyKernlModule = KernlModule<string, unknown>;
 
-/** The member one module adds to the shell, `{ [id]: api }`, or nothing for a module without an api. */
-export type ModuleApiEntry<M> = M extends KernlModule<infer Id, infer Api> ? ([Api] extends [void] ? never : { readonly [P in Id]: Api }) : never;
+/** The member one module adds to the shell, `{ [id]: api }`, or nothing for a module without an api or whose id is only known as `string`. */
+export type ModuleApiEntry<M> = M extends KernlModule<infer Id, infer Api> ? (string extends Id ? never : [Api] extends [void] ? never : { readonly [P in Id]: Api }) : never;
 
 /** Every member of a union, as one type. */
 export type IntersectionOf<U> = (U extends unknown ? (value: U) => void : never) extends (value: infer I) => void ? I : never;

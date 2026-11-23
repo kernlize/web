@@ -453,7 +453,7 @@ export interface KernlOptions {
    * inside kernl instead of handing off to an app on the device (D-017).
    */
   readonly torrent?: TorrentBackend;
-  /** Theme pushed to applets that hold `theme:read`. */
+  /** Theme pushed to applets that hold `theme:read`. Read only when `modules` is left out; otherwise pass it to `themeModule`. */
   readonly theme?: Record<string, unknown>;
   /** Backends for the messaging providers; absent ones stay unavailable. */
   readonly messagingBackends?: MessagingBackendFactories;

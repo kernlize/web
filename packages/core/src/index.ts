@@ -212,7 +212,7 @@ export { askUploadConsent, createBlossomUploader, describeUpload, sizeWords, typ
 export { createAppletConfig, type AppletConfigOptions, type SettingsPrompt } from './applets/applet-config.js';
 export { createCommonActions, type CommonActionsOptions, type ConsentedSigner, type SignerAndGate } from './social/common-actions.js';
 export type { AnyKernlModule, IntersectionOf, KernelContext, KernlModule, ModuleApiEntry, ModuleApis, ModuleIdentity, ModuleInstance, ReplaceablePointer } from './modules/module.js';
-export { KERNEL_PARTS, MODULE_NATIVE_DOMAINS, checkModules, mergeExtensions, setupModules, type ComposedModules, type KernelContextParts } from './modules/compose.js';
+export { KERNEL_DOMAINS, KERNEL_PARTS, MODULE_NATIVE_DOMAINS, checkModules, mergeExtensions, setupModules, type ComposedModules, type KernelContextParts } from './modules/compose.js';
 export { kernlModules } from './modules/default.js';
 export { themeModule } from './modules/theme.js';
 export { socialModule } from './modules/social.js';

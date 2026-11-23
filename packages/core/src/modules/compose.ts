@@ -24,6 +24,21 @@ import type { AnyKernlModule, KernelContext, ModuleInstance } from './module.js'
 export const KERNEL_PARTS: readonly string[] = Object.freeze(['profiles', 'people']);
 
 /**
+ * Domains the kernel answers whatever modules are loaded, kehto's own (`shell`, `storage`, `inc`)
+ * among them, and the ones kernl still answers itself until they become modules. A module that
+ * answers one is refused, so it can neither replace nor shadow the kernel's answer (D-061).
+ *
+ * @example
+ * ```ts
+ * KERNEL_DOMAINS.includes('relay'); // true
+ * ```
+ */
+export const KERNEL_DOMAINS: readonly string[] = Object.freeze([
+  'shell', 'storage', 'inc', 'relay', 'identity', 'notify', 'link', 'outbox',
+  'keys', 'resource', 'dm', 'cvm', 'webrtc', 'config', 'upload', 'intent', 'torrent', 'nzb', 'soulseek',
+]);
+
+/**
  * Domains kehto's runtime offers natively that kernl answers through a module. A shell without
  * the module withholds the domain, so it is neither offered nor in any applet's baseline (D-061).
  *
@@ -35,8 +50,9 @@ export const KERNEL_PARTS: readonly string[] = Object.freeze(['profiles', 'peopl
 export const MODULE_NATIVE_DOMAINS: readonly string[] = Object.freeze(['theme']);
 
 /**
- * Refuse a module list before anything is built: a repeated id, an id the shell already uses for
- * a member of its own, or a requirement nothing in the list or the kernel provides.
+ * Refuse a module list before anything is built: a repeated id, an id the kernel uses, a
+ * requirement nothing provides (`invalid:module-missing`), or one listed after the module that
+ * needs it (`invalid:module-order`), since modules are set up in order.
  *
  * @param modules - The host's module list.
  * @param reserved - The shell's own member names.
@@ -46,15 +62,16 @@ export const MODULE_NATIVE_DOMAINS: readonly string[] = Object.freeze(['theme'])
  * ```
  */
 export function checkModules(modules: readonly AnyKernlModule[], reserved: readonly string[]): void {
-  const ids = new Set<string>();
+  const ids = new Set(modules.map((module) => module.id));
+  const seen = new Set<string>();
   for (const module of modules) {
-    if (ids.has(module.id)) throw new Error(`invalid:module-duplicate:${module.id}`);
+    if (seen.has(module.id)) throw new Error(`invalid:module-duplicate:${module.id}`);
     if (reserved.includes(module.id) || KERNEL_PARTS.includes(module.id)) throw new Error(`invalid:module-reserved:${module.id}`);
-    ids.add(module.id);
-  }
-  for (const module of modules) {
-    const missing = (module.requires ?? []).find((id) => !ids.has(id) && !KERNEL_PARTS.includes(id));
-    if (missing !== undefined) throw new Error(`invalid:module-missing:${missing}`);
+    for (const id of module.requires ?? []) {
+      if (KERNEL_PARTS.includes(id) || seen.has(id)) continue;
+      throw new Error(ids.has(id) ? `invalid:module-order:${id}` : `invalid:module-missing:${id}`);
+    }
+    seen.add(module.id);
   }
 }
 
@@ -142,7 +159,9 @@ function disposeAll(instances: readonly ModuleInstance<unknown>[]): void {
 
 /**
  * Set up each module in order over one kernel context. `use` reads another module's api, or a
- * part the kernel provides, when it is called, so a module may keep it for later.
+ * part the kernel provides, when it is called, so a module may keep it for later. A module that
+ * answers a domain in {@link KERNEL_DOMAINS} is refused with `invalid:module-domain:<domain>`.
+ * Whatever is refused, the modules already set up are disposed before the error is thrown.
  *
  * @param modules - The host's module list, already checked with {@link checkModules}.
  * @param parts - What the kernel builds each module's context from.
@@ -167,6 +186,8 @@ export function setupModules(modules: readonly AnyKernlModule[], parts: KernelCo
   try {
     for (const module of modules) {
       const instance = offered(module.setup(context), bindings);
+      const taken = Object.keys(instance.services ?? {}).find((domain) => KERNEL_DOMAINS.includes(domain));
+      if (taken !== undefined) throw new Error(`invalid:module-domain:${taken}`);
       instances.push(instance);
       if (instance.api !== undefined) apis[module.id] = instance.api;
     }
