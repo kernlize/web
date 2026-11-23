@@ -433,6 +433,13 @@ Feature: The composed shell
     Then the fake bridges were asked for "https://files.example/rogue.txt" by the shell itself
     And the shell survived and kehto can revoke the rogue window
 
+  Scenario: an upload from a window another part of the host admitted is refused without asking
+    Given a kernl shell over that host and pool
+    And the shell is signed in
+    When a rogue window admitted outside the shell is granted "upload", sends its hello and uploads a file
+    Then the host was not asked for consent
+    And the applet is told its upload was "cancelled" with "denied:consent"
+
   Scenario: an applet's profile change is shown to the user and published only after yes
     Given a kernl shell over that host and pool
     And the shell is signed in and its store holds the profile '{"name":"alice"}'

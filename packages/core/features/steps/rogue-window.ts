@@ -36,3 +36,10 @@ When('a rogue window {word} outside the shell is granted {string}, sends its hel
   channel.port1.postMessage({ type: 'relay.publish', id: 'publish-1', event: { kind, content: '{"name":"rogue"}', tags: [], created_at: Math.floor(Date.now() / 1000) } });
   await settle();
 });
+
+When('a rogue window {word} outside the shell is granted {string}, sends its hello and uploads a file', async (world: CoreWorld, how: string, domain: string) => {
+  const channel = await rogueWindow(world, { windowId: 'rogue-uploader', hash: 'cf'.repeat(32), domain, admitted: how === 'admitted' });
+  channel.port1.postMessage({ type: 'shell.ready', id: 'ready-1' });
+  channel.port1.postMessage({ type: 'upload.upload', id: 'upload-1', request: { data: new Uint8Array(8).buffer, mimeType: 'text/plain' } });
+  await settle();
+});
