@@ -57,7 +57,7 @@ describe('boot', () => {
     const { boot } = await bootWith({ createKernl, kernlModules: modules });
     const booted = await boot(host, new URLSearchParams('preview=0'));
     const named = modules.mock.results[0]?.value;
-    expect(createKernl).toHaveBeenCalledWith({ host, torrent: booted.downloads.torrent, builtins: shipped, shortcuts: { reserved: ['Alt+/'] }, modules: named });
+    expect(createKernl).toHaveBeenCalledWith({ host, torrent: booted.downloads.torrent, builtins: shipped, modules: named });
     expect(booted).toEqual({ kernl: live, mode: 'live', downloads: booted.downloads });
     expect(signers.NostrConnectSigner.pool).toBe(live.pool);
   });
@@ -66,8 +66,8 @@ describe('boot', () => {
     const createKernl = vi.fn(() => ({ pool: {} }));
     const { boot } = await bootWith({ createKernl, kernlModules: modules });
     const live = await boot(host, new URLSearchParams(), theme);
-    expect(modules).toHaveBeenCalledWith({ theme, eventCache: expect.any(Function) });
-    expect(createKernl).toHaveBeenCalledWith({ host, torrent: live.downloads.torrent, builtins: shipped, shortcuts: { reserved: ['Alt+/'] }, modules: modules.mock.results[0]?.value });
+    expect(modules).toHaveBeenCalledWith({ theme, eventCache: expect.any(Function), shortcuts: { reserved: ['Alt+/'] } });
+    expect(createKernl).toHaveBeenCalledWith({ host, torrent: live.downloads.torrent, builtins: shipped, modules: modules.mock.results[0]?.value });
     const preview = await boot(host, new URLSearchParams('preview=1'), theme);
     expect(createPreviewKernl).toHaveBeenCalledWith(host, preview.downloads.torrent, { builtins: shipped, theme });
   });
@@ -76,7 +76,7 @@ describe('boot', () => {
     const { boot } = await bootWith({ createKernl: vi.fn(() => ({ pool: {} })), kernlModules: modules });
     await boot(host, new URLSearchParams());
     // Named modules are the only readers of the opener: left on `createKernl` it is ignored and the cache is memory only.
-    expect(modules).toHaveBeenCalledWith({ eventCache: expect.any(Function) });
+    expect(modules).toHaveBeenCalledWith({ eventCache: expect.any(Function), shortcuts: { reserved: ['Alt+/'] } });
   });
 
   it('hands the host\'s settings form to the modules, so applets can open their settings', async () => {
