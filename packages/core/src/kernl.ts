@@ -7,8 +7,7 @@ import type { MessagingRegistry } from '@kernlize/messaging';
 import type { BridgeContext } from '@kernlize/bridges';
 import { buildShellCapabilities, createShellBridge, type ShellAdapter, type ShellBridge } from '@kehto/shell';
 import { QUARANTINE_WINDOW_MS, createGuardConfig, describeMitigations, type GuardConfig, type GuardEvent } from '@kernlize/guard';
-import type { AccountFileServers } from './files/file-servers.js';
-import type { AppletIdentity, AppletStopLimit, AppletSummary, Grants, GuardFacade, Kernel, Kernl, KernlHost, KernlMultiplayer, KernlOptions, RelayTiers, Session } from './types.js';
+import type { AppletIdentity, AppletStopLimit, AppletSummary, Grants, GuardFacade, Kernel, Kernl, KernlMultiplayer, KernlOptions, RelayTiers, Session } from './types.js';
 import { createKernlDownloads, type KernlDownloads } from './kernl-downloads.js';
 import { createMultiplayerSettings } from './multiplayer/settings.js';
 import { createStorageSecrets, type SecretsProvider } from './secrets/secrets.js';
@@ -21,8 +20,6 @@ import { createKernlNetwork } from './kernl-network.js';
 import type { ConnectedEventCache } from './cache/connect.js';
 import type { Filter, NostrEvent } from 'applesauce-core/helpers';
 import { createAppletConfig } from './applets/applet-config.js';
-import { askUploadConsent, createBlossomUploader, type BlossomUploaderOptions } from './files/uploader.js';
-import type { Uploader } from '@kehto/services';
 import { createRelayTiers } from './relays/tiers.js';
 import { SHELL_RELAY_OPTIONS } from './applesauce/relay-hooks.js';
 import { decodePointer } from './applets/pointer.js';
@@ -199,15 +196,6 @@ function meetingFor(options: KernlOptions, parts: MeetingParts): { deps: Pick<Ke
   };
 }
 
-/** Uploads to the account's file servers, asking the person about each file in the name of the applet that sent it (D-033). */
-function uploaderFor(host: KernlHost, files: AccountFileServers, signer: BlossomUploaderOptions['signer'], identityOf: (windowId: string) => AppletIdentity | undefined): Uploader {
-  return createBlossomUploader({
-    servers: () => files.current(),
-    signer,
-    ask: (windowId, details) => askUploadConsent(host, identityOf(windowId), details),
-  });
-}
-
 /**
  * Direct connections, when this page can make peer connections. A session is
  * open to an applet the person granted `webrtc` and did not block, and each one
@@ -329,7 +317,7 @@ interface ServiceParts {
   readonly consent: KernlServiceDeps['consent'];
   readonly bridges: Kernl['bridges'];
   readonly messaging: MessagingRegistry;
-  readonly network: { readonly profiles: Profiles | undefined; readonly people: People | undefined; readonly files: AccountFileServers; readonly signer: BlossomUploaderOptions['signer'] };
+  readonly network: { readonly profiles: Profiles | undefined; readonly people: People | undefined };
   readonly handles: ReadonlyMap<string, MountedApplet>;
   readonly pipeline: GuardPipeline;
   readonly meeting: ReturnType<typeof meetingFor>['deps'];
@@ -352,7 +340,6 @@ function servicesFor(options: KernlOptions, parts: ServiceParts): ReturnType<typ
     ...(network.profiles ? { profiles: network.profiles } : {}),
     ...(network.people ? { people: network.people } : {}),
     ...(host.presentSettings ? { config: createAppletConfig({ storage: host.storage, appletOf: (windowId) => appletOf(handles, windowId), present: host.presentSettings.bind(host) }) } : {}),
-    uploader: uploaderFor(host, network.files, network.signer, identityOf),
     theme: null,
     ...parts.meeting,
     shortcuts: { ...options.shortcuts, isFocused: (windowId) => parts.pipeline.getVisibility(windowId).focused },
@@ -434,10 +421,10 @@ export function createKernl(options: KernlOptions): Kernel {
   const modulesSetUp: { composed?: ComposedModules } = {};
   // The cache module's lookup, asked before any relay; nothing is cached until it is set up or when it is left out.
   const cacheRequest = (filters: Filter[]): Promise<NostrEvent[]> => (modulesSetUp.composed?.apis.cache as ConnectedEventCache | undefined)?.cacheRequest(filters) ?? Promise.resolve([]);
-  const { replaceableLoader, files, signer } = createKernlNetwork({ eventStore, pool, tiers, accounts, destroyed$, cacheRequest });
+  const { replaceableLoader } = createKernlNetwork({ eventStore, pool, tiers, accounts, cacheRequest });
   const lookupBefore = lookupReplaceable(eventStore, { loader: replaceableLoader, relays: () => [...tiers.get().outbox, ...tiers.get().discovery] });
   const consent = createSigningConsent({ host, lookupBefore, resolveApplet: identityOf, pubkey: () => accounts.active?.pubkey });
-  const composed = composeOrClose(modules, { eventStore, pool, tiers, storage: host.storage, accounts, consent, replaceableLoader, appletOf: (windowId) => handles.get(windowId)?.summary }, () => {
+  const composed = composeOrClose(modules, { eventStore, pool, tiers, storage: host.storage, accounts, consent, replaceableLoader, appletOf: (windowId) => handles.get(windowId)?.summary, host }, () => {
     destroyed$.next();
     traffic.close();
     if (ownsMessaging) messaging.close();
@@ -448,7 +435,7 @@ export function createKernl(options: KernlOptions): Kernel {
   const people = composed.apis.people as People | undefined;
   const meeting = meetingFor(options, { pool, tiers, appletOf: (windowId) => handles.get(windowId)?.summary, grants: () => grants });
   const downloads = downloadsFor(options, bridges, identityOf, (windowId) => handles.get(windowId)?.summary.manifest.catalogId);
-  const services = servicesFor(options, { pool, tiers, eventStore, adapter: () => adapter, consent, bridges, messaging, network: { profiles, people, files, signer }, handles, pipeline, meeting: meeting.deps });
+  const services = servicesFor(options, { pool, tiers, eventStore, adapter: () => adapter, consent, bridges, messaging, network: { profiles, people }, handles, pipeline, meeting: meeting.deps });
 
   const intents = createKernlIntents({ host, pool, tiers, accounts, handles, ...(options.intentRetry ? { retry: options.intentRetry } : {}) });
   Object.assign(services.registry, { intent: intents.handler }, downloads.services);
@@ -509,7 +496,6 @@ export function createKernl(options: KernlOptions): Kernel {
     messaging,
     bridges,
     catalog: catalogFor(pool, tiers, { cache: cacheRequest, store: eventStore }),
-    files,
     multiplayer: meeting.multiplayer, downloads: downloads.programs, secrets: downloads.secrets.description,
     intents: intents.intents,
     firewall,

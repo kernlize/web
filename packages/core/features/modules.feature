@@ -88,6 +88,11 @@ Feature: Modules
       When the shell logs in read-only as that fresh key
       Then the "outbox" tier stays ""
 
+    Scenario: without the files module, uploads are not offered and there is no file server list
+      Given a kernl shell over that host and pool with modules "theme"
+      Then the shell does not offer "upload"
+      And the shell has no "files" member
+
     Scenario: kernl's own modules include the directory, which waits to be started
       Given a kernl shell over that host and pool
       Then the shell has a "directory" member
@@ -138,6 +143,7 @@ Feature: Modules
         | theme,theme      | invalid:module-duplicate:theme  |
         | needs-directory  | invalid:module-missing:directory |
         | needs-cache      | invalid:module-missing:cache     |
+        | needs-files      | invalid:module-missing:files     |
         | social           | invalid:module-missing:profiles |
         | social,profiles,people | invalid:module-order:profiles |
         | grants           | invalid:module-reserved:grants  |

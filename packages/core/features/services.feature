@@ -14,8 +14,8 @@ Feature: Shell services and adapter
     Then the service registry has "relay,identity,theme,keys,notify,link,resource,media,dm,outbox,cvm"
 
   Scenario: the theme can be left to a module, and social actions handed in
-    Given kernl services that leave the theme to a module and are handed social actions
-    Then the service registry has "relay,identity,keys,notify,link,resource,media,dm,outbox,cvm,common"
+    Given kernl services that leave the theme to a module and are handed social actions and an uploader
+    Then the service registry has "relay,identity,keys,notify,link,resource,media,dm,outbox,cvm,common,upload"
 
   Scenario: remote tools look for servers on the general relays when the host names none
     When service "cvm" handles '{"type":"cvm.discover","id":"d1"}' from window "w1"
