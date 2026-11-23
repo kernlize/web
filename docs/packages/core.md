@@ -51,7 +51,7 @@ if (plan.missingRequired.length === 0) kernl.mount(plan, iframe);
 
 `createKernl(options)` runs once per page and performs these steps in order (`kernl.ts`). Anything the host passes in `KernlOptions` is used as is; anything missing is created with kernl's defaults.
 
-0. **Modules checked.** `options.modules ?? kernlModules({ theme })` is checked before anything is built: a repeated id is `invalid:module-duplicate:<id>`, an id the kernel uses itself (`profiles`, `people`) is `invalid:module-reserved:<id>`, a requirement nothing provides is `invalid:module-missing:<id>`, and one listed after the module that needs it is `invalid:module-order:<id>`. A module refused while it is set up closes the modules before it, and the shell closes what it had opened. See [Modules](#modules).
+0. **Modules checked.** `options.modules ?? kernlModules({ theme })` is checked before anything is built: a repeated id is `invalid:module-duplicate:<id>`, a requirement nothing provides is `invalid:module-missing:<id>`, and one listed after the module that needs it is `invalid:module-order:<id>`. A module refused while it is set up closes the modules before it, and the shell closes what it had opened. See [Modules](#modules).
 
 1. **Event layer.** `options.eventStore ?? new EventStore()`, `options.pool ?? new RelayPool(SHELL_RELAY_OPTIONS)`, `options.accounts ?? createKernlAccounts(host.storage)`. A pool the shell created itself is closed by `destroy()`; a supplied pool is left open.
 2. **Relay tiers.** `createRelayTiers(host.storage, options.relays ?? {})`. Persisted choices at `kernl:relays:v1` win over `options.relays`, which only overrides `DEFAULT_RELAY_TIERS` on a fresh device.
@@ -87,7 +87,7 @@ const kernl = createKernl({ host, modules: [...kernlModules(), clock] });
 kernl.clock.now();
 ```
 
-A module's `setup(context)` returns `services` (the NAP domains it answers), `extensions` (domains kehto's prelude is told about, offered only where `supportsDomainBindings()` holds, as the download domains are), `api` (`kernl[id]`) and `dispose`. The `KernelContext` is the shell's own store, pool, relay tiers and host storage; `identity` (the active pubkey, its changes and whether it can sign, never the signer); `sign(windowId, template)`, which asks the person before a write that replaces or erases their record and rejects `denied:read-only` when nobody can sign; `appletOf(windowId)`; `loadReplaceable(pointer)`; and `use(id)`, another module's api or a part the kernel provides (`profiles`, `people`). A module never holds a signer or kehto's bridge, and its traffic passes the guard like every other. [Modules](../concepts/modules.md) explains the model.
+A module's `setup(context)` returns `services` (the NAP domains it answers), `extensions` (domains kehto's prelude is told about, offered only where `supportsDomainBindings()` holds, as the download domains are), `api` (`kernl[id]`) and `dispose`. The `KernelContext` is the shell's own store, pool, relay tiers and host storage; `identity` (the active pubkey, its changes and whether it can sign, never the signer); `sign(windowId, template)`, which asks the person before a write that replaces or erases their record and rejects `denied:read-only` when nobody can sign; `appletOf(windowId)`; `replaceableLoader`, the shell's loader, and `loadReplaceable(pointer)` over it; and `use(id)`, the api of a module loaded before it. A module never holds a signer or kehto's bridge, and its traffic passes the guard like every other. [Modules](../concepts/modules.md) explains the model.
 
 ### The `KernlHost` contract
 
@@ -130,7 +130,7 @@ The host is the only way the core reaches the user or the page. Applets never re
 | `directory: RelayDirectory` | From the directory module, so absent when a host leaves it out. Monitored servers (kind 30166) from `DEFAULT_MONITOR_RELAYS`, idle until `start()`; `search` completes an address and `suggest` proposes servers. The shell's Settings starts it when its Servers section is opened, and stops it when the window closes. |
 | `messaging`, `bridges` | The registries the services read. |
 | `catalog: AppletCatalog` | `stream(options?)` emits the store's entries from the `apps` and `super` tiers as they arrive; `load(options?)` resolves with the final list, see [The store and intents](../concepts/store-and-intents.md). |
-| `profiles: Profiles` | `card$(pubkey)` and `card(pubkey)`: how the shell names a person. The session label follows the account's published name. |
+| `profiles: Profiles` | From the profiles module. `card$(pubkey)` and `card(pubkey)`: how the shell names a person. The session label follows the account's published name while the module is loaded, and is the start of the key otherwise. |
 | `intents: Intents` | `installed$`, `installed()`, `uninstall(catalogId)` and `defaults` (a `HandlerDefaults`: `get`, `all`, `set(archetype, id \| undefined)`, `synced`, `load`, `sync`, `setSync`, `changes$`). |
 | `install(summary)` | Install a verified applet without opening it; throws `invalid:unresolved` for a summary this shell did not verify. |
 | `session$`, `session` | `Session \| null`: `{ accountId, pubkey, label, readOnly }`. The label is the account's `metadata.name`, then `account.name`, then the abbreviated pubkey. |
@@ -528,7 +528,7 @@ Signatures are abbreviated; the generated reference has the full ones.
 
 | Export | Signature | Description |
 | --- | --- | --- |
-| `createKernl` | `(options: KernlOptions) => Kernl`; `(options: KernlOptions & { modules: M }) => Kernel & ModuleApis<M>` | The composition root described above. With a module list, the shell is `Kernel`, `Kernl` without the members modules provide (`ModuleMembers`: `directory`), and each loaded module's api is typed as `kernl[id]`. |
+| `createKernl` | `(options: KernlOptions) => Kernl`; `(options: KernlOptions & { modules: M }) => Kernel & ModuleApis<M>` | The composition root described above. With a module list, the shell is `Kernel`, `Kernl` without the members modules provide (`ModuleMembers`: `directory`, `profiles`, `people`), and each loaded module's api is typed as `kernl[id]`. |
 | `toSession` | `(account: IAccount) => Session` | Describes an account for the UI; `readOnly` when it cannot sign. |
 | `createAppletLifecycle` | `(context: LifecycleContext) => AppletLifecycle` | `resolve`, `plan`, `mount`, `applets`, `handleWindowMessage` over the composed parts. |
 | `grantNarrowingReason` | `(plan: MountPlan, record: GrantRecord, baseline: readonly string[]) => 'blocked' \| 'grant-narrowed' \| undefined` | Why a grant change stops a running window: the applet is blocked, or its grant no longer covers a domain the window was started with. `mount` uses it on every `grants.changes$`, and the preview does too. |
@@ -550,16 +550,17 @@ Signatures are abbreviated; the generated reference has the full ones.
 
 | Export | Signature | Description |
 | --- | --- | --- |
-| `kernlModules` | `(options?: { theme?: Theme; eventCache?: EventCacheOpener }) => readonly [KernlModule<'theme', ThemeApi>, KernlModule<'social'>, KernlModule<'directory', RelayDirectory>, KernlModule<'cache', ConnectedEventCache>]` | kernl's own module list, which `createKernl` loads when a host names none. |
+| `kernlModules` | `(options?: { theme?: Theme; eventCache?: EventCacheOpener }) => readonly [KernlModule<'theme', ThemeApi>, KernlModule<'profiles', Profiles>, KernlModule<'people', People>, KernlModule<'social'>, KernlModule<'directory', RelayDirectory>, KernlModule<'cache', ConnectedEventCache>]` | kernl's own module list, which `createKernl` loads when a host names none. |
 | `cacheModule` | `(open?: EventCacheOpener) => KernlModule<'cache', ConnectedEventCache>` | The event cache, asked before any relay by the shell's replaceable loader and the store's catalogue, and closed when the shell is destroyed. Without an opener, or without the module, events are kept in memory only. |
 | `directoryModule` | `(options?: Omit<RelayDirectoryOptions, 'pool'>) => KernlModule<'directory', RelayDirectory>` | The relay directory over the shell's pool, as `kernl.directory`; stopped when the shell is destroyed. Nothing requires it: the mailboxes take its suggestions when it is loaded and the well-known servers otherwise. |
 | `themeModule` | `(theme?: Theme) => KernlModule<'theme', ThemeApi>` | The `theme` domain. Without it the shell withholds `theme` and leaves it out of the baseline. Its api is `kernl.theme`, whose `publish(theme)` tells the applets that are open the colours changed and answers their next `theme.get` with them ([D-064](../decisions.md#d-064)). |
 | `ThemeApi` | `{ publish(theme: Theme): void }` | What a shell does with the `theme` domain once the module is loaded. |
-| `socialModule` | `() => KernlModule<'social'>` | The `common` domain over the kernel's `profiles` and `people`, signing through the kernel's consent. |
-| `checkModules` | `(modules, reserved: readonly string[]) => void` | Refuses a repeated id, a reserved id or a missing requirement, before anything is built. |
+| `socialModule` | `() => KernlModule<'social'>` | The `common` domain over the profiles and people modules, which it requires, signing through the kernel's consent. |
+| `checkModules` | `(modules) => void` | Refuses a repeated id, a missing requirement or one listed too late, before anything is built. |
 | `setupModules` | `(modules, parts: KernelContextParts, bindings: boolean) => ComposedModules` | Sets each module up over one `KernelContext` and returns their `services`, `extensions`, `apis`, the native domains none answers (`unanswered`) and `dispose()`. A module that fails to set up closes the ones before it. |
 | `mergeExtensions` | `(all: ReadonlyArray<PlannedExtensions \| undefined>) => PlannedExtensions \| undefined` | Several sources' planning extensions as one. |
-| `KERNEL_PARTS` | `readonly string[]` | `['profiles', 'people']`: what `use` reaches that no module provides. |
+| `profilesModule` | `(options?: { keepAliveMs?: number }) => KernlModule<'profiles', Profiles>` | People's profiles over the shell's loader, as `kernl.profiles`. |
+| `peopleModule` | `(options?: { timeoutMs?: number }) => KernlModule<'people', People>` | Reading a person from any form of their identity, as `kernl.people`. Without it, an applet's message recipients are taken as hex keys only. |
 | `KERNEL_DOMAINS` | `readonly string[]` | The domains the kernel answers, which no module may answer: kehto's own `shell`, `storage` and `inc`, the floor services, and the ones kernl answers itself until they become modules. |
 | `MODULE_NATIVE_DOMAINS` | `readonly string[]` | `['theme']`: domains kehto offers natively that kernl answers through a module. |
 | `loadReplaceableQuietly` | `(loader, tiers, pointer) => Promise<void>` | Loads a replaceable event into the store from the cache and the lookup relays; never rejects. |
@@ -683,7 +684,7 @@ Removed ([D-056](../decisions.md#d-056)): `runtimeFirewallRules`, `applyRuntimeF
 | `createKernlAccounts` | `(storage: StorageLike) => AccountManager` | A `KernlAccountManager` with common types registered and persistence wired. |
 | `KernlAccountManager` | class extends `AccountManager` | `addAccount` throws `denied:plaintext-key-persistence` for plaintext-key types. |
 | `parsePerson` | `(input: string) => PersonPointer \| undefined` | Reads hex, `npub` or `nprofile` (with or without `nostr:`) into a key and the servers named with it. Anything else is not a person ([D-045](../decisions.md#d-045)). |
-| `createPeople` | `(options: PeopleOptions) => People` | `parse`, and `locate(input)`, which first asks the servers an `nprofile` names for the person's profile, server list and inboxes; throws `invalid:person`. Exposed as `kernl.people`. |
+| `createPeople` | `(options: PeopleOptions) => People` | `parse`, and `locate(input)`, which first asks the servers an `nprofile` names for the person's profile, server list and inboxes; throws `invalid:person`. Exposed as `kernl.people` by the people module. |
 | `locateRecipients` | `(adapter: DmAdapter, people) => DmAdapter` | Reads every recipient of a send through `people.locate`; `invalid:recipient` when one is not an identity. |
 | `locateSendRecipients` | `(service: DmService, people: Pick<People, 'locate'>) => DmService` | Reads a `dm.send`'s recipients before kehto's service sees them, because under the firewall kehto has every recipient approved and takes hex keys only; answers `invalid:recipient` when one is not an identity. |
 | `PERSON_HINT_TIMEOUT_MS` | `8000` | Outer bound on waiting for hinted servers. |

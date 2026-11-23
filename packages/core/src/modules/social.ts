@@ -13,7 +13,7 @@ const FOLLOWS = 3;
  * The `common` domain: profile lookups and social actions for applets (NAP-COMMON). Writes are
  * signed through the kernel's consent and published to the tier for their kind (D-035).
  *
- * @returns The module. It needs the kernel's `profiles` and `people`.
+ * @returns The module. It needs the profiles and people modules, loaded before it.
  * @example
  * ```ts
  * createKernl({ host, modules: [themeModule(), socialModule()] });

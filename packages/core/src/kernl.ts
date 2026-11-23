@@ -16,6 +16,7 @@ import { discoverToolFamilies } from './multiplayer/tool-discovery.js';
 import { createKernlAccounts } from './applesauce/accounts.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
 import type { ProfileCard, Profiles } from './profiles/profiles.js';
+import type { People } from './people/person.js';
 import { createKernlNetwork } from './kernl-network.js';
 import type { RelayDirectory } from './relays/directory.js';
 import type { ConnectedEventCache } from './cache/connect.js';
@@ -75,7 +76,7 @@ interface ShellState {
   readonly bridge: ShellBridge;
   readonly accounts: AccountManager;
   readonly session$: BehaviorSubject<Session | null>;
-  readonly profiles: Profiles;
+  readonly profiles: Profiles | undefined;
   readonly mailboxes: AccountMailboxes;
   readonly tiers: RelayTiers;
 }
@@ -84,8 +85,11 @@ interface ShellState {
 function followShellState({ bridge, accounts, session$, profiles, mailboxes, tiers }: ShellState): Subscription {
   const subscriptions = new Subscription();
   subscriptions.add(accounts.active$.subscribe((account) => bridge.publishIdentityChanged(account?.pubkey ?? '')));
-  // The session's label follows the account's published name once it arrives.
-  const sessions = accounts.active$.pipe(switchMap((account) => (account ? profiles.card$(account.pubkey).pipe(map((card) => toSession(account, card))) : of(null))));
+  // The session's label follows the account's published name once it arrives, when the profiles module is loaded.
+  const sessions = accounts.active$.pipe(switchMap((account) => {
+    if (!account) return of(null);
+    return profiles ? profiles.card$(account.pubkey).pipe(map((card) => toSession(account, card))) : of(toSession(account));
+  }));
   subscriptions.add(sessions.subscribe(session$));
   // Where the account says it publishes is where the shell publishes for it (NIP-65, D-029).
   subscriptions.add(mailboxes.state$.subscribe((state) => {
@@ -333,7 +337,7 @@ interface ServiceParts {
   readonly consent: KernlServiceDeps['consent'];
   readonly bridges: Kernl['bridges'];
   readonly messaging: MessagingRegistry;
-  readonly network: { readonly profiles: Profiles; readonly people: Kernl['people']; readonly files: AccountFileServers; readonly signer: BlossomUploaderOptions['signer'] };
+  readonly network: { readonly profiles: Profiles | undefined; readonly people: People | undefined; readonly files: AccountFileServers; readonly signer: BlossomUploaderOptions['signer'] };
   readonly handles: ReadonlyMap<string, MountedApplet>;
   readonly pipeline: GuardPipeline;
   readonly meeting: ReturnType<typeof meetingFor>['deps'];
@@ -353,8 +357,8 @@ function servicesFor(options: KernlOptions, parts: ServiceParts): ReturnType<typ
     host,
     bridges: parts.bridges,
     messaging: parts.messaging,
-    profiles: network.profiles,
-    people: network.people,
+    ...(network.profiles ? { profiles: network.profiles } : {}),
+    ...(network.people ? { people: network.people } : {}),
     ...(host.presentSettings ? { config: createAppletConfig({ storage: host.storage, appletOf: (windowId) => appletOf(handles, windowId), present: host.presentSettings.bind(host) }) } : {}),
     uploader: uploaderFor(host, network.files, network.signer, identityOf),
     theme: null,
@@ -415,7 +419,7 @@ export function createKernl(options: KernlOptions): Kernl;
 export function createKernl(options: KernlOptions): Kernel {
   const { host } = options;
   const modules = options.modules ?? kernlModules({ ...(isTheme(options.theme) ? { theme: options.theme } : {}), ...(options.eventCache ? { eventCache: options.eventCache } : {}) });
-  checkModules(modules, []);
+  checkModules(modules);
   const ownsPool = !options.pool;
   const ownsMessaging = !options.messaging;
   const eventStore = options.eventStore ?? new EventStore();
@@ -440,16 +444,18 @@ export function createKernl(options: KernlOptions): Kernel {
   const directory = (): RelayDirectory | undefined => modulesSetUp.composed?.apis.directory as RelayDirectory | undefined;
   // The cache module's lookup, asked before any relay; nothing is cached until it is set up or when it is left out.
   const cacheRequest = (filters: Filter[]): Promise<NostrEvent[]> => (modulesSetUp.composed?.apis.cache as ConnectedEventCache | undefined)?.cacheRequest(filters) ?? Promise.resolve([]);
-  const { replaceableLoader, profiles, people, mailboxes, files, signer } = createKernlNetwork({ eventStore, pool, tiers, accounts, destroyed$, directory, cacheRequest });
+  const { replaceableLoader, mailboxes, files, signer } = createKernlNetwork({ eventStore, pool, tiers, accounts, destroyed$, directory, cacheRequest });
   const lookupBefore = lookupReplaceable(eventStore, { loader: replaceableLoader, relays: () => [...tiers.get().outbox, ...tiers.get().discovery] });
   const consent = createSigningConsent({ host, lookupBefore, resolveApplet: identityOf, pubkey: () => accounts.active?.pubkey });
-  const composed = composeOrClose(modules, { eventStore, pool, tiers, storage: host.storage, accounts, consent, network: { profiles, people, replaceableLoader }, appletOf: (windowId) => handles.get(windowId)?.summary }, () => {
+  const composed = composeOrClose(modules, { eventStore, pool, tiers, storage: host.storage, accounts, consent, replaceableLoader, appletOf: (windowId) => handles.get(windowId)?.summary }, () => {
     destroyed$.next();
     traffic.close();
     if (ownsMessaging) messaging.close();
     if (ownsPool) pool.close();
   });
   modulesSetUp.composed = composed;
+  const profiles = composed.apis.profiles as Profiles | undefined;
+  const people = composed.apis.people as People | undefined;
   const meeting = meetingFor(options, { pool, tiers, appletOf: (windowId) => handles.get(windowId)?.summary, grants: () => grants });
   const downloads = downloadsFor(options, bridges, identityOf, (windowId) => handles.get(windowId)?.summary.manifest.catalogId);
   const services = servicesFor(options, { pool, tiers, eventStore, adapter: () => adapter, consent, bridges, messaging, network: { profiles, people, files, signer }, handles, pipeline, meeting: meeting.deps });
@@ -513,8 +519,6 @@ export function createKernl(options: KernlOptions): Kernel {
     messaging,
     bridges,
     catalog: catalogFor(pool, tiers, { cache: cacheRequest, store: eventStore }),
-    profiles,
-    people,
     mailboxes,
     files,
     multiplayer: meeting.multiplayer, downloads: downloads.programs, secrets: downloads.secrets.description,

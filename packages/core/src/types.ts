@@ -620,7 +620,7 @@ export interface Kernl {
  * The members of the shell that modules provide, named by module id. Each is present when its
  * module is loaded, as it is with `kernlModules()` (D-062).
  */
-export type ModuleMembers = 'directory';
+export type ModuleMembers = 'directory' | 'profiles' | 'people';
 
 /**
  * The shell without the members modules provide: what `createKernl` returns, with each loaded
