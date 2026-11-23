@@ -1,5 +1,12 @@
 # @kernlize/core
 
+## 0.22.0
+
+### Minor Changes
+
+- 4b80aa7: The applet store's catalogue is a module, `catalogModule()`, in `kernlModules()`, exposed as `kernl.catalog`. Without it the shell has no store; an applet still opens from its address.
+- d085002: Applets' settings, the `config` domain, are a module, `settingsModule(present)`, in `kernlModules({ presentSettings })`. With no module list, `createKernl` hands it the host's `presentSettings`; a host that names its modules passes the form itself. Without a form, or without the module, `config` is not offered.
+
 ## 0.21.0
 
 ### Minor Changes
