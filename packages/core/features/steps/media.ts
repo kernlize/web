@@ -15,6 +15,8 @@ interface MediaScratch {
   readonly received: Map<string, Message[]>;
   /** Napplet-owned sessions and what each can do, so the stand-in applet obeys the shell. */
   readonly own: Map<string, readonly MediaAction[]>;
+  /** Playbacks the backend opened, by source name, and whether each was let go. */
+  readonly released: Map<string, boolean>;
   /** The window the person is working in. */
   readonly focus: { window?: string };
 }
@@ -24,13 +26,15 @@ const ALL: readonly MediaAction[] = ['play', 'pause', 'stop', 'seek', 'volume'];
 const SILENT_BRIDGE: HostMediaBridge = { setMetadata() {}, setPlaybackState() {}, onAction: () => () => {} };
 
 /** Plays nothing, but behaves as kehto's browser playback does: autoplay starts it, a command changes it and reports the reason. */
-function fakePlayback(): MediaPlaybackBackend {
+function fakePlayback(released: Map<string, boolean>): MediaPlaybackBackend {
   return {
     open(_windowId, request, _signal, changed) {
       const url = request.source?.url ?? '';
       if (url.includes('broken')) return Promise.reject(new Error('unavailable'));
       let state: MediaPlaybackState = { status: request.autoplay ? 'playing' : 'paused' };
       const tagName = request.metadata?.mediaType === 'video' ? 'VIDEO' : 'AUDIO';
+      const name = url.slice(url.lastIndexOf('/') + 1);
+      released.set(name, false);
       const playback: MediaPlayback = {
         ...(url.includes('bare') ? {} : { element: { tagName } as HTMLMediaElement }),
         get state() {
@@ -42,7 +46,9 @@ function fakePlayback(): MediaPlaybackBackend {
           state = reason === undefined ? { status } : { status, reason };
           changed(state, ALL);
         },
-        destroy() {},
+        destroy() {
+          released.set(name, true);
+        },
       };
       return Promise.resolve(playback);
     },
@@ -57,8 +63,9 @@ function media(world: CoreWorld): MediaScratch {
 
 function start(world: CoreWorld, storage: MemoryStorage, playback = true): void {
   const focus: MediaScratch['focus'] = {};
-  const created = createKernlMedia({ storage, hostBridge: SILENT_BRIDGE, isFocused: (windowId) => focus.window === windowId, ...(playback ? { playback: fakePlayback() } : {}) });
-  const value: MediaScratch = { storage, media: created, sessions: [], received: new Map(), own: new Map(), focus };
+  const released = new Map<string, boolean>();
+  const created = createKernlMedia({ storage, hostBridge: SILENT_BRIDGE, isFocused: (windowId) => focus.window === windowId, ...(playback ? { playback: fakePlayback(released) } : {}) });
+  const value: MediaScratch = { storage, media: created, sessions: [], received: new Map(), own: new Map(), focus, released };
   created.sessions$.subscribe((sessions) => {
     value.sessions = sessions;
   });
@@ -109,15 +116,15 @@ When('the person sets media {string} to {string}', (world: CoreWorld, key: strin
   media(world).media.configure({ [key]: value } as Partial<MediaSettings>);
 });
 
-const settingsOf = (settings: MediaSettings): string => [settings.concurrency, settings.takeover, settings.video, settings.hidden, settings.autoplay].join(',');
+const settingsOf = (settings: MediaSettings): string => [settings.concurrency, settings.takeover, settings.video, settings.hidden, settings.autoplay, settings.closed].join(',');
 
-Then('the media settings are {string}, {string}, {string}, {string} and {string}', (world: CoreWorld, a: string, b: string, c: string, d: string, e: string) => {
-  expect(settingsOf(media(world).media.settings())).toBe([a, b, c, d, e].join(','));
+Then('the media settings are {string}, {string}, {string}, {string}, {string} and {string}', (world: CoreWorld, a: string, b: string, c: string, d: string, e: string, f: string) => {
+  expect(settingsOf(media(world).media.settings())).toBe([a, b, c, d, e, f].join(','));
 });
 
-Then('a media player over the same storage has settings {string}, {string}, {string}, {string} and {string}', (world: CoreWorld, a: string, b: string, c: string, d: string, e: string) => {
+Then('a media player over the same storage has settings {string}, {string}, {string}, {string}, {string} and {string}', (world: CoreWorld, a: string, b: string, c: string, d: string, e: string, f: string) => {
   const again = createKernlMedia({ storage: media(world).storage, hostBridge: SILENT_BRIDGE, isFocused: () => false });
-  expect(settingsOf(again.settings())).toBe([a, b, c, d, e].join(','));
+  expect(settingsOf(again.settings())).toBe([a, b, c, d, e, f].join(','));
   again.destroy();
 });
 
@@ -230,4 +237,20 @@ Given('the person is working in window {string}', (world: CoreWorld, windowId: s
 When('window {string} presses its own {string} on {string}', async (world: CoreWorld, windowId: string, action: string, name: string) => {
   deliver(media(world), windowId, { type: 'media.command', sessionId: name, action });
   await settle();
+});
+
+Then('session {string} is detached from its applet', (world: CoreWorld, name: string) => {
+  expect(session(world, name).detached).toBe(true);
+});
+
+Then('window {string} was not told anything ended', (world: CoreWorld, windowId: string) => {
+  expect(media(world).received.get(windowId)?.filter((message) => message.type === 'media.session.ended')).toEqual([]);
+});
+
+Then('the playback of {string} was kept', (world: CoreWorld, name: string) => {
+  expect(media(world).released.get(name)).toBe(false);
+});
+
+Then('the playback of {string} was let go', (world: CoreWorld, name: string) => {
+  expect(media(world).released.get(name)).toBe(true);
 });

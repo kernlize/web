@@ -1,8 +1,9 @@
-import { createMediaService, type HostMediaBridge, type MediaPlaybackBackend, type MediaPlaybackCommand, type MediaSessionSnapshot } from '@kehto/services';
+import { createMediaService, type HostMediaBridge, type MediaPlayback, type MediaPlaybackBackend, type MediaPlaybackCommand, type MediaService, type MediaSessionSnapshot } from '@kehto/services';
 import type { ServiceHandler } from '@kehto/runtime';
 import { BehaviorSubject, type Observable } from 'rxjs';
 import type { StorageLike } from '../types.js';
-import { ACTIVE, createMediaSteering } from './steering.js';
+import { createKeptSessions, type KeptSession, type KeptSessions } from './kept.js';
+import { ACTIVE, createMediaSteering, type MediaSteering } from './steering.js';
 import { mediaSettingsFrom, readMediaSettings, writeMediaSettings, type MediaSettings } from './settings.js';
 
 /** A session as the shell's player shows it. */
@@ -11,6 +12,8 @@ export interface MediaSessionView extends MediaSessionSnapshot {
   readonly video: boolean;
   /** The session the player's controls are for: the one started last, or else the newest. */
   readonly current: boolean;
+  /** The shell plays it on after its applet closed; the applet can no longer reach it. */
+  readonly detached: boolean;
 }
 
 /** What the person can do from the shell's player. */
@@ -73,74 +76,63 @@ export function createKernlMedia(options: KernlMediaOptions): KernlMedia {
   let started: string[] = [];
   let statuses = new Map<string, string | undefined>();
 
-  const playback: MediaPlaybackBackend | undefined = options.playback && {
-    open: async (windowId, request, signal, changed) => {
-      const allowed = settings$.value.autoplay === 'allow' ? request : { ...request, autoplay: false };
-      const opened = await (options.playback as MediaPlaybackBackend).open(windowId, allowed, signal, changed);
-      steering.hold(opened);
-      return opened;
-    },
-  };
+  const kept = createKeptSessions({ started: (id) => start(id), changed: () => publish() });
+  const playback = options.playback && keptBackend(options.playback, () => settings$.value, kept, (opened) => steering.hold(opened));
   const service = createMediaService({ ...(playback ? { playback } : {}), ...(options.hostBridge ? { hostBridge: options.hostBridge } : {}) });
   const steering = createMediaSteering(service, () => settings$.value);
-  const { steer, takeOver } = steering;
   const sessions$ = new BehaviorSubject<readonly MediaSessionView[]>([]);
 
+  function takeOver(winner: string): void {
+    steering.takeOver(winner);
+    const { concurrency, takeover } = settings$.value;
+    if (concurrency === 'one') kept.yieldTo(winner, takeover);
+  }
+
+  function start(id: string): void {
+    started = [...started.filter((other) => other !== id), id];
+    takeOver(id);
+  }
+
   function publish(): void {
-    const sessions = service.getSessions();
-    const live = new Set(sessions.map((session) => session.sessionId));
-    const current = started.filter((id) => live.has(id)).at(-1) ?? sessions.at(-1)?.sessionId;
-    sessions$.next(sessions.map((session) => ({
-      ...session,
-      video: service.getElement(session.sessionId)?.tagName === 'VIDEO',
-      current: session.sessionId === current,
-    })));
+    sessions$.next(viewsOf(service, kept, started));
   }
 
   function observe(sessions: readonly MediaSessionSnapshot[]): void {
     const fresh = sessions.filter((session) => session.state?.status === 'playing' && statuses.get(session.sessionId) !== 'playing').map((session) => session.sessionId);
     statuses = new Map(sessions.map((session) => [session.sessionId, session.state?.status]));
-    const live = new Set(statuses.keys());
+    const live = new Set([...statuses.keys(), ...kept.all().map((session) => session.id)]);
     started = started.filter((id) => live.has(id));
     // A pause or failure the shell did not cause means the person or the applet decided; that is not undone on show.
     for (const id of pausedWhileHidden) {
       const reason = sessions.find((session) => session.sessionId === id)?.state?.reason;
       if (!live.has(id) || (reason !== undefined && reason !== 'focus-lost')) pausedWhileHidden.delete(id);
     }
-    for (const id of fresh) {
-      started = [...started.filter((other) => other !== id), id];
-      takeOver(id);
-    }
+    for (const id of fresh) start(id);
     publish();
   }
 
   const unsubscribe = service.subscribe(observe);
 
-  /**
-   * An applet's own Play on a session the shell plays: the person's settings decide when media
-   * starts, so it counts only while they are working in the applet and can see it. Dropped
-   * silently, as NAP-MEDIA asks of a command the shell will not carry out.
-   */
-  function refusesPlay(windowId: string, message: unknown): boolean {
-    const { type, action } = message as { type?: unknown; action?: unknown };
-    if (type !== 'media.command' || action !== 'play') return false;
-    const { autoplay, hidden } = settings$.value;
-    return (hidden === 'pause' && hiddenWindows.has(windowId)) || (autoplay === 'block' && !options.isFocused(windowId));
-  }
-
   const handler: ServiceHandler = {
     ...service,
     handleMessage(windowId, message, send) {
       steering.reach(windowId, send as Send);
-      if (refusesPlay(windowId, message)) return;
+      if (refusesPlay(message, settings$.value, hiddenWindows.has(windowId), () => options.isFocused(windowId))) return;
       service.handleMessage(windowId, message, send);
     },
     onWindowDestroyed(windowId) {
       steering.forget(windowId);
       hiddenWindows.delete(windowId);
+      // Detached before kehto retires them, so nothing is sent to the closed applet and the person stops them (D-061).
+      const adopted = keepOnClose(service, steering, kept, windowId, settings$.value.closed);
+      started = started.map((id) => adopted.find((session) => session.from === id)?.id ?? id);
       service.onWindowDestroyed?.(windowId);
+      if (settings$.value.closed === 'pause') for (const session of adopted) if (ACTIVE.has(String(session.snapshot.state?.status))) session.playback.command({ action: 'pause', reason: 'focus-lost' });
+      publish();
     },
   };
+
+  const statusOf = (id: string): string => String(kept.get(id)?.snapshot.state?.status ?? statuses.get(id));
 
   return {
     handler,
@@ -150,16 +142,22 @@ export function createKernlMedia(options: KernlMediaOptions): KernlMedia {
     configure(change) {
       const next = writeMediaSettings(options.storage, mediaSettingsFrom({ ...settings$.value, ...change }));
       settings$.next(next);
-      const latest = started.filter((id) => ACTIVE.has(String(statuses.get(id)))).at(-1);
+      const latest = started.filter((id) => ACTIVE.has(statusOf(id))).at(-1);
       if (latest) takeOver(latest);
       return next;
     },
     command(sessionId, command) {
       pausedWhileHidden.delete(sessionId);
-      service.command(sessionId, command);
+      const detached = kept.get(sessionId);
+      if (!detached) service.command(sessionId, command);
+      else if (detached.snapshot.actions.includes(command.action)) detached.playback.command({ ...command, reason: 'user' });
     },
-    end: (sessionId) => service.retire(sessionId, 'user'),
-    element: (sessionId) => service.getElement(sessionId),
+    end(sessionId) {
+      const detached = kept.get(sessionId);
+      if (detached) kept.end(detached);
+      else service.retire(sessionId, 'user');
+    },
+    element: (sessionId) => kept.get(sessionId)?.playback.element ?? service.getElement(sessionId),
     setWindowVisible(windowId, visible) {
       if (visible) hiddenWindows.delete(windowId);
       else hiddenWindows.add(windowId);
@@ -168,17 +166,66 @@ export function createKernlMedia(options: KernlMediaOptions): KernlMedia {
         if (session.windowId !== windowId) continue;
         if (!visible && ACTIVE.has(String(session.state?.status))) {
           pausedWhileHidden.add(session.sessionId);
-          steer(session, 'pause', 'focus-lost');
+          steering.steer(session, 'pause', 'focus-lost');
         } else if (visible && pausedWhileHidden.delete(session.sessionId)) {
-          steer(session, 'play', 'focus-gained');
+          steering.steer(session, 'play', 'focus-gained');
         }
       }
     },
     destroy() {
       unsubscribe();
+      for (const session of kept.all()) kept.end(session);
       service.destroy();
       sessions$.complete();
       settings$.complete();
     },
   };
+}
+
+/**
+ * An applet's own Play on a session the shell plays: the person's settings decide when media
+ * starts, so it counts only while they are working in the applet and can see it. Dropped
+ * silently, as NAP-MEDIA asks of a command the shell will not carry out.
+ */
+function refusesPlay(message: unknown, settings: MediaSettings, hidden: boolean, focused: () => boolean): boolean {
+  const { type, action } = message as { type?: unknown; action?: unknown };
+  if (type !== 'media.command' || action !== 'play') return false;
+  return (settings.hidden === 'pause' && hidden) || (settings.autoplay === 'block' && !focused());
+}
+
+/** The backend kehto is given: autoplay as the person allows, and each playback wrapped so it can outlive its applet. */
+function keptBackend(backend: MediaPlaybackBackend, settings: () => MediaSettings, kept: KeptSessions, hold: (playback: MediaPlayback) => void): MediaPlaybackBackend {
+  return {
+    async open(windowId, request, signal, changed) {
+      const allowed = settings().autoplay === 'allow' ? request : { ...request, autoplay: false };
+      let opened: MediaPlayback | undefined;
+      // A kept playback reports to the shell alone: kehto has let its session go.
+      const report: typeof changed = (state, actions) => {
+        if (!opened || !kept.report(opened, state, actions)) changed(state, actions);
+      };
+      opened = await backend.open(windowId, allowed, signal, report);
+      hold(opened);
+      return kept.wrap(opened);
+    },
+  };
+}
+
+/** Adopt the sessions the shell plays for a closing window, unless the person chose to stop them. */
+function keepOnClose(service: MediaService, steering: MediaSteering, kept: KeptSessions, windowId: string, closed: MediaSettings['closed']): KeptSession[] {
+  if (closed === 'stop') return [];
+  return service.getSessions().flatMap((session) => {
+    const playback = session.windowId === windowId && session.owner === 'shell' ? steering.held(session.sessionId) : undefined;
+    return playback ? [kept.adopt(playback, session)] : [];
+  });
+}
+
+/** What the player lists: kehto's sessions, then those kept after their applets closed. */
+function viewsOf(service: MediaService, kept: KeptSessions, started: readonly string[]): MediaSessionView[] {
+  const views = [
+    ...service.getSessions().map((session) => ({ ...session, detached: false, video: service.getElement(session.sessionId)?.tagName === 'VIDEO' })),
+    ...kept.all().map((session) => ({ ...session.snapshot, detached: true, video: session.playback.element?.tagName === 'VIDEO' })),
+  ];
+  const live = new Set(views.map((view) => view.sessionId));
+  const current = started.filter((id) => live.has(id)).at(-1) ?? views.at(-1)?.sessionId;
+  return views.map((view) => ({ ...view, current: view.sessionId === current }));
 }

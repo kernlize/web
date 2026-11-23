@@ -10,6 +10,8 @@ export const ACTIVE = new Set(['playing', 'buffering']);
 export interface MediaSteering {
   /** Keep a playback the backend opened, to command it directly later. */
   hold(playback: MediaPlayback): void;
+  /** The playback kept for a session the shell plays, when it shows something to find it by. */
+  held(sessionId: string): MediaPlayback | undefined;
   /** Where to reach a window's applet. */
   reach(windowId: string, send: Send): void;
   forget(windowId: string): void;
@@ -38,11 +40,16 @@ export function createMediaSteering(service: MediaService, settings: () => Media
   const playbacks = new WeakMap<object, MediaPlayback>();
   const sends = new Map<string, Send>();
 
+  function held(sessionId: string): MediaPlayback | undefined {
+    const element = service.getElement(sessionId);
+    return element && playbacks.get(element);
+  }
+
   function steer(session: MediaSessionSnapshot, action: 'play' | 'pause', reason: 'focus-lost' | 'focus-gained'): void {
     if (session.owner === 'shell') {
-      const held = playbacks.get(service.getElement(session.sessionId) ?? session);
+      const playback = held(session.sessionId);
       // A backend that shows nothing hands back no element to find it by; kehto's own command still reaches it, as the person's.
-      if (held) held.command({ action, reason });
+      if (playback) playback.command({ action, reason });
       else service.command(session.sessionId, { action });
       return;
     }
@@ -57,6 +64,7 @@ export function createMediaSteering(service: MediaService, settings: () => Media
     hold(playback) {
       if (playback.element) playbacks.set(playback.element, playback);
     },
+    held,
     reach: (windowId, send) => void sends.set(windowId, send),
     forget: (windowId) => void sends.delete(windowId),
     steer,

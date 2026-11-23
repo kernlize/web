@@ -10,6 +10,8 @@ export type MediaVideoPlacement = 'window' | 'docked';
 export type MediaHiddenWindows = 'keep' | 'pause';
 /** Whether a session may start without the person pressing play. */
 export type MediaAutoplay = 'allow' | 'block';
+/** What the shell does with what it plays for an applet when that applet closes: keep it playing, keep it paused, or end it. */
+export type MediaAppletClosed = 'keep' | 'pause' | 'stop';
 
 /** How the shell plays media for applets; the person chooses each in Settings (D-061). */
 export interface MediaSettings {
@@ -18,6 +20,7 @@ export interface MediaSettings {
   readonly video: MediaVideoPlacement;
   readonly hidden: MediaHiddenWindows;
   readonly autoplay: MediaAutoplay;
+  readonly closed: MediaAppletClosed;
 }
 
 /**
@@ -44,10 +47,11 @@ export const MEDIA_SETTING_CHOICES: { readonly [K in keyof MediaSettings]: reado
   video: ['window', 'docked'],
   hidden: ['keep', 'pause'],
   autoplay: ['allow', 'block'],
+  closed: ['keep', 'pause', 'stop'],
 };
 
 /**
- * One thing at a time, the older paused; video in a window; hidden windows keep playing; sessions may start on their own.
+ * One thing at a time, the older paused; video in a window; hidden windows keep playing; sessions may start on their own; what the shell plays outlives its applet.
  *
  * @example
  * ```ts
@@ -60,6 +64,7 @@ export const DEFAULT_MEDIA_SETTINGS: MediaSettings = {
   video: 'window',
   hidden: 'keep',
   autoplay: 'allow',
+  closed: 'keep',
 };
 
 /**
@@ -78,7 +83,7 @@ export function mediaSettingsFrom(value: unknown): MediaSettings {
     const choices = MEDIA_SETTING_CHOICES[key] as readonly unknown[];
     return (choices.includes(record[key]) ? record[key] : DEFAULT_MEDIA_SETTINGS[key]) as MediaSettings[K];
   };
-  return { concurrency: pick('concurrency'), takeover: pick('takeover'), video: pick('video'), hidden: pick('hidden'), autoplay: pick('autoplay') };
+  return { concurrency: pick('concurrency'), takeover: pick('takeover'), video: pick('video'), hidden: pick('hidden'), autoplay: pick('autoplay'), closed: pick('closed') };
 }
 
 /**

@@ -11,20 +11,20 @@ Feature: Media the shell plays for applets
   Rule: Settings
 
     Scenario: a new shell plays one thing at a time, pausing what was playing
-      Then the media settings are "one", "pause", "window", "keep" and "allow"
+      Then the media settings are "one", "pause", "window", "keep", "allow" and "keep"
 
     Scenario: a change to the settings is kept
       When the person sets media "concurrency" to "many"
       And the person sets media "video" to "docked"
-      Then a media player over the same storage has settings "many", "pause", "docked", "keep" and "allow"
+      Then a media player over the same storage has settings "many", "pause", "docked", "keep", "allow" and "keep"
 
     Scenario: a stored value the shell does not know falls back to the default
       Given a media player over storage holding media settings '{"concurrency":"all","video":"docked","hidden":7}'
-      Then the media settings are "one", "pause", "docked", "keep" and "allow"
+      Then the media settings are "one", "pause", "docked", "keep", "allow" and "keep"
 
     Scenario Outline: storage that is not settings at all is ignored
       Given a media player over storage holding media settings '<stored>'
-      Then the media settings are "one", "pause", "window", "keep" and "allow"
+      Then the media settings are "one", "pause", "window", "keep", "allow" and "keep"
 
       Examples:
         | stored   |
@@ -196,6 +196,94 @@ Feature: Media the shell plays for applets
       Then window "w1" was asked to "pause" session "radio" because "focus-lost"
       And window "w1" was not asked to "play" session "radio"
 
+  Rule: Closing the applet
+
+    Scenario: by default what the shell plays keeps playing after its applet closes
+      When window "w1" plays "first.webm"
+      And the applet in window "w1" is closed
+      Then the media sessions are "w1/first.webm"
+      And session "w1/first.webm" is "playing"
+      And session "w1/first.webm" is detached from its applet
+      And window "w1" was not told anything ended
+      And the playback of "first.webm" was kept
+
+    Scenario: what the shell plays can be paused instead when its applet closes
+      Given the person sets media "closed" to "pause"
+      When window "w1" plays "first.webm"
+      And the applet in window "w1" is closed
+      Then session "w1/first.webm" is "paused"
+      When the person presses "play" on "w1/first.webm"
+      Then session "w1/first.webm" is "playing"
+
+    Scenario: a session the person paused stays paused when its applet closes
+      Given the person sets media "closed" to "pause"
+      When window "w1" plays "first.webm"
+      And the person presses "pause" on "first.webm"
+      And the applet in window "w1" is closed
+      Then session "w1/first.webm" is "paused" because "user"
+
+    Scenario: media an applet plays itself ends with it, whatever the setting
+      When window "w1" plays its own "radio" that can "play,pause"
+      And the applet in window "w1" is closed
+      Then the media sessions are ""
+
+    Scenario: the person ends a session whose applet has closed
+      When window "w1" plays "first.webm"
+      And the applet in window "w1" is closed
+      And the person ends "w1/first.webm"
+      Then the media sessions are ""
+      And the playback of "first.webm" was let go
+
+    Scenario: a session whose applet has closed still plays one at a time
+      When window "w1" plays "first.webm"
+      And the applet in window "w1" is closed
+      And window "w2" plays "second.webm"
+      Then session "w1/first.webm" is "paused" because "focus-lost"
+      And the current session is "second.webm"
+      When the person presses "play" on "w1/first.webm"
+      Then session "second.webm" is "paused" because "focus-lost"
+      And the current session is "w1/first.webm"
+
+    Scenario: a session whose applet has closed is ended by a newer one when the person chose that
+      Given the person sets media "takeover" to "end"
+      When window "w1" plays "first.webm"
+      And the applet in window "w1" is closed
+      And window "w2" plays "second.webm"
+      Then the media sessions are "second.webm"
+      And the playback of "first.webm" was let go
+
+    Scenario: switching to one at a time counts a session whose applet has closed
+      Given the person sets media "concurrency" to "many"
+      When window "w2" plays "second.webm"
+      And window "w1" plays "first.webm"
+      And the applet in window "w1" is closed
+      And the person sets media "concurrency" to "one"
+      Then session "second.webm" is "paused" because "focus-lost"
+      And session "w1/first.webm" is "playing"
+
+    Scenario: a kept video is still shown
+      When window "w1" plays "clip.webm" as video
+      And the applet in window "w1" is closed
+      Then session "w1/clip.webm" is a video
+      And session "w1/clip.webm" has an element to show
+
+    Scenario: a kept session ignores a control it does not offer
+      When window "w1" plays "first.webm"
+      And the applet in window "w1" is closed
+      And the person presses "next" on "w1/first.webm"
+      Then session "w1/first.webm" is "playing"
+
+    Scenario: a playback with nothing to show cannot be kept
+      When window "w1" plays "bare.webm"
+      And the applet in window "w1" is closed
+      Then the media sessions are ""
+
+    Scenario: shutting the player down lets kept playback go
+      When window "w1" plays "first.webm"
+      And the applet in window "w1" is closed
+      And the media player is shut down
+      Then the playback of "first.webm" was let go
+
   Rule: Video and ending
 
     Scenario: a video source is shown as a video
@@ -209,10 +297,12 @@ Feature: Media the shell plays for applets
       Then window "w1" was told session "first.webm" ended because "user"
       And the media sessions are ""
 
-    Scenario: closing the applet's window ends its sessions
+    Scenario: closing the applet's window ends its sessions when the person chose that
+      Given the person sets media "closed" to "stop"
       When window "w1" plays "first.webm"
       And the applet in window "w1" is closed
       Then the media sessions are ""
+      And the playback of "first.webm" was let go
 
     Scenario: the current session falls back to the one before
       When window "w1" plays "first.webm"
