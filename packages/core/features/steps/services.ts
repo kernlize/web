@@ -72,6 +72,7 @@ async function build(world: CoreWorld, options: { signer?: boolean; theme?: Reco
     auth: { getSigner: () => (options.signer === false ? null : wrapAccountSigner(account)) },
     consent: allowAllSigning,
     host: {
+      storage: s.storage,
       notify: (notice) => void notices.push(notice),
       openLink: (url) => void links.push(url),
     },

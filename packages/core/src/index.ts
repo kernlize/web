@@ -216,6 +216,8 @@ export { createWindowIdentities, type WindowIdentities } from './multiplayer/win
 export { KEY_REPEAT_WINDOW_MS, createForwardedKeys, type ForwardedKeys } from './keys/forwarded-keys.js';
 export { createKeymapHold, type KeymapHold, type KeymapHoldOptions } from './keys/keymap-hold.js';
 export { createShortcutsService, type ShortcutKey, type ShortcutSettings, type ShortcutsOptions, type ShortcutsService } from './keys/shortcuts.js';
+export { createKernlMedia, type KernlMedia, type KernlMediaOptions, type MediaSessionView, type MediaUserCommand } from './media/kernl-media.js';
+export { DEFAULT_MEDIA_SETTINGS, MEDIA_SETTING_CHOICES, MEDIA_SETTINGS_KEY, mediaSettingsFrom, readMediaSettings, writeMediaSettings, type MediaAutoplay, type MediaConcurrency, type MediaHiddenWindows, type MediaSettings, type MediaTakeover, type MediaVideoPlacement } from './media/settings.js';
 export { createMultiplayerSettings, validFamily, type MultiplayerSettings, type MultiplayerState } from './multiplayer/settings.js';
 export { discoverToolFamilies, TOOL_DISCOVERY_TIMEOUT_MS, type ToolDiscoveryOptions, type ToolFamilyCandidate } from './multiplayer/tool-discovery.js';
 export { createDirectConnectionsService, describeDirectConnection, directNamespace, type DirectConnectionsOptions } from './multiplayer/direct-connections.js';

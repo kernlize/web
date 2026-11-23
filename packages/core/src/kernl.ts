@@ -261,6 +261,7 @@ interface ShellParts {
   readonly dm: { dispose(): void };
   readonly downloads: { dispose(): void };
   readonly keys: { destroy(): void };
+  readonly media: { destroy(): void };
   readonly bridge: ShellBridge;
   readonly traffic: { close(): void };
   /** Closed only when the shell created it. */
@@ -279,6 +280,7 @@ function tearDown(parts: ShellParts): void {
   parts.dm.dispose();
   parts.downloads.dispose();
   parts.keys.destroy();
+  parts.media.destroy();
   parts.bridge.destroy();
   parts.traffic.close();
   parts.messaging?.close();
@@ -426,6 +428,7 @@ export function createKernl(options: KernlOptions): Kernl {
     host,
     handles,
     subscriptions,
+    onVisibility: (windowId, visibility) => services.media.setWindowVisible(windowId, visibility.visible),
     openCache: options.artifactCache ?? openDefaultArtifactCache,
     fetchBlob: host.fetchBlob ? host.fetchBlob.bind(host) : defaultFetchBlob,
     builtins: options.builtins ?? [], ...(downloads.extensions ? { extensions: downloads.extensions } : {}),
@@ -451,6 +454,7 @@ export function createKernl(options: KernlOptions): Kernl {
     directory,
     intents: intents.intents,
     firewall,
+    media: services.media,
     session$,
     get session() {
       return session$.value;
@@ -465,6 +469,6 @@ export function createKernl(options: KernlOptions): Kernl {
       lifecycle.handleWindowMessage(event);
     },
     destroy: () =>
-      tearDown({ traffic, handles, subscriptions, destroyed$, network: { directory, eventCache }, intents, dm: services.dm, downloads, keys: services.keys, bridge, ...(ownsMessaging ? { messaging } : {}), ...(ownsPool ? { pool } : {}) }),
+      tearDown({ traffic, handles, subscriptions, destroyed$, network: { directory, eventCache }, intents, dm: services.dm, downloads, keys: services.keys, media: services.media, bridge, ...(ownsMessaging ? { messaging } : {}), ...(ownsPool ? { pool } : {}) }),
   };
 }

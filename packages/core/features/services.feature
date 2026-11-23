@@ -11,7 +11,7 @@ Feature: Shell services and adapter
     And kernl services with a signing account and a fake bridge registry
 
   Scenario: the registry covers the domains kernl serves
-    Then the service registry has "relay,identity,theme,keys,notify,link,resource,dm,outbox,cvm"
+    Then the service registry has "relay,identity,theme,keys,notify,link,resource,media,dm,outbox,cvm"
 
   Scenario: remote tools look for servers on the general relays when the host names none
     When service "cvm" handles '{"type":"cvm.discover","id":"d1"}' from window "w1"

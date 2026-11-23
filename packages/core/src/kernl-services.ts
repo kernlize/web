@@ -7,6 +7,7 @@ import {
   createConfigService,
   createDmService,
   createIdentityService,
+  createBrowserMediaPlayback,
   createLinkService,
   createNotifyService,
   createOutboxService,
@@ -34,6 +35,7 @@ import type { DirectConnectionsSettings, KernlHost, RelayTiers, RemoteToolsSetti
 import { createDirectConnectionsService, type DirectConnectionsOptions } from './multiplayer/direct-connections.js';
 import { createRemoteToolsService, mergeFamilies } from './multiplayer/remote-tools.js';
 import { createWindowIdentities, type WindowIdentities } from './multiplayer/window-identities.js';
+import { createKernlMedia, type KernlMedia } from './media/kernl-media.js';
 import { createShortcutsService, type ShortcutsOptions, type ShortcutsService } from './keys/shortcuts.js';
 import type { MultiplayerSettings } from './multiplayer/settings.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
@@ -82,7 +84,7 @@ export interface KernlServiceDeps {
   readonly auth: Pick<AuthHooks, 'getSigner'> & Partial<Pick<AuthHooks, 'getUserPubkey'>>;
   /** Gates the outbox service's publishes, which kehto signs without naming the window. */
   readonly consent: SigningConsent;
-  readonly host: Pick<KernlHost, 'notify' | 'openLink'>;
+  readonly host: Pick<KernlHost, 'notify' | 'openLink' | 'storage'>;
   readonly bridges: BridgeRegistry;
   readonly messaging: MessagingRegistry;
   /** Applet settings (NAP-CONFIG); without them the `config` domain is not offered. */
@@ -124,6 +126,8 @@ export interface KernlServices {
   readonly dm: DmService;
   /** The `keys` service; `destroy()` gives back its key listener. */
   readonly keys: ShortcutsService;
+  /** The `media` service under the person's media settings. */
+  readonly media: KernlMedia;
 }
 
 function toRelayListEntry(relays: RelayPermissions): RelayListEntry {
@@ -387,6 +391,14 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
   const direct = deps.directConnections;
   const chosen = () => deps.multiplayer?.state();
   const keys = createShortcutsService(deps.shortcuts);
+  const resource = createResourceService({
+    fetch: (url, init) =>
+      fetchThroughFirewall(url, init, (signal) => resolve(url, resourceInitFor(deps, { ...init, signal }))).catch((error: unknown) => {
+        throw resourceErrorFor(error);
+      }),
+  });
+  // Built when an applet first asks, so the core runs where there is no document to play in.
+  const media = createKernlMedia({ storage: deps.host.storage, playback: { open: (...args) => createBrowserMediaPlayback({ resource }).open(...args) } });
 
   const registry: ServiceRegistry = {
     relay: createAppletRelayService(deps.pool, deps.tiers),
@@ -405,12 +417,8 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
       },
     }),
     // The firewall approves a web address's server before it is contacted (D-056); a bridge's reason becomes a NAP-RESOURCE code (D-055).
-    resource: createResourceService({
-      fetch: (url, init) =>
-        fetchThroughFirewall(url, init, (signal) => resolve(url, resourceInitFor(deps, { ...init, signal }))).catch((error: unknown) => {
-          throw resourceErrorFor(error);
-        }),
-    }),
+    resource,
+    media: media.handler,
     dm,
     outbox: gateOutboxPublish(createOutbox(deps, identity), deps.consent),
     cvm: createRemoteToolsService({
@@ -432,5 +440,5 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
     ...(deps.common ? { common: createCommonService({ planRelays: relayPlan, ...deps.common }) } : {}),
     ...(deps.uploader ? { upload: createUploadService({ uploader: deps.uploader, uploadInfo: { rails: [{ rail: 'blossom', enabled: true }] } }) } : {}),
   };
-  return { registry, theme, dm, keys };
+  return { registry, theme, dm, keys, media };
 }
