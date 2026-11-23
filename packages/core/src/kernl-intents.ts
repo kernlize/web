@@ -1,11 +1,8 @@
-import { Subscription } from 'rxjs';
-import type { AccountManager, IAccount } from 'applesauce-accounts';
+import { Subscription, type Observable } from 'rxjs';
 import type { ServiceHandler, ServiceRuntimeContext } from '@kehto/runtime';
 import { createIntentService } from '@kehto/services';
-import type { EventTemplate, NostrEvent } from '@napplet/core';
 import type { Intents, KernlHost, RelayTiers } from './types.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
-import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
 import type { MountedApplet } from './applets/mount.js';
 import { createHandlerDefaults, type PreferenceSigner } from './intents/defaults.js';
 import { createIntentDelivery } from './intents/delivery.js';
@@ -14,12 +11,13 @@ import { createIntentRouter } from './intents/router.js';
 
 /** What {@link createKernlIntents} needs from the composed shell. */
 export interface KernlIntentDeps {
-  readonly host: KernlHost;
+  readonly host: Pick<KernlHost, 'storage' | 'now' | 'notify' | 'openApplet' | 'focusApplet' | 'chooseHandler'>;
   readonly pool: ApplesaucePool;
   readonly tiers: RelayTiers;
-  readonly accounts: AccountManager;
-  /** Live applet handles by window id; the source of every sender identity. */
-  readonly handles: ReadonlyMap<string, MountedApplet>;
+  /** The signed-in identity: its pubkey, its changes, and a signer for the person's own preferences, none when it cannot sign. */
+  readonly identity: { pubkey(): string | undefined; readonly pubkey$: Observable<unknown>; signer(): PreferenceSigner | undefined };
+  /** Live applets by window id; the source of every sender identity. */
+  readonly handles: ReadonlyMap<string, Pick<MountedApplet, 'windowId' | 'summary'>>;
   readonly retry?: { readonly intervalMs: number; readonly attempts: number };
 }
 
@@ -39,11 +37,6 @@ const FAILURES: Readonly<Record<string, string>> = {
 
 /** What the user is told when the host itself failed while opening the handler. */
 const UNREACHABLE = 'It could not be reached.';
-
-function signerOf(account: IAccount | undefined): PreferenceSigner | undefined {
-  if (!account || isReadOnlyAccount(account)) return undefined;
-  return (template: EventTemplate) => account.signEvent(template) as Promise<NostrEvent>;
-}
 
 /**
  * Keep the runtime context kehto hands the intent service, so delivery can
@@ -74,11 +67,11 @@ function withContext(inner: ServiceHandler, hold: (context: ServiceRuntimeContex
  * account changes. A delivery that fails after acceptance is reported to the
  * user, since the source has already been told yes.
  *
- * @param deps - Host, pool, tiers, accounts and live handles.
+ * @param deps - Host, pool, tiers, the signed-in identity and the live applets.
  * @returns The service handler, the facade and the installed set.
  * @example
  * ```ts
- * const intents = createKernlIntents({ host, pool, tiers, accounts, handles });
+ * const intents = createKernlIntents({ host, pool, tiers, identity, handles });
  * services.registry.intent = intents.handler;
  * ```
  */
@@ -89,8 +82,8 @@ export function createKernlIntents(deps: KernlIntentDeps): KernlIntents {
     storage: host.storage,
     pool: deps.pool,
     tiers: deps.tiers,
-    pubkey: () => deps.accounts.active?.pubkey,
-    signer: () => signerOf(deps.accounts.active),
+    pubkey: () => deps.identity.pubkey(),
+    signer: () => deps.identity.signer(),
   });
   let context: ServiceRuntimeContext | undefined;
   const titleOf = (catalogId: string): string => installed.get(catalogId)?.title ?? 'An applet';
@@ -124,7 +117,7 @@ export function createKernlIntents(deps: KernlIntentDeps): KernlIntents {
     for (const slug of new Set(list.flatMap((applet) => applet.contracts.map((contract) => contract.slug)))) router.notifyChanged(slug);
   }));
   subscriptions.add(defaults.changes$.subscribe((archetype) => router.notifyChanged(archetype)));
-  subscriptions.add(deps.accounts.active$.subscribe(() => void defaults.load()));
+  subscriptions.add(deps.identity.pubkey$.subscribe(() => void defaults.load()));
 
   return {
     handler: withContext(service, (next) => {
@@ -135,6 +128,7 @@ export function createKernlIntents(deps: KernlIntentDeps): KernlIntents {
       installed$: installed.changes$,
       installed: () => installed.list(),
       uninstall: (catalogId) => installed.remove(catalogId),
+      record: (summary) => installed.install(summary),
       defaults,
     },
     close: () => subscriptions.unsubscribe(),

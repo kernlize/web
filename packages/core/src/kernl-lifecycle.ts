@@ -1,7 +1,7 @@
 import type { Subscription } from 'rxjs';
 import { originRegistry, type ShellAdapter, type ShellBridge, type ShellEnvironment } from '@kehto/shell';
 import type { NappletArtifactCache } from '@kehto/nip/5d';
-import type { AppletHandle, AppletIdentity, AppletPointer, AppletSummary, BuiltinApplet, FrameLike, GrantRecord, Kernl, KernlHost, MountPlan, RelayTiers } from './types.js';
+import type { AppletHandle, AppletIdentity, AppletPointer, AppletSummary, BuiltinApplet, FrameLike, GrantRecord, Intents, Kernl, KernlHost, MountPlan, RelayTiers } from './types.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { resolveBuiltin } from './applets/builtin.js';
 import { fetchManifestEvent, resolveApplet, type PublishedPointer, type ResolvedApplet } from './applets/resolve.js';
@@ -11,7 +11,6 @@ import type { WindowVisibility } from '@kernlize/guard';
 import type { GuardPipeline, WindowResolution } from './guard/pipeline.js';
 import type { AppletAdmissions } from './firewall/admission.js';
 import { createEnvironmentResolver, type KernlGrants } from './grants/grants.js';
-import type { InstalledApplets } from './intents/installed.js';
 
 /** What the applet lifecycle needs from the composed shell. */
 export interface LifecycleContext {
@@ -25,8 +24,8 @@ export interface LifecycleContext {
   /** Tells the firewall which applet a window id's questions are about. */
   readonly remember: (summary: AppletSummary) => void;
   readonly grants: KernlGrants;
-  /** Every planned applet is installed, so others can hand it work. */
-  readonly installed: InstalledApplets;
+  /** The intents module's api, when it is loaded: every planned applet is recorded there, so others can hand it work. */
+  readonly intents: () => Intents | undefined;
   readonly host: Pick<KernlHost, 'onRevoked'>;
   /** Live handles keyed by window id; shared with the bridge's revocation hook. */
   readonly handles: Map<string, MountedApplet>;
@@ -180,15 +179,17 @@ export function createAppletLifecycle(context: LifecycleContext): AppletLifecycl
     },
     install(summary: AppletSummary) {
       if (!verified.has(keyOf(summary.identity))) throw new Error('invalid:unresolved');
+      const intents = context.intents();
+      if (!intents) throw new Error('unavailable:intents');
       context.grants.ensure(summary.identity);
-      return context.installed.install(summary);
+      return intents.record(summary);
     },
     async plan(summary: AppletSummary): Promise<MountPlan> {
       const indexHtml = verified.get(keyOf(summary.identity));
       if (indexHtml === undefined) throw new Error('invalid:unresolved');
       if (context.grants.get(summary.identity)?.blocked) throw new Error('denied:blocked');
       context.grants.ensure(summary.identity);
-      context.installed.install(summary);
+      context.intents()?.record(summary);
       windowCounter += 1;
       const windowId = `applet-${windowCounter}`;
       planned.set(windowId, keyOf(summary.identity));

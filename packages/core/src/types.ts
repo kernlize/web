@@ -544,6 +544,8 @@ export interface Intents {
   installed(): readonly InstalledApplet[];
   /** Forget an applet; other applets can no longer hand work to it. */
   uninstall(catalogId: string): void;
+  /** Record an applet as installed, so others can hand it work; the shell does it for every applet it plans. */
+  record(summary: AppletSummary): InstalledApplet;
   readonly defaults: HandlerDefaults;
 }
 
@@ -620,7 +622,7 @@ export interface Kernl {
  * The members of the shell that modules provide, named by module id. Each is present when its
  * module is loaded, as it is with `kernlModules()` (D-062).
  */
-export type ModuleMembers = 'directory' | 'profiles' | 'people' | 'mailboxes' | 'files' | 'catalog';
+export type ModuleMembers = 'directory' | 'profiles' | 'people' | 'mailboxes' | 'files' | 'catalog' | 'intents';
 
 /**
  * The shell without the members modules provide: what `createKernl` returns, with each loaded

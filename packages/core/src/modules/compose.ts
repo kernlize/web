@@ -24,7 +24,7 @@ import type { AnyKernlModule, KernelContext, ModuleInstance } from './module.js'
  */
 export const KERNEL_DOMAINS: readonly string[] = Object.freeze([
   'shell', 'storage', 'inc', 'relay', 'identity', 'notify', 'link', 'outbox',
-  'resource', 'dm', 'cvm', 'webrtc', 'intent', 'torrent', 'nzb', 'soulseek', 'media',
+  'resource', 'dm', 'cvm', 'webrtc', 'torrent', 'nzb', 'soulseek', 'media',
 ]);
 
 /**
@@ -73,7 +73,9 @@ export interface KernelContextParts {
   readonly replaceableLoader: AddressPointerLoader;
   readonly appletOf: (windowId: string) => AppletSummary | undefined;
   /** The host's consent prompt. */
-  readonly host: Pick<KernlHost, 'presentConsent'>;
+  readonly host: Pick<KernlHost, 'presentConsent' | 'storage' | 'openApplet' | 'focusApplet' | 'chooseHandler' | 'notify' | 'now'>;
+  /** The applets running now, by window id. */
+  readonly applets: KernelContext['applets'];
   /** Whether a window is the focused one, as the guard sees it. */
   readonly isFocused: (windowId: string) => boolean;
 }
@@ -110,6 +112,8 @@ function contextFor(parts: KernelContextParts, apis: Readonly<Record<string, unk
     },
     appletOf: parts.appletOf,
     isFocused: parts.isFocused,
+    applets: parts.applets,
+    host: parts.host,
     ask: (summary) => new Promise((resolve) => parts.host.presentConsent({ summary, resolve })),
     replaceableLoader: parts.replaceableLoader,
     loadReplaceable: (pointer) => loadReplaceableQuietly(parts.replaceableLoader, parts.tiers, pointer),
