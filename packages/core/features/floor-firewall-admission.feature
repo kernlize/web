@@ -32,7 +32,8 @@ Feature: Floor: the firewall admits an applet before its code runs, whatever mod
     Then mounting the first of those plans fails with "denied:admission-expired"
 
   Scenario: a window the shell did not plan is never served
-    Given a kernl shell over that host and pool with fake bridges
-    When a rogue window registered outside the shell is granted "resource", sends its hello, asks "resource.bytes" for "https://files.example/rogue.txt" and floods "storage.get"
-    Then the fake bridges were asked for nothing
-    And the rogue window got no answer
+    Given a kernl shell over that host and pool
+    And the shell is signed in
+    When a rogue window registered outside the shell is granted "relay", sends its hello and publishes a kind 0 event
+    Then the rogue window got no answer
+    And the fake pool published nothing

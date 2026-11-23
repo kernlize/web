@@ -9,7 +9,7 @@ Feature: Floor: one store, one pool and one account manager, whatever modules ar
 
   Scenario: host-supplied parts are the shell's only ones
     Given a kernl shell over that host and pool with its own store, accounts, messaging, bridges, relays, a "balanced" guard, a theme, a clock and a blob fetcher
-    Then the shell uses the supplied store, accounts, messaging and bridges
+    Then the shell uses the supplied store, accounts and pool
 
   Scenario: a shell without a supplied pool owns one and closes it when destroyed
     Given a kernl shell over that host without a pool

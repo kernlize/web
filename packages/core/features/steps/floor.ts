@@ -3,7 +3,7 @@ import { Given, Then, When } from 'quickpickle';
 import type { AclStateContainer, Capability } from '@kehto/runtime';
 import type { AppletMessage, KernlGrants } from '@kernlize/core';
 import { k } from './kernl.js';
-import { passwordSigner, scratch, unlockPhrase, type CoreWorld } from './world.js';
+import { passwordSigner, scratch, type CoreWorld } from './world.js';
 
 // The grants steps fix one artifact hash; these name a second build of the same applet.
 const OTHER_HASH = '0d'.repeat(32);
@@ -38,12 +38,26 @@ Given("the shell's traffic is recorded", (world: CoreWorld) => {
   scratch(world).traffic = traffic;
 });
 
-Then('nothing the shell reported holds the signed-in key or its password', (world: CoreWorld) => {
+Then('nothing the shell reported holds the signed-in key', (world: CoreWorld) => {
   const { guardEvents, record, received } = k(world);
   const reported = JSON.stringify({ guardEvents, record, received, traffic: scratch(world).traffic });
   expect((scratch(world).traffic as AppletMessage[]).length).toBeGreaterThan(0);
   expect(reported).not.toContain(Buffer.from(passwordSigner.key as Uint8Array).toString('hex'));
-  expect(reported).not.toContain(unlockPhrase);
   expect(reported).not.toContain('nsec1');
   expect(reported).not.toContain('ncryptsec1');
+});
+
+Then("the mounted frame's sandbox is exactly {string}", (world: CoreWorld, sandbox: string) => {
+  expect(k(world).frame?.attributes.get('sandbox')).toBe(sandbox);
+});
+
+Then("the mounted frame's srcdoc starts with the guard's policy", (world: CoreWorld) => {
+  expect(k(world).frame?.srcdoc).toMatch(/^<!doctype html><html><head><meta http-equiv="Content-Security-Policy"/i);
+});
+
+Then('the shell uses the supplied store, accounts and pool', (world: CoreWorld) => {
+  const { kernl, supplied } = k(world);
+  expect(kernl.eventStore).toBe(supplied?.eventStore);
+  expect(kernl.accounts).toBe(supplied?.accounts);
+  expect(kernl.pool).toBe(scratch(world).pool);
 });

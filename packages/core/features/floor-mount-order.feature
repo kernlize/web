@@ -3,18 +3,18 @@ Feature: Floor: mounting follows one order and every revocation removes the fram
   frame that is revoked for any reason is removed and never reused. No module
   takes part in the order or keeps a frame alive (AGENTS.md, D-061).
 
-  Background:
+  Scenario: the frame is sandboxed and registered before it holds any code
     Given a verified applet summary for "chat" requiring "relay,identity"
     And a shell adapter whose resolver allows "shell,identity,storage,theme,inc"
-
-  Scenario: the frame is sandboxed and registered before it holds any code
-    Given a plan for window "w1"
+    And a plan for window "w1"
     And a fake frame
     When the shell mounts the plan into the frame
     Then the mount steps were "sandbox,register,setEnvironment,observeFrame,srcdoc"
 
   Scenario: closing removes the frame and drops the guard's state
-    Given a plan for window "w1"
+    Given a verified applet summary for "chat" requiring "relay,identity"
+    And a shell adapter whose resolver allows "shell,identity,storage,theme,inc"
+    And a plan for window "w1"
     And a fake frame
     And the shell mounts the plan into the frame
     When the shell closes the applet
@@ -22,9 +22,20 @@ Feature: Floor: mounting follows one order and every revocation removes the fram
     And the guard forgot "w1"
 
   Scenario: a revocation from the bridge removes the frame and tells the host
-    Given a plan for window "w1"
+    Given a verified applet summary for "chat" requiring "relay,identity"
+    And a shell adapter whose resolver allows "shell,identity,storage,theme,inc"
+    And a plan for window "w1"
     And a fake frame
     And the shell mounts the plan into the frame
     When the bridge reports the applet revoked for "second-load"
     Then the frame was removed
     And the host was told "w1" was revoked for "second-load"
+
+  Scenario: a revocation in the composed shell removes the frame and tells the host
+    Given a kernl host over empty storage
+    And a fake applesauce pool serving a signed manifest for "chat" requiring "relay"
+    And a kernl shell over that host and pool
+    And a mounted applet
+    When kehto revokes the mounted window
+    Then the host was told the window was revoked for "host"
+    And the mounted frame was removed

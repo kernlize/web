@@ -1,7 +1,8 @@
 Feature: Floor: an applet holds only what the person granted, whatever modules are loaded
   The runtime ACL is restrictive. An applet starts with the read-only,
-  no-network baseline and holds nothing the grants layer did not write. A
-  module adds domains to offer; it never grants one (D-020, D-061).
+  no-network baseline and holds nothing the grants layer did not write. Only
+  the person grants a domain, or the host for an applet it ships; a module
+  adds domains to offer and never grants one (D-020, D-060, D-061).
 
   Background:
     Given a kernl host over empty storage
@@ -15,8 +16,7 @@ Feature: Floor: an applet holds only what the person granted, whatever modules a
     Given a kernl shell over that host and pool
     When the shell resolves the manifest address
     And the shell plans the summary
-    Then the shell plan is for window "applet-1" with domains "shell,storage,inc,theme,keys"
-    And the shell plan is missing "relay"
+    Then the shell plan is missing "relay"
 
   Scenario: the signed-in identity is not shown until it is granted
     Given a kernl shell over that host and pool

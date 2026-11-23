@@ -22,10 +22,10 @@ Feature: Floor: the guard sees every message first, whatever modules are loaded
     And the message that crossed the limit was never answered
 
   Scenario: a hidden applet's requests are held until it is visible
-    Given a kernl shell over that host and pool with fake bridges and a manual clock
-    And a mounted applet granted "resource" that has said hello
+    Given a kernl shell over that host and pool
+    And a mounted applet granted "relay" that has said hello
     When the applet window becomes "hidden"
-    And the applet sends 1 "resource.bytes" requests over its port, 1000 ms apart
-    Then "resource.bytes" requests 1 to 1 got no answer
-    And the fake bridges were asked for nothing
-    And the shell guard events included "hidden:resource:bytes"
+    And the applet sends 1 "storage.set" requests over its port, 0 ms apart
+    Then "storage.set" requests 1 to 1 got no answer
+    When the applet window becomes "focused"
+    Then "storage.set" requests 1 to 1 were answered
