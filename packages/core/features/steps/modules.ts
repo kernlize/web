@@ -7,7 +7,7 @@ import { AccountManager } from 'applesauce-accounts';
 import { ReadonlyAccount } from 'applesauce-accounts/accounts';
 import { createMessagingRegistry } from '@kernlize/messaging';
 import type { ServiceHandler } from '@kehto/runtime';
-import { abbreviate, directoryModule, kernlModules, mailboxesModule, peopleModule, profilesModule, searchCatalog, setupModules, socialModule, themeModule, toCatalogEntry, type AnyKernlModule, type CatalogEntry, type DomainBinding, type KernelContext, type KernlModule, type RelayTier, type ThemeApi } from '@kernlize/core';
+import { abbreviate, catalogModule, directoryModule, kernlModules, mailboxesModule, peopleModule, profilesModule, searchCatalog, setupModules, socialModule, themeModule, toCatalogEntry, type AnyKernlModule, type CatalogEntry, type DomainBinding, type KernelContext, type KernlModule, type RelayTier, type ThemeApi } from '@kernlize/core';
 import { blobFetcher, boot, k, settle, vector } from './kernl.js';
 import { attempt, scratch, splitList, type CoreWorld } from './world.js';
 
@@ -32,6 +32,7 @@ function named(world: CoreWorld, name: string): readonly AnyKernlModule[] {
     social: () => [socialModule()],
     directory: () => [directoryModule()],
     mailboxes: () => [mailboxesModule()],
+    catalog: () => [catalogModule()],
     clock: () => [{ id: 'clock', setup: () => ({ api: { now: () => 42 } }) } satisfies KernlModule<'clock', { now(): number }>],
     'needs-clock': () => [{ id: 'needs-clock', requires: ['clock'], setup: (context) => ({ api: { time: () => context.use<{ now(): number }>('clock').now() } }) }],
     first: () => [recorder(world, 'first')],
@@ -44,6 +45,7 @@ function named(world: CoreWorld, name: string): readonly AnyKernlModule[] {
     grants: () => [{ id: 'grants', setup: () => ({ api: {} }) }],
     profiles: () => [profilesModule()],
     people: () => [peopleModule()],
+    'needs-catalog': () => [{ id: 'needs-catalog', requires: ['catalog'], setup: () => ({}) }],
     'needs-settings': () => [{ id: 'needs-settings', requires: ['settings'], setup: () => ({}) }],
     'needs-files': () => [{ id: 'needs-files', requires: ['files'], setup: () => ({}) }],
     'needs-cache': () => [{ id: 'needs-cache', requires: ['cache'], setup: () => ({}) }],
@@ -274,4 +276,9 @@ Then('the probe holds no signer, and finds the {string} module', (world: CoreWor
 Then('the {string} tier stays {string}', async (world: CoreWorld, tier: RelayTier, urls: string) => {
   await settle();
   expect(k(world).kernl.relays.get()[tier]).toEqual(splitList(urls));
+});
+
+Then('the shell lists its store as {string}', async (world: CoreWorld, titles: string) => {
+  const listed = await Reflect.get(k(world).kernl, 'catalog').load();
+  expect(listed.map((entry: CatalogEntry) => entry.title)).toEqual(splitList(titles));
 });
