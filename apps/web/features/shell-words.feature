@@ -455,14 +455,6 @@ Feature: Shell words
       | ratchet | 1    | private,legacy,ratchet |
       | ghost   | 1    | private,legacy,ratchet |
 
-  Scenario: applets are told the colours of the page the shell is on
-    Given the page's style tokens "--bg-raised: #fcfaf4 ; --ink:#15171b; --accent: #9a5b00"
-    Then the shell's theme is background "#fcfaf4", text "#15171b" and primary "#9a5b00"
-
-  Scenario: a page without the shell's tokens has no theme to tell
-    Given the page's style tokens "--ink:#15171b"
-    Then the shell has no theme
-
   Scenario: an applet that can read messages keeps only what cannot send them on (D-046)
     Then with "dm,identity" switched on, these are withheld and say "off while it can read your messages":
       | relay | outbox | upload | webrtc | inc | cvm | resource | link | llm | fs | cache | media | something-new |

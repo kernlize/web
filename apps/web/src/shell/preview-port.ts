@@ -3,6 +3,7 @@ import type { MessagingRegistry } from '@kernlize/messaging';
 import { labelConversations, locateRecipients, type AppletMessageDirection, type Profiles } from '@kernlize/core';
 import { createPreviewPeople } from './preview-people';
 import type { KernlHost } from './contract';
+import type { ShellTheme } from './shell-theme';
 
 /** The domains the preview can put behind an applet's port. Anything else is left out of its environment. */
 export const PORT_DOMAINS: readonly string[] = ['dm', 'identity', 'theme', 'notify'];
@@ -43,6 +44,12 @@ export interface PortBinding {
 export interface PreviewPorts {
   /** Serve one applet over its port until the returned function is called. */
   bind(binding: PortBinding): () => void;
+  /**
+   * Tell every bound applet that was given the theme the colours changed, and answer `theme.get`
+   * with them from now on. The live shell's theme service broadcasts through kehto's runtime; the
+   * preview has none, so the same service hands the envelope here to carry to each applet (D-064).
+   */
+  publishTheme(theme: ShellTheme): void;
   close(): void;
 }
 
@@ -55,23 +62,33 @@ const isEnvelope = (data: unknown): data is Envelope => typeof data === 'object'
  * owns its domain and lets the same guard look at it first (D-011).
  */
 export function createPreviewPorts(deps: PreviewPortDeps): PreviewPorts {
+  /** Every applet this preview has bound, so a theme change can reach the ones still open. */
+  const bound = new Map<string, PortBinding>();
+  const deliver = (windowId: string, port: PortLike, envelope: unknown): void => {
+    deps.report?.(windowId, 'to-applet', envelope);
+    port.postMessage(envelope);
+  };
   // The same naming the live shell's dm service does, from the preview's people.
   const dm = createDmService({ adapter: labelConversations(locateRecipients(deps.messaging.composite(), createPreviewPeople()), deps.profiles) });
+  const theme = createThemeService({
+    ...deps.theme,
+    onBroadcast: (envelope) => {
+      for (const applet of bound.values()) if (applet.domains.includes('theme')) deliver(applet.windowId, applet.port, envelope);
+    },
+  });
   const services: Readonly<Record<string, Handler>> = {
     dm,
     identity: createIdentityService({ getSigner: () => ({ getPublicKey: () => deps.pubkey() }) }),
-    theme: createThemeService(deps.theme).handler,
+    theme: theme.handler,
     notify: createNotifyService({
       present: ({ windowId, message }) => deps.notify({ title: message.title, windowId, tone: 'info', ...(message.body ? { body: message.body } : {}) }),
     }),
   };
 
   return {
-    bind({ windowId, port, domains, admit }) {
-      const send = (reply: unknown): void => {
-        deps.report?.(windowId, 'to-applet', reply);
-        port.postMessage(reply);
-      };
+    bind(binding) {
+      const { windowId, port, domains, admit } = binding;
+      const send = (reply: unknown): void => deliver(windowId, port, reply);
       port.onmessage = (event) => {
         const envelope = event.data;
         deps.report?.(windowId, 'from-applet', envelope);
@@ -82,12 +99,15 @@ export function createPreviewPorts(deps: PreviewPortDeps): PreviewPorts {
         else send({ type: `${envelope.type}.result`, id: envelope.id, error: 'unavailable' });
       };
       port.start();
+      bound.set(windowId, binding);
       return () => {
+        bound.delete(windowId);
         port.onmessage = null;
         port.close();
         for (const service of Object.values(services)) service.onWindowDestroyed?.(windowId);
       };
     },
+    publishTheme: (next) => void theme.publishTheme(next),
     close: () => dm.dispose(),
   };
 }

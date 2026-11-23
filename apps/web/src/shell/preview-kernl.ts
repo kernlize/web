@@ -489,6 +489,8 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
   return {
     accounts,
     guard,
+    // The preview's own theme domain: kehto's service over its ports, so a colour change reaches the applets that are open (D-064).
+    theme: { publish: (next) => ports.publishTheme(next) },
     traffic$: traffic$.asObservable(),
     grants,
     relays,

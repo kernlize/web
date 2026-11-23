@@ -1,4 +1,3 @@
-import type { Kernl, KernlOptions } from '@kernlize/core';
 import { NostrConnectSigner } from 'applesauce-signers';
 import type { Booted, KernlHost } from './contract';
 import { openShellEventCache } from './event-cache';
@@ -32,17 +31,19 @@ function reasonOf(error: unknown): string {
  * `?preview=1` asks for the preview outright. Otherwise the core is loaded on
  * demand; when it is missing `createKernl` or throws while composing, the
  * preview takes over and says why. Either way the shell ships its messages
- * applet, and applets that ask for the theme are told the page's colours.
+ * applet, and applets that ask for the theme are told the page's colours: once
+ * when they open, and again whenever the page's colours change (D-064).
  */
 export async function boot(host: KernlHost, search: URLSearchParams, theme?: ShellTheme): Promise<Booted> {
   if (search.get('preview') === '1') return preview(host, theme);
   try {
     const core = await import('@kernlize/core');
     if (!('createKernl' in core) || typeof core.createKernl !== 'function') return preview(host, theme, 'The live shell is not part of this build yet.');
-    const createKernl = core.createKernl as (options: KernlOptions) => Kernl;
     // The library loads on the first download, never with the page (D-017).
     const downloads = createShellDownloads({ storage: host.storage, client: loadWebTorrent, open: (uri) => host.openLink(uri), inKernl: canReachPeers() });
-    const kernl = createKernl({ host, torrent: downloads.torrent, builtins: [MESSAGES_APPLET], eventCache: openShellEventCache, shortcuts: { reserved: SHELL_CHORDS }, ...(theme ? { theme } : {}) });
+    // Naming the theme module is what puts `kernl.theme` on the shell: it answers the domain, and only it may publish a change (D-062).
+    const modules = core.kernlModules(theme ? { theme } : {});
+    const kernl = core.createKernl({ host, torrent: downloads.torrent, builtins: [MESSAGES_APPLET], eventCache: openShellEventCache, shortcuts: { reserved: SHELL_CHORDS }, modules });
     NostrConnectSigner.pool = kernl.pool;
     return { kernl, mode: 'live', downloads };
   } catch (error) {

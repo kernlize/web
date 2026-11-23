@@ -254,6 +254,21 @@ Then('the preview host heard the applet revoked for {string}', (world: BuiltinWo
 
 When('the shipped applet is closed', (world: BuiltinWorld) => scratchOf(world).handle?.close());
 
+When('the preview publishes a theme background {string} text {string} primary {string}', (world: BuiltinWorld, background: string, text: string, primary: string) => {
+  scratchOf(world).kernl.theme.publish({ colors: { background, text, primary } });
+});
+
+Then('the shipped applet received {string} with the background {string}', (world: BuiltinWorld, type: string, background: string) => {
+  const scratch = scratchOf(world);
+  const found = scratch.port.posted.filter((message) => message.type === type);
+  expect(found.map((message) => (message.theme as { colors: { background: string } }).colors.background)).toEqual([background]);
+});
+
+Then('no port was told {string}', (world: BuiltinWorld, type: string) => {
+  const scratch = scratchOf(world);
+  expect([...scratch.port.posted, ...scratch.spare.posted].map((message) => message.type)).not.toContain(type);
+});
+
 When('the preview is destroyed', (world: BuiltinWorld) => scratchOf(world).kernl.destroy());
 
 Given('the preview\'s traffic is watched', (world: BuiltinWorld) => {

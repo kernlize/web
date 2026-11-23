@@ -14,3 +14,44 @@ export function shellTheme(read: (token: string) => string): ShellTheme | undefi
   const [background, text, primary] = TOKENS.map((token) => read(token).trim());
   return background && text && primary ? { colors: { background, text, primary } } : undefined;
 }
+
+/**
+ * Something that tells the shell the page's palette may have changed — the `data-theme` attribute
+ * being set, the system's colour-scheme preference flipping — and how to stop listening to it.
+ */
+export type ThemeSignal = (onChange: () => void) => () => void;
+
+/**
+ * Tell the applets the page's colours whenever they change (D-064).
+ *
+ * The tokens are read again on every signal and published only when they say something different,
+ * so an attribute set to the value it already had tells nobody. A page whose tokens are missing
+ * publishes nothing and keeps watching, so a later theme still reaches the applets.
+ *
+ * @param signals - Where the page's palette can change.
+ * @param read - Reads one of the page's style tokens.
+ * @param publish - Hands a changed palette to the shell's applets.
+ * @returns A function that stops listening.
+ * @example
+ * ```ts
+ * const stop = followShellTheme([onAttribute], (token) => style.getPropertyValue(token), (theme) => kernl.theme.publish(theme));
+ * ```
+ */
+export function followShellTheme(signals: readonly ThemeSignal[], read: (token: string) => string, publish: (theme: ShellTheme) => void): () => void {
+  let told = keyOf(shellTheme(read));
+  const stop = signals.map((signal) =>
+    signal(() => {
+      const theme = shellTheme(read);
+      const next = keyOf(theme);
+      if (next === told) return;
+      told = next;
+      if (theme) publish(theme);
+    }),
+  );
+  return () => {
+    for (const unsubscribe of stop) unsubscribe();
+  };
+}
+
+/** A palette as one string, so a change is a change in what the applets would hear. */
+const keyOf = (theme: ShellTheme | undefined): string => (theme ? `${theme.colors.background} ${theme.colors.text} ${theme.colors.primary}` : '');

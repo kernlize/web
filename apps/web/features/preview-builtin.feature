@@ -110,6 +110,20 @@ Feature: Applets the preview ships
     When the shipped applet asks "theme.get" over its port
     Then the shipped applet is answered "theme.get.result" with the background "#fcfaf4"
 
+  Scenario: the applet is told when the shell's colours change, and asks for them next time
+    Given a light preview that ships the applet "messages" starting with "dm"
+    And the shipped applet is mounted and has said hello
+    When the preview publishes a theme background "#141720" text "#ebe6da" primary "#efb449"
+    Then the shipped applet received "theme.changed" with the background "#141720"
+    When the shipped applet asks "theme.get" over its port
+    Then the shipped applet is answered "theme.get.result" with the background "#141720"
+
+  Scenario: a theme published to no applet tells nobody, and one closed applet is not told again
+    Given the shipped applet is mounted and has said hello
+    When the shipped applet is closed
+    And the preview publishes a theme background "#141720" text "#ebe6da" primary "#efb449"
+    Then no port was told "theme.changed"
+
   Scenario: an applet shipped with nothing switched on holds only the baseline the preview can answer
     Given a preview that ships the applet "messages" starting with ""
     When the preview resolves the address "kernl:messages"
