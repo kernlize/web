@@ -69,6 +69,12 @@ Feature: Modules
       When the shell logs in read-only as that fresh key
       Then the shell mailboxes eventually are missing, suggesting inboxes "wss://relay.damus.io/,wss://nos.lol/,wss://relay.primal.net/"
 
+    Scenario: a shell composed for an identity already signed in reads the directory once it exists
+      Given a fresh key with no relay list
+      And a kernl shell over that host and pool for that fresh key, already signed in
+      Then the shell has a "directory" member
+      And the shell mailboxes eventually are missing, suggesting inboxes "wss://relay.damus.io/,wss://nos.lol/,wss://relay.primal.net/"
+
     Scenario: kernl's own modules include the directory, which waits to be started
       Given a kernl shell over that host and pool
       Then the shell has a "directory" member

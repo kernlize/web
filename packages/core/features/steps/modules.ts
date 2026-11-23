@@ -3,6 +3,8 @@ import { Given, Then, When } from 'quickpickle';
 import { EMPTY, firstValueFrom } from 'rxjs';
 import { RelayPool } from 'applesauce-relay';
 import { PrivateKeySigner } from 'applesauce-signers';
+import { AccountManager } from 'applesauce-accounts';
+import { ReadonlyAccount } from 'applesauce-accounts/accounts';
 import { createMessagingRegistry } from '@kernlize/messaging';
 import type { ServiceHandler } from '@kehto/runtime';
 import { kernlModules, searchCatalog, setupModules, socialModule, themeModule, toCatalogEntry, type AnyKernlModule, type CatalogEntry, type DomainBinding, type KernelContext, type KernlModule } from '@kernlize/core';
@@ -215,4 +217,12 @@ Given('a fresh key with no relay list', async (world: CoreWorld) => {
 Then('the shell mailboxes eventually are missing, suggesting inboxes {string}', async (world: CoreWorld, urls: string) => {
   await expect.poll(() => k(world).kernl.mailboxes.state().status, { timeout: 3000 }).toBe('missing');
   expect(k(world).kernl.mailboxes.state()).toMatchObject({ suggested: { inboxes: splitList(urls) } });
+});
+
+Given('a kernl shell over that host and pool for that fresh key, already signed in', (world: CoreWorld) => {
+  const accounts = new AccountManager();
+  const account = ReadonlyAccount.fromPubkey(scratch(world).freshKey as string);
+  accounts.addAccount(account);
+  accounts.setActive(account);
+  boot(world, { accounts }, blobFetcher(world));
 });
