@@ -24,7 +24,7 @@ import type { AnyKernlModule, KernelContext, ModuleInstance } from './module.js'
  */
 export const KERNEL_DOMAINS: readonly string[] = Object.freeze([
   'shell', 'storage', 'inc', 'relay', 'identity', 'notify', 'link', 'outbox',
-  'keys', 'resource', 'dm', 'cvm', 'webrtc', 'intent', 'torrent', 'nzb', 'soulseek', 'media',
+  'resource', 'dm', 'cvm', 'webrtc', 'intent', 'torrent', 'nzb', 'soulseek', 'media',
 ]);
 
 /**
@@ -33,10 +33,10 @@ export const KERNEL_DOMAINS: readonly string[] = Object.freeze([
  *
  * @example
  * ```ts
- * MODULE_NATIVE_DOMAINS; // ['theme']
+ * MODULE_NATIVE_DOMAINS; // ['theme', 'keys']
  * ```
  */
-export const MODULE_NATIVE_DOMAINS: readonly string[] = Object.freeze(['theme']);
+export const MODULE_NATIVE_DOMAINS: readonly string[] = Object.freeze(['theme', 'keys']);
 
 /**
  * Refuse a module list before anything is built: a repeated id, an id the kernel uses, a
@@ -74,6 +74,8 @@ export interface KernelContextParts {
   readonly appletOf: (windowId: string) => AppletSummary | undefined;
   /** The host's consent prompt. */
   readonly host: Pick<KernlHost, 'presentConsent'>;
+  /** Whether a window is the focused one, as the guard sees it. */
+  readonly isFocused: (windowId: string) => boolean;
 }
 
 /** The modules once set up: what they answer, what planning adds, their apis and their teardown. */
@@ -107,6 +109,7 @@ function contextFor(parts: KernelContextParts, apis: Readonly<Record<string, unk
       return (await account.signer.signEvent(template)) as NostrEvent;
     },
     appletOf: parts.appletOf,
+    isFocused: parts.isFocused,
     ask: (summary) => new Promise((resolve) => parts.host.presentConsent({ summary, resolve })),
     replaceableLoader: parts.replaceableLoader,
     loadReplaceable: (pointer) => loadReplaceableQuietly(parts.replaceableLoader, parts.tiers, pointer),

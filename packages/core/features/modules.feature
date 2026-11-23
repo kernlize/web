@@ -18,7 +18,7 @@ Feature: Modules
       And the shell has a "theme" member
 
     Scenario: without the theme module, theme is neither offered nor in the baseline
-      Given a kernl shell over that host and pool with modules "profiles,people,social"
+      Given a kernl shell over that host and pool with modules "profiles,people,social,keys"
       Then the shell does not offer "theme"
       And the composed shell starts applets with "shell,inc,storage,keys"
       When the shell resolves the manifest address
@@ -26,13 +26,32 @@ Feature: Modules
       Then the shell plan is for window "applet-1" with domains "shell,storage,inc,keys"
 
     Scenario: an applet that asks for the theme of a shell without the module gets no answer
-      Given a kernl shell over that host and pool with modules ""
+      Given a kernl shell over that host and pool with modules "keys"
       And a mounted applet
       When the applet sends its hello through the shell
       And the applet asks "shell.ready" over its port
       Then the applet received a "shell.init" with domains "shell,storage,inc,keys"
       When the applet asks "theme.get" over its port
       Then the applet received no "theme.get.result"
+
+    Scenario: without the keys module, keys is neither offered nor in the baseline, and a binding gets no answer
+      Given a kernl shell over that host and pool with modules "theme"
+      Then the shell does not offer "keys"
+      And the composed shell starts applets with "shell,inc,theme,storage"
+      Given a mounted applet
+      When the applet sends its hello through the shell
+      And the applet asks "shell.ready" over its port
+      Then the applet received a "shell.init" with domains "shell,storage,inc,theme"
+      When the applet asks to bind "editor.save" to "Ctrl+S" over its port
+      Then the applet received no "keys.registerAction.result"
+
+    Scenario: with the keys module, the same binding is answered
+      Given a kernl shell over that host and pool with modules "theme,keys"
+      And a mounted applet
+      When the applet sends its hello through the shell
+      And the applet asks "shell.ready" over its port
+      And the applet asks to bind "editor.save" to "Ctrl+S" over its port
+      Then the applet received a "keys.registerAction.result"
 
     Scenario: an applet that requires the theme shows it missing on a shell without the module
       Given a fake applesauce pool serving a signed manifest for "chat" requiring "theme"

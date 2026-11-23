@@ -113,6 +113,8 @@ export interface KernlServiceDeps {
   readonly multiplayer?: Pick<MultiplayerSettings, 'state'>;
   /** Reserved chords, the key listener's target and the focus source for the `keys` domain (D-054). */
   readonly shortcuts: ShortcutsOptions;
+  /** `null` leaves the `keys` domain to the keys module (D-062). */
+  readonly keys?: null;
 }
 
 /** What the `webrtc` service needs beyond the pool and the window identities. */
@@ -126,7 +128,7 @@ export interface KernlServices {
   readonly theme: ThemeService;
   readonly dm: DmService;
   /** The `keys` service; `destroy()` gives back its key listener. */
-  readonly keys: ShortcutsService;
+  readonly keys: ShortcutsService | undefined;
   /** The `media` service under the person's media settings. */
   readonly media: KernlMedia;
 }
@@ -391,7 +393,7 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
   const identities = deps.identities ?? createWindowIdentities();
   const direct = deps.directConnections;
   const chosen = () => deps.multiplayer?.state();
-  const keys = createShortcutsService(deps.shortcuts);
+  const keys = deps.keys === null ? undefined : createShortcutsService(deps.shortcuts);
   const resource = createResourceService({
     fetch: (url, init) =>
       fetchThroughFirewall(url, init, (signal) => resolve(url, resourceInitFor(deps, { ...init, signal }))).catch((error: unknown) => {
@@ -406,7 +408,7 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
     identity: createIdentityService({ getSigner: createIdentitySigner(deps.auth), ...identity }),
     // `null` leaves the domain to the theme module, which answers it or, left out, has it withheld (D-062).
     ...(deps.theme === null ? {} : { theme: theme.handler }),
-    keys,
+    ...(keys ? { keys } : {}),
     notify: createNotifyService({
       present: ({ windowId, message }) => deps.host.notify({ title: message.title, windowId, tone: 'info', ...(message.body ? { body: message.body } : {}) }),
     }),

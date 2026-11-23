@@ -243,7 +243,6 @@ interface ShellParts {
   readonly dm: { dispose(): void };
   readonly downloads: { dispose(): void };
   readonly modules: { dispose(): void };
-  readonly keys: { destroy(): void };
   readonly media: { destroy(): void };
   readonly bridge: ShellBridge;
   readonly traffic: { close(): void };
@@ -261,7 +260,6 @@ function tearDown(parts: ShellParts): void {
   parts.intents.close();
   parts.dm.dispose();
   parts.downloads.dispose();
-  parts.keys.destroy();
   parts.media.destroy();
   parts.bridge.destroy();
   parts.traffic.close();
@@ -303,7 +301,8 @@ interface ServiceParts {
   readonly messaging: MessagingRegistry;
   readonly network: { readonly profiles: Profiles | undefined; readonly people: People | undefined };
   readonly handles: ReadonlyMap<string, MountedApplet>;
-  readonly pipeline: GuardPipeline;
+  /** Whether a window is the focused one, as the guard sees it. */
+  readonly isFocused: (windowId: string) => boolean;
   readonly meeting: ReturnType<typeof meetingFor>['deps'];
 }
 
@@ -325,7 +324,8 @@ function servicesFor(options: KernlOptions, parts: ServiceParts): ReturnType<typ
     ...(network.people ? { people: network.people } : {}),
     theme: null,
     ...parts.meeting,
-    shortcuts: { ...options.shortcuts, isFocused: (windowId) => parts.pipeline.getVisibility(windowId).focused },
+    shortcuts: { isFocused: parts.isFocused },
+    keys: null,
     resolveIdentity(windowId) {
       const identity = identityOf(windowId);
       return identity ? { dTag: identity.dTag, aggregateHash: identity.hash } : null;
@@ -380,7 +380,7 @@ export function createKernl<const M extends readonly AnyKernlModule[]>(options: 
 export function createKernl(options: KernlOptions): Kernl;
 export function createKernl(options: KernlOptions): Kernel {
   const { host } = options;
-  const modules = options.modules ?? kernlModules({ ...(isTheme(options.theme) ? { theme: options.theme } : {}), ...(options.eventCache ? { eventCache: options.eventCache } : {}), ...(host.presentSettings ? { presentSettings: host.presentSettings.bind(host) } : {}) });
+  const modules = options.modules ?? kernlModules({ ...(isTheme(options.theme) ? { theme: options.theme } : {}), ...(options.eventCache ? { eventCache: options.eventCache } : {}), ...(host.presentSettings ? { presentSettings: host.presentSettings.bind(host) } : {}), ...(options.shortcuts ? { shortcuts: options.shortcuts } : {}) });
   checkModules(modules);
   const ownsPool = !options.pool;
   const ownsMessaging = !options.messaging;
@@ -398,6 +398,8 @@ export function createKernl(options: KernlOptions): Kernel {
   let grants: KernlGrants;
 
   const pipeline = pipelineFor(options, { handles, guardEvents$, bridge: () => bridge });
+  // One focus, the guard's, for the keys module's shortcuts and the media service's autoplay.
+  const isFocused = (windowId: string): boolean => pipeline.getVisibility(windowId).focused;
   const traffic = createAppletTraffic((windowId) => handles.has(windowId));
 
   const identityOf = (windowId: string): AppletIdentity | undefined => handles.get(windowId)?.summary.identity;
@@ -407,7 +409,7 @@ export function createKernl(options: KernlOptions): Kernel {
   const { replaceableLoader } = createKernlNetwork({ eventStore, pool, tiers, accounts, cacheRequest });
   const lookupBefore = lookupReplaceable(eventStore, { loader: replaceableLoader, relays: () => [...tiers.get().outbox, ...tiers.get().discovery] });
   const consent = createSigningConsent({ host, lookupBefore, resolveApplet: identityOf, pubkey: () => accounts.active?.pubkey });
-  const composed = composeOrClose(modules, { eventStore, pool, tiers, storage: host.storage, accounts, consent, replaceableLoader, appletOf: (windowId) => handles.get(windowId)?.summary, host }, () => {
+  const composed = composeOrClose(modules, { eventStore, pool, tiers, storage: host.storage, accounts, consent, replaceableLoader, appletOf: (windowId) => handles.get(windowId)?.summary, host, isFocused }, () => {
     destroyed$.next();
     traffic.close();
     if (ownsMessaging) messaging.close();
@@ -418,7 +420,7 @@ export function createKernl(options: KernlOptions): Kernel {
   const people = composed.apis.people as People | undefined;
   const meeting = meetingFor(options, { pool, tiers, appletOf: (windowId) => handles.get(windowId)?.summary, grants: () => grants });
   const downloads = downloadsFor(options, bridges, identityOf, (windowId) => handles.get(windowId)?.summary.manifest.catalogId);
-  const services = servicesFor(options, { pool, tiers, eventStore, adapter: () => adapter, consent, bridges, messaging, network: { profiles, people }, handles, pipeline, meeting: meeting.deps });
+  const services = servicesFor(options, { pool, tiers, eventStore, adapter: () => adapter, consent, bridges, messaging, network: { profiles, people }, handles, isFocused, meeting: meeting.deps });
 
   const intents = createKernlIntents({ host, pool, tiers, accounts, handles, ...(options.intentRetry ? { retry: options.intentRetry } : {}) });
   Object.assign(services.registry, { intent: intents.handler }, downloads.services);
@@ -496,6 +498,6 @@ export function createKernl(options: KernlOptions): Kernel {
       lifecycle.handleWindowMessage(event);
     },
     destroy: () =>
-      tearDown({ traffic, handles, subscriptions, destroyed$, intents, dm: services.dm, downloads, modules: composed, keys: services.keys, media: services.media, bridge, ...(ownsMessaging ? { messaging } : {}), ...(ownsPool ? { pool } : {}) }),
+      tearDown({ traffic, handles, subscriptions, destroyed$, intents, dm: services.dm, downloads, modules: composed, media: services.media, bridge, ...(ownsMessaging ? { messaging } : {}), ...(ownsPool ? { pool } : {}) }),
   }, composed);
 }

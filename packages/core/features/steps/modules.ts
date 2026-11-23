@@ -7,7 +7,7 @@ import { AccountManager } from 'applesauce-accounts';
 import { ReadonlyAccount } from 'applesauce-accounts/accounts';
 import { createMessagingRegistry } from '@kernlize/messaging';
 import type { ServiceHandler } from '@kehto/runtime';
-import { abbreviate, catalogModule, directoryModule, kernlModules, mailboxesModule, peopleModule, profilesModule, searchCatalog, setupModules, socialModule, themeModule, toCatalogEntry, type AnyKernlModule, type CatalogEntry, type DomainBinding, type KernelContext, type KernlModule, type RelayTier, type ThemeApi } from '@kernlize/core';
+import { abbreviate, catalogModule, directoryModule, keysModule, kernlModules, mailboxesModule, peopleModule, profilesModule, searchCatalog, setupModules, socialModule, themeModule, toCatalogEntry, type AnyKernlModule, type CatalogEntry, type DomainBinding, type KernelContext, type KernlModule, type RelayTier, type ThemeApi } from '@kernlize/core';
 import { blobFetcher, boot, k, settle, vector } from './kernl.js';
 import { attempt, scratch, splitList, type CoreWorld } from './world.js';
 
@@ -33,6 +33,7 @@ function named(world: CoreWorld, name: string): readonly AnyKernlModule[] {
     directory: () => [directoryModule()],
     mailboxes: () => [mailboxesModule()],
     catalog: () => [catalogModule()],
+    keys: () => [keysModule()],
     clock: () => [{ id: 'clock', setup: () => ({ api: { now: () => 42 } }) } satisfies KernlModule<'clock', { now(): number }>],
     'needs-clock': () => [{ id: 'needs-clock', requires: ['clock'], setup: (context) => ({ api: { time: () => context.use<{ now(): number }>('clock').now() } }) }],
     first: () => [recorder(world, 'first')],
@@ -281,4 +282,11 @@ Then('the {string} tier stays {string}', async (world: CoreWorld, tier: RelayTie
 Then('the shell lists its store as {string}', async (world: CoreWorld, titles: string) => {
   const listed = await Reflect.get(k(world).kernl, 'catalog').load();
   expect(listed.map((entry: CatalogEntry) => entry.title)).toEqual(splitList(titles));
+});
+
+When('the applet asks to bind {string} to {string} over its port', async (world: CoreWorld, id: string, chord: string) => {
+  k(world).channel?.port1.postMessage({ type: 'keys.registerAction', id: `register-${id}`, action: { id, label: id, defaultKey: chord } });
+  // Registrations are held through a window's first second (D-054); wait past it before saying there was no answer.
+  const answered = (): boolean => k(world).received.some((message) => message.type === 'keys.registerAction.result');
+  for (let waited = 0; waited < 2000 && !answered(); waited += 40) await settle();
 });

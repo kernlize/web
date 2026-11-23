@@ -480,7 +480,7 @@ export interface KernlOptions {
   readonly downloads?: DownloadsOptions;
   /** Where the shell keeps passwords and keys of services it signs in to; the host's storage, as typed, by default (D-052). */
   readonly secrets?: SecretsProvider;
-  /** The chords the shell keeps from applets' keyboard shortcuts, and where key presses are heard (D-054). */
+  /** The chords the shell keeps from applets' keyboard shortcuts, and where key presses are heard (D-054). Read only when `modules` is left out; otherwise pass them to `keysModule`. */
   readonly shortcuts?: ShortcutSettings;
 }
 
