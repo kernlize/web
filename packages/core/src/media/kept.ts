@@ -91,7 +91,7 @@ export function createKeptSessions(hooks: KeptHooks): KeptSessions {
     all: () => [...byPlayback.values()],
     end,
     yieldTo(winner, takeover) {
-      for (const kept of [...byPlayback.values()]) {
+      for (const kept of byPlayback.values()) {
         if (kept.id === winner || !ACTIVE.has(String(kept.snapshot.state?.status))) continue;
         if (takeover === 'end') end(kept);
         else kept.playback.command({ action: 'pause', reason: 'focus-lost' });
