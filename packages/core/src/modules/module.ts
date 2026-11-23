@@ -53,6 +53,8 @@ export interface KernelContext {
   signer(): ISigner | undefined;
   /** The verified applet a window runs, or undefined. */
   appletOf(windowId: string): AppletSummary | undefined;
+  /** Whether a window is the focused one, as the guard sees it. */
+  isFocused(windowId: string): boolean;
   /** Put a question to the person through the host's consent prompt; resolves with their answer. */
   ask(summary: ConsentSummary): Promise<boolean>;
   /** Load a replaceable event into the store from the cache and the lookup relays. Never rejects. */

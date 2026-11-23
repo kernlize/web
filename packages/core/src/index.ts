@@ -222,6 +222,7 @@ export { mailboxesModule } from './modules/mailboxes.js';
 export { filesModule } from './modules/files.js';
 export { settingsModule } from './modules/settings.js';
 export { catalogModule } from './modules/catalog.js';
+export { keysModule } from './modules/keys.js';
 export { themeModule, type ThemeApi } from './modules/theme.js';
 export { socialModule } from './modules/social.js';
 export { commonActionsFor, createKernlNetwork, type KernlNetwork, type KernlNetworkParts } from './kernl-network.js';
