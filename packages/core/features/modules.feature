@@ -63,7 +63,7 @@ Feature: Modules
       And the fake pool published a kind 3 event
 
     Scenario: without the directory module there is no directory, and an account with no relay list is still offered servers
-      Given a kernl shell over that host and pool with modules "theme,profiles,people,social"
+      Given a kernl shell over that host and pool with modules "theme,profiles,people,social,mailboxes"
       Then the shell has no "directory" member
       Given a fresh key with no relay list
       When the shell logs in read-only as that fresh key
@@ -74,6 +74,19 @@ Feature: Modules
       And a kernl shell over that host and pool for that fresh key, already signed in
       Then the shell has a "directory" member
       And the shell mailboxes eventually are missing, suggesting inboxes "wss://relay.damus.io/,wss://nos.lol/,wss://relay.primal.net/"
+
+    Scenario: the mailboxes take the directory's suggestions even when it is loaded after them
+      Given a kernl shell over that host and pool with modules "mailboxes,directory"
+      And a fresh key with no relay list
+      When the shell logs in read-only as that fresh key
+      Then the shell mailboxes eventually are missing, suggesting inboxes "wss://relay.damus.io/,wss://nos.lol/,wss://relay.primal.net/"
+
+    Scenario: without the mailboxes module the outbox tier is left as it was
+      Given a kernl shell over that host and pool with modules "theme"
+      And the fake pool serves a relay list writing to "wss://own.test" for a fresh key
+      Then the shell has no "mailboxes" member
+      When the shell logs in read-only as that fresh key
+      Then the "outbox" tier stays ""
 
     Scenario: kernl's own modules include the directory, which waits to be started
       Given a kernl shell over that host and pool
@@ -165,6 +178,7 @@ Feature: Modules
     Scenario: signed out, a module sees nobody and cannot sign
       Given a kernl shell over that host and pool with modules "probe"
       Then the probe sees nobody signed in
+      And the probe holds no signer, and finds the "probe" module
       When the probe signs a kind 1 note for the mounted window
       Then the shell refused with "denied:read-only"
 
@@ -187,6 +201,7 @@ Feature: Modules
       And the shell is signed in
       And a mounted applet granted "relay" that has said hello
       Then the probe sees the signed-in identity, able to sign
+      And the probe holds the signed-in signer, and finds nothing by the name "directory"
       And the probe sees "chat" in the mounted window
       When the probe signs a kind 1 note for the mounted window
       Then the probe holds a signed kind 1 note by the signed-in identity

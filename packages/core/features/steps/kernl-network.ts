@@ -79,6 +79,10 @@ When("the shell saves the account's file servers as {string}", async (world: Cor
   await k(world).kernl.files.save(splitList(servers));
 });
 
+When("the shell tries to save the account's file servers as {string}", async (world: CoreWorld, servers: string) => {
+  await attempt(world, () => k(world).kernl.files.save(splitList(servers)));
+});
+
 Then("the shell's file servers are {string}", (world: CoreWorld, servers: string) => {
   expect(k(world).kernl.files.state()).toMatchObject({ status: 'found', servers: splitList(servers) });
 });
