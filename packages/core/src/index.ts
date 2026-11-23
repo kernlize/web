@@ -212,10 +212,12 @@ export { askUploadConsent, createBlossomUploader, describeUpload, sizeWords, typ
 export { createAppletConfig, type AppletConfigOptions, type SettingsPrompt } from './applets/applet-config.js';
 export { createCommonActions, type CommonActionsOptions, type ConsentedSigner, type SignerAndGate } from './social/common-actions.js';
 export type { AnyKernlModule, IntersectionOf, KernelContext, KernlModule, ModuleApiEntry, ModuleApis, ModuleIdentity, ModuleInstance, ReplaceablePointer } from './modules/module.js';
-export { KERNEL_DOMAINS, KERNEL_PARTS, MODULE_NATIVE_DOMAINS, checkModules, mergeExtensions, setupModules, type ComposedModules, type KernelContextParts } from './modules/compose.js';
+export { KERNEL_DOMAINS, MODULE_NATIVE_DOMAINS, checkModules, mergeExtensions, setupModules, type ComposedModules, type KernelContextParts } from './modules/compose.js';
 export { kernlModules } from './modules/default.js';
 export { directoryModule } from './modules/directory.js';
 export { cacheModule } from './modules/cache.js';
+export { profilesModule } from './modules/profiles.js';
+export { peopleModule } from './modules/people.js';
 export { themeModule } from './modules/theme.js';
 export { socialModule } from './modules/social.js';
 export { commonActionsFor, createKernlNetwork, type KernlNetwork, type KernlNetworkParts } from './kernl-network.js';

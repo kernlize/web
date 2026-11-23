@@ -4,6 +4,7 @@ import type { EventTemplate, NostrEvent } from '@napplet/core';
 import type { ServiceRegistry } from '@kehto/runtime';
 import type { PlannedExtensions } from '../applets/plan.js';
 import type { RelayPool } from 'applesauce-relay';
+import type { AddressPointerLoader } from 'applesauce-loaders/loaders';
 import type { AppletSummary, RelayTiers, StorageLike } from '../types.js';
 
 /** The signed-in identity as a module sees it: who, and whether they can sign, never their signer. */
@@ -45,9 +46,11 @@ export interface KernelContext {
   appletOf(windowId: string): AppletSummary | undefined;
   /** Load a replaceable event into the store from the cache and the lookup relays. Never rejects. */
   loadReplaceable(pointer: ReplaceablePointer): Promise<void>;
+  /** The shell's replaceable loader, which asks the cache module first when it is loaded. */
+  readonly replaceableLoader: AddressPointerLoader;
   /**
-   * Another module's api, or a part the kernel provides (`profiles`, `people`). Throws
-   * `invalid:module-missing:<id>` when nothing by that id is loaded.
+   * Another module's api, such as `use<Profiles>('profiles')`. Throws `invalid:module-missing:<id>`
+   * when nothing by that id is loaded.
    */
   use<T>(id: string): T;
 }
