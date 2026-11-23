@@ -1005,7 +1005,7 @@ The composition files become the kernel's composition and the preset; they hold 
 
 **Reversal cost.** Low now: one entry, two SOUL passages and eleven features. It rises with each phase that moves code behind the module host.
 
-## D-062 · The shell plays media for applets under six settings the person chooses
+## D-063 · The shell plays media for applets under six settings the person chooses
 
 **Context.** An applet's frame cannot fetch or play media (`media-src 'none'`). NAP-MEDIA lets it ask the shell to play a source, or tell the shell about media it plays itself, and leaves the shell to decide audio policy. kehto's `createMediaService` keeps the sessions, plays a source through `createBrowserMediaPlayback` and mirrors one session to the browser's media controls, but it never stops one session for another, and every command it sends is stamped `reason: "user"`.
 

@@ -1,7 +1,7 @@
 Feature: An applet's media in the shell
   The `media` service is one of the shell's own. An applet granted it tells the
   shell what it plays, the shell lists it for the person, pauses it while its
-  window is hidden when the person chose that, and ends it with the window (D-062).
+  window is hidden when the person chose that, and ends it with the window (D-063).
 
   Background:
     Given a kernl host over empty storage

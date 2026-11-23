@@ -24,7 +24,7 @@ export interface MediaSteering {
 /**
  * kehto stamps every command it sends `user`, so a pause the shell decides goes around it: to the
  * playback kehto opened through kernl's backend, or straight to the applet for its own media. An
- * applet's own player that cannot pause is ended, as NAP-MEDIA requires (D-062).
+ * applet's own player that cannot pause is ended, as NAP-MEDIA requires (D-063).
  *
  * @param service - kehto's media service.
  * @param settings - The person's media settings now.

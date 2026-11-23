@@ -7,7 +7,7 @@ export interface MediaSettingGroup<K extends keyof MediaSettings = keyof MediaSe
   readonly choices: readonly { readonly id: MediaSettings[K]; readonly label: string }[];
 }
 
-/** The Media section of Settings, in the order it lists them (D-062). */
+/** The Media section of Settings, in the order it lists them (D-063). */
 export const MEDIA_SETTING_GROUPS: readonly MediaSettingGroup[] = [
   { key: 'concurrency', label: 'Playing at once', choices: [{ id: 'one', label: 'One at a time' }, { id: 'many', label: 'Several at once' }] },
   { key: 'takeover', label: 'When another starts', choices: [{ id: 'pause', label: 'Pause the earlier one' }, { id: 'end', label: 'End the earlier one' }] },

@@ -1,6 +1,6 @@
 # Media
 
-An applet's frame has no network and no media of its own: the guard's policy gives it `media-src 'none'`. To play something it asks the shell, through the `media` domain ([NAP-MEDIA](https://github.com/napplet/naps/pull/10)), and the shell lists everything applets play in one player at the bottom of the desktop ([D-062](../decisions.md#d-062)).
+An applet's frame has no network and no media of its own: the guard's policy gives it `media-src 'none'`. To play something it asks the shell, through the `media` domain ([NAP-MEDIA](https://github.com/napplet/naps/pull/10)), and the shell lists everything applets play in one player at the bottom of the desktop ([D-063](../decisions.md#d-063)).
 
 ## Two ways to play
 

@@ -1,7 +1,7 @@
 Feature: How the shell's player words media
   The player names a session by its title, says who plays it and how far along
   it is, and the Media section of Settings offers each choice in plain words.
-  What happens to an earlier session is only asked while one plays at a time (D-062).
+  What happens to an earlier session is only asked while one plays at a time (D-063).
 
   Scenario Outline: times read as the player shows them
     Then the player shows "<seconds>" seconds as "<shown>"
