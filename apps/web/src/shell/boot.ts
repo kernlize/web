@@ -41,9 +41,10 @@ export async function boot(host: KernlHost, search: URLSearchParams, theme?: She
     if (!('createKernl' in core) || typeof core.createKernl !== 'function') return preview(host, theme, 'The live shell is not part of this build yet.');
     // The library loads on the first download, never with the page (D-017).
     const downloads = createShellDownloads({ storage: host.storage, client: loadWebTorrent, open: (uri) => host.openLink(uri), inKernl: canReachPeers() });
-    // Naming the theme module is what puts `kernl.theme` on the shell: it answers the domain, and only it may publish a change (D-062).
-    const modules = core.kernlModules(theme ? { theme } : {});
-    const kernl = core.createKernl({ host, torrent: downloads.torrent, builtins: [MESSAGES_APPLET], eventCache: openShellEventCache, shortcuts: { reserved: SHELL_CHORDS }, modules });
+    // Naming the modules is what types `kernl.theme`, the only thing that may publish a colour change (D-064).
+    // A shell that names them hands the theme and the event cache to the modules; `createKernl` reads neither (D-062).
+    const modules = core.kernlModules({ eventCache: openShellEventCache, ...(theme ? { theme } : {}) });
+    const kernl = core.createKernl({ host, torrent: downloads.torrent, builtins: [MESSAGES_APPLET], shortcuts: { reserved: SHELL_CHORDS }, modules });
     NostrConnectSigner.pool = kernl.pool;
     return { kernl, mode: 'live', downloads };
   } catch (error) {

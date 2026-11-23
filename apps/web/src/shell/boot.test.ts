@@ -16,7 +16,7 @@ const createPreviewKernl = vi.fn(() => previewKernl);
 const shipped = [expect.objectContaining({ id: 'messages', sha256: MESSAGES_APPLET.sha256 })];
 const theme = { colors: { background: '#fcfaf4', text: '#15171b', primary: '#9a5b00' } };
 // The live shell names its modules, because only the theme module may publish a colour change.
-const modules = vi.fn((options: { theme?: typeof theme } = {}) => [{ id: 'theme', options }]);
+const modules = vi.fn((options: { theme?: typeof theme; eventCache?: unknown } = {}) => [{ id: 'theme', options }]);
 const signers = { NostrConnectSigner: { pool: undefined as unknown } };
 
 async function bootWith(core: Record<string, unknown> | (() => never)): Promise<typeof import('./boot')> {
@@ -57,7 +57,7 @@ describe('boot', () => {
     const { boot } = await bootWith({ createKernl, kernlModules: modules });
     const booted = await boot(host, new URLSearchParams('preview=0'));
     const named = modules.mock.results[0]?.value;
-    expect(createKernl).toHaveBeenCalledWith({ host, torrent: booted.downloads.torrent, builtins: shipped, eventCache: expect.any(Function), shortcuts: { reserved: ['Alt+/'] }, modules: named });
+    expect(createKernl).toHaveBeenCalledWith({ host, torrent: booted.downloads.torrent, builtins: shipped, shortcuts: { reserved: ['Alt+/'] }, modules: named });
     expect(booted).toEqual({ kernl: live, mode: 'live', downloads: booted.downloads });
     expect(signers.NostrConnectSigner.pool).toBe(live.pool);
   });
@@ -66,16 +66,17 @@ describe('boot', () => {
     const createKernl = vi.fn(() => ({ pool: {} }));
     const { boot } = await bootWith({ createKernl, kernlModules: modules });
     const live = await boot(host, new URLSearchParams(), theme);
-    expect(modules).toHaveBeenCalledWith({ theme });
-    expect(createKernl).toHaveBeenCalledWith({ host, torrent: live.downloads.torrent, builtins: shipped, eventCache: expect.any(Function), shortcuts: { reserved: ['Alt+/'] }, modules: modules.mock.results[0]?.value });
+    expect(modules).toHaveBeenCalledWith({ theme, eventCache: expect.any(Function) });
+    expect(createKernl).toHaveBeenCalledWith({ host, torrent: live.downloads.torrent, builtins: shipped, shortcuts: { reserved: ['Alt+/'] }, modules: modules.mock.results[0]?.value });
     const preview = await boot(host, new URLSearchParams('preview=1'), theme);
     expect(createPreviewKernl).toHaveBeenCalledWith(host, preview.downloads.torrent, { builtins: shipped, theme });
   });
 
-  it('names no theme to the modules when the page has none', async () => {
+  it('names no theme to the modules when the page has none, and still hands them the event cache', async () => {
     const { boot } = await bootWith({ createKernl: vi.fn(() => ({ pool: {} })), kernlModules: modules });
     await boot(host, new URLSearchParams());
-    expect(modules).toHaveBeenCalledWith({});
+    // Named modules are the only readers of the opener: left on `createKernl` it is ignored and the cache is memory only.
+    expect(modules).toHaveBeenCalledWith({ eventCache: expect.any(Function) });
   });
 
   it('gives the preview no theme when the page has none', async () => {
