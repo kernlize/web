@@ -67,7 +67,7 @@ The three leaf packages have zero framework dependencies and import nothing from
 
 ## Where each NAP domain is served from
 
-An applet reaches the shell through the NAP domains in `window.napplet`. `createKernlServices` (`kernl-services.ts`) registers kehto's services, plus `config`, `common` and `upload` when the shell has what they need; `shell`, `inc`, `storage`, `keys` and `media` are routed by kehto's runtime itself. What one applet sees is `buildShellCapabilities(adapter).domains` narrowed by `createEnvironmentResolver(grants)`.
+An applet reaches the shell through the NAP domains in `window.napplet`. `createKernlServices` (`kernl-services.ts`) registers kehto's services, kernl's `media` ([Media](./media.md)), plus `config`, `common` and `upload` when the shell has what they need; `shell`, `inc`, `storage` and `keys` are routed by kehto's runtime itself. What one applet sees is `buildShellCapabilities(adapter).domains` narrowed by `createEnvironmentResolver(grants)`.
 
 | NAP domain | Served by | kernl supplies | Guarded by |
 | --- | --- | --- | --- |

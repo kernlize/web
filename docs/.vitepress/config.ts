@@ -54,6 +54,7 @@ export const sidebar = [
       { text: 'Persistence', link: '/concepts/persistence' },
       { text: 'Layouts', link: '/concepts/layouts' },
       { text: 'Applets under kernl', link: '/concepts/applets-under-kernl' },
+      { text: 'Media', link: '/concepts/media' },
       { text: 'The store and intents', link: '/concepts/store-and-intents' },
     ],
   },
