@@ -81,11 +81,13 @@
 
   onMount(() => {
     const cleanups: (() => void)[] = [];
-    void boot(host, new URLSearchParams(location.search), shellTheme(readToken)).then((result) => {
+    const opened = shellTheme(readToken);
+    void boot(host, new URLSearchParams(location.search), opened).then((result) => {
       booted = result;
       const { kernl } = result;
-      // An applet is told the colours when it opens; this tells the ones already open when they change (D-064).
-      cleanups.push(followShellTheme(themeSignals, readToken, (theme) => kernl.theme.publish(theme)));
+      // An applet is told the colours when it opens; this tells the ones already open when they change,
+      // starting from the palette the shell was started with, so a switch made during boot is not lost (D-064).
+      cleanups.push(followShellTheme(themeSignals, readToken, (theme) => kernl.theme.publish(theme), opened));
       cleanups.push(
         kernl.session$.subscribe((next) => {
           session = next;

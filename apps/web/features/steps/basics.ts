@@ -317,10 +317,15 @@ Then('the shell has no theme', (world: ThemeWorld) => {
   expect(shellTheme(readToken(world))).toBeUndefined();
 });
 
-Given("the shell follows the page's colours", (world: ThemeWorld) => {
+const follow = (world: ThemeWorld, opened: ReturnType<typeof shellTheme>): void => {
   world.told = [];
-  world.stop = followShellTheme(signals(world), readToken(world), (theme) => world.told?.push(theme.colors));
-});
+  world.stop = followShellTheme(signals(world), readToken(world), (theme) => world.told?.push(theme.colors), opened);
+};
+
+Given("the shell follows the page's colours", (world: ThemeWorld) => follow(world, shellTheme(readToken(world))));
+
+Given('the shell was started with background {string}, text {string} and primary {string}, and follows the page\'s colours', (world: ThemeWorld, background: string, text: string, primary: string) =>
+  follow(world, { colors: { background, text, primary } }));
 
 When("the page's colours change to {string}", (world: ThemeWorld, tokens: string) => {
   for (const pair of tokens.split(';')) {

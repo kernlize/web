@@ -18,6 +18,11 @@ Feature: The shell's theme for applets
     When the page's colours change to "--bg-raised: #141720; --ink: #ebe6da; --accent: #efb449"
     Then the applets were told background "#141720", text "#ebe6da" and primary "#efb449"
 
+  Scenario: a change made while the shell was starting is told as soon as the shell follows the page
+    Given the page's style tokens "--bg-raised: #141720; --ink: #ebe6da; --accent: #efb449"
+    And the shell was started with background "#fcfaf4", text "#15171b" and primary "#9a5b00", and follows the page's colours
+    Then the applets were told background "#141720", text "#ebe6da" and primary "#efb449"
+
   Scenario: a palette that says what it already said is not sent again
     Given the page's style tokens "--bg-raised: #141720; --ink: #ebe6da; --accent: #efb449"
     And the shell follows the page's colours
