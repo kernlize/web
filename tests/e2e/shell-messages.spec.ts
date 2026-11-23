@@ -164,6 +164,18 @@ test('a message that arrives while the user is elsewhere is counted on the bar u
   await expect(page.getByRole('button', { name: 'Messages, 0 unread' })).toBeVisible();
 });
 
+test('an applet that is open follows the shell\'s colours when they change', async ({ page }) => {
+  const applet = await openMessages(page);
+  const surface = () => applet.locator('body').evaluate((body) => getComputedStyle(body).backgroundColor);
+  const before = await surface();
+  // The header's switch, pressed as a person would; the applet is told, not reloaded.
+  await page.locator('[data-theme-toggle]').first().evaluate((button) => (button as HTMLElement).click());
+  // The light window surface, which the applet repaints from the pushed palette (D-064).
+  await expect.poll(surface, { timeout: 5000 }).toBe('rgb(252, 250, 244)');
+  expect(before).not.toBe('rgb(252, 250, 244)');
+  await proof(page, '09-theme-change');
+});
+
 test('the applet follows the shell\'s light theme', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light' });
   const applet = await openMessages(page);

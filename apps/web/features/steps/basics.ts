@@ -12,7 +12,7 @@ import { eventDetails, type EventDetail } from '../../src/shell/event-details.ts
 import { bridgeName, bridgeRows } from '../../src/shell/bridge-names.ts';
 import { REPLY_RULES, alwaysMeans, moved, rememberChoices, replyQuestion, settledWords } from '../../src/shell/reply-words.ts';
 import type { ReplyPrompt } from '@kernlize/messaging';
-import { shellTheme } from '../../src/shell/shell-theme.ts';
+import { followShellTheme, shellTheme, type ThemeSignal } from '../../src/shell/shell-theme.ts';
 import './shell-windows.ts';
 
 type ShellRecord = ConsentSummary['event'];
@@ -290,7 +290,18 @@ Then('moving {string} {int} in {string} gives {string}', (_world: ReplyWordsWorl
 
 interface ThemeWorld {
   tokens?: Map<string, string>;
+  /** What the applets have been told, in order. */
+  told?: Array<{ background: string; text: string; primary: string }>;
+  /** Fires the signals the shell follows, as the page would when its palette changes. */
+  change?: () => void;
+  stop?: () => void;
 }
+
+/** The signals the page offers: whatever the shell is watching, one trigger to make them all fire. */
+const signals = (world: ThemeWorld): ThemeSignal[] => [(onChange) => {
+  world.change = onChange;
+  return () => void (world.change = undefined);
+}];
 
 const readToken = (world: ThemeWorld) => (token: string): string => world.tokens?.get(token) ?? '';
 
@@ -304,6 +315,45 @@ Then("the shell's theme is background {string}, text {string} and primary {strin
 
 Then('the shell has no theme', (world: ThemeWorld) => {
   expect(shellTheme(readToken(world))).toBeUndefined();
+});
+
+const follow = (world: ThemeWorld, opened: ReturnType<typeof shellTheme>): void => {
+  world.told = [];
+  world.stop = followShellTheme(signals(world), readToken(world), (theme) => world.told?.push(theme.colors), opened);
+};
+
+Given("the shell follows the page's colours", (world: ThemeWorld) => follow(world, shellTheme(readToken(world))));
+
+Given('the shell was started with background {string}, text {string} and primary {string}, and follows the page\'s colours', (world: ThemeWorld, background: string, text: string, primary: string) =>
+  follow(world, { colors: { background, text, primary } }));
+
+When("the page's colours change to {string}", (world: ThemeWorld, tokens: string) => {
+  for (const pair of tokens.split(';')) {
+    const [name, value] = pair.split(':').map((part) => part.trim()) as [string, string];
+    world.tokens?.set(name, value);
+  }
+  world.change?.();
+});
+
+When("the page's palette is applied again", (world: ThemeWorld) => {
+  world.change?.();
+});
+
+Then('the applets were told background {string}, text {string} and primary {string}', (world: ThemeWorld, background: string, text: string, primary: string) => {
+  expect(world.told).toEqual([{ background, text, primary }]);
+});
+
+Then('the applets were told nothing', (world: ThemeWorld) => {
+  expect(world.told).toEqual([]);
+});
+
+Then("the shell stops following the page's colours", (world: ThemeWorld) => {
+  world.stop?.();
+  world.stop = undefined;
+});
+
+Then('no signal is left listening', (world: ThemeWorld) => {
+  expect(world.change).toBeUndefined();
 });
 
 Then('an applet at {string} published by {string} is said to be {string}', (_world: unknown, address: string, publisher: string, words: string) => {

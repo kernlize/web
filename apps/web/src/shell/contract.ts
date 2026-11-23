@@ -1,11 +1,16 @@
 import type { Kernl } from '@kernlize/core';
 import type { ShellDownloads } from './downloads';
+import type { ShellTheme } from './shell-theme';
 
 /**
  * The part of the composed shell the UI touches. The event store, the pool and
  * the kehto bridge stay inside the core; the preview implements only this.
+ *
+ * `theme` is the theme module's api, which every mode offers: the live shell's
+ * `themeModule`, and the preview's own ports. The window manager tells it the
+ * page's colours changed, so the applets that are open follow them (D-064).
  */
-export type ShellKernl = Omit<Kernl, 'bridge' | 'eventStore' | 'pool'>;
+export type ShellKernl = Omit<Kernl, 'bridge' | 'eventStore' | 'pool'> & { readonly theme: { publish(theme: ShellTheme): void } };
 
 export type {
   AppletHandle,

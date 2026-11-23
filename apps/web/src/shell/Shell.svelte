@@ -20,7 +20,7 @@
   import Notices from './Notices.svelte';
   import { NoticeStore } from './notice-store.svelte';
   import ReplyChooser from './ReplyChooser.svelte';
-  import { shellTheme } from './shell-theme';
+  import { followShellTheme, shellTheme, type ThemeSignal } from './shell-theme';
   import { shellShortcut, type ShortcutRunner } from './shortcuts';
   import { ReplyQueue } from './reply-queue.svelte';
   import { SettingsQueue } from './settings-queue.svelte';
@@ -58,12 +58,36 @@
     void result.kernl.login(account).catch((reason: unknown) => notices.push({ title: 'Could not sign in', body: String(reason), tone: 'warning' }));
   }
 
+  /** The page's colours as the tokens hold them now; a fresh computed style, so a change is read, not remembered. */
+  function readToken(token: string): string {
+    return getComputedStyle(document.documentElement).getPropertyValue(token);
+  }
+
+  /** The header's theme switch and the system's preference: both change the palette under the applets. */
+  const themeSignals: ThemeSignal[] = [
+    (onChange) => {
+      const observer = new MutationObserver(onChange);
+      observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+      return () => observer.disconnect();
+    },
+    (onChange) => {
+      const queries = ['(prefers-color-scheme: light)', '(prefers-color-scheme: dark)'].map((query) => matchMedia(query));
+      for (const query of queries) query.addEventListener('change', onChange);
+      return () => {
+        for (const query of queries) query.removeEventListener('change', onChange);
+      };
+    },
+  ];
+
   onMount(() => {
     const cleanups: (() => void)[] = [];
-    const tokens = getComputedStyle(document.documentElement);
-    void boot(host, new URLSearchParams(location.search), shellTheme((token) => tokens.getPropertyValue(token))).then((result) => {
+    const opened = shellTheme(readToken);
+    void boot(host, new URLSearchParams(location.search), opened).then((result) => {
       booted = result;
       const { kernl } = result;
+      // An applet is told the colours when it opens; this tells the ones already open when they change,
+      // starting from the palette the shell was started with, so a switch made during boot is not lost (D-064).
+      cleanups.push(followShellTheme(themeSignals, readToken, (theme) => kernl.theme.publish(theme), opened));
       cleanups.push(
         kernl.session$.subscribe((next) => {
           session = next;

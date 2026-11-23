@@ -111,3 +111,16 @@ test('a correspondent who published a profile is listed by name, not by account 
   await expect(said(applet, 'Do you still read these?')).toBeVisible();
   await expect(applet.getByRole('button', { name: new RegExp(grace.pubkey.slice(0, 8)) })).toHaveCount(0);
 });
+
+test('an applet open in the live shell follows the shell\'s colours when they change', async ({ page }) => {
+  const { applet } = await graceWrote(page);
+  const surface = () => applet.locator('body').evaluate((body) => getComputedStyle(body).backgroundColor);
+  const before = await surface();
+  // The header's switch, pressed as a person would. The real theme module publishes through the
+  // toolkit's runtime, and the applet repaints from the palette it is pushed; it is not reloaded (D-064).
+  await page.locator('[data-theme-toggle]').first().evaluate((button) => (button as HTMLElement).click());
+  await expect.poll(surface, { timeout: 5000 }).toBe('rgb(252, 250, 244)');
+  expect(before).not.toBe('rgb(252, 250, 244)');
+  await expect(said(applet, 'Do you still read these?')).toBeVisible();
+  if (proofs) await page.screenshot({ path: `${proofs}/11-live-theme-change.png` });
+});

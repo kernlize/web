@@ -15,7 +15,7 @@ Feature: Modules
       Then the shell offers "theme"
       And the shell offers "common"
       And the composed shell starts applets with "shell,inc,theme,storage,keys"
-      And the shell has no "theme" member
+      And the shell has a "theme" member
 
     Scenario: without the theme module, theme is neither offered nor in the baseline
       Given a kernl shell over that host and pool with modules "profiles,people,social"
@@ -87,6 +87,26 @@ Feature: Modules
       And the shell has no "people" member
       When the shell logs in read-only as that fresh key
       Then the shell session label eventually is the start of that fresh key
+
+  Rule: a theme the shell publishes reaches the applets that are open
+
+    Scenario: the applet that is running is told the colours changed
+      Given a kernl shell over that host and pool
+      And a mounted applet
+      When the applet sends its hello through the shell
+      And the applet asks "shell.ready" over its port
+      And the shell publishes a theme background "#101216" text "#f5f1e8" primary "#efb449"
+      Then the applet received a "theme.changed"
+      And the applet was told the theme changed to background "#101216", text "#f5f1e8" and primary "#efb449"
+
+    Scenario: an applet that asks after the change is told the new theme
+      Given a kernl shell over that host and pool
+      And a mounted applet
+      When the applet sends its hello through the shell
+      And the applet asks "shell.ready" over its port
+      And the shell publishes a theme background "#101216" text "#f5f1e8" primary "#efb449"
+      And the applet asks "theme.get" over its port
+      Then the applet was told the theme is background "#101216", text "#f5f1e8" and primary "#efb449"
 
   Rule: modules are checked before anything is built
 
