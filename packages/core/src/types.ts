@@ -460,7 +460,7 @@ export interface KernlOptions {
   readonly messagingBackends?: MessagingBackendFactories;
   /** Opens the verified-artifact cache. Defaults to Cache Storage when the page has it, otherwise none. */
   readonly artifactCache?: () => Promise<NappletArtifactCache | undefined>;
-  /** Opens the event cache, such as `() => openEventCache(defaultWebCacheAdapters())` from `@kernlize/core/cache`. Without one the shell keeps events in memory only (D-030). */
+  /** Opens the event cache, such as `() => openEventCache(defaultWebCacheAdapters())` from `@kernlize/core/cache`. Without one the shell keeps events in memory only (D-030). Read only when `modules` is left out; otherwise pass it to `cacheModule`. */
   readonly eventCache?: EventCacheOpener;
   /**
    * The opinions this shell loads (D-061). `kernlModules()` by default; a module left out is not

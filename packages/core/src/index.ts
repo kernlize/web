@@ -215,6 +215,7 @@ export type { AnyKernlModule, IntersectionOf, KernelContext, KernlModule, Module
 export { KERNEL_DOMAINS, KERNEL_PARTS, MODULE_NATIVE_DOMAINS, checkModules, mergeExtensions, setupModules, type ComposedModules, type KernelContextParts } from './modules/compose.js';
 export { kernlModules } from './modules/default.js';
 export { directoryModule } from './modules/directory.js';
+export { cacheModule } from './modules/cache.js';
 export { themeModule } from './modules/theme.js';
 export { socialModule } from './modules/social.js';
 export { commonActionsFor, createKernlNetwork, type KernlNetwork, type KernlNetworkParts } from './kernl-network.js';
