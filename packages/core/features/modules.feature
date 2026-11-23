@@ -40,6 +40,7 @@ Feature: Modules
       When the shell resolves the manifest address
       And the shell plans the summary
       Then the shell plan is missing "theme"
+      And the store lists the applet only when asked for incompatible ones
 
     Scenario: without the social module, social actions are not offered
       Given a kernl shell over that host and pool with modules "theme"
@@ -47,10 +48,9 @@ Feature: Modules
       And the shell offers "theme"
 
     Scenario: a domain a module offers through prelude bindings waits for a kehto that renders them
-      Given a kernl shell over that host and pool with modules "bound,binding-only"
-      Then the shell does not offer "torrent"
-      And the shell does not offer "nzb"
-      And modules "bound" set up where bindings render offer "torrent"
+      Given a kernl shell over that host and pool with modules ""
+      Then modules "bound,binding-only" set up where bindings do not render answer "" and plan ""
+      And modules "bound,binding-only" set up where bindings render answer "count" and plan "count,fs"
 
     Scenario: the social module signs a follow the person agreed to and publishes it
       Given a kernl shell over that host and pool with modules "social"
@@ -79,12 +79,25 @@ Feature: Modules
         | theme,theme      | invalid:module-duplicate:theme  |
         | profiles         | invalid:module-reserved:profiles |
         | grants           | invalid:module-reserved:grants  |
+        | needs-clock,clock | invalid:module-order:clock     |
         | relay-thief      | invalid:module-domain:relay     |
+        | storage-thief    | invalid:module-domain:storage   |
 
-    Scenario: a module that fails to set up closes the ones before it
-      When a kernl shell is composed over that host and pool with modules "first,broken-setup"
-      Then the shell refused with "invalid:broken-setup"
+    Scenario Outline: a module refused at setup closes the ones before it, and what the shell had opened
+      When a kernl shell that owns its pool is composed with modules "first,<module>"
+      Then the shell refused with "<reason>"
       And the modules were disposed in the order "first"
+      And the pool the shell made was closed
+
+      Examples:
+        | module       | reason                      |
+        | broken-setup | invalid:broken-setup        |
+        | relay-thief  | invalid:module-domain:relay |
+
+    Scenario: a refusal at setup leaves open what the host supplied
+      When a kernl shell given its own messaging is composed with modules "broken-setup"
+      Then the shell refused with "invalid:broken-setup"
+      And the messaging the host gave was left open
 
   Rule: modules close in the reverse of the order they were loaded
 

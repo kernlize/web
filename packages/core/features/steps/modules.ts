@@ -1,12 +1,15 @@
-import { expect } from 'vitest';
+import { expect, vi } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import { EMPTY, firstValueFrom } from 'rxjs';
+import { RelayPool } from 'applesauce-relay';
+import { createMessagingRegistry } from '@kernlize/messaging';
 import type { ServiceHandler } from '@kehto/runtime';
-import { DOWNLOAD_BINDINGS, kernlModules, setupModules, socialModule, themeModule, type AnyKernlModule, type KernelContext, type KernlModule } from '@kernlize/core';
-import { blobFetcher, boot, k, settle } from './kernl.js';
+import { kernlModules, searchCatalog, setupModules, socialModule, themeModule, toCatalogEntry, type AnyKernlModule, type CatalogEntry, type DomainBinding, type KernelContext, type KernlModule } from '@kernlize/core';
+import { blobFetcher, boot, k, settle, vector } from './kernl.js';
 import { attempt, scratch, splitList, type CoreWorld } from './world.js';
 
 const ANSWER: ServiceHandler = { handleMessage: () => undefined };
+const COUNT_BINDING: DomainBinding = { methods: { count: { type: 'count.count', params: ['filters'], reply: true, result: 'count' } } };
 
 function disposed(world: CoreWorld): string[] {
   const state = scratch(world);
@@ -32,11 +35,12 @@ function named(world: CoreWorld, name: string): readonly AnyKernlModule[] {
     'rejecting-dispose': () => [{ id: 'rejecting-dispose', setup: () => ({ dispose: () => Promise.reject(new Error('broken')) }) }],
     'broken-setup': () => [{ id: 'broken-setup', setup: () => { throw new Error('invalid:broken-setup'); } }],
     'relay-thief': () => [{ id: 'relay-thief', setup: () => ({ services: { relay: ANSWER } }) }],
+    'storage-thief': () => [{ id: 'storage-thief', setup: () => ({ services: { storage: ANSWER } }) }],
     grants: () => [{ id: 'grants', setup: () => ({ api: {} }) }],
     profiles: () => [{ id: 'profiles', setup: () => ({}) }],
     probe: () => [{ id: 'probe', setup: (context) => ({ api: context }) } satisfies KernlModule<'probe', KernelContext>],
-    'binding-only': () => [{ id: 'binding-only', setup: () => ({ extensions: { domains: ['nzb'], bindings: { nzb: DOWNLOAD_BINDINGS.nzb } } }) }],
-    bound: () => [{ id: 'bound', setup: () => ({ services: { torrent: ANSWER }, extensions: { domains: ['torrent'], bindings: { torrent: DOWNLOAD_BINDINGS.torrent } } }) }],
+    'binding-only': () => [{ id: 'binding-only', setup: () => ({ extensions: { domains: ['fs'], bindings: { fs: COUNT_BINDING } } }) }],
+    bound: () => [{ id: 'bound', setup: () => ({ services: { count: ANSWER }, extensions: { domains: ['count'], bindings: { count: COUNT_BINDING } } }) }],
   };
   return splitList(name).flatMap((entry) => {
     const make = modules[entry];
@@ -137,9 +141,9 @@ Then('the probe asked the pool for kind {int}', (world: CoreWorld, kind: number)
   expect(scratch(world).pool.calls.some((call) => call.filters?.some((filter) => filter.kinds?.includes(kind)))).toBe(true);
 });
 
-Then('modules {string} set up where bindings render offer {string}', (world: CoreWorld, names: string, domains: string) => {
+function setUp(world: CoreWorld, names: string, bindings: boolean): ReturnType<typeof setupModules> {
   const { kernl } = k(world);
-  const composed = setupModules(modulesFrom(world, names), {
+  return setupModules(modulesFrom(world, names), {
     eventStore: kernl.eventStore,
     pool: kernl.pool,
     tiers: kernl.relays,
@@ -148,10 +152,44 @@ Then('modules {string} set up where bindings render offer {string}', (world: Cor
     consent: async () => undefined,
     network: { profiles: kernl.profiles, people: kernl.people, replaceableLoader: () => EMPTY },
     appletOf: () => undefined,
-  }, true);
-  expect(composed.extensions?.domains ?? []).toEqual(splitList(domains));
-  expect(Object.keys(composed.services)).toEqual(splitList(domains));
+  }, bindings);
+}
+
+Then(/^modules "([^"]*)" set up where bindings (render|do not render) answer "([^"]*)" and plan "([^"]*)"$/, (world: CoreWorld, names: string, where: string, answered: string, planned: string) => {
+  const composed = setUp(world, names, where === 'render');
+  expect(Object.keys(composed.services)).toEqual(splitList(answered));
+  expect(composed.extensions?.domains ?? []).toEqual(splitList(planned));
   composed.dispose();
+});
+
+When('a kernl shell that owns its pool is composed with modules {string}', async (world: CoreWorld, names: string) => {
+  const close = vi.spyOn(RelayPool.prototype, 'close');
+  scratch(world).poolCloses = close;
+  await attempt(world, () => boot(world, { modules: modulesFrom(world, names), pool: undefined }, blobFetcher(world)));
+});
+
+When('a kernl shell given its own messaging is composed with modules {string}', async (world: CoreWorld, names: string) => {
+  const messaging = createMessagingRegistry();
+  scratch(world).messagingCloses = vi.spyOn(messaging, 'close');
+  await attempt(world, () => boot(world, { modules: modulesFrom(world, names), messaging }, blobFetcher(world)));
+});
+
+Then('the messaging the host gave was left open', (world: CoreWorld) => {
+  expect(scratch(world).messagingCloses as ReturnType<typeof vi.spyOn>).not.toHaveBeenCalled();
+});
+
+Then('the pool the shell made was closed', (world: CoreWorld) => {
+  const close = scratch(world).poolCloses as ReturnType<typeof vi.spyOn>;
+  expect(close).toHaveBeenCalledTimes(1);
+  close.mockRestore();
+});
+
+Then('the store lists the applet only when asked for incompatible ones', (world: CoreWorld) => {
+  const { grants } = k(world).kernl;
+  const entry = toCatalogEntry(vector(world).event) as CatalogEntry;
+  const available = [...grants.availableDomains(), ...grants.baselineDomains()];
+  expect(searchCatalog([entry], { available })).toEqual([]);
+  expect(searchCatalog([entry], {})).toEqual([entry]);
 });
 
 When('the probe starts signing a kind {int} event for the mounted window', async (world: CoreWorld, kind: number) => {
