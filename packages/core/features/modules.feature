@@ -144,6 +144,7 @@ Feature: Modules
         | needs-directory  | invalid:module-missing:directory |
         | needs-cache      | invalid:module-missing:cache     |
         | needs-files      | invalid:module-missing:files     |
+        | needs-settings   | invalid:module-missing:settings  |
         | social           | invalid:module-missing:profiles |
         | social,profiles,people | invalid:module-order:profiles |
         | grants           | invalid:module-reserved:grants  |

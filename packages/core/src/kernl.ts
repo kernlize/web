@@ -19,7 +19,6 @@ import type { People } from './people/person.js';
 import { createKernlNetwork } from './kernl-network.js';
 import type { ConnectedEventCache } from './cache/connect.js';
 import type { Filter, NostrEvent } from 'applesauce-core/helpers';
-import { createAppletConfig } from './applets/applet-config.js';
 import { createRelayTiers } from './relays/tiers.js';
 import { SHELL_RELAY_OPTIONS } from './applesauce/relay-hooks.js';
 import { decodePointer } from './applets/pointer.js';
@@ -237,12 +236,6 @@ function downloadsFor(options: KernlOptions, bridges: Kernl['bridges'], identity
   }) };
 }
 
-/** The applet a window runs, keyed by its catalogue id so its settings outlive a version. */
-function appletOf(handles: ReadonlyMap<string, MountedApplet>, windowId: string): { key: string; title: string } | undefined {
-  const summary = handles.get(windowId)?.summary;
-  return summary && { key: summary.manifest.catalogId, title: summary.title };
-}
-
 interface ShellParts {
   readonly handles: ReadonlyMap<string, MountedApplet>;
   readonly subscriptions: Subscription;
@@ -339,7 +332,6 @@ function servicesFor(options: KernlOptions, parts: ServiceParts): ReturnType<typ
     messaging: parts.messaging,
     ...(network.profiles ? { profiles: network.profiles } : {}),
     ...(network.people ? { people: network.people } : {}),
-    ...(host.presentSettings ? { config: createAppletConfig({ storage: host.storage, appletOf: (windowId) => appletOf(handles, windowId), present: host.presentSettings.bind(host) }) } : {}),
     theme: null,
     ...parts.meeting,
     shortcuts: { ...options.shortcuts, isFocused: (windowId) => parts.pipeline.getVisibility(windowId).focused },
@@ -397,7 +389,7 @@ export function createKernl<const M extends readonly AnyKernlModule[]>(options: 
 export function createKernl(options: KernlOptions): Kernl;
 export function createKernl(options: KernlOptions): Kernel {
   const { host } = options;
-  const modules = options.modules ?? kernlModules({ ...(isTheme(options.theme) ? { theme: options.theme } : {}), ...(options.eventCache ? { eventCache: options.eventCache } : {}) });
+  const modules = options.modules ?? kernlModules({ ...(isTheme(options.theme) ? { theme: options.theme } : {}), ...(options.eventCache ? { eventCache: options.eventCache } : {}), ...(host.presentSettings ? { presentSettings: host.presentSettings.bind(host) } : {}) });
   checkModules(modules);
   const ownsPool = !options.pool;
   const ownsMessaging = !options.messaging;
