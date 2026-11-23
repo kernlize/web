@@ -6,7 +6,7 @@ import type { PlannedExtensions } from '../applets/plan.js';
 import type { RelayPool } from 'applesauce-relay';
 import type { AddressPointerLoader } from 'applesauce-loaders/loaders';
 import type { ISigner } from 'applesauce-signers';
-import type { AppletSummary, RelayTiers, StorageLike } from '../types.js';
+import type { AppletSummary, ConsentSummary, RelayTiers, StorageLike } from '../types.js';
 
 /** The signed-in identity as a module sees it: who, and whether they can sign, never their signer. */
 export interface ModuleIdentity {
@@ -53,6 +53,8 @@ export interface KernelContext {
   signer(): ISigner | undefined;
   /** The verified applet a window runs, or undefined. */
   appletOf(windowId: string): AppletSummary | undefined;
+  /** Put a question to the person through the host's consent prompt; resolves with their answer. */
+  ask(summary: ConsentSummary): Promise<boolean>;
   /** Load a replaceable event into the store from the cache and the lookup relays. Never rejects. */
   loadReplaceable(pointer: ReplaceablePointer): Promise<void>;
   /** The shell's replaceable loader, which asks the cache module first when it is loaded. */

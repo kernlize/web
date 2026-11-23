@@ -9,7 +9,7 @@ import type { RelayPool } from 'applesauce-relay';
 import { isReadOnlyAccount } from '../applesauce/auth-hooks.js';
 import { loadReplaceableQuietly } from '../applesauce/identity-providers.js';
 import type { AddressPointerLoader } from 'applesauce-loaders/loaders';
-import type { AppletSummary, RelayTiers, StorageLike } from '../types.js';
+import type { AppletSummary, KernlHost, RelayTiers, StorageLike } from '../types.js';
 import type { AnyKernlModule, KernelContext, ModuleInstance } from './module.js';
 
 /**
@@ -24,7 +24,7 @@ import type { AnyKernlModule, KernelContext, ModuleInstance } from './module.js'
  */
 export const KERNEL_DOMAINS: readonly string[] = Object.freeze([
   'shell', 'storage', 'inc', 'relay', 'identity', 'notify', 'link', 'outbox',
-  'keys', 'resource', 'dm', 'cvm', 'webrtc', 'config', 'upload', 'intent', 'torrent', 'nzb', 'soulseek', 'media',
+  'keys', 'resource', 'dm', 'cvm', 'webrtc', 'config', 'intent', 'torrent', 'nzb', 'soulseek', 'media',
 ]);
 
 /**
@@ -72,6 +72,8 @@ export interface KernelContextParts {
   readonly consent: SigningConsent;
   readonly replaceableLoader: AddressPointerLoader;
   readonly appletOf: (windowId: string) => AppletSummary | undefined;
+  /** The host's consent prompt. */
+  readonly host: Pick<KernlHost, 'presentConsent'>;
 }
 
 /** The modules once set up: what they answer, what planning adds, their apis and their teardown. */
@@ -105,6 +107,7 @@ function contextFor(parts: KernelContextParts, apis: Readonly<Record<string, unk
       return (await account.signer.signEvent(template)) as NostrEvent;
     },
     appletOf: parts.appletOf,
+    ask: (summary) => new Promise((resolve) => parts.host.presentConsent({ summary, resolve })),
     replaceableLoader: parts.replaceableLoader,
     loadReplaceable: (pointer) => loadReplaceableQuietly(parts.replaceableLoader, parts.tiers, pointer),
     use<T>(id: string): T {
