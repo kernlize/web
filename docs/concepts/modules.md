@@ -17,9 +17,9 @@ A module may also name `requires`: ids that must be loaded before it, since modu
 
 ## What a module is handed
 
-`setup` receives the kernel's context: the shell's one event store, one relay pool and its relay tiers, the host's storage, who is signed in and whether they can sign, which applet a window runs, the shell's replaceable loader and a way to load one event through it, and `use(id)` for the api of a module loaded before it.
+`setup` receives the kernel's context: the shell's one event store, one relay pool and its relay tiers, the host's storage, who is signed in and whether they can sign, which applet a window runs, the shell's replaceable loader and a way to load one event through it, `use(id)` for the api of a module loaded before it, and `find(id)` for one that may not be loaded.
 
-It is not handed a signer or kehto's bridge. A module signs through `sign(windowId, template)`, which puts a write that replaces or erases the person's record to them first, the same gate an applet's own write meets. Its applets' messages pass the guard and the firewall like every other.
+It is not handed kehto's bridge. A write an applet asked for is signed through `sign(windowId, template)`, which puts one that replaces or erases the person's record to them first, the same gate an applet's own write meets. A write the host started for the person, such as saving their relays from settings, is signed with `signer()`, the active identity's signer, as kernl.run signs it today ([D-065](../decisions.md#d-065)). A module is trusted as the host that loads it is. Its applets' messages pass the guard and the firewall like every other.
 
 ## What a module cannot do
 

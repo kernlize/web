@@ -1063,3 +1063,20 @@ The composition files become the kernel's composition and the preset; they hold 
 **Consequences.** A shell that leaves the module out has no `kernl.theme`, and no applet is told anything; a host that names its own modules passes the theme to `themeModule` (D-062). An applet is told nothing until its `shell.ready` handshake has registered its environment, so a change made while it is still starting is only heard by its next `theme.get`. The watcher skips a palette that repeats, and a page that loses its tokens publishes nothing until they return.
 
 **Reversal cost.** Low. Deleting the api from `themeModule` and the watcher from `Shell.svelte` returns the shell to one palette per mount, and the preview's `theme` member is a one-line deletion.
+
+## D-065 · A module may hold the active signer; consent is the applets' guarantee
+
+**Context.** D-062 handed modules no signer: they signed through `sign(windowId, template)`, which passes the consent gate. Moving the mailboxes into a module (#71) showed the gap. Saving the person's relay list from settings is a write the host starts, not an applet. It has no window, so the gate, which names an applet in every question, refuses it, and today kernl.run signs it with the account's signer without a prompt, because the person's own click is the request. A module's api, such as `kernl.mailboxes.save()`, can be called by any host code, so the kernel cannot tell that click from code. The owner decided which rule holds.
+
+**Decision.**
+
+- **A module may hold the active signer.** `KernelContext.signer()` is the active identity's signer, or none for a read-only or signed-out session. A module is code the host chose to load, trusted as the host is. The key stays inside the applesauce signer; key custody (D-061) is unchanged.
+- **Consent is the guarantee for applets.** A write an applet asked for goes through `sign(windowId, template)` and the consent gate, whatever module serves it, as it did. A module that signs an applet's write with `signer()` instead breaks that guarantee; that is a rule for module authors, as staying on the napplet track is (D-061).
+- **`find(id)`.** The context also gives `find(id)`, another module's api or nothing, so a module can use one that a host may leave out. The mailboxes use it for the directory's suggestions.
+
+This changes D-062's "the context holds no signer" and the composability plan's "modules must not get a raw signer".
+
+**Consequences.** The mailboxes save and, next, the file servers' save sign as kernl.run signs them today: on the person's click, without a prompt. A host that loads a module it does not trust gives that module the person's signature. The floor features are unchanged: they cover applets' writes.
+
+**Reversal cost.** Low while few modules use `signer()`: each would route its writes through a host-started consent question instead.
+

@@ -18,13 +18,11 @@ import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
 import type { ProfileCard, Profiles } from './profiles/profiles.js';
 import type { People } from './people/person.js';
 import { createKernlNetwork } from './kernl-network.js';
-import type { RelayDirectory } from './relays/directory.js';
 import type { ConnectedEventCache } from './cache/connect.js';
 import type { Filter, NostrEvent } from 'applesauce-core/helpers';
 import { createAppletConfig } from './applets/applet-config.js';
 import { askUploadConsent, createBlossomUploader, type BlossomUploaderOptions } from './files/uploader.js';
 import type { Uploader } from '@kehto/services';
-import type { AccountMailboxes } from './relays/mailboxes.js';
 import { createRelayTiers } from './relays/tiers.js';
 import { SHELL_RELAY_OPTIONS } from './applesauce/relay-hooks.js';
 import { decodePointer } from './applets/pointer.js';
@@ -77,12 +75,10 @@ interface ShellState {
   readonly accounts: AccountManager;
   readonly session$: BehaviorSubject<Session | null>;
   readonly profiles: Profiles | undefined;
-  readonly mailboxes: AccountMailboxes;
-  readonly tiers: RelayTiers;
 }
 
-/** Keep the session on the active account and the outbox tier on where it publishes. */
-function followShellState({ bridge, accounts, session$, profiles, mailboxes, tiers }: ShellState): Subscription {
+/** Keep the session on the active account, labelled by its profile when the profiles module is loaded. */
+function followShellState({ bridge, accounts, session$, profiles }: ShellState): Subscription {
   const subscriptions = new Subscription();
   subscriptions.add(accounts.active$.subscribe((account) => bridge.publishIdentityChanged(account?.pubkey ?? '')));
   // The session's label follows the account's published name once it arrives, when the profiles module is loaded.
@@ -91,10 +87,6 @@ function followShellState({ bridge, accounts, session$, profiles, mailboxes, tie
     return profiles ? profiles.card$(account.pubkey).pipe(map((card) => toSession(account, card))) : of(toSession(account));
   }));
   subscriptions.add(sessions.subscribe(session$));
-  // Where the account says it publishes is where the shell publishes for it (NIP-65, D-029).
-  subscriptions.add(mailboxes.state$.subscribe((state) => {
-    if (state.status === 'found') tiers.set('outbox', state.mailboxes.outboxes);
-  }));
   return subscriptions;
 }
 
@@ -439,12 +431,10 @@ export function createKernl(options: KernlOptions): Kernel {
   const traffic = createAppletTraffic((windowId) => handles.has(windowId));
 
   const identityOf = (windowId: string): AppletIdentity | undefined => handles.get(windowId)?.summary.identity;
-  // The directory module's api, for the mailboxes' suggestions; nothing until the modules are set up.
   const modulesSetUp: { composed?: ComposedModules } = {};
-  const directory = (): RelayDirectory | undefined => modulesSetUp.composed?.apis.directory as RelayDirectory | undefined;
   // The cache module's lookup, asked before any relay; nothing is cached until it is set up or when it is left out.
   const cacheRequest = (filters: Filter[]): Promise<NostrEvent[]> => (modulesSetUp.composed?.apis.cache as ConnectedEventCache | undefined)?.cacheRequest(filters) ?? Promise.resolve([]);
-  const { replaceableLoader, mailboxes, files, signer } = createKernlNetwork({ eventStore, pool, tiers, accounts, destroyed$, directory, cacheRequest });
+  const { replaceableLoader, files, signer } = createKernlNetwork({ eventStore, pool, tiers, accounts, destroyed$, cacheRequest });
   const lookupBefore = lookupReplaceable(eventStore, { loader: replaceableLoader, relays: () => [...tiers.get().outbox, ...tiers.get().discovery] });
   const consent = createSigningConsent({ host, lookupBefore, resolveApplet: identityOf, pubkey: () => accounts.active?.pubkey });
   const composed = composeOrClose(modules, { eventStore, pool, tiers, storage: host.storage, accounts, consent, replaceableLoader, appletOf: (windowId) => handles.get(windowId)?.summary }, () => {
@@ -486,7 +476,7 @@ export function createKernl(options: KernlOptions): Kernel {
 
   const { firewall, admissions } = guarding.attach(bridge.runtime);
   subscriptions.add(() => firewall.close());
-  subscriptions.add(followShellState({ bridge, accounts, session$, profiles, mailboxes, tiers }));
+  subscriptions.add(followShellState({ bridge, accounts, session$, profiles }));
 
   const lifecycle = createAppletLifecycle({
     pool,
@@ -519,7 +509,6 @@ export function createKernl(options: KernlOptions): Kernel {
     messaging,
     bridges,
     catalog: catalogFor(pool, tiers, { cache: cacheRequest, store: eventStore }),
-    mailboxes,
     files,
     multiplayer: meeting.multiplayer, downloads: downloads.programs, secrets: downloads.secrets.description,
     intents: intents.intents,

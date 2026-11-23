@@ -84,7 +84,7 @@ export interface ComposedModules {
   dispose(): void;
 }
 
-function contextFor(parts: KernelContextParts, use: KernelContext['use']): KernelContext {
+function contextFor(parts: KernelContextParts, apis: Readonly<Record<string, unknown>>): KernelContext {
   const { accounts } = parts;
   const pubkey$: Observable<string | undefined> = accounts.active$.pipe(map((account) => account?.pubkey));
   return {
@@ -97,6 +97,7 @@ function contextFor(parts: KernelContextParts, use: KernelContext['use']): Kerne
       pubkey$,
       canSign: () => !!accounts.active && !isReadOnlyAccount(accounts.active),
     },
+    signer: () => (accounts.active && !isReadOnlyAccount(accounts.active) ? accounts.active.signer : undefined),
     async sign(windowId, template) {
       const account = accounts.active;
       if (!account || isReadOnlyAccount(account)) throw new Error('denied:read-only');
@@ -106,7 +107,11 @@ function contextFor(parts: KernelContextParts, use: KernelContext['use']): Kerne
     appletOf: parts.appletOf,
     replaceableLoader: parts.replaceableLoader,
     loadReplaceable: (pointer) => loadReplaceableQuietly(parts.replaceableLoader, parts.tiers, pointer),
-    use,
+    use<T>(id: string): T {
+      if (id in apis) return apis[id] as T;
+      throw new Error(`invalid:module-missing:${id}`);
+    },
+    find: <T>(id: string): T | undefined => apis[id] as T | undefined,
   };
 }
 
@@ -163,11 +168,7 @@ function disposeAll(instances: readonly ModuleInstance<unknown>[]): void {
  */
 export function setupModules(modules: readonly AnyKernlModule[], parts: KernelContextParts, bindings: boolean): ComposedModules {
   const apis: Record<string, unknown> = {};
-  const use = <T>(id: string): T => {
-    if (id in apis) return apis[id] as T;
-    throw new Error(`invalid:module-missing:${id}`);
-  };
-  const context = contextFor(parts, use);
+  const context = contextFor(parts, apis);
   const instances: ModuleInstance<unknown>[] = [];
   try {
     for (const module of modules) {

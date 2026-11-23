@@ -7,7 +7,7 @@ import { AccountManager } from 'applesauce-accounts';
 import { ReadonlyAccount } from 'applesauce-accounts/accounts';
 import { createMessagingRegistry } from '@kernlize/messaging';
 import type { ServiceHandler } from '@kehto/runtime';
-import { abbreviate, kernlModules, peopleModule, profilesModule, searchCatalog, setupModules, socialModule, themeModule, toCatalogEntry, type AnyKernlModule, type CatalogEntry, type DomainBinding, type KernelContext, type KernlModule, type ThemeApi } from '@kernlize/core';
+import { abbreviate, directoryModule, kernlModules, mailboxesModule, peopleModule, profilesModule, searchCatalog, setupModules, socialModule, themeModule, toCatalogEntry, type AnyKernlModule, type CatalogEntry, type DomainBinding, type KernelContext, type KernlModule, type RelayTier, type ThemeApi } from '@kernlize/core';
 import { blobFetcher, boot, k, settle, vector } from './kernl.js';
 import { attempt, scratch, splitList, type CoreWorld } from './world.js';
 
@@ -30,6 +30,8 @@ function named(world: CoreWorld, name: string): readonly AnyKernlModule[] {
     kernl: () => kernlModules(),
     theme: () => [themeModule()],
     social: () => [socialModule()],
+    directory: () => [directoryModule()],
+    mailboxes: () => [mailboxesModule()],
     clock: () => [{ id: 'clock', setup: () => ({ api: { now: () => 42 } }) } satisfies KernlModule<'clock', { now(): number }>],
     'needs-clock': () => [{ id: 'needs-clock', requires: ['clock'], setup: (context) => ({ api: { time: () => context.use<{ now(): number }>('clock').now() } }) }],
     first: () => [recorder(world, 'first')],
@@ -255,4 +257,19 @@ Given('a kernl shell over that host and pool for that fresh key, already signed 
 
 Then('the shell session label eventually is the start of that fresh key', async (world: CoreWorld) => {
   await expect.poll(() => k(world).kernl.session?.label, { timeout: 3000 }).toBe(abbreviate(scratch(world).freshKey as string));
+});
+
+Then('the probe holds the signed-in signer, and finds nothing by the name {string}', async (world: CoreWorld, id: string) => {
+  expect(await probe(world).signer()?.getPublicKey()).toBe(k(world).kernl.session?.pubkey);
+  expect(probe(world).find(id)).toBeUndefined();
+});
+
+Then('the probe holds no signer, and finds the {string} module', (world: CoreWorld, id: string) => {
+  expect(probe(world).signer()).toBeUndefined();
+  expect(probe(world).find(id)).toBe(Reflect.get(k(world).kernl, id));
+});
+
+Then('the {string} tier stays {string}', async (world: CoreWorld, tier: RelayTier, urls: string) => {
+  await settle();
+  expect(k(world).kernl.relays.get()[tier]).toEqual(splitList(urls));
 });

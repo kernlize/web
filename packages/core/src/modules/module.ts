@@ -5,6 +5,7 @@ import type { ServiceRegistry } from '@kehto/runtime';
 import type { PlannedExtensions } from '../applets/plan.js';
 import type { RelayPool } from 'applesauce-relay';
 import type { AddressPointerLoader } from 'applesauce-loaders/loaders';
+import type { ISigner } from 'applesauce-signers';
 import type { AppletSummary, RelayTiers, StorageLike } from '../types.js';
 
 /** The signed-in identity as a module sees it: who, and whether they can sign, never their signer. */
@@ -26,8 +27,9 @@ export interface ReplaceablePointer {
 
 /**
  * What the kernel hands a module at setup. Everything is the shell's own: one store, one pool, the
- * relay tiers, the host's storage. A module signs through {@link KernelContext.sign}, which puts a
- * write that replaces or erases the person's record to them first; it never holds a signer or
+ * relay tiers, the host's storage. A module signs an applet's write through
+ * {@link KernelContext.sign}, which puts one that replaces or erases the person's record to them
+ * first, and the host's own writes with {@link KernelContext.signer} (D-065). It never holds
  * kehto's bridge (D-061). Accessors are read when called, so a module may keep them for later.
  */
 export interface KernelContext {
@@ -40,8 +42,15 @@ export interface KernelContext {
   /**
    * Sign a template for a window, after the person's consent when it replaces or erases their
    * record. Rejects with `denied:read-only` when the identity cannot sign, before anyone is asked.
+   * A write an applet asked for goes through this, never through {@link KernelContext.signer}.
    */
   sign(windowId: string, template: EventTemplate): Promise<NostrEvent>;
+  /**
+   * The active identity's signer, or none for a read-only or signed-out session, for a write the
+   * host started for the person, such as saving their relay list from settings (D-065). The key
+   * stays inside the signer.
+   */
+  signer(): ISigner | undefined;
   /** The verified applet a window runs, or undefined. */
   appletOf(windowId: string): AppletSummary | undefined;
   /** Load a replaceable event into the store from the cache and the lookup relays. Never rejects. */
@@ -53,6 +62,8 @@ export interface KernelContext {
    * when nothing by that id is loaded.
    */
   use<T>(id: string): T;
+  /** Another module's api, or undefined when nothing by that id is loaded. Read when called. */
+  find<T>(id: string): T | undefined;
 }
 
 /** What a module's setup returns. */

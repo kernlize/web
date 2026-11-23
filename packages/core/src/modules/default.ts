@@ -2,6 +2,7 @@ import type { Theme } from '@napplet/nap/theme/types';
 import type { EventCacheOpener } from '../cache/connect.js';
 import { cacheModule } from './cache.js';
 import { directoryModule } from './directory.js';
+import { mailboxesModule } from './mailboxes.js';
 import { peopleModule } from './people.js';
 import { profilesModule } from './profiles.js';
 import { socialModule } from './social.js';
@@ -12,12 +13,12 @@ import { themeModule } from './theme.js';
  * wants kernl's opinions and one of its own spreads this list and adds to it.
  *
  * @param options - The theme pushed to applets and the event cache's opener.
- * @returns The theme, profiles, people, social, directory and cache modules, in that order.
+ * @returns The theme, profiles, people, social, directory, mailboxes and cache modules, in that order.
  * @example
  * ```ts
  * createKernl({ host, modules: [...kernlModules({ theme }), myModule] });
  * ```
  */
-export function kernlModules(options: { readonly theme?: Theme; readonly eventCache?: EventCacheOpener } = {}): readonly [ReturnType<typeof themeModule>, ReturnType<typeof profilesModule>, ReturnType<typeof peopleModule>, ReturnType<typeof socialModule>, ReturnType<typeof directoryModule>, ReturnType<typeof cacheModule>] {
-  return [themeModule(options.theme), profilesModule(), peopleModule(), socialModule(), directoryModule(), cacheModule(options.eventCache)];
+export function kernlModules(options: { readonly theme?: Theme; readonly eventCache?: EventCacheOpener } = {}): readonly [ReturnType<typeof themeModule>, ReturnType<typeof profilesModule>, ReturnType<typeof peopleModule>, ReturnType<typeof socialModule>, ReturnType<typeof directoryModule>, ReturnType<typeof mailboxesModule>, ReturnType<typeof cacheModule>] {
+  return [themeModule(options.theme), profilesModule(), peopleModule(), socialModule(), directoryModule(), mailboxesModule(), cacheModule(options.eventCache)];
 }

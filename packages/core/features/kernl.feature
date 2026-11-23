@@ -153,6 +153,8 @@ Feature: The composed shell
     And the shell directory suggests 3 inbox servers before it starts
     When the shell saves the account's inbox and outbox as "wss://own.test"
     Then the shell refused with "denied:read-only"
+    When the shell tries to save the account's file servers as "https://mine.test"
+    Then the shell refused with "denied:read-only"
     When the shell logs out
     And the shell saves the account's inbox and outbox as "wss://own.test"
     Then the shell refused with "denied:read-only"
