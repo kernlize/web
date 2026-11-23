@@ -56,7 +56,7 @@ export interface AccountMailboxesOptions {
   /** The active account's signer, when it can sign. */
   readonly signer: () => MailboxSigner | undefined;
   /** Suggestions for an account with no list; the built-in ones without it. */
-  readonly directory?: RelayDirectory;
+  readonly directory?: RelayDirectory | undefined;
   /** How long to wait for a lookup server that never finishes; 15 s by default. */
   readonly patienceMs?: number;
 }

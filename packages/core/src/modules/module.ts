@@ -3,7 +3,7 @@ import type { EventStore } from 'applesauce-core';
 import type { EventTemplate, NostrEvent } from '@napplet/core';
 import type { ServiceRegistry } from '@kehto/runtime';
 import type { PlannedExtensions } from '../applets/plan.js';
-import type { ApplesaucePool } from '../applesauce/relay-hooks.js';
+import type { RelayPool } from 'applesauce-relay';
 import type { AppletSummary, RelayTiers, StorageLike } from '../types.js';
 
 /** The signed-in identity as a module sees it: who, and whether they can sign, never their signer. */
@@ -31,7 +31,7 @@ export interface ReplaceablePointer {
  */
 export interface KernelContext {
   readonly eventStore: EventStore;
-  readonly pool: ApplesaucePool;
+  readonly pool: RelayPool;
   readonly tiers: RelayTiers;
   /** The host's storage. A module keeps its own keys under `kernl:<module id>:`. */
   readonly storage: StorageLike;

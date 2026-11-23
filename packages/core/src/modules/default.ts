@@ -1,4 +1,5 @@
 import type { Theme } from '@napplet/nap/theme/types';
+import { directoryModule } from './directory.js';
 import { socialModule } from './social.js';
 import { themeModule } from './theme.js';
 
@@ -7,12 +8,12 @@ import { themeModule } from './theme.js';
  * wants kernl's opinions and one of its own spreads this list and adds to it.
  *
  * @param options - The theme pushed to applets.
- * @returns The theme and social modules, in that order.
+ * @returns The theme, social and directory modules, in that order.
  * @example
  * ```ts
  * createKernl({ host, modules: [...kernlModules({ theme }), myModule] });
  * ```
  */
-export function kernlModules(options: { readonly theme?: Theme } = {}): readonly [ReturnType<typeof themeModule>, ReturnType<typeof socialModule>] {
-  return [themeModule(options.theme), socialModule()];
+export function kernlModules(options: { readonly theme?: Theme } = {}): readonly [ReturnType<typeof themeModule>, ReturnType<typeof socialModule>, ReturnType<typeof directoryModule>] {
+  return [themeModule(options.theme), socialModule(), directoryModule()];
 }

@@ -615,3 +615,15 @@ export interface Kernl {
   handleWindowMessage(event: MessageEvent): void;
   destroy(): void;
 }
+
+/**
+ * The members of the shell that modules provide, named by module id. Each is present when its
+ * module is loaded, as it is with `kernlModules()` (D-062).
+ */
+export type ModuleMembers = 'directory';
+
+/**
+ * The shell without the members modules provide: what `createKernl` returns, with each loaded
+ * module's api beside it, when the host names its own modules. `Kernl` is this with kernl's own.
+ */
+export type Kernel = Omit<Kernl, ModuleMembers>;
