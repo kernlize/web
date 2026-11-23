@@ -216,7 +216,7 @@ export { KERNEL_DOMAINS, KERNEL_PARTS, MODULE_NATIVE_DOMAINS, checkModules, merg
 export { kernlModules } from './modules/default.js';
 export { directoryModule } from './modules/directory.js';
 export { cacheModule } from './modules/cache.js';
-export { themeModule } from './modules/theme.js';
+export { themeModule, type ThemeApi } from './modules/theme.js';
 export { socialModule } from './modules/social.js';
 export { commonActionsFor, createKernlNetwork, type KernlNetwork, type KernlNetworkParts } from './kernl-network.js';
 export { createCvmRelayPool, createRemoteToolsService, mergeFamilies, type RemoteToolsOptions } from './multiplayer/remote-tools.js';

@@ -7,7 +7,7 @@ import { AccountManager } from 'applesauce-accounts';
 import { ReadonlyAccount } from 'applesauce-accounts/accounts';
 import { createMessagingRegistry } from '@kernlize/messaging';
 import type { ServiceHandler } from '@kehto/runtime';
-import { kernlModules, searchCatalog, setupModules, socialModule, themeModule, toCatalogEntry, type AnyKernlModule, type CatalogEntry, type DomainBinding, type KernelContext, type KernlModule } from '@kernlize/core';
+import { kernlModules, searchCatalog, setupModules, socialModule, themeModule, toCatalogEntry, type AnyKernlModule, type CatalogEntry, type DomainBinding, type KernelContext, type KernlModule, type ThemeApi } from '@kernlize/core';
 import { blobFetcher, boot, k, settle, vector } from './kernl.js';
 import { attempt, scratch, splitList, type CoreWorld } from './world.js';
 
@@ -127,6 +127,30 @@ Then('the probe sees {string} in the mounted window', (world: CoreWorld, dTag: s
 
 When('the probe asks for the module {string}', async (world: CoreWorld, id: string) => {
   await attempt(world, () => probe(world).use(id));
+});
+
+/** The theme module's api, as the shell reaches it: `kernl.theme`. */
+function themeApi(world: CoreWorld): ThemeApi {
+  return Reflect.get(k(world).kernl, 'theme') as ThemeApi;
+}
+
+When('the shell publishes a theme background {string} text {string} primary {string}', async (world: CoreWorld, background: string, text: string, primary: string) => {
+  themeApi(world).publish({ colors: { background, text, primary } });
+  await settle();
+});
+
+/** The palette of what the applet was told last, by the envelope that carried it. */
+function paletteOf(world: CoreWorld, type: string): unknown {
+  const message = k(world).received.filter((entry) => entry.type === type).at(-1);
+  return (message?.theme as { colors?: unknown } | undefined)?.colors;
+}
+
+Then('the applet was told the theme changed to background {string}, text {string} and primary {string}', (world: CoreWorld, background: string, text: string, primary: string) => {
+  expect(paletteOf(world, 'theme.changed')).toEqual({ background, text, primary });
+});
+
+Then('the applet was told the theme is background {string}, text {string} and primary {string}', (world: CoreWorld, background: string, text: string, primary: string) => {
+  expect(paletteOf(world, 'theme.get.result')).toEqual({ background, text, primary });
 });
 
 Then('the probe reaches the kernel parts {string}', (world: CoreWorld, ids: string) => {
