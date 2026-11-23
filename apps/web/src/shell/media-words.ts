@@ -61,3 +61,25 @@ export const videoPanel = (sessionId: string): string => `${VIDEO_PANEL_PREFIX}$
 export function sessionOfPanel(panel: string): string | undefined {
   return panel.startsWith(VIDEO_PANEL_PREFIX) ? panel.slice(VIDEO_PANEL_PREFIX.length) : undefined;
 }
+
+/** What the full-screen button says: what pressing it does. */
+export const fullscreenLabel = (full: boolean): string => (full ? 'Exit full screen' : 'Full screen');
+
+/** The parts of `document` full screen needs. */
+export interface FullscreenDocument {
+  /** Compared with the box only. */
+  readonly fullscreenElement: unknown;
+  exitFullscreen(): Promise<void>;
+}
+
+/**
+ * The shell's own full screen for a video: `box` holds the video and the shell's controls for it,
+ * so it fills the screen with them, never the applet's frame. Pressed again, it leaves.
+ *
+ * @param box - The shell's box around the video.
+ * @param doc - The page's document.
+ * @returns When the browser has done it; a refusal, such as no gesture, is the browser's to report.
+ */
+export function toggleFullscreen(box: Pick<Element, 'requestFullscreen'>, doc: FullscreenDocument): Promise<void> {
+  return (doc.fullscreenElement === box ? doc.exitFullscreen() : box.requestFullscreen()).catch(() => undefined);
+}

@@ -49,3 +49,19 @@ Feature: How the shell's player words media
   Scenario: the settings section asks about an earlier session only while one plays at a time
     Then with "one" at once the media settings ask "Playing at once,When another starts,Videos,Hidden windows,Starting on its own"
     And with "many" at once the media settings ask "Playing at once,Videos,Hidden windows,Starting on its own"
+
+  Scenario: the full-screen button says what it does
+    Then the full-screen button reads "Full screen" outside full screen
+    And the full-screen button reads "Exit full screen" in full screen
+
+  Scenario: the shell fills the screen with its own box around a video, and leaves on a second press
+    Given a video box the shell can show full screen
+    When the person presses full screen on it
+    Then the video box fills the screen
+    When the person presses full screen on it
+    Then nothing fills the screen
+
+  Scenario: a browser that refuses full screen leaves the player as it was
+    Given a video box the browser will not show full screen
+    When the person presses full screen on it
+    Then nothing fills the screen

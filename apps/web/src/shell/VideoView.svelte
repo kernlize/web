@@ -2,6 +2,7 @@
   import type { MediaSessionView } from '@kernlize/core';
   import type { ShellKernl } from './contract';
   import MediaRow from './MediaRow.svelte';
+  import { toggleFullscreen } from './media-words';
 
   interface Props {
     kernl: ShellKernl;
@@ -10,6 +11,7 @@
   }
 
   const { kernl, session, applet }: Props = $props();
+  let view = $state<HTMLElement | null>(null);
   const element = $derived(session ? kernl.media.element(session.sessionId) : undefined);
 
   /** Moved here, as in the player's own box; see `MediaRow`. */
@@ -30,10 +32,10 @@
   }
 </script>
 
-<div class="video-view">
+<div class="video-view" bind:this={view}>
   <div class="screen" use:show={element}></div>
   {#if session}
-    <MediaRow {session} {applet} oncommand={(command) => kernl.media.command(session.sessionId, command)} onend={() => kernl.media.end(session.sessionId)} />
+    <MediaRow {session} {applet} oncommand={(command) => kernl.media.command(session.sessionId, command)} onend={() => kernl.media.end(session.sessionId)} onfullscreen={() => view && void toggleFullscreen(view, document)} />
   {/if}
 </div>
 
@@ -45,6 +47,12 @@
     grid-template-rows: minmax(0, 1fr) auto;
     border-radius: inherit;
     overflow: hidden;
+  }
+
+  .video-view:fullscreen {
+    background: var(--bg);
+    color: var(--ink);
+    border-radius: 0;
   }
 
   .screen {

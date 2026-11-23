@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
-import { Then } from 'quickpickle';
+import { Given, Then, When } from 'quickpickle';
 import { DEFAULT_MEDIA_SETTINGS, type MediaConcurrency, type MediaSessionView } from '@kernlize/core';
-import { isPlaying, mediaLine, mediaSettingGroups, mediaTime, mediaTitle, sessionOfPanel, videoPanel } from '../../src/shell/media-words';
+import { fullscreenLabel, isPlaying, mediaLine, mediaSettingGroups, mediaTime, mediaTitle, sessionOfPanel, toggleFullscreen, videoPanel, type FullscreenDocument } from '../../src/shell/media-words';
 
 type State = MediaSessionView['state'];
 
@@ -53,4 +53,52 @@ Then('the window {string} shows no session', (_world: unknown, panel: string) =>
 Then('with {string} at once the media settings ask {string}', (_world: unknown, concurrency: string, labels: string) => {
   const groups = mediaSettingGroups({ ...DEFAULT_MEDIA_SETTINGS, concurrency: concurrency as MediaConcurrency });
   expect(groups.map((group) => group.label).join(',')).toBe(labels);
+});
+
+Then('the full-screen button reads {string} outside full screen', (_world: unknown, label: string) => {
+  expect(fullscreenLabel(false)).toBe(label);
+});
+
+Then('the full-screen button reads {string} in full screen', (_world: unknown, label: string) => {
+  expect(fullscreenLabel(true)).toBe(label);
+});
+
+type Box = Pick<Element, 'requestFullscreen'>;
+
+interface FullscreenWorld {
+  page?: { fullscreenElement: Box | null; exitFullscreen(): Promise<void> };
+  box?: Box;
+}
+
+function fakeFullscreen(world: FullscreenWorld, allowed: boolean): void {
+  const page: NonNullable<FullscreenWorld['page']> = {
+    fullscreenElement: null,
+    exitFullscreen: async () => {
+      page.fullscreenElement = null;
+    },
+  };
+  const box: Box = {
+    requestFullscreen: async () => {
+      if (!allowed) throw new TypeError('Permissions check failed');
+      page.fullscreenElement = box;
+    },
+  };
+  world.page = page;
+  world.box = box;
+}
+
+Given('a video box the shell can show full screen', (world: FullscreenWorld) => fakeFullscreen(world, true));
+
+Given('a video box the browser will not show full screen', (world: FullscreenWorld) => fakeFullscreen(world, false));
+
+When('the person presses full screen on it', async (world: FullscreenWorld) => {
+  await toggleFullscreen(world.box as Box, world.page as FullscreenDocument);
+});
+
+Then('the video box fills the screen', (world: FullscreenWorld) => {
+  expect(world.page?.fullscreenElement).toBe(world.box);
+});
+
+Then('nothing fills the screen', (world: FullscreenWorld) => {
+  expect(world.page?.fullscreenElement).toBeNull();
 });

@@ -250,6 +250,60 @@ test('an applet granted media but not web fetches cannot have the shell fetch fo
   await expect(row(page, 'Own radio')).toHaveAttribute('data-status', 'playing');
 });
 
+/** What fills the screen now: whether it holds a playing video, and the shell's controls for it. */
+async function filling(page: Page): Promise<{ video: boolean; controls: boolean } | null> {
+  return page.evaluate(() => {
+    const box = document.fullscreenElement;
+    return box ? { video: box.querySelector('video') !== null, controls: box.querySelector('[aria-label^="Pause"]') !== null } : null;
+  });
+}
+
+test('a video in its own window fills the screen from the shell, with the shell\'s controls, and leaves again', async ({ page }) => {
+  const frame = await open(page);
+  await frame.locator('#clip').click();
+  const video = page.getByRole('region', { name: 'Test card window' });
+  await expect(video.locator('video')).toBeVisible();
+  await video.getByRole('button', { name: 'Full screen: Test card' }).click();
+  await expect.poll(() => filling(page)).toEqual({ video: true, controls: true });
+  await advances(page, 'video');
+  expect(await page.evaluate(() => document.fullscreenElement?.querySelector('video')?.getBoundingClientRect().height)).toBeGreaterThan(400);
+  await expect(video.getByRole('button', { name: 'Exit full screen: Test card' })).toBeVisible();
+  await proof(page, '22-full-screen-from-its-window');
+  await video.getByRole('button', { name: 'Exit full screen: Test card' }).click();
+  await expect.poll(() => filling(page)).toBeNull();
+  await expect(video.locator('video')).toBeVisible();
+  await expect(row(page, 'Test card')).toHaveAttribute('data-status', 'playing');
+});
+
+test('a video docked in the player fills the screen from the shell, and goes back to its row', async ({ page }) => {
+  const frame = await open(page);
+  await choose(page, 'Videos', 'In the player');
+  await frame.locator('#clip').click();
+  await expect(row(page, 'Test card').locator('video')).toBeVisible();
+  await row(page, 'Test card').getByRole('button', { name: 'Full screen: Test card' }).click();
+  await expect.poll(() => filling(page)).toEqual({ video: true, controls: true });
+  await advances(page, 'video');
+  // The picture fills what the controls leave: it is not squeezed away.
+  expect(await page.evaluate(() => document.fullscreenElement?.querySelector('video')?.getBoundingClientRect().height)).toBeGreaterThan(400);
+  await proof(page, '23-full-screen-from-the-player');
+  await row(page, 'Test card').getByRole('button', { name: 'Exit full screen: Test card' }).click();
+  await expect.poll(() => filling(page)).toBeNull();
+  await expect(row(page, 'Test card').locator('video')).toBeVisible();
+  await expect(row(page, 'Test card')).toHaveAttribute('data-status', 'playing');
+});
+
+test('only the shell offers full screen: a sound has none, and neither does a brief row', async ({ page }) => {
+  const frame = await open(page);
+  await choose(page, 'Videos', 'In the player');
+  await frame.locator('#clip').click();
+  await expect(row(page, 'Test card').locator('video')).toBeVisible();
+  await frame.locator('#tone').click();
+  await expect(row(page, 'Morning tone')).toHaveAttribute('data-status', 'playing');
+  await expect(row(page, 'Morning tone').getByRole('button', { name: /Full screen/ })).toHaveCount(0);
+  await player(page).getByText('1 more').click();
+  await expect(row(page, 'Test card').getByRole('button', { name: /Full screen/ })).toHaveCount(0);
+});
+
 test('a video can be docked in the player instead', async ({ page }) => {
   const frame = await open(page);
   await choose(page, 'Videos', 'In the player');

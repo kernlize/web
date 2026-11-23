@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { MediaSessionView, MediaUserCommand } from '@kernlize/core';
-  import { isPlaying, mediaLine, mediaTime, mediaTitle } from './media-words';
+  import { fullscreenLabel, isPlaying, mediaLine, mediaTime, mediaTitle, toggleFullscreen } from './media-words';
 
   interface Props {
     session: MediaSessionView;
@@ -14,9 +14,29 @@
     onend: () => void;
     /** Bring the video's own window forward, when it has one. */
     onshow?: (() => void) | undefined;
+    /** Fill the screen with the box this row's video is in, when it is not this row's own. */
+    onfullscreen?: (() => void) | undefined;
   }
 
-  const { session, applet, screen, brief = false, oncommand, onend, onshow }: Props = $props();
+  const { session, applet, screen, brief = false, oncommand, onend, onshow, onfullscreen }: Props = $props();
+  let holder = $state<HTMLElement | null>(null);
+  let full = $state(false);
+  // A docked video fills the screen with its row; a windowed one with the box its window gives it.
+  const fills = $derived(!brief && (screen !== undefined || onfullscreen !== undefined));
+
+  $effect(() => {
+    const changed = (): void => {
+      full = document.fullscreenElement !== null && document.fullscreenElement.contains(holder);
+    };
+    changed();
+    document.addEventListener('fullscreenchange', changed);
+    return () => document.removeEventListener('fullscreenchange', changed);
+  });
+
+  function fillScreen(): void {
+    if (onfullscreen) onfullscreen();
+    else if (holder) void toggleFullscreen(holder, document);
+  }
   const title = $derived(mediaTitle(session));
   const can = $derived(new Set(session.actions));
   const playing = $derived(isPlaying(session));
@@ -45,7 +65,7 @@
   const toggle = (): void => oncommand({ action: playing ? 'pause' : 'play' });
 </script>
 
-<div class="holder">
+<div class="holder" bind:this={holder}>
 <div class="row" class:brief class:current={session.current} class:with-screen={screen !== undefined} role="group" aria-label={title} data-session={session.sessionId} data-status={session.state?.status ?? 'paused'}>
   {#if screen}
     <div class="screen" use:show={screen}></div>
@@ -59,6 +79,7 @@
     <button type="button" class="shell-button" class:primary={!brief} disabled={!can.has(playing ? 'pause' : 'play')} onclick={toggle} aria-label="{playing ? 'Pause' : 'Play'} {title}">{playing ? 'Pause' : 'Play'}</button>
     {#if !brief && can.has('next')}<button type="button" class="shell-button quiet" onclick={() => oncommand({ action: 'next' })}>Next</button>{/if}
     {#if onshow}<button type="button" class="shell-button quiet" onclick={onshow}>Show</button>{/if}
+    {#if fills}<button type="button" class="shell-button quiet" onclick={fillScreen} aria-label="{fullscreenLabel(full)}: {title}">{fullscreenLabel(full)}</button>{/if}
     <button type="button" class="shell-button quiet" onclick={onend} aria-label="End {title}">End</button>
   </div>
   {#if !brief}
@@ -85,6 +106,41 @@
   .holder {
     container: media-row / inline-size;
   }
+
+  /* A docked video filling the screen: the picture takes the screen, the shell's controls stay under it. */
+  .holder:fullscreen {
+    position: relative;
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  .holder:fullscreen .row {
+    position: absolute;
+    inset: 0;
+  }
+
+  .holder:fullscreen .row.with-screen {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: minmax(0, 1fr) auto auto;
+    grid-template-areas: 'screen screen' 'info transport' 'sliders sliders';
+    padding: 0 1rem 1rem;
+  }
+
+  .holder:fullscreen .screen {
+    position: relative;
+    align-self: stretch;
+    min-height: 0;
+    aspect-ratio: auto;
+    border-radius: 0;
+    margin: 0 -1rem;
+  }
+
+  /* Sized by the screen's share of the grid, never by the video's own height. */
+  .holder:fullscreen .screen :global(video) {
+    position: absolute;
+    inset: 0;
+  }
+
 
   .row {
     display: grid;
