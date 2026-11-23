@@ -62,6 +62,18 @@ Feature: Modules
       Then the applet is told its follow succeeded
       And the fake pool published a kind 3 event
 
+    Scenario: without the directory module there is no directory, and an account with no relay list is still offered servers
+      Given a kernl shell over that host and pool with modules "theme,social"
+      Then the shell has no "directory" member
+      Given a fresh key with no relay list
+      When the shell logs in read-only as that fresh key
+      Then the shell mailboxes eventually are missing, suggesting inboxes "wss://relay.damus.io/,wss://nos.lol/,wss://relay.primal.net/"
+
+    Scenario: kernl's own modules include the directory, which waits to be started
+      Given a kernl shell over that host and pool
+      Then the shell has a "directory" member
+      And the shell directory suggests 3 inbox servers before it starts
+
   Rule: modules are checked before anything is built
 
     Scenario: a module's api appears on the shell, and a module reaches another's
@@ -77,6 +89,7 @@ Feature: Modules
         | modules          | reason                          |
         | needs-clock      | invalid:module-missing:clock    |
         | theme,theme      | invalid:module-duplicate:theme  |
+        | needs-directory  | invalid:module-missing:directory |
         | profiles         | invalid:module-reserved:profiles |
         | grants           | invalid:module-reserved:grants  |
         | needs-clock,clock | invalid:module-order:clock     |

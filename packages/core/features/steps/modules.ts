@@ -2,6 +2,7 @@ import { expect, vi } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import { EMPTY, firstValueFrom } from 'rxjs';
 import { RelayPool } from 'applesauce-relay';
+import { PrivateKeySigner } from 'applesauce-signers';
 import { createMessagingRegistry } from '@kernlize/messaging';
 import type { ServiceHandler } from '@kehto/runtime';
 import { kernlModules, searchCatalog, setupModules, socialModule, themeModule, toCatalogEntry, type AnyKernlModule, type CatalogEntry, type DomainBinding, type KernelContext, type KernlModule } from '@kernlize/core';
@@ -38,6 +39,7 @@ function named(world: CoreWorld, name: string): readonly AnyKernlModule[] {
     'storage-thief': () => [{ id: 'storage-thief', setup: () => ({ services: { storage: ANSWER } }) }],
     grants: () => [{ id: 'grants', setup: () => ({ api: {} }) }],
     profiles: () => [{ id: 'profiles', setup: () => ({}) }],
+    'needs-directory': () => [{ id: 'needs-directory', requires: ['directory'], setup: () => ({}) }],
     probe: () => [{ id: 'probe', setup: (context) => ({ api: context }) } satisfies KernlModule<'probe', KernelContext>],
     'binding-only': () => [{ id: 'binding-only', setup: () => ({ extensions: { domains: ['fs'], bindings: { fs: COUNT_BINDING } } }) }],
     bound: () => [{ id: 'bound', setup: () => ({ services: { count: ANSWER }, extensions: { domains: ['count'], bindings: { count: COUNT_BINDING } } }) }],
@@ -203,4 +205,14 @@ When('the probe starts signing a kind {int} event for the mounted window', async
 
 Then("the probe's signing ended with {string}", async (world: CoreWorld, outcome: string) => {
   expect(await (scratch(world).probeSigning as Promise<string>)).toBe(outcome);
+});
+
+Given('a fresh key with no relay list', async (world: CoreWorld) => {
+  scratch(world).freshKey = await new PrivateKeySigner().getPublicKey();
+  scratch(world).pool.events = [];
+});
+
+Then('the shell mailboxes eventually are missing, suggesting inboxes {string}', async (world: CoreWorld, urls: string) => {
+  await expect.poll(() => k(world).kernl.mailboxes.state().status, { timeout: 3000 }).toBe('missing');
+  expect(k(world).kernl.mailboxes.state()).toMatchObject({ suggested: { inboxes: splitList(urls) } });
 });
