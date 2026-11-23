@@ -18,7 +18,7 @@ Feature: Modules
       And the shell has no "theme" member
 
     Scenario: without the theme module, theme is neither offered nor in the baseline
-      Given a kernl shell over that host and pool with modules "social"
+      Given a kernl shell over that host and pool with modules "profiles,people,social"
       Then the shell does not offer "theme"
       And the composed shell starts applets with "shell,inc,storage,keys"
       When the shell resolves the manifest address
@@ -36,7 +36,7 @@ Feature: Modules
 
     Scenario: an applet that requires the theme shows it missing on a shell without the module
       Given a fake applesauce pool serving a signed manifest for "chat" requiring "theme"
-      And a kernl shell over that host and pool with modules "social"
+      And a kernl shell over that host and pool with modules "profiles,people,social"
       When the shell resolves the manifest address
       And the shell plans the summary
       Then the shell plan is missing "theme"
@@ -53,7 +53,7 @@ Feature: Modules
       And modules "bound,binding-only" set up where bindings render answer "count" and plan "count,fs"
 
     Scenario: the social module signs a follow the person agreed to and publishes it
-      Given a kernl shell over that host and pool with modules "social"
+      Given a kernl shell over that host and pool with modules "profiles,people,social"
       And the shell is signed in
       And a mounted applet granted "common" that has said hello
       When the applet asks to follow "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d" over its port
@@ -63,7 +63,7 @@ Feature: Modules
       And the fake pool published a kind 3 event
 
     Scenario: without the directory module there is no directory, and an account with no relay list is still offered servers
-      Given a kernl shell over that host and pool with modules "theme,social"
+      Given a kernl shell over that host and pool with modules "theme,profiles,people,social"
       Then the shell has no "directory" member
       Given a fresh key with no relay list
       When the shell logs in read-only as that fresh key
@@ -79,6 +79,14 @@ Feature: Modules
       Given a kernl shell over that host and pool
       Then the shell has a "directory" member
       And the shell directory suggests 3 inbox servers before it starts
+
+    Scenario: without the profiles and people modules, the session is labelled by its key
+      Given the fake pool serves a profile named "Satoshi" for a fresh key
+      And a kernl shell over that host and pool with modules "theme"
+      Then the shell has no "profiles" member
+      And the shell has no "people" member
+      When the shell logs in read-only as that fresh key
+      Then the shell session label eventually is the start of that fresh key
 
   Rule: modules are checked before anything is built
 
@@ -97,7 +105,8 @@ Feature: Modules
         | theme,theme      | invalid:module-duplicate:theme  |
         | needs-directory  | invalid:module-missing:directory |
         | needs-cache      | invalid:module-missing:cache     |
-        | profiles         | invalid:module-reserved:profiles |
+        | social           | invalid:module-missing:profiles |
+        | social,profiles,people | invalid:module-order:profiles |
         | grants           | invalid:module-reserved:grants  |
         | needs-clock,clock | invalid:module-order:clock     |
         | relay-thief      | invalid:module-domain:relay     |
@@ -139,9 +148,9 @@ Feature: Modules
       When the probe signs a kind 1 note for the mounted window
       Then the shell refused with "denied:read-only"
 
-    Scenario: a module reaches the kernel's parts, and nothing else by a name nobody loaded
-      Given a kernl shell over that host and pool with modules "probe"
-      Then the probe reaches the kernel parts "profiles,people"
+    Scenario: a module reaches the modules loaded before it, and nothing by a name nobody loaded
+      Given a kernl shell over that host and pool with modules "profiles,people,probe"
+      Then the probe reaches the modules "profiles,people"
       When the probe asks for the module "nothing"
       Then the shell refused with "invalid:module-missing:nothing"
       When the probe loads a follow list for "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d"

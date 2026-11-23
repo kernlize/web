@@ -7,7 +7,7 @@ import { AccountManager } from 'applesauce-accounts';
 import { ReadonlyAccount } from 'applesauce-accounts/accounts';
 import { createMessagingRegistry } from '@kernlize/messaging';
 import type { ServiceHandler } from '@kehto/runtime';
-import { kernlModules, searchCatalog, setupModules, socialModule, themeModule, toCatalogEntry, type AnyKernlModule, type CatalogEntry, type DomainBinding, type KernelContext, type KernlModule } from '@kernlize/core';
+import { abbreviate, kernlModules, peopleModule, profilesModule, searchCatalog, setupModules, socialModule, themeModule, toCatalogEntry, type AnyKernlModule, type CatalogEntry, type DomainBinding, type KernelContext, type KernlModule } from '@kernlize/core';
 import { blobFetcher, boot, k, settle, vector } from './kernl.js';
 import { attempt, scratch, splitList, type CoreWorld } from './world.js';
 
@@ -40,7 +40,8 @@ function named(world: CoreWorld, name: string): readonly AnyKernlModule[] {
     'relay-thief': () => [{ id: 'relay-thief', setup: () => ({ services: { relay: ANSWER } }) }],
     'storage-thief': () => [{ id: 'storage-thief', setup: () => ({ services: { storage: ANSWER } }) }],
     grants: () => [{ id: 'grants', setup: () => ({ api: {} }) }],
-    profiles: () => [{ id: 'profiles', setup: () => ({}) }],
+    profiles: () => [profilesModule()],
+    people: () => [peopleModule()],
     'needs-cache': () => [{ id: 'needs-cache', requires: ['cache'], setup: () => ({}) }],
     'needs-directory': () => [{ id: 'needs-directory', requires: ['directory'], setup: () => ({}) }],
     probe: () => [{ id: 'probe', setup: (context) => ({ api: context }) } satisfies KernlModule<'probe', KernelContext>],
@@ -129,7 +130,7 @@ When('the probe asks for the module {string}', async (world: CoreWorld, id: stri
   await attempt(world, () => probe(world).use(id));
 });
 
-Then('the probe reaches the kernel parts {string}', (world: CoreWorld, ids: string) => {
+Then('the probe reaches the modules {string}', (world: CoreWorld, ids: string) => {
   for (const id of splitList(ids)) expect(probe(world).use(id)).toBe(k(world).kernl[id as 'profiles' | 'people']);
 });
 
@@ -155,7 +156,7 @@ function setUp(world: CoreWorld, names: string, bindings: boolean): ReturnType<t
     storage: scratch(world).storage,
     accounts: kernl.accounts,
     consent: async () => undefined,
-    network: { profiles: kernl.profiles, people: kernl.people, replaceableLoader: () => EMPTY },
+    replaceableLoader: () => EMPTY,
     appletOf: () => undefined,
   }, bindings);
 }
@@ -226,4 +227,8 @@ Given('a kernl shell over that host and pool for that fresh key, already signed 
   accounts.addAccount(account);
   accounts.setActive(account);
   boot(world, { accounts }, blobFetcher(world));
+});
+
+Then('the shell session label eventually is the start of that fresh key', async (world: CoreWorld) => {
+  await expect.poll(() => k(world).kernl.session?.label, { timeout: 3000 }).toBe(abbreviate(scratch(world).freshKey as string));
 });
