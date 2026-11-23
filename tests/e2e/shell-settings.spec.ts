@@ -91,12 +91,14 @@ test('sections switch by click and by keyboard, one showing at a time, and what 
   await expect(section(settings, 'Messages').getByRole('heading', { name: 'Replies' })).toBeVisible();
   await page.keyboard.press('ArrowDown');
   await expect(section(settings, 'Connections').getByRole('heading', { name: 'Meeting people and remote tools' })).toBeVisible();
-  await page.keyboard.press('End');
+  await page.keyboard.press('ArrowDown');
   await expect(section(settings, 'Downloads').getByRole('heading', { name: 'Bridges' })).toBeVisible();
+  await page.keyboard.press('End');
+  await expect(section(settings, 'Media').getByRole('heading', { name: 'Media' })).toBeVisible();
   await page.keyboard.press('ArrowDown');
   await expect(tab(settings, 'General')).toBeFocused();
   await page.keyboard.press('ArrowUp');
-  await expect(tab(settings, 'Downloads')).toBeFocused();
+  await expect(tab(settings, 'Media')).toBeFocused();
   await page.keyboard.press('Home');
   await expect(tab(settings, 'General')).toHaveAttribute('aria-selected', 'true');
   await expect(settings.getByRole('tab', { selected: true })).toHaveCount(1);

@@ -181,7 +181,7 @@
     border-top: 1px solid var(--line);
   }
 
-  /* A narrow window, however wide the page is: the tabs become one row that scrolls sideways. */
+  /* A narrow window, however wide the page is: the tabs run across the top, onto a second line when they do not fit. */
   @container settings (max-width: 34rem) {
     .frame {
       grid-template-columns: minmax(0, 1fr);
@@ -190,6 +190,7 @@
 
     .tabs {
       flex-direction: row;
+      flex-wrap: wrap;
       gap: 0.1rem;
       padding: 0.4rem 0.35rem;
       border-right: 0;
