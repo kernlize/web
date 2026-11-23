@@ -5,8 +5,8 @@ Feature: The Settings window's sections
   the person was in. Escape closes the shell-drawn window the person is
   working in.
 
-  Scenario: the sections are the five a person looks for, in order
-    Then the Settings sections read "General, Servers, Messages, Connections, Downloads"
+  Scenario: the sections are the six a person looks for, in order
+    Then the Settings sections read "General, Servers, Messages, Connections, Downloads, Media"
     And no Settings section is named after a protocol
     And the Settings tab for "servers" is "settings-tab-servers" and controls "settings-panel-servers"
 
@@ -16,15 +16,16 @@ Feature: The Settings window's sections
     Examples:
       | orientation | from      | key        | to        |
       | vertical    | general   | ArrowDown  | servers   |
-      | vertical    | downloads | ArrowDown  | general   |
+      | vertical    | media     | ArrowDown  | general   |
+      | vertical    | downloads | ArrowDown  | media     |
       | vertical    | servers   | ArrowUp    | general   |
-      | vertical    | general   | ArrowUp    | downloads |
+      | vertical    | general   | ArrowUp    | media     |
       | horizontal  | general   | ArrowRight | servers   |
-      | horizontal  | downloads | ArrowRight | general   |
+      | horizontal  | media     | ArrowRight | general   |
       | horizontal  | messages  | ArrowLeft  | servers   |
-      | horizontal  | general   | ArrowLeft  | downloads |
+      | horizontal  | general   | ArrowLeft  | media     |
       | vertical    | messages  | Home       | general   |
-      | horizontal  | messages  | End        | downloads |
+      | horizontal  | messages  | End        | media     |
 
   Scenario Outline: keys that do not belong to the list are left alone
     Then pressing "<key>" on the Settings tab "messages" in a <orientation> list goes nowhere

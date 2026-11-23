@@ -4,6 +4,7 @@
   import type { ShellDownloads } from '../downloads';
   import DownloadsSection from './DownloadsSection.svelte';
   import GeneralSection from './GeneralSection.svelte';
+  import MediaSection from './MediaSection.svelte';
   import MeetingSettings from './MeetingSettings.svelte';
   import MessagingSettings from './MessagingSettings.svelte';
   import { SETTINGS_SECTIONS, settingsPanelId, settingsSectionForKey, settingsTabId, type SettingsSectionId, type TabOrientation } from './sections';
@@ -94,6 +95,8 @@
               <MessagingSettings {kernl} />
             {:else if item.id === 'connections'}
               <MeetingSettings {kernl} />
+            {:else if item.id === 'media'}
+              <MediaSection {kernl} {mode} />
             {:else}
               <DownloadsSection {kernl} {mode} {downloads} />
             {/if}

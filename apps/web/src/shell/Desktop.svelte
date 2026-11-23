@@ -12,6 +12,9 @@
   import IframeLayer from './IframeLayer.svelte';
   import DownloadsPanel from './DownloadsPanel.svelte';
   import Launcher from './Launcher.svelte';
+  import MediaBar from './MediaBar.svelte';
+  import { mediaTitle, sessionOfPanel, videoPanel } from './media-words';
+  import VideoView from './VideoView.svelte';
   import { explainOpenFailure } from './launcher-reasons';
   import { openMessages } from './messages-applet';
   import { observe } from './observe.svelte';
@@ -56,6 +59,40 @@
   let desk = $state<HTMLElement | null>(null);
   const profile = observe(kernl.guard.profile$, kernl.guard.config.profile);
   $effect(() => profile.stop);
+  const media = observe(kernl.media.sessions$, []);
+  $effect(() => media.stop);
+  const mediaSettings = observe(kernl.media.settings$, kernl.media.settings());
+  $effect(() => mediaSettings.stop);
+  const appletOf = (windowId: string): string => windows.get(windowId)?.plan.summary.title ?? 'An applet';
+
+  // A video the shell plays has a window of its own when the person chose that (D-061). Closing the window ends it.
+  const windowedVideos = $derived(mediaSettings.value.video === 'window' ? media.value.filter((item) => item.video) : []);
+  const videoWindows = new Set<string>();
+  $effect(() => {
+    const wanted = new Set(windowedVideos.map((item) => item.sessionId));
+    untrack(() => {
+      for (const item of windowedVideos) {
+        if (videoWindows.has(item.sessionId)) continue;
+        videoWindows.add(item.sessionId);
+        windows.openPanel(videoPanel(item.sessionId), mediaTitle(item));
+      }
+      for (const id of [...videoWindows]) {
+        if (wanted.has(id)) continue;
+        videoWindows.delete(id);
+        windows.close(panelWindowId(videoPanel(id)));
+      }
+    });
+  });
+  $effect(() => {
+    const shown = new Set(windows.panels.map((win) => sessionOfPanel(win.panel)));
+    untrack(() => {
+      for (const id of [...videoWindows]) {
+        if (shown.has(id)) continue;
+        videoWindows.delete(id);
+        kernl.media.end(id);
+      }
+    });
+  });
 
   const reload = $derived(createReloader({ kernl, windows, onproblem }));
   const grantsWindow = $derived(overlay?.kind === 'grants' ? windows.get(overlay.windowId) : undefined);
@@ -184,7 +221,11 @@
     <div class="wallpaper" onpointerdown={() => windows.blur()}></div>
     <WindowLayer {windows} {traffic} ongrants={(windowId) => (overlay = { kind: 'grants', windowId })} oninspect={(windowId) => (overlay = { kind: 'inspect', windowId })} onreload={(windowId) => void reload(windowId)}>
       {#snippet panel(win)}
-        {#if win.panel === SETTINGS}
+        {@const video = sessionOfPanel(win.panel)}
+        {#if video !== undefined}
+          {@const shown = media.value.find((item) => item.sessionId === video)}
+          <VideoView {kernl} session={shown} applet={shown ? appletOf(shown.windowId) : ''} />
+        {:else if win.panel === SETTINGS}
           <SettingsWindow {kernl} mode={booted.mode} downloads={booted.downloads} section={settingsSection} opened={settingsOpened} onsection={chooseSettingsSection} />
         {:else}
           {#key launcherOpened}
@@ -213,6 +254,7 @@
       <DownloadsPanel {kernl} downloads={booted.downloads} onclose={() => (overlay = null)} onsettings={() => openSettings('downloads')} />
     {/if}
   </div>
+  <MediaBar {kernl} sessions={media.value} settings={mediaSettings.value} {appletOf} onshow={(id) => windows.focus(panelWindowId(videoPanel(id)))} />
 </div>
 
 <style>
@@ -220,7 +262,7 @@
     position: absolute;
     inset: 0;
     display: grid;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     grid-template-columns: minmax(0, 1fr);
   }
 
