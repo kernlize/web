@@ -56,7 +56,7 @@ export interface AccountMailboxesOptions {
   /** The active account's signer, when it can sign. */
   readonly signer: () => MailboxSigner | undefined;
   /** Suggestions for an account with no list; the built-in ones without it. */
-  readonly directory?: RelayDirectory;
+  readonly directory?: RelayDirectory | undefined;
   /** How long to wait for a lookup server that never finishes; 15 s by default. */
   readonly patienceMs?: number;
 }
@@ -156,12 +156,13 @@ function lookupFinished(options: AccountMailboxesOptions, pubkey: string): Obser
 
 function stateFor(options: AccountMailboxesOptions, pubkey: string | undefined): Observable<MailboxState> {
   if (pubkey === undefined) return of({ status: 'loading' });
-  const listings$ = options.directory?.listings$ ?? of([]);
-  return combineLatest([options.store.replaceable(RELAY_LIST_KIND, pubkey), lookupFinished(options, pubkey), listings$]).pipe(
-    map(([event, finished]): MailboxState => {
-      if (event) return { status: 'found', mailboxes: mailboxesFromEvent(event), event };
-      if (!finished) return { status: 'loading' };
-      return { status: 'missing', suggested: suggestions(options.directory) };
+  return combineLatest([options.store.replaceable(RELAY_LIST_KIND, pubkey), lookupFinished(options, pubkey)]).pipe(
+    switchMap(([event, finished]): Observable<MailboxState> => {
+      if (event) return of({ status: 'found', mailboxes: mailboxesFromEvent(event), event });
+      if (!finished) return of({ status: 'loading' });
+      // The directory is read only once a list is known to be missing, never while the shell is still being composed.
+      const { directory } = options;
+      return (directory?.listings$ ?? of([])).pipe(map((): MailboxState => ({ status: 'missing', suggested: suggestions(directory) })));
     }),
   );
 }

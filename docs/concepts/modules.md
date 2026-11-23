@@ -30,6 +30,6 @@ A module adds only domains on the napplet track. The shell does not check this; 
 
 ## What leaving one out does
 
-A shell without the theme module does not offer `theme`, and `theme` leaves the baseline every applet starts with. An applet that requires it plans with it missing, and the store, which compares an applet's requirements with what the shell offers and starts applets with, hides it until asked, as it hides any applet this shell cannot fully run ([D-059](../decisions.md#d-059)). Without the social module, the `common` domain is not offered.
+A shell without the theme module does not offer `theme`, and `theme` leaves the baseline every applet starts with. An applet that requires it plans with it missing, and the store, which compares an applet's requirements with what the shell offers and starts applets with, hides it until asked, as it hides any applet this shell cannot fully run ([D-059](../decisions.md#d-059)). Without the social module, the `common` domain is not offered. Without the directory module the shell has no `kernl.directory`, and an account with no relay list is offered the well-known servers.
 
 `createKernl({ host })` with no module list loads `kernlModules()`, kernl's own, so a host that names none gets the shell it always had. [The core package](../packages/core.md#modules) has the contract and an example.

@@ -8,7 +8,7 @@ import type { BridgeContext } from '@kernlize/bridges';
 import { buildShellCapabilities, createShellBridge, type ShellAdapter, type ShellBridge } from '@kehto/shell';
 import { QUARANTINE_WINDOW_MS, createGuardConfig, describeMitigations, type GuardConfig, type GuardEvent } from '@kernlize/guard';
 import type { AccountFileServers } from './files/file-servers.js';
-import type { AppletIdentity, AppletStopLimit, AppletSummary, Grants, GuardFacade, Kernl, KernlHost, KernlMultiplayer, KernlOptions, RelayTiers, Session } from './types.js';
+import type { AppletIdentity, AppletStopLimit, AppletSummary, Grants, GuardFacade, Kernel, Kernl, KernlHost, KernlMultiplayer, KernlOptions, RelayTiers, Session } from './types.js';
 import { createKernlDownloads, type KernlDownloads } from './kernl-downloads.js';
 import { createMultiplayerSettings } from './multiplayer/settings.js';
 import { createStorageSecrets, type SecretsProvider } from './secrets/secrets.js';
@@ -17,6 +17,7 @@ import { createKernlAccounts } from './applesauce/accounts.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
 import type { ProfileCard, Profiles } from './profiles/profiles.js';
 import { createKernlNetwork } from './kernl-network.js';
+import type { RelayDirectory } from './relays/directory.js';
 import { createAppletConfig } from './applets/applet-config.js';
 import { askUploadConsent, createBlossomUploader, type BlossomUploaderOptions } from './files/uploader.js';
 import type { Uploader } from '@kehto/services';
@@ -260,7 +261,7 @@ interface ShellParts {
   readonly handles: ReadonlyMap<string, MountedApplet>;
   readonly subscriptions: Subscription;
   readonly destroyed$: Subject<void>;
-  readonly network: { readonly directory: { stop(): void }; readonly eventCache: { close(): Promise<void> } };
+  readonly network: { readonly eventCache: { close(): Promise<void> } };
   readonly intents: { close(): void };
   readonly dm: { dispose(): void };
   readonly downloads: { dispose(): void };
@@ -280,7 +281,6 @@ function tearDown(parts: ShellParts): void {
   parts.modules.dispose();
   parts.subscriptions.unsubscribe();
   parts.destroyed$.next();
-  parts.network.directory.stop();
   void parts.network.eventCache.close();
   parts.intents.close();
   parts.dm.dispose();
@@ -378,12 +378,13 @@ function composeOrClose(modules: readonly AnyKernlModule[], parts: KernelContext
 }
 
 /** The shell with each module's api as `kernl[id]`; an id the shell already uses is refused. */
-function withApis<K extends Kernl>(shell: K, composed: ComposedModules): K {
+function withApis(shell: Kernel, composed: ComposedModules): Kernel {
   const reserved = Object.keys(composed.apis).find((id) => id in shell);
   if (reserved !== undefined) {
     shell.destroy();
     throw new Error(`invalid:module-reserved:${reserved}`);
   }
+  // With kernl's modules the apis complete the shell into `Kernl`; with a host's own list, the overloads type it.
   return Object.assign(shell, composed.apis);
 }
 
@@ -409,9 +410,9 @@ function withApis<K extends Kernl>(shell: K, composed: ComposedModules): K {
  * const handle = kernl.mount(await kernl.plan(summary), iframe);
  * ```
  */
-export function createKernl<const M extends readonly AnyKernlModule[]>(options: KernlOptions & { readonly modules: M }): Kernl & ModuleApis<M>;
+export function createKernl<const M extends readonly AnyKernlModule[]>(options: KernlOptions & { readonly modules: M }): Kernel & ModuleApis<M>;
 export function createKernl(options: KernlOptions): Kernl;
-export function createKernl(options: KernlOptions): Kernl {
+export function createKernl(options: KernlOptions): Kernel {
   const { host } = options;
   const modules = options.modules ?? kernlModules(isTheme(options.theme) ? { theme: options.theme } : {});
   checkModules(modules, []);
@@ -434,17 +435,20 @@ export function createKernl(options: KernlOptions): Kernl {
   const traffic = createAppletTraffic((windowId) => handles.has(windowId));
 
   const identityOf = (windowId: string): AppletIdentity | undefined => handles.get(windowId)?.summary.identity;
-  const { eventCache, replaceableLoader, profiles, people, directory, mailboxes, files, signer } = createKernlNetwork(options, { eventStore, pool, tiers, accounts, destroyed$ });
+  // The directory module's api, for the mailboxes' suggestions; nothing until the modules are set up.
+  const modulesSetUp: { composed?: ComposedModules } = {};
+  const directory = (): RelayDirectory | undefined => modulesSetUp.composed?.apis.directory as RelayDirectory | undefined;
+  const { eventCache, replaceableLoader, profiles, people, mailboxes, files, signer } = createKernlNetwork(options, { eventStore, pool, tiers, accounts, destroyed$, directory });
   const lookupBefore = lookupReplaceable(eventStore, { loader: replaceableLoader, relays: () => [...tiers.get().outbox, ...tiers.get().discovery] });
   const consent = createSigningConsent({ host, lookupBefore, resolveApplet: identityOf, pubkey: () => accounts.active?.pubkey });
   const composed = composeOrClose(modules, { eventStore, pool, tiers, storage: host.storage, accounts, consent, network: { profiles, people, replaceableLoader }, appletOf: (windowId) => handles.get(windowId)?.summary }, () => {
     destroyed$.next();
-    directory.stop();
     void eventCache.close();
     traffic.close();
     if (ownsMessaging) messaging.close();
     if (ownsPool) pool.close();
   });
+  modulesSetUp.composed = composed;
   const meeting = meetingFor(options, { pool, tiers, appletOf: (windowId) => handles.get(windowId)?.summary, grants: () => grants });
   const downloads = downloadsFor(options, bridges, identityOf, (windowId) => handles.get(windowId)?.summary.manifest.catalogId);
   const services = servicesFor(options, { pool, tiers, eventStore, adapter: () => adapter, consent, bridges, messaging, network: { profiles, people, files, signer }, handles, pipeline, meeting: meeting.deps });
@@ -513,7 +517,6 @@ export function createKernl(options: KernlOptions): Kernl {
     mailboxes,
     files,
     multiplayer: meeting.multiplayer, downloads: downloads.programs, secrets: downloads.secrets.description,
-    directory,
     intents: intents.intents,
     firewall,
     media: services.media,
@@ -531,6 +534,6 @@ export function createKernl(options: KernlOptions): Kernl {
       lifecycle.handleWindowMessage(event);
     },
     destroy: () =>
-      tearDown({ traffic, handles, subscriptions, destroyed$, network: { directory, eventCache }, intents, dm: services.dm, downloads, modules: composed, keys: services.keys, media: services.media, bridge, ...(ownsMessaging ? { messaging } : {}), ...(ownsPool ? { pool } : {}) }),
+      tearDown({ traffic, handles, subscriptions, destroyed$, network: { eventCache }, intents, dm: services.dm, downloads, modules: composed, keys: services.keys, media: services.media, bridge, ...(ownsMessaging ? { messaging } : {}), ...(ownsPool ? { pool } : {}) }),
   }, composed);
 }

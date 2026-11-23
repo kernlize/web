@@ -5,7 +5,7 @@ import type { NostrEvent } from '@napplet/core';
 import type { ServiceRegistry } from '@kehto/runtime';
 import type { PlannedExtensions } from '../applets/plan.js';
 import type { SigningConsent } from '../consent/handler.js';
-import type { ApplesaucePool } from '../applesauce/relay-hooks.js';
+import type { RelayPool } from 'applesauce-relay';
 import { isReadOnlyAccount } from '../applesauce/auth-hooks.js';
 import { loadReplaceableQuietly } from '../applesauce/identity-providers.js';
 import type { KernlNetwork } from '../kernl-network.js';
@@ -78,7 +78,7 @@ export function checkModules(modules: readonly AnyKernlModule[], reserved: reado
 /** What the kernel builds a module's context from. */
 export interface KernelContextParts {
   readonly eventStore: EventStore;
-  readonly pool: ApplesaucePool;
+  readonly pool: RelayPool;
   readonly tiers: RelayTiers;
   readonly storage: StorageLike;
   readonly accounts: AccountManager;
