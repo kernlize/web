@@ -19,3 +19,23 @@ Feature: Floor: grants belong to the exact code, whatever modules are loaded
     And the shell ensures grants for "chat" built from other code
     Then the ACL allows "theme:read" for "chat" built from other code
     And the ACL denies "identity:read" for "chat" built from other code
+
+  Scenario Outline: the composed shell plans changed bytes with nothing granted
+    Given the shell loads <modules> modules
+    And a kernl host over empty storage
+    And a fake applesauce pool serving a signed manifest for "chat" requiring "relay"
+    And a kernl shell over that host and pool
+    And the shell <theme> "theme"
+    When the shell resolves the manifest address
+    And the shell allows "relay" for the resolved applet
+    And the shell plans the summary
+    Then the shell plan is missing ""
+    Given the pool serves a second build of "chat"
+    When the shell resolves the manifest address
+    And the shell plans the summary
+    Then the shell plan is missing "relay"
+
+    Examples:
+      | modules | theme          |
+      | kernl's | offers         |
+      | no      | does not offer |

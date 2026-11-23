@@ -96,13 +96,14 @@ export function withheldDomains(granted: readonly string[], baseline: readonly s
  *
  * @param granted - The domains the person allowed.
  * @param kept - Domains the person chose to keep beside messages.
+ * @param baseline - Domains every applet holds; {@link BASELINE_DOMAINS} by default.
  * @returns The capabilities to write into the runtime ACL.
  * @example
  * ```ts
  * capabilitiesInForce(['dm', 'intent', 'relay']); // dm, baseline and 'intent:read'; no relay, no 'intent:write'
  * ```
  */
-export function capabilitiesInForce(granted: readonly string[], kept: readonly string[] = []): readonly Capability[] {
-  const capabilities = capabilitiesForDomains(domainsInForce(granted, BASELINE_DOMAINS, kept));
+export function capabilitiesInForce(granted: readonly string[], kept: readonly string[] = [], baseline: readonly string[] = BASELINE_DOMAINS): readonly Capability[] {
+  const capabilities = capabilitiesForDomains(domainsInForce(granted, baseline, kept));
   return sealsApplet(granted) ? capabilities.filter((capability) => !WITHHELD_CAPABILITIES.includes(capability)) : capabilities;
 }

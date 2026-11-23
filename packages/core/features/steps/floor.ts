@@ -3,7 +3,7 @@ import { Given, Then, When } from 'quickpickle';
 import type { AclStateContainer, Capability } from '@kehto/runtime';
 import type { AppletMessage, KernlGrants } from '@kernlize/core';
 import { k } from './kernl.js';
-import { passwordSigner, scratch, type CoreWorld } from './world.js';
+import { passwordSigner, scratch, signManifest, type CoreWorld } from './world.js';
 
 // The grants steps fix one artifact hash; these name a second build of the same applet.
 const OTHER_HASH = '0d'.repeat(32);
@@ -60,4 +60,10 @@ Then('the shell uses the supplied store, accounts and pool', (world: CoreWorld) 
   expect(kernl.eventStore).toBe(supplied?.eventStore);
   expect(kernl.accounts).toBe(supplied?.accounts);
   expect(kernl.pool).toBe(scratch(world).pool);
+});
+
+Given('the pool serves a second build of {string}', async (world: CoreWorld, dTag: string) => {
+  const manifest = await signManifest({ dTag, html: '<!doctype html><html><head><title>Chat</title></head><body>changed</body></html>', createdAt: 1_700_000_100 });
+  scratch(world).manifest = manifest;
+  scratch(world).pool.events = [manifest.event];
 });

@@ -8,18 +8,34 @@ Feature: Floor: an applet holds only what the person granted, whatever modules a
     Given a kernl host over empty storage
     And a fake applesauce pool serving a signed manifest for "chat" requiring "relay"
 
-  Scenario: an applet nobody granted anything is refused the network
-    Given a kernl shell over that host and pool
+  Scenario Outline: an applet nobody granted anything is refused the network
+    Given the shell loads <modules> modules
+    And a kernl shell over that host and pool
+    And the shell <theme> "theme"
     Then the runtime ACL refuses "relay:read" to an applet the user never granted anything
 
-  Scenario: a required domain nobody granted is missing from the plan
-    Given a kernl shell over that host and pool
+    Examples:
+      | modules | theme          |
+      | kernl's | offers         |
+      | no      | does not offer |
+
+  Scenario Outline: a required domain nobody granted is missing from the plan
+    Given the shell loads <modules> modules
+    And a kernl shell over that host and pool
+    And the shell <theme> "theme"
     When the shell resolves the manifest address
     And the shell plans the summary
     Then the shell plan is missing "relay"
 
-  Scenario: the signed-in identity is not shown until it is granted
-    Given a kernl shell over that host and pool
+    Examples:
+      | modules | theme          |
+      | kernl's | offers         |
+      | no      | does not offer |
+
+  Scenario Outline: the signed-in identity is not shown until it is granted
+    Given the shell loads <modules> modules
+    And a kernl shell over that host and pool
+    And the shell <theme> "theme"
     And the shell is signed in
     And a mounted applet
     When the applet sends its hello through the shell
@@ -27,9 +43,21 @@ Feature: Floor: an applet holds only what the person granted, whatever modules a
     And the applet asks "identity.getPublicKey" over its port
     Then the applet received no "identity.getPublicKey.result"
 
-  Scenario: a blocked applet is refused before it is planned
-    Given a kernl shell over that host and pool
+    Examples:
+      | modules | theme          |
+      | kernl's | offers         |
+      | no      | does not offer |
+
+  Scenario Outline: a blocked applet is refused before it is planned
+    Given the shell loads <modules> modules
+    And a kernl shell over that host and pool
+    And the shell <theme> "theme"
     When the shell resolves the manifest address
     And the shell blocks the resolved applet
     And the shell tries to plan the summary
     Then the shell refused with "denied:blocked"
+
+    Examples:
+      | modules | theme          |
+      | kernl's | offers         |
+      | no      | does not offer |

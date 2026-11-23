@@ -70,6 +70,7 @@ export { createAuthHooks, isReadOnlyAccount, wrapAccountSigner } from './applesa
 export {
   createIdentityProviders,
   createReplaceableLoader,
+  loadReplaceableQuietly,
   lookupRelaysOf,
   type IdentityProfile,
   type IdentityProviderOptions,
@@ -209,7 +210,12 @@ export { labelConversations } from './messaging/label-conversations.js';
 export { createAccountFileServers, DEFAULT_FILE_SERVERS, fileServersFromEvent, fileServerTags, type AccountFileServers, type AccountFileServersOptions, type FileServerState } from './files/file-servers.js';
 export { askUploadConsent, createBlossomUploader, describeUpload, sizeWords, type BlossomUploaderOptions, type MultiServerUpload, type UploadDetails } from './files/uploader.js';
 export { createAppletConfig, type AppletConfigOptions, type SettingsPrompt } from './applets/applet-config.js';
-export { createCommonActions, type CommonActionsOptions } from './social/common-actions.js';
+export { createCommonActions, type CommonActionsOptions, type ConsentedSigner, type SignerAndGate } from './social/common-actions.js';
+export type { AnyKernlModule, IntersectionOf, KernelContext, KernlModule, ModuleApiEntry, ModuleApis, ModuleIdentity, ModuleInstance, ReplaceablePointer } from './modules/module.js';
+export { KERNEL_DOMAINS, KERNEL_PARTS, MODULE_NATIVE_DOMAINS, checkModules, mergeExtensions, setupModules, type ComposedModules, type KernelContextParts } from './modules/compose.js';
+export { kernlModules } from './modules/default.js';
+export { themeModule } from './modules/theme.js';
+export { socialModule } from './modules/social.js';
 export { commonActionsFor, createKernlNetwork, type KernlNetwork, type KernlNetworkParts } from './kernl-network.js';
 export { createCvmRelayPool, createRemoteToolsService, mergeFamilies, type RemoteToolsOptions } from './multiplayer/remote-tools.js';
 export { createWindowIdentities, type WindowIdentities } from './multiplayer/window-identities.js';

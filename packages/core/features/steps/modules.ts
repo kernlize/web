@@ -1,0 +1,206 @@
+import { expect, vi } from 'vitest';
+import { Given, Then, When } from 'quickpickle';
+import { EMPTY, firstValueFrom } from 'rxjs';
+import { RelayPool } from 'applesauce-relay';
+import { createMessagingRegistry } from '@kernlize/messaging';
+import type { ServiceHandler } from '@kehto/runtime';
+import { kernlModules, searchCatalog, setupModules, socialModule, themeModule, toCatalogEntry, type AnyKernlModule, type CatalogEntry, type DomainBinding, type KernelContext, type KernlModule } from '@kernlize/core';
+import { blobFetcher, boot, k, settle, vector } from './kernl.js';
+import { attempt, scratch, splitList, type CoreWorld } from './world.js';
+
+const ANSWER: ServiceHandler = { handleMessage: () => undefined };
+const COUNT_BINDING: DomainBinding = { methods: { count: { type: 'count.count', params: ['filters'], reply: true, result: 'count' } } };
+
+function disposed(world: CoreWorld): string[] {
+  const state = scratch(world);
+  state.disposed ??= [];
+  return state.disposed as string[];
+}
+
+function recorder(world: CoreWorld, id: string): AnyKernlModule {
+  return { id, setup: () => ({ dispose: () => void disposed(world).push(id) }) };
+}
+
+/** Modules a scenario can name. Each is the smallest thing that shows one rule of composition. */
+function named(world: CoreWorld, name: string): readonly AnyKernlModule[] {
+  const modules: Record<string, () => readonly AnyKernlModule[]> = {
+    kernl: () => kernlModules(),
+    theme: () => [themeModule()],
+    social: () => [socialModule()],
+    clock: () => [{ id: 'clock', setup: () => ({ api: { now: () => 42 } }) } satisfies KernlModule<'clock', { now(): number }>],
+    'needs-clock': () => [{ id: 'needs-clock', requires: ['clock'], setup: (context) => ({ api: { time: () => context.use<{ now(): number }>('clock').now() } }) }],
+    first: () => [recorder(world, 'first')],
+    second: () => [recorder(world, 'second')],
+    'broken-dispose': () => [{ id: 'broken-dispose', setup: () => ({ dispose: () => { throw new Error('broken'); } }) }],
+    'rejecting-dispose': () => [{ id: 'rejecting-dispose', setup: () => ({ dispose: () => Promise.reject(new Error('broken')) }) }],
+    'broken-setup': () => [{ id: 'broken-setup', setup: () => { throw new Error('invalid:broken-setup'); } }],
+    'relay-thief': () => [{ id: 'relay-thief', setup: () => ({ services: { relay: ANSWER } }) }],
+    'storage-thief': () => [{ id: 'storage-thief', setup: () => ({ services: { storage: ANSWER } }) }],
+    grants: () => [{ id: 'grants', setup: () => ({ api: {} }) }],
+    profiles: () => [{ id: 'profiles', setup: () => ({}) }],
+    probe: () => [{ id: 'probe', setup: (context) => ({ api: context }) } satisfies KernlModule<'probe', KernelContext>],
+    'binding-only': () => [{ id: 'binding-only', setup: () => ({ extensions: { domains: ['fs'], bindings: { fs: COUNT_BINDING } } }) }],
+    bound: () => [{ id: 'bound', setup: () => ({ services: { count: ANSWER }, extensions: { domains: ['count'], bindings: { count: COUNT_BINDING } } }) }],
+  };
+  return splitList(name).flatMap((entry) => {
+    const make = modules[entry];
+    if (!make) throw new Error(`no test module ${entry}`);
+    return make();
+  });
+}
+
+function modulesFrom(world: CoreWorld, names: string): readonly AnyKernlModule[] {
+  return names === '' ? [] : named(world, names);
+}
+
+function probe(world: CoreWorld): KernelContext {
+  return Reflect.get(k(world).kernl, 'probe') as KernelContext;
+}
+
+Given(/^the shell loads (kernl's|no) modules$/, (world: CoreWorld, which: string) => {
+  scratch(world).modules = which === 'no' ? [] : undefined;
+});
+
+Given('a kernl shell over that host and pool with modules {string}', (world: CoreWorld, names: string) => {
+  boot(world, { modules: modulesFrom(world, names) }, blobFetcher(world));
+});
+
+When('a kernl shell is composed over that host and pool with modules {string}', async (world: CoreWorld, names: string) => {
+  await attempt(world, () => boot(world, { modules: modulesFrom(world, names) }, blobFetcher(world)));
+});
+
+Then('the modules were disposed in the order {string}', (world: CoreWorld, order: string) => {
+  expect(disposed(world)).toEqual(splitList(order));
+});
+
+Then('the shell has a {string} member', (world: CoreWorld, id: string) => {
+  expect(id in k(world).kernl).toBe(true);
+});
+
+Then('the shell has no {string} member', (world: CoreWorld, id: string) => {
+  expect(id in k(world).kernl).toBe(false);
+});
+
+Then('the {string} module tells the time from {string} as {int}', (world: CoreWorld, id: string, _clock: string, now: number) => {
+  expect((Reflect.get(k(world).kernl, id) as { time(): number }).time()).toBe(now);
+});
+
+Then('the composed shell starts applets with {string}', (world: CoreWorld, domains: string) => {
+  expect([...k(world).kernl.grants.baselineDomains()]).toEqual(splitList(domains));
+});
+
+Then('the probe sees nobody signed in', async (world: CoreWorld) => {
+  const { identity } = probe(world);
+  expect(identity.pubkey()).toBeUndefined();
+  expect(identity.canSign()).toBe(false);
+  expect(await firstValueFrom(identity.pubkey$)).toBeUndefined();
+});
+
+Then('the probe sees the signed-in identity, able to sign', async (world: CoreWorld) => {
+  const { identity } = probe(world);
+  const pubkey = k(world).kernl.session?.pubkey;
+  expect(identity.pubkey()).toBe(pubkey);
+  expect(identity.canSign()).toBe(true);
+  expect(await firstValueFrom(identity.pubkey$)).toBe(pubkey);
+});
+
+When('the probe signs a kind {int} note for the mounted window', async (world: CoreWorld, kind: number) => {
+  const windowId = k(world).plan?.windowId ?? 'none';
+  await attempt(world, async () => {
+    scratch(world).probeSigned = await probe(world).sign(windowId, { kind, tags: [], content: 'hello', created_at: 1_700_000_000 });
+  });
+});
+
+Then('the probe holds a signed kind {int} note by the signed-in identity', (world: CoreWorld, kind: number) => {
+  expect(scratch(world).probeSigned).toMatchObject({ kind, pubkey: k(world).kernl.session?.pubkey });
+});
+
+Then('the probe sees {string} in the mounted window', (world: CoreWorld, dTag: string) => {
+  expect(probe(world).appletOf(k(world).plan?.windowId ?? 'none')?.identity.dTag).toBe(dTag);
+  expect(probe(world).appletOf('nobody')).toBeUndefined();
+});
+
+When('the probe asks for the module {string}', async (world: CoreWorld, id: string) => {
+  await attempt(world, () => probe(world).use(id));
+});
+
+Then('the probe reaches the kernel parts {string}', (world: CoreWorld, ids: string) => {
+  for (const id of splitList(ids)) expect(probe(world).use(id)).toBe(k(world).kernl[id as 'profiles' | 'people']);
+});
+
+Given('the pool fails every request', (world: CoreWorld) => {
+  scratch(world).pool.failRequests = true;
+});
+
+When('the probe loads a follow list for {string}', async (world: CoreWorld, pubkey: string) => {
+  await probe(world).loadReplaceable({ kind: 3, pubkey });
+  await settle();
+});
+
+Then('the probe asked the pool for kind {int}', (world: CoreWorld, kind: number) => {
+  expect(scratch(world).pool.calls.some((call) => call.filters?.some((filter) => filter.kinds?.includes(kind)))).toBe(true);
+});
+
+function setUp(world: CoreWorld, names: string, bindings: boolean): ReturnType<typeof setupModules> {
+  const { kernl } = k(world);
+  return setupModules(modulesFrom(world, names), {
+    eventStore: kernl.eventStore,
+    pool: kernl.pool,
+    tiers: kernl.relays,
+    storage: scratch(world).storage,
+    accounts: kernl.accounts,
+    consent: async () => undefined,
+    network: { profiles: kernl.profiles, people: kernl.people, replaceableLoader: () => EMPTY },
+    appletOf: () => undefined,
+  }, bindings);
+}
+
+Then(/^modules "([^"]*)" set up where bindings (render|do not render) answer "([^"]*)" and plan "([^"]*)"$/, (world: CoreWorld, names: string, where: string, answered: string, planned: string) => {
+  const composed = setUp(world, names, where === 'render');
+  expect(Object.keys(composed.services)).toEqual(splitList(answered));
+  expect(composed.extensions?.domains ?? []).toEqual(splitList(planned));
+  composed.dispose();
+});
+
+When('a kernl shell that owns its pool is composed with modules {string}', async (world: CoreWorld, names: string) => {
+  const close = vi.spyOn(RelayPool.prototype, 'close');
+  scratch(world).poolCloses = close;
+  await attempt(world, () => boot(world, { modules: modulesFrom(world, names), pool: undefined }, blobFetcher(world)));
+});
+
+When('a kernl shell given its own messaging is composed with modules {string}', async (world: CoreWorld, names: string) => {
+  const messaging = createMessagingRegistry();
+  scratch(world).messagingCloses = vi.spyOn(messaging, 'close');
+  await attempt(world, () => boot(world, { modules: modulesFrom(world, names), messaging }, blobFetcher(world)));
+});
+
+Then('the messaging the host gave was left open', (world: CoreWorld) => {
+  expect(scratch(world).messagingCloses as ReturnType<typeof vi.spyOn>).not.toHaveBeenCalled();
+});
+
+Then('the pool the shell made was closed', (world: CoreWorld) => {
+  const close = scratch(world).poolCloses as ReturnType<typeof vi.spyOn>;
+  expect(close).toHaveBeenCalledTimes(1);
+  close.mockRestore();
+});
+
+Then('the store lists the applet only when asked for incompatible ones', (world: CoreWorld) => {
+  const { grants } = k(world).kernl;
+  const entry = toCatalogEntry(vector(world).event) as CatalogEntry;
+  const available = [...grants.availableDomains(), ...grants.baselineDomains()];
+  expect(searchCatalog([entry], { available })).toEqual([]);
+  expect(searchCatalog([entry], {})).toEqual([entry]);
+});
+
+When('the probe starts signing a kind {int} event for the mounted window', async (world: CoreWorld, kind: number) => {
+  const windowId = k(world).plan?.windowId ?? 'none';
+  scratch(world).probeSigning = probe(world).sign(windowId, { kind, tags: [], content: '{"name":"bob"}', created_at: 1_700_000_000 }).then(
+    () => 'signed',
+    (error: Error) => error.message,
+  );
+  await settle();
+});
+
+Then("the probe's signing ended with {string}", async (world: CoreWorld, outcome: string) => {
+  expect(await (scratch(world).probeSigning as Promise<string>)).toBe(outcome);
+});

@@ -5,15 +5,18 @@ import { PrivateKeySigner } from 'applesauce-signers';
 import { AccountManager } from 'applesauce-accounts';
 import { PrivateKeyAccount } from 'applesauce-accounts/accounts';
 import type { ShellAdapter } from '@kehto/shell';
+import type { CommonServiceOptions } from '@kehto/services';
 import type { NappletMessage } from '@napplet/core';
 import type { BridgeContext, BridgeRegistry, TorrentBackend } from '@kernlize/bridges';
 import type { MessagingBackend, MessagingRegistry } from '@kernlize/messaging';
 import { createMemoryBackend } from '@kernlize/messaging';
 import {
+  createCommonActions,
   createDefaultBridges,
   createDefaultMessaging,
   createKernlServices,
   createShellAdapter,
+  toProfileCard,
   isTheme,
   resourceInitFor,
   wrapAccountSigner,
@@ -54,7 +57,7 @@ function fakeBridges(calls: ServicesScratch['bridgeCalls']): BridgeRegistry {
   };
 }
 
-async function build(world: CoreWorld, options: { signer?: boolean; theme?: Record<string, unknown>; remoteTools?: RemoteToolsSettings } = {}): Promise<void> {
+async function build(world: CoreWorld, options: { signer?: boolean; theme?: Record<string, unknown> | null; common?: CommonServiceOptions; remoteTools?: RemoteToolsSettings } = {}): Promise<void> {
   const s = scratch(world);
   const signer = new PrivateKeySigner();
   const pubkey = await signer.getPublicKey();
@@ -77,7 +80,8 @@ async function build(world: CoreWorld, options: { signer?: boolean; theme?: Reco
     },
     bridges,
     messaging,
-    ...(isTheme(theme) ? { theme } : {}),
+    ...(theme === null ? { theme } : isTheme(theme) ? { theme } : {}),
+    ...(options.common ? { common: options.common } : {}),
     ...(options.remoteTools ? { remoteTools: options.remoteTools } : {}),
     shortcuts: { isFocused: () => true },
     resolveIdentity: (windowId) => (windowId === 'w1' ? IDENTITY : null),
@@ -105,6 +109,21 @@ Given('the signing account publishes a relay list writing to {string}', async (w
   const writes = splitList(url).map((relay) => ['r', relay, 'write']);
   const event = await state(world).signer.signEvent({ kind: 10002, tags: [...writes, ['r', 'wss://purplepag.es', 'read']], content: '', created_at: 1_700_000_000 });
   (scratch(world).eventStore as EventStore).add(event);
+});
+
+Given('kernl services that leave the theme to a module and are handed social actions', async (world: CoreWorld) => {
+  const common = createCommonActions({
+    store: scratch(world).eventStore as EventStore,
+    profiles: { settled: async (pubkey) => toProfileCard(pubkey, undefined) },
+    locate: async (input) => input,
+    pubkey: () => undefined,
+    sign: async () => {
+      throw new Error('denied:read-only');
+    },
+    publish: async () => 0,
+    loadFollows: async () => undefined,
+  });
+  await build(world, { theme: null, common });
 });
 
 Given('kernl services without a signer', async (world: CoreWorld) => {

@@ -31,11 +31,18 @@ Feature: Floor: mounting follows one order and every revocation removes the fram
     Then the frame was removed
     And the host was told "w1" was revoked for "second-load"
 
-  Scenario: a revocation in the composed shell removes the frame and tells the host
-    Given a kernl host over empty storage
+  Scenario Outline: a revocation in the composed shell removes the frame and tells the host
+    Given the shell loads <modules> modules
+    And a kernl host over empty storage
     And a fake applesauce pool serving a signed manifest for "chat" requiring "relay"
     And a kernl shell over that host and pool
+    And the shell <theme> "theme"
     And a mounted applet
     When kehto revokes the mounted window
     Then the host was told the window was revoked for "host"
     And the mounted frame was removed
+
+    Examples:
+      | modules | theme          |
+      | kernl's | offers         |
+      | no      | does not offer |

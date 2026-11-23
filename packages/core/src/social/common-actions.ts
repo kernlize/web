@@ -10,22 +10,40 @@ const FOLLOWS = 3;
 const REACTION = 7;
 const REPORT = 1984;
 
+/** Signs a template for a window after the person's consent; rejects `denied:read-only` when nobody can sign. */
+export type ConsentedSigner = (windowId: string, template: EventTemplate) => Promise<NostrEvent>;
+
+/** The signer and the signing gate apart, as the shell's own composition hands them. */
+export interface SignerAndGate {
+  /** The account's signer, or none for a read-only session. */
+  readonly signer: () => Pick<ISigner, 'signEvent'> | undefined;
+  /** The shell's signing gate: destructive changes, such as a new follow list, are put to the person first. */
+  readonly consent: SigningConsent;
+}
+
 /** What the social actions need from the shell. */
-export interface CommonActionsOptions {
+export type CommonActionsOptions = {
   readonly store: EventStore;
   readonly profiles: Pick<Profiles, 'settled'>;
   /** Reads a person from any form of their identity, asking the servers it names first; `invalid:person` otherwise. */
   readonly locate: (input: string) => Promise<string>;
   /** The signed-in account's key, or none. */
   readonly pubkey: () => string | undefined;
-  /** The account's signer, or none for a read-only session. */
-  readonly signer: () => Pick<ISigner, 'signEvent'> | undefined;
-  /** The shell's signing gate: destructive changes, such as a new follow list, are put to the person first. */
-  readonly consent: SigningConsent;
   /** Publishes a signed event and resolves how many relays accepted it; rejects when none did (D-028). */
   readonly publish: (event: NostrEvent) => Promise<number>;
   /** Loads the account's current follow list into the store before it is changed. */
   readonly loadFollows: (pubkey: string) => Promise<void>;
+} & (SignerAndGate | { /** The kernel's consented signing, as a module is handed it (D-061). */ readonly sign: ConsentedSigner });
+
+/** One way to sign for both forms of the options. */
+function signerOf(options: CommonActionsOptions): ConsentedSigner {
+  if ('sign' in options) return options.sign;
+  return async (windowId, template) => {
+    const signer = options.signer();
+    if (!signer) throw new Error('denied:read-only');
+    await options.consent(windowId, template);
+    return (await signer.signEvent(template)) as NostrEvent;
+  };
 }
 
 const reasonOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
@@ -37,11 +55,8 @@ function followed(event: NostrEvent | undefined): string[] {
 const located = (options: CommonActionsOptions, value: string): Promise<string | undefined> => options.locate(value).catch(() => undefined);
 
 async function signed(options: CommonActionsOptions, windowId: string, template: EventTemplate): Promise<{ ok: true; eventId: string; event: NostrEvent } | { ok: false; error: string }> {
-  const signer = options.signer();
-  if (!signer) return { ok: false, error: 'denied:read-only' };
   try {
-    await options.consent(windowId, template);
-    const event = (await signer.signEvent(template)) as NostrEvent;
+    const event = await signerOf(options)(windowId, template);
     await options.publish(event);
     options.store.add(event);
     return { ok: true, eventId: event.id, event };

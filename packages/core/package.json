@@ -34,7 +34,7 @@
   },
   "scripts": {
     "build": "tsup",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json"
   },
   "dependencies": {
     "@internet-privacy/marmot-ts": "^0.9.0",
