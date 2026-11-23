@@ -1,5 +1,13 @@
 # @kernlize/core
 
+## 0.18.0
+
+### Minor Changes
+
+- 7cdcbad: The event cache is a module, `cacheModule(open)`, in `kernlModules({ eventCache })`; `KernlOptions.eventCache` still reaches it when a host names no modules. Without the module the shell keeps events in memory only. `createKernlNetwork` takes only its parts, with an optional `cacheRequest`, and `KernlNetwork` has no `eventCache`.
+- fdee100: The relay directory is a module, `directoryModule()`, in `kernlModules()`. A host that names its own modules gets `Kernel & ModuleApis<M>`: `kernl.directory` is there only when the directory module is loaded. Without it, an account with no relay list is offered the well-known servers. `createKernlNetwork` no longer builds the directory; it takes a `directory` accessor for the mailboxes' suggestions instead, and `KernlNetwork` has no `directory`.
+- 82ede62: Profiles and people are modules, `profilesModule()` and `peopleModule()`, in `kernlModules()` before the social module, which requires them. Without the profiles module the session is labelled by the start of its key; without the people module an applet's recipients are taken as hex keys only. `KernelContext` gains `replaceableLoader`; `KERNEL_PARTS` and `checkModules`' second parameter are gone, and `KernlNetwork` has no `profiles` or `people`.
+
 ## 0.17.0
 
 ### Minor Changes

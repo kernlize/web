@@ -7,7 +7,7 @@ kernl has four packages. Each has two names: `@kernlize/*` on npm and `@kernl/*`
 | [`@kernlize/guard`](./guard.md) | `0.3.1` | `@kernl/guard` | Ingress flood control, visibility gate, focus-aware rate limiter, CSP profile, nested-frame lock, mitigation descriptions. | `@kehto/rate-limit` | `@napplet/core` |
 | [`@kernlize/messaging`](./messaging.md) | `0.4.1` | `@kernl/messaging` | Messaging provider contract, registry, composite direct-message adapter, in-memory backend. | none | `@napplet/core` (the `Dm*` wire types) |
 | [`@kernlize/bridges`](./bridges.md) | `0.3.0` | `@kernl/bridges` | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy. | none | none |
-| [`@kernlize/core`](./core.md) | `0.17.0` | `@kernl/core` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts, persistence. | the three above, `@kehto/*`, `applesauce-*`, `rxjs` | `@napplet/core`, `@napplet/nap`, `@napplet/shim`, `nostr-tools` (required by kehto and applesauce; never imported) |
+| [`@kernlize/core`](./core.md) | `0.18.0` | `@kernl/core` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts, persistence. | the three above, `@kehto/*`, `applesauce-*`, `rxjs` | `@napplet/core`, `@napplet/nap`, `@napplet/shim`, `nostr-tools` (required by kehto and applesauce; never imported) |
 
 ## Shared rules
 
