@@ -19,3 +19,4 @@ import './traffic-words.ts';
 import './remember-grants.ts';
 import './preview-grants-for-now.ts';
 import './media-words.ts';
+import './preview-media.ts';

@@ -1,7 +1,8 @@
-import { createMediaService, type HostMediaBridge, type MediaPlayback, type MediaPlaybackBackend, type MediaPlaybackCommand, type MediaSessionSnapshot } from '@kehto/services';
+import { createMediaService, type HostMediaBridge, type MediaPlaybackBackend, type MediaPlaybackCommand, type MediaSessionSnapshot } from '@kehto/services';
 import type { ServiceHandler } from '@kehto/runtime';
 import { BehaviorSubject, type Observable } from 'rxjs';
 import type { StorageLike } from '../types.js';
+import { ACTIVE, createMediaSteering } from './steering.js';
 import { mediaSettingsFrom, readMediaSettings, writeMediaSettings, type MediaSettings } from './settings.js';
 
 /** A session as the shell's player shows it. */
@@ -49,8 +50,6 @@ export interface KernlMediaOptions {
 
 type Send = (message: unknown) => void;
 
-const ACTIVE = new Set(['playing', 'buffering']);
-
 /**
  * The `media` service under the person's media settings (D-061). kehto keeps the sessions, plays
  * what an applet asks the shell to play, and mirrors the current one to the operating system; this
@@ -69,9 +68,6 @@ const ACTIVE = new Set(['playing', 'buffering']);
  */
 export function createKernlMedia(options: KernlMediaOptions): KernlMedia {
   const settings$ = new BehaviorSubject<MediaSettings>(readMediaSettings(options.storage));
-  // A playback is found again by its element, the one thing kehto hands back for a session.
-  const playbacks = new WeakMap<object, MediaPlayback>();
-  const sends = new Map<string, Send>();
   const pausedWhileHidden = new Set<string>();
   const hiddenWindows = new Set<string>();
   let started: string[] = [];
@@ -81,39 +77,14 @@ export function createKernlMedia(options: KernlMediaOptions): KernlMedia {
     open: async (windowId, request, signal, changed) => {
       const allowed = settings$.value.autoplay === 'allow' ? request : { ...request, autoplay: false };
       const opened = await (options.playback as MediaPlaybackBackend).open(windowId, allowed, signal, changed);
-      if (opened.element) playbacks.set(opened.element, opened);
+      steering.hold(opened);
       return opened;
     },
   };
   const service = createMediaService({ ...(playback ? { playback } : {}), ...(options.hostBridge ? { hostBridge: options.hostBridge } : {}) });
+  const steering = createMediaSteering(service, () => settings$.value);
+  const { steer, takeOver } = steering;
   const sessions$ = new BehaviorSubject<readonly MediaSessionView[]>([]);
-
-  /** Ask the owner to pause or resume for a reason the shell gives; an applet's own player that cannot pause is ended. */
-  function steer(session: MediaSessionSnapshot, action: 'play' | 'pause', reason: 'focus-lost' | 'focus-gained'): void {
-    if (session.owner === 'shell') {
-      const held = playbacks.get(service.getElement(session.sessionId) ?? session);
-      // A backend that shows nothing hands back no element to find it by; kehto's own command still reaches it, as the person's.
-      if (held) held.command({ action, reason });
-      else service.command(session.sessionId, { action });
-      return;
-    }
-    if (!session.actions.includes(action)) {
-      if (action === 'pause') service.retire(session.sessionId, 'policy');
-      return;
-    }
-    (sends.get(session.windowId) as Send)({ type: 'media.command', sessionId: session.sessionId, action, reason });
-  }
-
-  /** `winner` has the output: under one at a time, everything else playing gives it up. */
-  function takeOver(winner: string): void {
-    const { concurrency, takeover } = settings$.value;
-    if (concurrency !== 'one') return;
-    for (const session of service.getSessions()) {
-      if (session.sessionId === winner || !ACTIVE.has(session.state?.status ?? '')) continue;
-      if (takeover === 'end') service.retire(session.sessionId, 'preempted');
-      else steer(session, 'pause', 'focus-lost');
-    }
-  }
 
   function publish(): void {
     const sessions = service.getSessions();
@@ -160,12 +131,12 @@ export function createKernlMedia(options: KernlMediaOptions): KernlMedia {
   const handler: ServiceHandler = {
     ...service,
     handleMessage(windowId, message, send) {
-      sends.set(windowId, send as Send);
+      steering.reach(windowId, send as Send);
       if (refusesPlay(windowId, message)) return;
       service.handleMessage(windowId, message, send);
     },
     onWindowDestroyed(windowId) {
-      sends.delete(windowId);
+      steering.forget(windowId);
       hiddenWindows.delete(windowId);
       service.onWindowDestroyed?.(windowId);
     },
