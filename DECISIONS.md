@@ -966,7 +966,7 @@ Each of `packages/core/src` is assigned a level. NAP domains are the registry ke
 | Part | Level | Domains | Tunable within it |
 |---|---|---|---|
 | `applesauce/`, `persistence/`, `crypto/` | floor | `identity` | |
-| `applets/` mount, plan, resolve, pointer, traffic | floor | `shell`, `storage`, `inc` (kehto's own) | |
+| `applets/` mount, plan, resolve, pointer, traffic | floor | `shell`, `storage`, `inc` (answered by kehto's runtime) | |
 | `consent/` | floor | | |
 | `grants/` | floor | | |
 | `guard/` | floor | | the starting profile, limits only (SOUL §3) |
@@ -974,7 +974,7 @@ Each of `packages/core/src` is assigned a level. NAP domains are the registry ke
 | `secrets/` | floor | | the secrets provider (D-052) |
 | the relay, outbox, notify and link services in `kernl-services.ts` | floor | `relay`, `outbox`, `notify`, `link` | |
 | `relays/tiers.ts`, `relays/publish-outcome.ts` | floor | | the relay tiers |
-| `applets/builtin.ts` | default | | |
+| `applets/builtin.ts` | floor | | the host's list of built-in applets, whose grants the host vouches for (D-060) |
 | `social/` | default | `common` | |
 | theme (in `kernl-services.ts`) | default | `theme` | the colours |
 | `relays/directory.ts`, `relays/mailboxes.ts` | default | | |
@@ -992,14 +992,15 @@ Each of `packages/core/src` is assigned a level. NAP domains are the registry ke
 | `wm/` | default | | |
 | `kernl.ts`, `kernl-adapter.ts`, `kernl-firewall.ts`, `kernl-lifecycle.ts`, `kernl-network.ts`, `kernl-services.ts` | composition | | |
 
-The composition files become the kernel's composition and the preset; they hold no opinion of their own. `theme` is answered today with or without a module, so the theme module replaces a default theme rather than removing the domain.
+The composition files become the kernel's composition and the preset; they hold no opinion of their own.
 
-**Three questions, recommended and awaiting the owner.**
+**Four questions, recommended and awaiting the owner.**
 
 1. **The guard's profile** is a tunable starting profile only, as SOUL §3 says. The guard itself is floor; no module removes it or moves a message past it.
 2. **A module may add a NAP domain only if it is on the napplet track** (`napplet/naps`, read with `nap_list`). A module never invents protocol surface; a domain off the track is a spec gap raised upstream.
 3. **The store is a module, not floor**, so a kiosk host can pin applets by hash and ship no store. The store's compatibility filter reads the offered domains (D-059), so omitting a module changes what the store lists; that is intended.
+4. **The baseline** (`BASELINE_DOMAINS`: `shell`, `inc`, `theme`, `storage`, `keys`) stays a kernel list, and an applet is given a baseline domain only when the shell offers it. `theme` and `keys` are then answered by modules a host may omit, and omitting one takes it out of the baseline rather than leaving a granted domain nobody answers.
 
 **Consequences.** Every floor guarantee has a feature, `packages/core/features/floor-*.feature`, written "whatever modules are loaded". They pass against today's `createKernl` and are the regression suite for every later phase: each must pass against every module set the tests compose. Modules are fixed when the shell is composed, because a module's domains must be known when `plan` admits an applet (D-056). An applet calling a domain whose module is absent learns so from its environment at mount, as it does today for `config` and the download domains (D-020). The seal's allowlist stays in the kernel, so a domain a module adds is withheld from an applet that reads messages unless it is added there. Nothing published changes with this entry; the module host, typed asks, the UI model, the package split and the preset follow in kernlize/web#70 to #76.
 
-**Reversal cost.** Low now: one entry, two SOUL paragraphs and eleven features. It rises with each phase that moves code behind the module host.
+**Reversal cost.** Low now: one entry, two SOUL passages and eleven features. It rises with each phase that moves code behind the module host.
