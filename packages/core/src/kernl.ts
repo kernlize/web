@@ -18,6 +18,8 @@ import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
 import type { ProfileCard, Profiles } from './profiles/profiles.js';
 import { createKernlNetwork } from './kernl-network.js';
 import type { RelayDirectory } from './relays/directory.js';
+import type { ConnectedEventCache } from './cache/connect.js';
+import type { Filter, NostrEvent } from 'applesauce-core/helpers';
 import { createAppletConfig } from './applets/applet-config.js';
 import { askUploadConsent, createBlossomUploader, type BlossomUploaderOptions } from './files/uploader.js';
 import type { Uploader } from '@kehto/services';
@@ -261,7 +263,6 @@ interface ShellParts {
   readonly handles: ReadonlyMap<string, MountedApplet>;
   readonly subscriptions: Subscription;
   readonly destroyed$: Subject<void>;
-  readonly network: { readonly eventCache: { close(): Promise<void> } };
   readonly intents: { close(): void };
   readonly dm: { dispose(): void };
   readonly downloads: { dispose(): void };
@@ -281,7 +282,6 @@ function tearDown(parts: ShellParts): void {
   parts.modules.dispose();
   parts.subscriptions.unsubscribe();
   parts.destroyed$.next();
-  void parts.network.eventCache.close();
   parts.intents.close();
   parts.dm.dispose();
   parts.downloads.dispose();
@@ -414,7 +414,7 @@ export function createKernl<const M extends readonly AnyKernlModule[]>(options: 
 export function createKernl(options: KernlOptions): Kernl;
 export function createKernl(options: KernlOptions): Kernel {
   const { host } = options;
-  const modules = options.modules ?? kernlModules(isTheme(options.theme) ? { theme: options.theme } : {});
+  const modules = options.modules ?? kernlModules({ ...(isTheme(options.theme) ? { theme: options.theme } : {}), ...(options.eventCache ? { eventCache: options.eventCache } : {}) });
   checkModules(modules, []);
   const ownsPool = !options.pool;
   const ownsMessaging = !options.messaging;
@@ -438,12 +438,13 @@ export function createKernl(options: KernlOptions): Kernel {
   // The directory module's api, for the mailboxes' suggestions; nothing until the modules are set up.
   const modulesSetUp: { composed?: ComposedModules } = {};
   const directory = (): RelayDirectory | undefined => modulesSetUp.composed?.apis.directory as RelayDirectory | undefined;
-  const { eventCache, replaceableLoader, profiles, people, mailboxes, files, signer } = createKernlNetwork(options, { eventStore, pool, tiers, accounts, destroyed$, directory });
+  // The cache module's lookup, asked before any relay; nothing is cached until it is set up or when it is left out.
+  const cacheRequest = (filters: Filter[]): Promise<NostrEvent[]> => (modulesSetUp.composed?.apis.cache as ConnectedEventCache | undefined)?.cacheRequest(filters) ?? Promise.resolve([]);
+  const { replaceableLoader, profiles, people, mailboxes, files, signer } = createKernlNetwork({ eventStore, pool, tiers, accounts, destroyed$, directory, cacheRequest });
   const lookupBefore = lookupReplaceable(eventStore, { loader: replaceableLoader, relays: () => [...tiers.get().outbox, ...tiers.get().discovery] });
   const consent = createSigningConsent({ host, lookupBefore, resolveApplet: identityOf, pubkey: () => accounts.active?.pubkey });
   const composed = composeOrClose(modules, { eventStore, pool, tiers, storage: host.storage, accounts, consent, network: { profiles, people, replaceableLoader }, appletOf: (windowId) => handles.get(windowId)?.summary }, () => {
     destroyed$.next();
-    void eventCache.close();
     traffic.close();
     if (ownsMessaging) messaging.close();
     if (ownsPool) pool.close();
@@ -511,7 +512,7 @@ export function createKernl(options: KernlOptions): Kernel {
     relays: tiers,
     messaging,
     bridges,
-    catalog: catalogFor(pool, tiers, { cache: eventCache.cacheRequest, store: eventStore }),
+    catalog: catalogFor(pool, tiers, { cache: cacheRequest, store: eventStore }),
     profiles,
     people,
     mailboxes,
@@ -534,6 +535,6 @@ export function createKernl(options: KernlOptions): Kernel {
       lifecycle.handleWindowMessage(event);
     },
     destroy: () =>
-      tearDown({ traffic, handles, subscriptions, destroyed$, network: { eventCache }, intents, dm: services.dm, downloads, modules: composed, keys: services.keys, media: services.media, bridge, ...(ownsMessaging ? { messaging } : {}), ...(ownsPool ? { pool } : {}) }),
+      tearDown({ traffic, handles, subscriptions, destroyed$, intents, dm: services.dm, downloads, modules: composed, keys: services.keys, media: services.media, bridge, ...(ownsMessaging ? { messaging } : {}), ...(ownsPool ? { pool } : {}) }),
   }, composed);
 }

@@ -41,6 +41,7 @@ function named(world: CoreWorld, name: string): readonly AnyKernlModule[] {
     'storage-thief': () => [{ id: 'storage-thief', setup: () => ({ services: { storage: ANSWER } }) }],
     grants: () => [{ id: 'grants', setup: () => ({ api: {} }) }],
     profiles: () => [{ id: 'profiles', setup: () => ({}) }],
+    'needs-cache': () => [{ id: 'needs-cache', requires: ['cache'], setup: () => ({}) }],
     'needs-directory': () => [{ id: 'needs-directory', requires: ['directory'], setup: () => ({}) }],
     probe: () => [{ id: 'probe', setup: (context) => ({ api: context }) } satisfies KernlModule<'probe', KernelContext>],
     'binding-only': () => [{ id: 'binding-only', setup: () => ({ extensions: { domains: ['fs'], bindings: { fs: COUNT_BINDING } } }) }],

@@ -4,7 +4,7 @@ import { from, lastValueFrom, switchMap, toArray } from 'rxjs';
 import { EventMemory, EventStore } from 'applesauce-core';
 import { isFromCache, type NostrEvent } from 'applesauce-core/helpers';
 import { PrivateKeySigner } from 'applesauce-signers';
-import { connectEventCache, createMemoryCacheAdapter, fromEventDatabase, createRelayTiers, streamCatalog, type CatalogEntry, type ConnectedEventCache, type EventCache } from '@kernlize/core';
+import { cacheModule, connectEventCache, kernlModules, createMemoryCacheAdapter, fromEventDatabase, createRelayTiers, streamCatalog, type CatalogEntry, type ConnectedEventCache, type EventCache } from '@kernlize/core';
 import { boot, k } from './kernl.js';
 import { scratch, signManifest, splitList, type CoreWorld } from './world.js';
 
@@ -119,6 +119,13 @@ Given('a kernl shell whose event cache holds a profile named {string} for a fres
   scratch(world).freshKey = await signer.getPublicKey();
   const cache = await trackedMemoryCache(world, [await signer.signEvent({ kind: 0, tags: [], content: JSON.stringify({ name }), created_at: 1_700_000_000 })]);
   boot(world, { eventCache: async () => cache });
+});
+
+Given('a kernl shell whose cache module holds a profile named {string} for a fresh key', async (world: CoreWorld, name: string) => {
+  const signer = new PrivateKeySigner();
+  scratch(world).freshKey = await signer.getPublicKey();
+  const cache = await trackedMemoryCache(world, [await signer.signEvent({ kind: 0, tags: [], content: JSON.stringify({ name }), created_at: 1_700_000_000 })]);
+  boot(world, { modules: [...kernlModules().filter((module) => module.id !== 'cache'), cacheModule(async () => cache)] });
 });
 
 Then("the shell's event cache closes when the shell is destroyed", async (world: CoreWorld) => {
