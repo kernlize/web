@@ -95,7 +95,8 @@ export interface KernlServiceDeps {
   readonly profiles?: Pick<Profiles, 'settled'>;
   /** Reads the people an applet names in any form of their identity; without it only hex is taken. */
   readonly people?: Pick<People, 'locate'>;
-  readonly theme?: Theme;
+  /** The theme pushed to applets; `null` leaves the `theme` domain to a module (D-061). */
+  readonly theme?: Theme | null;
   /** Maps a live window to its verified identity, or null. */
   readonly resolveIdentity: (windowId: string) => { dTag: string; aggregateHash: string } | null;
   /** Identity lookups; defaults to the applesauce-backed providers. */
@@ -391,7 +392,8 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
   const registry: ServiceRegistry = {
     relay: createAppletRelayService(deps.pool, deps.tiers),
     identity: createIdentityService({ getSigner: createIdentitySigner(deps.auth), ...identity }),
-    theme: theme.handler,
+    // `null` leaves the domain to the theme module, which answers it or, left out, has it withheld (D-062).
+    ...(deps.theme === null ? {} : { theme: theme.handler }),
     keys,
     notify: createNotifyService({
       present: ({ windowId, message }) => deps.host.notify({ title: message.title, windowId, tone: 'info', ...(message.body ? { body: message.body } : {}) }),

@@ -24,6 +24,11 @@ export interface GrantsOptions {
   readonly storage: StorageLike;
   /** Domains the shell can offer at all, from `buildShellCapabilities`. */
   readonly availableDomains: () => readonly string[];
+  /**
+   * Baseline domains no loaded module answers. They are left out of every applet's baseline, so
+   * an applet is never handed a domain nothing serves (D-061). None by default.
+   */
+  readonly unanswered?: () => readonly string[];
 }
 
 /** The grants surface plus the hook the shell calls when an applet is about to run. */
@@ -73,6 +78,10 @@ export function createGrants(options: GrantsOptions): KernlGrants {
 
   const persist = (): void => store.setJson(STORAGE_KEY, Object.fromEntries(records));
   const kept = (entry: StoredGrant): readonly string[] => entry.unsafe ?? [];
+  const baseline = (): readonly string[] => {
+    const unanswered = options.unanswered?.() ?? [];
+    return unanswered.length === 0 ? BASELINE_DOMAINS : Object.freeze(BASELINE_DOMAINS.filter((domain) => !unanswered.includes(domain)));
+  };
 
   function stored(identity: AppletIdentity): StoredGrant {
     return records.get(keyOf(identity)) ?? { dTag: identity.dTag, hash: identity.hash, domains: [], blocked: false };
@@ -88,8 +97,8 @@ export function createGrants(options: GrantsOptions): KernlGrants {
       identity: { dTag: entry.dTag, hash: entry.hash },
       domains: Object.freeze([...entry.domains]),
       unsafe: Object.freeze([...kept(entry)]),
-      capabilities: capabilitiesInForce(entry.domains, kept(entry)),
-      withheld: withheldDomains(entry.domains, undefined, kept(entry)),
+      capabilities: capabilitiesInForce(entry.domains, kept(entry), baseline()),
+      withheld: withheldDomains(entry.domains, baseline(), kept(entry)),
       blocked: entry.blocked,
       temporary: isTemporary,
       stateQuotaBytes: options.acl.getStateQuota('', entry.dTag, entry.hash),
@@ -97,7 +106,7 @@ export function createGrants(options: GrantsOptions): KernlGrants {
   }
 
   function syncAcl(entry: StoredGrant, save = true): void {
-    const wanted = new Set<Capability>(capabilitiesInForce(entry.domains, kept(entry)));
+    const wanted = new Set<Capability>(capabilitiesInForce(entry.domains, kept(entry), baseline()));
     const held = options.acl.getEntry('', entry.dTag, entry.hash)?.capabilities ?? [];
     for (const capability of held) if (!wanted.has(capability)) options.acl.revoke('', entry.dTag, entry.hash, capability);
     for (const capability of wanted) options.acl.grant('', entry.dTag, entry.hash, capability);
@@ -181,7 +190,7 @@ export function createGrants(options: GrantsOptions): KernlGrants {
       write(identity, (entry) => entry);
     },
     availableDomains: () => options.availableDomains(),
-    baselineDomains: () => BASELINE_DOMAINS,
+    baselineDomains: baseline,
     changes$,
   };
 }

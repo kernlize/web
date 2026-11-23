@@ -19,6 +19,8 @@ export interface ShellAdapterDeps {
   readonly consent: SigningConsent;
   readonly services: ServiceRegistry;
   readonly resolveEnvironment: NonNullable<CapabilityHooks['resolveEnvironment']>;
+  /** Domains kehto offers natively that no loaded module answers, withheld from every applet (D-061). */
+  readonly disabledDomains?: readonly string[];
   readonly onNappletRevoked: (revocation: NappletRevocation) => void;
   /** Decides every port envelope before kehto's runtime sees it; see `GuardPipeline.observe`. */
   readonly filterNappletMessage: NonNullable<ShellAdapter['filterNappletMessage']>;
@@ -92,7 +94,7 @@ export function createShellAdapter(deps: ShellAdapterDeps): ShellAdapter {
     link: { isAvailable: () => true },
     intent: { isAvailable: () => true },
     services: deps.services,
-    capabilities: { resolveEnvironment: deps.resolveEnvironment },
+    capabilities: { resolveEnvironment: deps.resolveEnvironment, ...(deps.disabledDomains?.length ? { disabledDomains: deps.disabledDomains } : {}) },
     onNappletRevoked: deps.onNappletRevoked,
     filterNappletMessage: deps.filterNappletMessage,
     getFocusContext: deps.getFocusContext,
