@@ -58,7 +58,7 @@ export interface KernelContext {
   /** The applets running now, by window id. */
   applets(): ReadonlyMap<string, { readonly windowId: string; readonly summary: AppletSummary }>;
   /** The host's own callbacks a module may use until the host's questions become typed asks. */
-  readonly host: Pick<KernlHost, 'storage' | 'openApplet' | 'focusApplet' | 'chooseHandler' | 'notify' | 'now'>;
+  readonly host: Pick<KernlHost, 'storage' | 'openApplet' | 'focusApplet' | 'chooseHandler' | 'notify' | 'now' | 'openLink'>;
   /** Put a question to the person through the host's consent prompt; resolves with their answer. */
   ask(summary: ConsentSummary): Promise<boolean>;
   /** Load a replaceable event into the store from the cache and the lookup relays. Never rejects. */

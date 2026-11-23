@@ -29,7 +29,7 @@ import {
 } from '@kehto/services';
 import type { Theme } from '@napplet/nap/theme/types';
 import type { EventTemplate, NostrEvent } from '@napplet/core';
-import { createBridgeResourceResolver, type BridgeContext, type BridgeRegistry, type ResourceResolveInit } from '@kernlize/bridges';
+import { createBridgeRegistry, createBridgeResourceResolver, type BridgeContext, type BridgeRegistry, type ResourceResolveInit } from '@kernlize/bridges';
 import type { MessagingRegistry } from '@kernlize/messaging';
 import type { DirectConnectionsSettings, KernlHost, RelayTiers, RemoteToolsSettings } from './types.js';
 import { createDirectConnectionsService, type DirectConnectionsOptions } from './multiplayer/direct-connections.js';
@@ -85,7 +85,8 @@ export interface KernlServiceDeps {
   /** Gates the outbox service's publishes, which kehto signs without naming the window. */
   readonly consent: SigningConsent;
   readonly host: Pick<KernlHost, 'notify' | 'openLink' | 'storage'>;
-  readonly bridges: BridgeRegistry;
+  /** The bridges module's registry; without it the `resource` domain is not offered and the shell plays only what applets play themselves. */
+  readonly bridges?: BridgeRegistry;
   readonly messaging: MessagingRegistry;
   /** Applet settings (NAP-CONFIG); without them the `config` domain is not offered. */
   readonly config?: ConfigServiceOptions;
@@ -389,7 +390,8 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
   const labelled = deps.profiles ? labelConversations(located, deps.profiles) : located;
   const dmService = createDmService({ adapter: { ...labelled, planRelays: relayPlan } });
   const dm = deps.people ? locateSendRecipients(dmService, deps.people) : dmService;
-  const resolve = createBridgeResourceResolver(deps.bridges);
+  // Without the bridges module nothing resolves: an empty registry refuses every address with `unavailable:no-bridge`.
+  const resolve = createBridgeResourceResolver(deps.bridges ?? createBridgeRegistry());
   const identities = deps.identities ?? createWindowIdentities();
   const direct = deps.directConnections;
   const chosen = () => deps.multiplayer?.state();
@@ -421,7 +423,7 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
       },
     }),
     // The firewall approves a web address's server before it is contacted (D-056); a bridge's reason becomes a NAP-RESOURCE code (D-055).
-    resource,
+    ...(deps.bridges ? { resource } : {}),
     media: media.handler,
     dm,
     outbox: gateOutboxPublish(createOutbox(deps, identity), deps.consent),
