@@ -435,8 +435,9 @@ export function createKernl(options: KernlOptions): Kernel {
   const traffic = createAppletTraffic((windowId) => handles.has(windowId));
 
   const identityOf = (windowId: string): AppletIdentity | undefined => handles.get(windowId)?.summary.identity;
-  // The directory module's api, read only once a signed-in account needs suggestions, after the modules are set up.
-  const directory = (): RelayDirectory | undefined => composed.apis.directory as RelayDirectory | undefined;
+  // The directory module's api, for the mailboxes' suggestions; nothing until the modules are set up.
+  const modulesSetUp: { composed?: ComposedModules } = {};
+  const directory = (): RelayDirectory | undefined => modulesSetUp.composed?.apis.directory as RelayDirectory | undefined;
   const { eventCache, replaceableLoader, profiles, people, mailboxes, files, signer } = createKernlNetwork(options, { eventStore, pool, tiers, accounts, destroyed$, directory });
   const lookupBefore = lookupReplaceable(eventStore, { loader: replaceableLoader, relays: () => [...tiers.get().outbox, ...tiers.get().discovery] });
   const consent = createSigningConsent({ host, lookupBefore, resolveApplet: identityOf, pubkey: () => accounts.active?.pubkey });
@@ -447,6 +448,7 @@ export function createKernl(options: KernlOptions): Kernel {
     if (ownsMessaging) messaging.close();
     if (ownsPool) pool.close();
   });
+  modulesSetUp.composed = composed;
   const meeting = meetingFor(options, { pool, tiers, appletOf: (windowId) => handles.get(windowId)?.summary, grants: () => grants });
   const downloads = downloadsFor(options, bridges, identityOf, (windowId) => handles.get(windowId)?.summary.manifest.catalogId);
   const services = servicesFor(options, { pool, tiers, eventStore, adapter: () => adapter, consent, bridges, messaging, network: { profiles, people, files, signer }, handles, pipeline, meeting: meeting.deps });
