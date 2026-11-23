@@ -3,6 +3,7 @@ import type { EventCacheOpener } from '../cache/connect.js';
 import { cacheModule } from './cache.js';
 import { directoryModule } from './directory.js';
 import { filesModule } from './files.js';
+import { catalogModule } from './catalog.js';
 import { settingsModule } from './settings.js';
 import type { SettingsPrompt } from '../applets/applet-config.js';
 import { mailboxesModule } from './mailboxes.js';
@@ -16,12 +17,12 @@ import { themeModule } from './theme.js';
  * wants kernl's opinions and one of its own spreads this list and adds to it.
  *
  * @param options - The theme pushed to applets, the event cache's opener and the host's settings form.
- * @returns The theme, profiles, people, social, directory, mailboxes, files, settings and cache modules, in that order.
+ * @returns The theme, profiles, people, social, directory, mailboxes, files, settings, catalog and cache modules, in that order.
  * @example
  * ```ts
  * createKernl({ host, modules: [...kernlModules({ theme }), myModule] });
  * ```
  */
-export function kernlModules(options: { readonly theme?: Theme; readonly eventCache?: EventCacheOpener; readonly presentSettings?: (prompt: SettingsPrompt) => void } = {}): readonly [ReturnType<typeof themeModule>, ReturnType<typeof profilesModule>, ReturnType<typeof peopleModule>, ReturnType<typeof socialModule>, ReturnType<typeof directoryModule>, ReturnType<typeof mailboxesModule>, ReturnType<typeof filesModule>, ReturnType<typeof settingsModule>, ReturnType<typeof cacheModule>] {
-  return [themeModule(options.theme), profilesModule(), peopleModule(), socialModule(), directoryModule(), mailboxesModule(), filesModule(), settingsModule(options.presentSettings), cacheModule(options.eventCache)];
+export function kernlModules(options: { readonly theme?: Theme; readonly eventCache?: EventCacheOpener; readonly presentSettings?: (prompt: SettingsPrompt) => void } = {}): readonly [ReturnType<typeof themeModule>, ReturnType<typeof profilesModule>, ReturnType<typeof peopleModule>, ReturnType<typeof socialModule>, ReturnType<typeof directoryModule>, ReturnType<typeof mailboxesModule>, ReturnType<typeof filesModule>, ReturnType<typeof settingsModule>, ReturnType<typeof catalogModule>, ReturnType<typeof cacheModule>] {
+  return [themeModule(options.theme), profilesModule(), peopleModule(), socialModule(), directoryModule(), mailboxesModule(), filesModule(), settingsModule(options.presentSettings), catalogModule(), cacheModule(options.eventCache)];
 }
