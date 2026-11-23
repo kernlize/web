@@ -125,7 +125,8 @@
       overlay = null;
       return true;
     }
-    const target = panelToClose(windows.panels);
+    // A video's window is left to its own Close: closing it ends the video, which a stray Escape should not.
+    const target = panelToClose(windows.panels.filter((win) => sessionOfPanel(win.panel) === undefined));
     if (!target) return false;
     windows.close(target.id);
     return true;

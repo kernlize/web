@@ -65,8 +65,8 @@ async function serveMedia(page: Page): Promise<string[]> {
   return fetched;
 }
 
-async function signIn(page: Page): Promise<ReturnType<typeof signApplet>> {
-  const applet = signApplet({ servers: ['https://blobs.test'], requires: ['media', 'resource'], optional: [], html: PLAYER_APPLET });
+async function signIn(page: Page, requires: string[] = ['media', 'resource']): Promise<ReturnType<typeof signApplet>> {
+  const applet = signApplet({ servers: ['https://blobs.test'], requires, optional: [], html: PLAYER_APPLET });
   await fakeNetwork(page, applet, { 'catalogue.test': 'holds', ...generalRelays('empty') }, { 'blobs.test': 'has' });
   await installSignerExtension(page);
   await page.goto(`${base}/app/`);
@@ -96,7 +96,9 @@ async function open(page: Page): Promise<FrameLocator> {
 async function choose(page: Page, group: string, choice: string, phone = false): Promise<void> {
   const settings = phone ? await openSettingsOnPhone(page) : await openSettings(page, 'Media');
   await settings.getByRole('group', { name: group }).getByRole('radio', { name: choice }).check();
-  await settings.getByRole('button', { name: 'Close Settings' }).click();
+  // Escape, not the Close button: a video window may just have opened over Settings, and Escape closes Settings, never a video.
+  await page.keyboard.press('Escape');
+  await expect(settings).toHaveCount(0);
 }
 
 /** On a phone the bar's items are in its menu. */
@@ -200,6 +202,52 @@ test('a video opens in a window of its own by default, and closing the window en
   await video.getByRole('button', { name: 'Close Test card' }).click();
   await expect(frame.locator('#state')).toContainText('Test card: ended (user)');
   await expect(player(page)).toHaveCount(0);
+});
+
+test('switching where videos go moves a playing video without stopping it', async ({ page }) => {
+  const frame = await open(page);
+  await frame.locator('#clip').click();
+  await expect(page.getByRole('region', { name: 'Test card window' }).locator('video')).toBeVisible();
+  await choose(page, 'Videos', 'In the player');
+  await expect(page.getByRole('region', { name: 'Test card window' })).toHaveCount(0);
+  await expect(row(page, 'Test card')).toHaveAttribute('data-status', 'playing');
+  await advances(page, '[aria-label="Media player"] video');
+  await choose(page, 'Videos', 'In their own window');
+  await expect(page.getByRole('region', { name: 'Test card window' }).locator('video')).toBeVisible();
+  await advances(page, '[aria-label="Test card window"] video');
+  await expect(frame.locator('#log')).not.toContainText('Test card: ended');
+});
+
+test("Escape leaves a video's window alone", async ({ page }) => {
+  const frame = await open(page);
+  await frame.locator('#clip').click();
+  const video = page.getByRole('region', { name: 'Test card window' });
+  await expect(video.locator('video')).toBeVisible();
+  await video.getByRole('toolbar', { name: 'Test card window controls' }).getByText('Test card').click();
+  await page.keyboard.press('Escape');
+  await expect(video).toBeVisible();
+  await expect(row(page, 'Test card')).toHaveAttribute('data-status', 'playing');
+});
+
+test('a video window takes its place in a tiled layout', async ({ page }) => {
+  const frame = await open(page);
+  await page.getByRole('button', { name: /^Layout: floating\./ }).click();
+  await frame.locator('#clip').click();
+  await expect(page.getByRole('region', { name: 'Test card window' }).locator('video')).toBeVisible();
+  await advances(page, '[aria-label="Test card window"] video');
+  await proof(page, '20-video-window-tiled');
+});
+
+test('an applet granted media but not web fetches cannot have the shell fetch for it', async ({ page }) => {
+  const fetched = await serveMedia(page);
+  const frame = await runApplet(page, await signIn(page, ['media']));
+  await frame.locator('#tone').click();
+  // The shell fetches the source the applet named under the applet's own grants.
+  await expect(frame.locator('#result')).toHaveText(/^refused: /);
+  expect(fetched).toEqual([]);
+  await expect(player(page)).toHaveCount(0);
+  await frame.locator('#own').click();
+  await expect(row(page, 'Own radio')).toHaveAttribute('data-status', 'playing');
 });
 
 test('a video can be docked in the player instead', async ({ page }) => {
@@ -316,6 +364,15 @@ test('the Media section of Settings offers every choice, and keeps it', async ({
 
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+  test('on a phone a video opens in its own window by default', async ({ page }) => {
+    const frame = await open(page);
+    await frame.locator('#clip').click();
+    const video = page.getByRole('region', { name: 'Test card window' });
+    await expect(video.locator('video')).toBeVisible();
+    await advances(page, '[aria-label="Test card window"] video');
+    await proof(page, '21-phone-video-window');
+  });
 
   test('the player fits a phone, with a docked video above its controls', async ({ page }) => {
     await serveMedia(page);
