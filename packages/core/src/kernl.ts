@@ -43,7 +43,6 @@ import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { createShellAdapter } from './kernl-adapter.js';
 import { createAppletLifecycle, resolveWindow } from './kernl-lifecycle.js';
 import { createKernlIntents } from './kernl-intents.js';
-import { loadCatalog, streamCatalog, type LoadCatalogOptions } from './catalog/fetch.js';
 import { checkModules, mergeExtensions, setupModules, type ComposedModules, type KernelContextParts } from './modules/compose.js';
 import { kernlModules } from './modules/default.js';
 import type { AnyKernlModule, ModuleApis } from './modules/module.js';
@@ -294,14 +293,6 @@ function pipelineFor(options: KernlOptions, parts: { readonly handles: ReadonlyM
   return pipeline;
 }
 
-/** The applet store's catalogue over the shell's pool, tiers and event cache. */
-function catalogFor(pool: RelayPool, tiers: RelayTiers, cached: Required<Pick<LoadCatalogOptions, 'cache' | 'store'>>): Kernl['catalog'] {
-  return {
-    load: (loadOptions) => loadCatalog(pool, tiers, { ...cached, ...loadOptions }),
-    stream: (streamOptions) => streamCatalog(pool, tiers, { ...cached, ...streamOptions }),
-  };
-}
-
 interface ServiceParts {
   readonly pool: RelayPool;
   readonly tiers: RelayTiers;
@@ -487,7 +478,6 @@ export function createKernl(options: KernlOptions): Kernel {
     relays: tiers,
     messaging,
     bridges,
-    catalog: catalogFor(pool, tiers, { cache: cacheRequest, store: eventStore }),
     multiplayer: meeting.multiplayer, downloads: downloads.programs, secrets: downloads.secrets.description,
     intents: intents.intents,
     firewall,

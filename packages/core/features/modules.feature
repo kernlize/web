@@ -93,6 +93,17 @@ Feature: Modules
       Then the shell does not offer "upload"
       And the shell has no "files" member
 
+    Scenario: without the catalog module there is no store, and an applet still opens from its address
+      Given a kernl shell over that host and pool with modules "theme"
+      Then the shell has no "catalog" member
+      When the shell resolves the manifest address
+      And the shell plans the summary
+      Then the shell plan is missing "relay"
+
+    Scenario: the store lists from the relays when no cache module is loaded
+      Given a kernl shell over that host and pool with modules "catalog"
+      Then the shell lists its store as "Chat"
+
     Scenario: kernl's own modules include the directory, which waits to be started
       Given a kernl shell over that host and pool
       Then the shell has a "directory" member
@@ -145,6 +156,7 @@ Feature: Modules
         | needs-cache      | invalid:module-missing:cache     |
         | needs-files      | invalid:module-missing:files     |
         | needs-settings   | invalid:module-missing:settings  |
+        | needs-catalog    | invalid:module-missing:catalog   |
         | social           | invalid:module-missing:profiles |
         | social,profiles,people | invalid:module-order:profiles |
         | grants           | invalid:module-reserved:grants  |
