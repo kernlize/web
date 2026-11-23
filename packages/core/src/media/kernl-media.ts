@@ -54,7 +54,7 @@ export interface KernlMediaOptions {
 type Send = (message: unknown) => void;
 
 /**
- * The `media` service under the person's media settings (D-061). kehto keeps the sessions, plays
+ * The `media` service under the person's media settings (D-062). kehto keeps the sessions, plays
  * what an applet asks the shell to play, and mirrors the current one to the operating system; this
  * decides what may play at once, whether a session may start on its own, and what a hidden window
  * does. A session the shell pauses on its own is paused with `focus-lost`, never `user`, and only a
@@ -123,7 +123,7 @@ export function createKernlMedia(options: KernlMediaOptions): KernlMedia {
     onWindowDestroyed(windowId) {
       steering.forget(windowId);
       hiddenWindows.delete(windowId);
-      // Detached before kehto retires them, so nothing is sent to the closed applet and the person stops them (D-061).
+      // Detached before kehto retires them, so nothing is sent to the closed applet and the person stops them (D-062).
       const adopted = keepOnClose(service, steering, kept, windowId, settings$.value.closed);
       started = started.map((id) => adopted.find((session) => session.from === id)?.id ?? id);
       service.onWindowDestroyed?.(windowId);

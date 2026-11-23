@@ -17,7 +17,7 @@ const EXACT: Readonly<Record<string, OpClass>> = {
   'dm.send': 'dm:send',
   'intent.invoke': 'intent:invoke',
   'intent.open': 'intent:invoke',
-  // A session already made is reported on and steered while its window is hidden, or hidden playback would go unseen and unstoppable (D-061).
+  // A session already made is reported on and steered while its window is hidden, or hidden playback would go unseen and unstoppable (D-062).
   // Making one stays deferred: the shell fetches its source.
   'media.state': 'control',
   'media.capabilities': 'control',

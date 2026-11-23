@@ -587,7 +587,7 @@ export interface Kernl {
   readonly intents: Intents;
   /** The rules for what applets may ask for without the person being asked, and the answers in force. */
   readonly firewall: Firewall;
-  /** Media applets play through the shell, and the person's media settings (D-061). */
+  /** Media applets play through the shell, and the person's media settings (D-062). */
   readonly media: KernlMedia;
   readonly session$: Observable<Session | null>;
   readonly session: Session | null;

@@ -37,7 +37,7 @@ export interface KeptHooks {
 
 /**
  * NAP-MEDIA lets the shell keep playing what it plays for an applet after the applet closes, if it
- * detaches the session first and lets the person stop it (D-061). kehto retires every session of a
+ * detaches the session first and lets the person stop it (D-062). kehto retires every session of a
  * closed window and destroys its playback, so kernl hands kehto a wrapper whose `destroy` spares a
  * playback that was adopted a moment before.
  *

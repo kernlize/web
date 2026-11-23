@@ -3,7 +3,7 @@ Feature: Media the shell plays for applets
   itself, and the shell lists every session where the person can control it.
   The shell decides what plays at once, whether a session may start on its own,
   where a video is shown and whether a hidden window keeps playing; the person
-  sets each in Settings and the choice is kept (D-061).
+  sets each in Settings and the choice is kept (D-062).
 
   Background:
     Given a media player over empty storage

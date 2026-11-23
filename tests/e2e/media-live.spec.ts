@@ -11,7 +11,7 @@ const PROOFS = 'test-results/media-proofs';
 /**
  * The live shell plays real media for an applet: the applet names a source on a host that exists
  * only in this browser, the shell fetches and decodes it, lists it in its player, and enforces the
- * person's media settings, chosen in Settings (D-061). Each test leaves a screenshot of what it proved.
+ * person's media settings, chosen in Settings (D-062). Each test leaves a screenshot of what it proved.
  */
 
 const PLAYER_APPLET = `<!doctype html><html><head><meta charset="utf-8"><title>Player</title>

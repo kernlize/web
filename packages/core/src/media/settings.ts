@@ -13,7 +13,7 @@ export type MediaAutoplay = 'allow' | 'block';
 /** What the shell does with what it plays for an applet when that applet closes: keep it playing, keep it paused, or end it. */
 export type MediaAppletClosed = 'keep' | 'pause' | 'stop';
 
-/** How the shell plays media for applets; the person chooses each in Settings (D-061). */
+/** How the shell plays media for applets; the person chooses each in Settings (D-062). */
 export interface MediaSettings {
   readonly concurrency: MediaConcurrency;
   readonly takeover: MediaTakeover;

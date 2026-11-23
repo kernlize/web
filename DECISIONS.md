@@ -940,7 +940,7 @@ This amends D-006 and D-031 for the shell only.
 **Reversal cost.** Medium. The grouping is one module; the override is one list in the record and one parameter on three functions in `message-isolation.ts`.
 
 
-## D-061 · The shell plays media for applets under six settings the person chooses
+## D-062 · The shell plays media for applets under six settings the person chooses
 
 **Context.** An applet's frame cannot fetch or play media (`media-src 'none'`). NAP-MEDIA lets it ask the shell to play a source, or tell the shell about media it plays itself, and leaves the shell to decide audio policy. kehto's `createMediaService` keeps the sessions, plays a source through `createBrowserMediaPlayback` and mirrors one session to the browser's media controls, but it never stops one session for another, and every command it sends is stamped `reason: "user"`.
 
