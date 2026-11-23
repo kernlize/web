@@ -939,3 +939,67 @@ This amends D-006 and D-031 for the shell only.
 
 **Reversal cost.** Medium. The grouping is one module; the override is one list in the record and one parameter on three functions in `message-isolation.ts`.
 
+
+## D-061 · kernl is a kernel a host cannot weaken, and its other opinions are modules
+
+**Context.** kernl's opinions left too little room for another application to build on it. `createKernl` builds every subsystem on every call, and `KernlOptions` lets a host substitute a few parts but omit none. Taste ("magnet links download in the shell") and safety ("the ACL is restrictive") are wired in the same place, so a host cannot tell which it may change. kehto is composable: a host keeps its own UX and gets protocol handling. kernl should be too, without dropping its opinions or letting a host weaken what protects the person.
+
+**Decision.** kernl is a fixed kernel plus opinion modules. Everything kernl does sits at one of three levels.
+
+- **Floor.** In the kernel, never optional, and no host option or module weakens it:
+  - applets load through `srcdoc` with `sandbox="allow-scripts"` and the guard's CSP, never in a nested frame (D-014);
+  - the mount order: register, set environment, observe frame, assign `srcdoc`, and the frame removed on every revocation;
+  - artifact-hash identity: grants stay with the exact code, and changed bytes start with none;
+  - the restrictive ACL: an applet holds only what the grants layer wrote (D-020);
+  - keys only inside applesauce signers;
+  - consent before a write that replaces or erases the person's record, for an applet's publish and for any module that publishes (`gateOutboxPublish`);
+  - the guard pipeline in front of kehto's bridge;
+  - kehto's firewall admitting every applet in `plan`, before its code runs (D-056), and a window the shell did not plan never served;
+  - the seal on applets that read messages, an allowlist a module cannot extend (D-046, D-060);
+  - secrets kept out of logs, guard events, traffic and consent summaries;
+  - one `EventStore`, one `RelayPool`, one `AccountManager`.
+- **Default.** A module in kernl's preset, which a host loads, omits or replaces. An applet is offered only the domains a loaded module answers.
+- **Tunable.** An option of a module or of the kernel, within limits its owner sets. A tunable never moves a floor guarantee.
+
+Each of `packages/core/src` is assigned a level. NAP domains are the registry keys each part answers today.
+
+| Part | Level | Domains | Tunable within it |
+|---|---|---|---|
+| `applesauce/`, `persistence/`, `crypto/` | floor | `identity` | |
+| `applets/` mount, plan, resolve, pointer, traffic | floor | `shell`, `storage`, `inc` (kehto's own) | |
+| `consent/` | floor | | |
+| `grants/` | floor | | |
+| `guard/` | floor | | the starting profile, limits only (SOUL §3) |
+| `firewall/` | floor | | the shipped rules (D-056) |
+| `secrets/` | floor | | the secrets provider (D-052) |
+| the relay, outbox, notify and link services in `kernl-services.ts` | floor | `relay`, `outbox`, `notify`, `link` | |
+| `relays/tiers.ts`, `relays/publish-outcome.ts` | floor | | the relay tiers |
+| `applets/builtin.ts` | default | | |
+| `social/` | default | `common` | |
+| theme (in `kernl-services.ts`) | default | `theme` | the colours |
+| `relays/directory.ts`, `relays/mailboxes.ts` | default | | |
+| `cache/` | default | | |
+| `profiles/`, `people/` | default | | |
+| `files/` | default | `upload` | the file servers |
+| `applets/applet-config.ts` | default | `config` | |
+| `catalog/` (the store) | default | | |
+| `keys/` | default | `keys` | the shortcuts |
+| `intents/`, `kernl-intents.ts` | default | `intent` | the retry policy |
+| `bridges/` and `resource` | default | `resource` | |
+| `downloads/`, `kernl-downloads.ts` | default | `torrent`, `nzb`, `soulseek` | the download programs (D-050, D-053) |
+| `multiplayer/` | default | `cvm`, `webrtc` | the ICE servers and relays |
+| `messaging/` | default | `dm` | the providers |
+| `wm/` | default | | |
+| `kernl.ts`, `kernl-adapter.ts`, `kernl-firewall.ts`, `kernl-lifecycle.ts`, `kernl-network.ts`, `kernl-services.ts` | composition | | |
+
+The composition files become the kernel's composition and the preset; they hold no opinion of their own. `theme` is answered today with or without a module, so the theme module replaces a default theme rather than removing the domain.
+
+**Three questions, recommended and awaiting the owner.**
+
+1. **The guard's profile** is a tunable starting profile only, as SOUL §3 says. The guard itself is floor; no module removes it or moves a message past it.
+2. **A module may add a NAP domain only if it is on the napplet track** (`napplet/naps`, read with `nap_list`). A module never invents protocol surface; a domain off the track is a spec gap raised upstream.
+3. **The store is a module, not floor**, so a kiosk host can pin applets by hash and ship no store. The store's compatibility filter reads the offered domains (D-059), so omitting a module changes what the store lists; that is intended.
+
+**Consequences.** Every floor guarantee has a feature, `packages/core/features/floor-*.feature`, written "whatever modules are loaded". They pass against today's `createKernl` and are the regression suite for every later phase: each must pass against every module set the tests compose. Modules are fixed when the shell is composed, because a module's domains must be known when `plan` admits an applet (D-056). An applet calling a domain whose module is absent learns so from its environment at mount, as it does today for `config` and the download domains (D-020). The seal's allowlist stays in the kernel, so a domain a module adds is withheld from an applet that reads messages unless it is added there. Nothing published changes with this entry; the module host, typed asks, the UI model, the package split and the preset follow in kernlize/web#70 to #76.
+
+**Reversal cost.** Low now: one entry, two SOUL paragraphs and eleven features. It rises with each phase that moves code behind the module host.

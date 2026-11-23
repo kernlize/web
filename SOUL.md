@@ -4,11 +4,13 @@ What kernl is, what it refuses to be, and the order in which it breaks ties. Rea
 
 ## One sentence
 
-kernl is an opinionated shell for sandboxed web applets, built on the unopinionated [kehto](https://github.com/kehto/web) toolkit, that treats the person at the keyboard as the only principal who matters.
+kernl is an opinionated shell for sandboxed web applets, built on the unopinionated [kehto](https://github.com/kehto/web) toolkit, whose opinions ship as modules over a kernel no host can weaken, and which treats the person at the keyboard as the only principal who matters.
 
 ## The relationship to kehto
 
 kehto is a set of packages that let anyone build a NIP-5D shell with their own opinions on top. kehto does not pick a relay library, a signer, a consent model, a layout engine or a deployment story. kernl picks all of them. Every opinion below is a choice kehto deliberately left open.
+
+kernl makes those picks at two levels (D-061). The kernel is the floor: the sandbox, the mount order, artifact-hash identity, the restrictive ACL, key custody, consent, the guard, the firewall's admission and the seal on messages. Every other opinion is a module. Another application can use the kernel with its own UX and its own choice of modules, and the person is protected the same way; kernl.run is the kernel with kernl's modules.
 
 kernl does not fork kehto. When kernl needs behaviour kehto does not have, kernl either composes it from kehto's primitives, or proposes it upstream, or implements it locally with a note in `DECISIONS.md` that names the upstream gap. kernl never re-implements a kehto primitive because it was easier than reading kehto's source.
 
