@@ -17,7 +17,7 @@ A module may also name `requires`: ids that must be loaded before it, since modu
 
 ## What a module is handed
 
-`setup` receives the kernel's context: the shell's one event store, one relay pool and its relay tiers, the host's storage, who is signed in and whether they can sign, which applet a window runs, a way to load a replaceable event, and `use(id)` for another module's api or a part the kernel provides.
+`setup` receives the kernel's context: the shell's one event store, one relay pool and its relay tiers, the host's storage, who is signed in and whether they can sign, which applet a window runs, the shell's replaceable loader and a way to load one event through it, and `use(id)` for the api of a module loaded before it.
 
 It is not handed a signer or kehto's bridge. A module signs through `sign(windowId, template)`, which puts a write that replaces or erases the person's record to them first, the same gate an applet's own write meets. Its applets' messages pass the guard and the firewall like every other.
 
