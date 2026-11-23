@@ -24,7 +24,7 @@ import type { AnyKernlModule, KernelContext, ModuleInstance } from './module.js'
  */
 export const KERNEL_DOMAINS: readonly string[] = Object.freeze([
   'shell', 'storage', 'inc', 'relay', 'identity', 'notify', 'link', 'outbox',
-  'keys', 'resource', 'dm', 'cvm', 'webrtc', 'config', 'intent', 'torrent', 'nzb', 'soulseek', 'media',
+  'keys', 'resource', 'dm', 'cvm', 'webrtc', 'intent', 'torrent', 'nzb', 'soulseek', 'media',
 ]);
 
 /**
