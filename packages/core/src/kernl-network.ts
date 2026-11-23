@@ -10,8 +10,6 @@ import type { People } from './people/person.js';
 import { createReplaceableLoader, loadReplaceableQuietly, lookupRelaysOf } from './applesauce/identity-providers.js';
 import type { ConnectedEventCache } from './cache/connect.js';
 import type { Profiles } from './profiles/profiles.js';
-import type { RelayDirectory } from './relays/directory.js';
-import { createAccountMailboxes, type AccountMailboxes } from './relays/mailboxes.js';
 import { createAccountFileServers, type AccountFileServers } from './files/file-servers.js';
 import type { CommonServiceOptions } from '@kehto/services';
 import type { SigningConsent } from './consent/handler.js';
@@ -19,10 +17,9 @@ import { publishAccepted } from './applesauce/relay-backend.js';
 import { selectRelayTier } from './applesauce/relay-hooks.js';
 import { createCommonActions } from './social/common-actions.js';
 
-/** The parts of the shell that know servers: the loader, the mailboxes and the file servers. */
+/** The parts of the shell that know servers: the loader and the file servers. */
 export interface KernlNetwork {
   readonly replaceableLoader: AddressPointerLoader;
-  readonly mailboxes: AccountMailboxes;
   readonly files: AccountFileServers;
   /** The active account's signer, or none for a read-only or signed-out session. */
   readonly signer: () => ISigner | undefined;
@@ -34,27 +31,24 @@ export interface KernlNetworkParts {
   readonly pool: RelayPool;
   readonly tiers: RelayTiers;
   readonly accounts: AccountManager;
-  /** Completes the mailboxes' account stream when the shell is destroyed. */
+  /** Completes the file servers' account stream when the shell is destroyed. */
   readonly destroyed$: Observable<void>;
-  /** The directory module's directory, read when suggestions are needed; none when it is not loaded (D-062). */
-  readonly directory?: () => RelayDirectory | undefined;
   /** The cache module's lookup, asked before any relay; nothing is cached without it (D-030, D-062). */
   readonly cacheRequest?: ConnectedEventCache['cacheRequest'];
 }
 
 /**
  * Compose the replaceable loader, which asks the cache module first when it
- * is loaded, and the active account's mailboxes and file servers. The
- * mailboxes take suggestions from the directory module when it is loaded.
- * A read-only or signed-out session has no signer for the mailboxes, so a
- * save is refused with `denied:read-only` (D-029, D-030).
+ * is loaded, and the active account's file servers. A read-only or
+ * signed-out session has no signer for them, so a save is refused with
+ * `denied:read-only` (D-030).
  *
  * @param parts - The store, pool, tiers and accounts they share.
  * @returns The composed parts.
  * @example
  * ```ts
  * const network = createKernlNetwork({ eventStore, pool, tiers, accounts, destroyed$ });
- * network.mailboxes.state$.subscribe(render);
+ * network.files.state$.subscribe(render);
  * ```
  */
 export function createKernlNetwork(parts: KernlNetworkParts): KernlNetwork {
@@ -62,16 +56,6 @@ export function createKernlNetwork(parts: KernlNetworkParts): KernlNetwork {
   const replaceableLoader = createReplaceableLoader(eventStore, pool, tiers, parts.cacheRequest);
   const lookupRelays = (): string[] => lookupRelaysOf(tiers.get());
   const signer = (): ISigner | undefined => (accounts.active && !isReadOnlyAccount(accounts.active) ? accounts.active.signer : undefined);
-  const mailboxes = createAccountMailboxes({
-    store: eventStore,
-    pool,
-    pubkey$: accounts.active$.pipe(map((account) => account?.pubkey), takeUntil(parts.destroyed$)),
-    lookupRelays,
-    signer,
-    get directory() {
-      return parts.directory?.();
-    },
-  });
   const files = createAccountFileServers({
     store: eventStore,
     pool,
@@ -82,7 +66,7 @@ export function createKernlNetwork(parts: KernlNetworkParts): KernlNetwork {
     outboxes: () => tiers.get().outbox,
     signer,
   });
-  return { replaceableLoader, mailboxes, files, signer };
+  return { replaceableLoader, files, signer };
 }
 
 /**
