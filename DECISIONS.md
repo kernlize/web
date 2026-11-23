@@ -986,6 +986,7 @@ Each of `packages/core/src` is assigned a level. NAP domains are the registry ke
 | `keys/` | default | `keys` | the shortcuts |
 | `intents/`, `kernl-intents.ts` | default | `intent` | the retry policy |
 | `bridges/` and `resource` | default | `resource` | |
+| `media/` | default | `media` | the person's media settings (D-063) |
 | `downloads/`, `kernl-downloads.ts` | default | `torrent`, `nzb`, `soulseek` | the download programs (D-050, D-053) |
 | `multiplayer/` | default | `cvm`, `webrtc` | the ICE servers and relays |
 | `messaging/` | default | `dm` | the providers |
@@ -1024,3 +1025,25 @@ The composition files become the kernel's composition and the preset; they hold 
 **Consequences.** `KernlOptions.modules` and the module exports are new; nothing is removed. A shell without the theme module answers no `theme.get`, and an applet that requires `theme` plans with it missing, which the store reads as incompatible (D-059). `KernlServiceDeps.theme` accepts `null`, meaning the theme is a module's. Every floor feature from D-061 now runs twice, with kernl's modules and with none.
 
 **Reversal cost.** Low. The host is two files under `modules/`; removing it means registering theme and common in `createKernlServices` again.
+
+## D-063 · The shell plays media for applets under six settings the person chooses
+
+**Context.** An applet's frame cannot fetch or play media (`media-src 'none'`). NAP-MEDIA lets it ask the shell to play a source, or tell the shell about media it plays itself, and leaves the shell to decide audio policy. kehto's `createMediaService` keeps the sessions, plays a source through `createBrowserMediaPlayback` and mirrors one session to the browser's media controls, but it never stops one session for another, and every command it sends is stamped `reason: "user"`.
+
+**Decision.**
+
+- **The policy is kernl's.** `createKernlMedia` wraps kehto's service. It hands kehto a playback backend over the `resource` service, so a source is fetched by the same bridges, address policy and firewall as any fetch, as the applet and under its grants: an applet that names a source needs `resource` as well as `media`, and keeps each playback it opened, found again by its element. A pause or resume the shell decides goes to that playback, or to the applet for its own media, with `focus-lost` or `focus-gained`; it is never reported as the person's.
+- **Six settings, kept at `kernl:media:v1`.** Playing at once: one (default) or several. When another starts: pause the earlier (default) or end it with `preempted`. Videos: in a window of their own (default) or in the player. Hidden windows: keep playing (default) or pause until shown. Starting on its own: allowed (default) or wait for play. When its applet closes: keep playing (default), pause, or stop. Each applies to what is playing when it changes.
+- **The newest started session is current.** A session becomes current when it starts playing, by itself or because the person pressed Play; under one at a time, that is when the others give up the output. When it ends, the one started before it is current again, without playing.
+- **Takeover pauses by default.** A paused earlier session can be taken back from the player; ending it is the person's choice. NAP-MEDIA reserves `preempted` for an output given away for good, so a paused session is reported as a temporary loss of focus.
+- **An applet's own media obeys or ends.** It is asked to pause when another takes over or its window is hidden. If it did not say it can pause, it is ended with `policy`, as NAP-MEDIA requires.
+- **One player, at the bottom of the desktop.** One at a time shows the current session in full and lists the rest under "N more". Several at once gives every session its own row. A video in its own window is a shell-drawn window, placed by the layout; closing it ends the session.
+- **Full screen is the shell's.** A video in its window or docked in the player has **Full screen**, which fills the screen with the shell's own box around it, controls included. NAP-MEDIA gives an applet no way to ask, and the frame is never what fills the screen.
+- **Media is a default part, answered by the kernel for now.** Under D-061 it is a default, not floor. Until it moves behind the module host it is in `KERNEL_DOMAINS` with the other domains kernl answers itself, so no module can answer `media` in its place (D-062).
+- **An applet cannot start around the settings.** Its own `play` on a session the shell plays is dropped under **Wait for play** unless its window is the focused one, and under **Pause until shown** while its window is hidden. Other commands always pass.
+- **A hidden window's sessions stay reachable.** The guard holds a hidden window's messages until it is shown (D-020). `media.state`, `media.capabilities`, `media.command`, `media.session.update` and `media.session.destroy` are classed `control`, so a minimised applet's player is still seen and stopped; `media.session.create` is not, because it makes the shell fetch.
+- **What the shell plays can outlive its applet.** When its applet closes keeps it playing (default), keeps it paused, or stops it. NAP-MEDIA allows shell-promoted persistent playback if the session is detached before the endpoint goes and the person can stop it. kehto retires a closed window's sessions and destroys their playback, so kernl hands kehto a wrapper whose `destroy` spares a playback it adopted a moment before; the kept session gets the id `<window>/<session>`, which no applet can name, is listed as `detached`, and still takes part in one at a time. Media an applet plays in its own frame cannot outlive it.
+
+**Consequences.** A source must be one the `resource` service can fetch. The source is fetched whole before it plays, through the HTTP bridge's 10 MB cap and kehto's 20 second read, so a longer video is refused; playing while fetching needs a streaming backend upstream. Live streams and Nostr references are not supported. Escape does not close a video's window. An applet whose window is hidden cannot start a new session until it is shown. kehto's backend reports a later `paused` or progress state without the reason, so an applet should act on the transition that carries it. The browser's media keys follow kehto's choice of session, the one that last started playing, which can differ from the player's current session after one ends.
+
+**Reversal cost.** Low. The policy is three modules in core (`kernl-media`, `steering`, `kept`), the settings one record, and the player three components.

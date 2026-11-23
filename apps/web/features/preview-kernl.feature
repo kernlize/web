@@ -412,3 +412,9 @@ Feature: The preview kernl
     And the preview kernl closes the applet in frame "a"
     Then "notes" is still granted for now in the preview kernl
 
+
+  Scenario: the preview keeps media settings but plays nothing, even when an applet presses Play
+    When the preview kernl media is set to wait for play
+    And an applet in the preview presses Play on "radio"
+    Then the preview kernl lists no media
+    And the preview kernl media waits for play

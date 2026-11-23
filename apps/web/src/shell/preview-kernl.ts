@@ -24,7 +24,7 @@ import {
   type VisibilityGate,
   type WindowVisibility,
 } from '@kernlize/guard';
-import { describeAppletMessage, domainsInForce, grantNarrowingReason, type AppletMessage, type AppletMessageDirection } from '@kernlize/core';
+import { createKernlMedia, describeAppletMessage, domainsInForce, grantNarrowingReason, type AppletMessage, type AppletMessageDirection } from '@kernlize/core';
 import { BehaviorSubject, of, Subject, type Subscription } from 'rxjs';
 import type {
   AppletHandle,
@@ -500,6 +500,8 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
     ...createPreviewAccountServices(host.storage),
     intents: intents.intents,
     firewall,
+    // The preview plays nothing: its applets have no runtime to ask, so only the settings are real.
+    media: createKernlMedia({ storage: host.storage, isFocused: () => false }),
     session$,
     get session() {
       return session$.value;

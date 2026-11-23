@@ -58,6 +58,8 @@ import './download-routing.js';
 import './torrent-routing.js';
 import './nzb-routing.js';
 import './soulseek-routing.js';
+import './media.js';
+import './kernl-media.js';
 import './shortcuts.js';
 import './blossom-resources.js';
 import './firewall.js';

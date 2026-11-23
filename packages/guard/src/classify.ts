@@ -17,6 +17,13 @@ const EXACT: Readonly<Record<string, OpClass>> = {
   'dm.send': 'dm:send',
   'intent.invoke': 'intent:invoke',
   'intent.open': 'intent:invoke',
+  // A session already made is reported on and steered while its window is hidden, or hidden playback would go unseen and unstoppable (D-063).
+  // Making one stays deferred: the shell fetches its source.
+  'media.state': 'control',
+  'media.capabilities': 'control',
+  'media.command': 'control',
+  'media.session.update': 'control',
+  'media.session.destroy': 'control',
 };
 
 const PREFIXED: readonly (readonly [string, OpClass])[] = [

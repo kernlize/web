@@ -28,7 +28,7 @@ export const test = base.extend<{ pageErrors: string[]; expectedConsoleError: Re
 export { expect };
 
 /** The tabs of the Settings window, in the order it lists them (D-049). */
-export const SETTINGS_SECTIONS = ['General', 'Servers', 'Messages', 'Connections', 'Downloads'] as const;
+export const SETTINGS_SECTIONS = ['General', 'Servers', 'Messages', 'Connections', 'Downloads', 'Media'] as const;
 
 /**
  * Open Settings from the identity menu on the bar and, when a section is named, go to it. Settings

@@ -17,6 +17,7 @@ import type { BridgeRegistry, ClientFetch, PageScheme, TorrentBackend } from '@k
 import type { DownloadClients } from './downloads/download-clients.js';
 import type { SecretsDescription, SecretsProvider } from './secrets/secrets.js';
 import type { CatalogEntry } from './catalog/entry.js';
+import type { KernlMedia } from './media/kernl-media.js';
 import type { Profiles } from './profiles/profiles.js';
 import type { People } from './people/person.js';
 import type { EventCacheOpener } from './cache/connect.js';
@@ -593,6 +594,8 @@ export interface Kernl {
   readonly intents: Intents;
   /** The rules for what applets may ask for without the person being asked, and the answers in force. */
   readonly firewall: Firewall;
+  /** Media applets play through the shell, and the person's media settings (D-063). */
+  readonly media: KernlMedia;
   readonly session$: Observable<Session | null>;
   readonly session: Session | null;
   login(account: IAccount): Promise<Session>;

@@ -10,6 +10,7 @@ export const SETTINGS_SECTIONS = [
   { id: 'messages', label: 'Messages' },
   { id: 'connections', label: 'Connections' },
   { id: 'downloads', label: 'Downloads' },
+  { id: 'media', label: 'Media' },
 ] as const;
 
 export type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]['id'];

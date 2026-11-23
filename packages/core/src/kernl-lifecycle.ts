@@ -7,6 +7,7 @@ import { resolveBuiltin } from './applets/builtin.js';
 import { fetchManifestEvent, resolveApplet, type PublishedPointer, type ResolvedApplet } from './applets/resolve.js';
 import { planMount, resolveAppletEnvironment, type PlannedExtensions } from './applets/plan.js';
 import { mountApplet, type MountedApplet } from './applets/mount.js';
+import type { WindowVisibility } from '@kernlize/guard';
 import type { GuardPipeline, WindowResolution } from './guard/pipeline.js';
 import type { AppletAdmissions } from './firewall/admission.js';
 import { createEnvironmentResolver, type KernlGrants } from './grants/grants.js';
@@ -30,6 +31,8 @@ export interface LifecycleContext {
   /** Live handles keyed by window id; shared with the bridge's revocation hook. */
   readonly handles: Map<string, MountedApplet>;
   readonly subscriptions: Subscription;
+  /** Told when a window is hidden or shown, after the guard. */
+  readonly onVisibility: (windowId: string, visibility: WindowVisibility) => void;
   readonly openCache: () => Promise<NappletArtifactCache | undefined>;
   readonly fetchBlob: (sha256: string, servers: readonly string[]) => Promise<Uint8Array>;
   /** Applets the host ships with itself. */
@@ -203,7 +206,13 @@ export function createAppletLifecycle(context: LifecycleContext): AppletLifecycl
       const handle = mountApplet(plan, frame, {
         bridge,
         originRegistry,
-        guard: pipeline,
+        guard: {
+          setVisibility(windowId, visibility) {
+            pipeline.setVisibility(windowId, visibility);
+            context.onVisibility(windowId, visibility);
+          },
+          forget: (windowId) => pipeline.forget(windowId),
+        },
         onRevoked: (windowId, reason, details) => context.host.onRevoked(windowId, reason, details),
       });
       handles.set(plan.windowId, handle);

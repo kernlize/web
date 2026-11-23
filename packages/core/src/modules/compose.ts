@@ -35,7 +35,7 @@ export const KERNEL_PARTS: readonly string[] = Object.freeze(['profiles', 'peopl
  */
 export const KERNEL_DOMAINS: readonly string[] = Object.freeze([
   'shell', 'storage', 'inc', 'relay', 'identity', 'notify', 'link', 'outbox',
-  'keys', 'resource', 'dm', 'cvm', 'webrtc', 'config', 'upload', 'intent', 'torrent', 'nzb', 'soulseek',
+  'keys', 'resource', 'dm', 'cvm', 'webrtc', 'config', 'upload', 'intent', 'torrent', 'nzb', 'soulseek', 'media',
 ]);
 
 /**
