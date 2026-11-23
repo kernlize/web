@@ -6,10 +6,10 @@ import type { ISigner } from 'applesauce-signers';
 import type { AddressPointerLoader } from 'applesauce-loaders/loaders';
 import type { RelayTiers } from './types.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
-import { createPeople, type People } from './people/person.js';
+import type { People } from './people/person.js';
 import { createReplaceableLoader, loadReplaceableQuietly, lookupRelaysOf } from './applesauce/identity-providers.js';
 import type { ConnectedEventCache } from './cache/connect.js';
-import { createProfiles, type Profiles } from './profiles/profiles.js';
+import type { Profiles } from './profiles/profiles.js';
 import type { RelayDirectory } from './relays/directory.js';
 import { createAccountMailboxes, type AccountMailboxes } from './relays/mailboxes.js';
 import { createAccountFileServers, type AccountFileServers } from './files/file-servers.js';
@@ -19,11 +19,9 @@ import { publishAccepted } from './applesauce/relay-backend.js';
 import { selectRelayTier } from './applesauce/relay-hooks.js';
 import { createCommonActions } from './social/common-actions.js';
 
-/** The parts of the shell that know people and servers: the loader, profiles and mailboxes. */
+/** The parts of the shell that know servers: the loader, the mailboxes and the file servers. */
 export interface KernlNetwork {
   readonly replaceableLoader: AddressPointerLoader;
-  readonly profiles: Profiles;
-  readonly people: People;
   readonly mailboxes: AccountMailboxes;
   readonly files: AccountFileServers;
   /** The active account's signer, or none for a read-only or signed-out session. */
@@ -46,7 +44,7 @@ export interface KernlNetworkParts {
 
 /**
  * Compose the replaceable loader, which asks the cache module first when it
- * is loaded, the profile service, and the active account's mailboxes and file servers. The
+ * is loaded, and the active account's mailboxes and file servers. The
  * mailboxes take suggestions from the directory module when it is loaded.
  * A read-only or signed-out session has no signer for the mailboxes, so a
  * save is refused with `denied:read-only` (D-029, D-030).
@@ -56,7 +54,7 @@ export interface KernlNetworkParts {
  * @example
  * ```ts
  * const network = createKernlNetwork({ eventStore, pool, tiers, accounts, destroyed$ });
- * network.profiles.card$(pubkey).subscribe(render);
+ * network.mailboxes.state$.subscribe(render);
  * ```
  */
 export function createKernlNetwork(parts: KernlNetworkParts): KernlNetwork {
@@ -74,8 +72,6 @@ export function createKernlNetwork(parts: KernlNetworkParts): KernlNetwork {
       return parts.directory?.();
     },
   });
-  const profiles = createProfiles({ store: eventStore, load: replaceableLoader, lookupRelays });
-  const people = createPeople({ store: eventStore, pool });
   const files = createAccountFileServers({
     store: eventStore,
     pool,
@@ -86,7 +82,7 @@ export function createKernlNetwork(parts: KernlNetworkParts): KernlNetwork {
     outboxes: () => tiers.get().outbox,
     signer,
   });
-  return { replaceableLoader, profiles, people, mailboxes, files, signer };
+  return { replaceableLoader, mailboxes, files, signer };
 }
 
 /**
@@ -104,7 +100,7 @@ export function createKernlNetwork(parts: KernlNetworkParts): KernlNetwork {
  * createKernlServices({ ..., common: commonActionsFor(parts, network, consent) });
  * ```
  */
-export function commonActionsFor(parts: Omit<KernlNetworkParts, 'destroyed$'>, network: Pick<KernlNetwork, 'profiles' | 'people' | 'replaceableLoader' | 'signer'>, consent: SigningConsent): CommonServiceOptions {
+export function commonActionsFor(parts: Omit<KernlNetworkParts, 'destroyed$'>, network: Pick<KernlNetwork, 'replaceableLoader' | 'signer'> & { readonly profiles: Profiles; readonly people: People }, consent: SigningConsent): CommonServiceOptions {
   const { eventStore, pool, tiers, accounts } = parts;
   return createCommonActions({
     store: eventStore,

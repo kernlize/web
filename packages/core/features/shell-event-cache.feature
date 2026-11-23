@@ -61,7 +61,7 @@ Feature: The shell's event cache
     Given a kernl host over empty storage
     And a fake applesauce pool serving a signed manifest for "chat" requiring "relay"
     And the fake pool serves a profile named "From the network" for a fresh key
-    And a kernl shell over that host and pool with modules "theme,social"
+    And a kernl shell over that host and pool with modules "theme,profiles,people,social"
     Then the shell has no "cache" member
     When the shell logs in read-only as that fresh key
     Then the shell session label eventually is "From the network"

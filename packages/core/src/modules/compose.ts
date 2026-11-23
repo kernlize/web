@@ -8,20 +8,9 @@ import type { SigningConsent } from '../consent/handler.js';
 import type { RelayPool } from 'applesauce-relay';
 import { isReadOnlyAccount } from '../applesauce/auth-hooks.js';
 import { loadReplaceableQuietly } from '../applesauce/identity-providers.js';
-import type { KernlNetwork } from '../kernl-network.js';
+import type { AddressPointerLoader } from 'applesauce-loaders/loaders';
 import type { AppletSummary, RelayTiers, StorageLike } from '../types.js';
 import type { AnyKernlModule, KernelContext, ModuleInstance } from './module.js';
-
-/**
- * Parts the kernel provides by id until they are modules of their own. A module may `require`
- * them and reach them with `use`; no module may take their ids.
- *
- * @example
- * ```ts
- * KERNEL_PARTS.includes('profiles'); // true
- * ```
- */
-export const KERNEL_PARTS: readonly string[] = Object.freeze(['profiles', 'people']);
 
 /**
  * Domains the kernel answers whatever modules are loaded, kehto's own (`shell`, `storage`, `inc`)
@@ -55,20 +44,18 @@ export const MODULE_NATIVE_DOMAINS: readonly string[] = Object.freeze(['theme'])
  * needs it (`invalid:module-order`), since modules are set up in order.
  *
  * @param modules - The host's module list.
- * @param reserved - The shell's own member names.
  * @example
  * ```ts
- * checkModules([themeModule(), themeModule()], []); // throws invalid:module-duplicate:theme
+ * checkModules([themeModule(), themeModule()]); // throws invalid:module-duplicate:theme
  * ```
  */
-export function checkModules(modules: readonly AnyKernlModule[], reserved: readonly string[]): void {
+export function checkModules(modules: readonly AnyKernlModule[]): void {
   const ids = new Set(modules.map((module) => module.id));
   const seen = new Set<string>();
   for (const module of modules) {
     if (seen.has(module.id)) throw new Error(`invalid:module-duplicate:${module.id}`);
-    if (reserved.includes(module.id) || KERNEL_PARTS.includes(module.id)) throw new Error(`invalid:module-reserved:${module.id}`);
     for (const id of module.requires ?? []) {
-      if (KERNEL_PARTS.includes(id) || seen.has(id)) continue;
+      if (seen.has(id)) continue;
       throw new Error(ids.has(id) ? `invalid:module-order:${id}` : `invalid:module-missing:${id}`);
     }
     seen.add(module.id);
@@ -83,7 +70,7 @@ export interface KernelContextParts {
   readonly storage: StorageLike;
   readonly accounts: AccountManager;
   readonly consent: SigningConsent;
-  readonly network: Pick<KernlNetwork, 'profiles' | 'people' | 'replaceableLoader'>;
+  readonly replaceableLoader: AddressPointerLoader;
   readonly appletOf: (windowId: string) => AppletSummary | undefined;
 }
 
@@ -117,7 +104,8 @@ function contextFor(parts: KernelContextParts, use: KernelContext['use']): Kerne
       return (await account.signer.signEvent(template)) as NostrEvent;
     },
     appletOf: parts.appletOf,
-    loadReplaceable: (pointer) => loadReplaceableQuietly(parts.network.replaceableLoader, parts.tiers, pointer),
+    replaceableLoader: parts.replaceableLoader,
+    loadReplaceable: (pointer) => loadReplaceableQuietly(parts.replaceableLoader, parts.tiers, pointer),
     use,
   };
 }
@@ -158,8 +146,8 @@ function disposeAll(instances: readonly ModuleInstance<unknown>[]): void {
 }
 
 /**
- * Set up each module in order over one kernel context. `use` reads another module's api, or a
- * part the kernel provides, when it is called, so a module may keep it for later. A module that
+ * Set up each module in order over one kernel context. `use` reads another module's api when it
+ * is called, so a module may keep it for later. A module that
  * answers a domain in {@link KERNEL_DOMAINS} is refused with `invalid:module-domain:<domain>`.
  * Whatever is refused, the modules already set up are disposed before the error is thrown.
  *
@@ -175,10 +163,8 @@ function disposeAll(instances: readonly ModuleInstance<unknown>[]): void {
  */
 export function setupModules(modules: readonly AnyKernlModule[], parts: KernelContextParts, bindings: boolean): ComposedModules {
   const apis: Record<string, unknown> = {};
-  const provided: Record<string, unknown> = { profiles: parts.network.profiles, people: parts.network.people };
   const use = <T>(id: string): T => {
     if (id in apis) return apis[id] as T;
-    if (id in provided) return provided[id] as T;
     throw new Error(`invalid:module-missing:${id}`);
   };
   const context = contextFor(parts, use);
