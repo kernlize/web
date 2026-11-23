@@ -6,7 +6,7 @@ import type { PlannedExtensions } from '../applets/plan.js';
 import type { RelayPool } from 'applesauce-relay';
 import type { AddressPointerLoader } from 'applesauce-loaders/loaders';
 import type { ISigner } from 'applesauce-signers';
-import type { AppletSummary, ConsentSummary, RelayTiers, StorageLike } from '../types.js';
+import type { AppletSummary, ConsentSummary, KernlHost, RelayTiers, StorageLike } from '../types.js';
 
 /** The signed-in identity as a module sees it: who, and whether they can sign, never their signer. */
 export interface ModuleIdentity {
@@ -55,6 +55,10 @@ export interface KernelContext {
   appletOf(windowId: string): AppletSummary | undefined;
   /** Whether a window is the focused one, as the guard sees it. */
   isFocused(windowId: string): boolean;
+  /** The applets running now, by window id. */
+  applets(): ReadonlyMap<string, { readonly windowId: string; readonly summary: AppletSummary }>;
+  /** The host's own callbacks a module may use until the host's questions become typed asks. */
+  readonly host: Pick<KernlHost, 'storage' | 'openApplet' | 'focusApplet' | 'chooseHandler' | 'notify' | 'now'>;
   /** Put a question to the person through the host's consent prompt; resolves with their answer. */
   ask(summary: ConsentSummary): Promise<boolean>;
   /** Load a replaceable event into the store from the cache and the lookup relays. Never rejects. */

@@ -123,6 +123,16 @@ Feature: Modules
       Given a kernl shell over that host and pool with modules "catalog"
       Then the shell lists its store as "Chat"
 
+    Scenario: without the intents module, applets cannot hand each other work and nothing is installed
+      Given a kernl shell over that host and pool with modules "theme"
+      Then the shell does not offer "intent"
+      And the shell has no "intents" member
+      When the shell resolves the manifest address
+      And the shell tries to install the resolved applet
+      Then the shell refused with "unavailable:intents"
+      When the shell plans the summary
+      Then the shell plan is missing "relay"
+
     Scenario: kernl's own modules include the directory, which waits to be started
       Given a kernl shell over that host and pool
       Then the shell has a "directory" member
@@ -176,6 +186,7 @@ Feature: Modules
         | needs-files      | invalid:module-missing:files     |
         | needs-settings   | invalid:module-missing:settings  |
         | needs-catalog    | invalid:module-missing:catalog   |
+        | needs-intents    | invalid:module-missing:intents   |
         | social           | invalid:module-missing:profiles |
         | social,profiles,people | invalid:module-order:profiles |
         | grants           | invalid:module-reserved:grants  |

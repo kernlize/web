@@ -539,10 +539,10 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
       await loadBaselineDomains();
       return summary;
     },
-    install: (summary) => intents.installed.install(summary),
+    install: (summary) => intents.intents.record(summary),
     async plan(summary) {
       if (grants.get(summary.identity)?.blocked) throw new Error('denied:blocked');
-      intents.installed.install(summary);
+      intents.intents.record(summary);
       const baseline = await loadBaselineDomains();
       const document = shipped.documentOf(summary);
       // A real applet is offered only what the preview can answer over its port, so nothing it calls hangs.

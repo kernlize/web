@@ -46,6 +46,7 @@ function named(world: CoreWorld, name: string): readonly AnyKernlModule[] {
     grants: () => [{ id: 'grants', setup: () => ({ api: {} }) }],
     profiles: () => [profilesModule()],
     people: () => [peopleModule()],
+    'needs-intents': () => [{ id: 'needs-intents', requires: ['intents'], setup: () => ({}) }],
     'needs-catalog': () => [{ id: 'needs-catalog', requires: ['catalog'], setup: () => ({}) }],
     'needs-settings': () => [{ id: 'needs-settings', requires: ['settings'], setup: () => ({}) }],
     'needs-files': () => [{ id: 'needs-files', requires: ['files'], setup: () => ({}) }],
@@ -289,4 +290,9 @@ When('the applet asks to bind {string} to {string} over its port', async (world:
   // Registrations are held through a window's first second (D-054); wait past it before saying there was no answer.
   const answered = (): boolean => k(world).received.some((message) => message.type === 'keys.registerAction.result');
   for (let waited = 0; waited < 2000 && !answered(); waited += 40) await settle();
+});
+
+When('the shell tries to install the resolved applet', async (world: CoreWorld) => {
+  const summary = k(world).summary;
+  await attempt(world, () => k(world).kernl.install(summary as NonNullable<typeof summary>));
 });

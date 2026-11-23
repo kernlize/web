@@ -136,6 +136,7 @@ export function createPreviewIntents(deps: PreviewIntentDeps): PreviewIntents {
       installed$: installed.changes$,
       installed: () => installed.list(),
       uninstall: (catalogId) => installed.remove(catalogId),
+      record: (summary) => installed.install(summary),
       defaults,
     },
     async invoke(request) {
