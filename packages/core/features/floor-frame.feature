@@ -27,12 +27,19 @@ Feature: Floor: an applet runs in a locked frame, whatever modules are loaded
     Then the frame sandbox attribute is exactly "allow-scripts"
     And the frame srcdoc is the plan srcdoc
 
-  Scenario: the composed shell mounts into the sandbox alone
-    Given a kernl host over empty storage
+  Scenario Outline: the composed shell mounts into the sandbox alone
+    Given the shell loads <modules> modules
+    And a kernl host over empty storage
     And a fake applesauce pool serving a signed manifest for "chat" requiring "relay"
     And a kernl shell over that host and pool
+    And the shell <theme> "theme"
     When the shell resolves the manifest address
     And the shell plans the summary
     And the shell mounts the plan into a fake frame
     Then the mounted frame's sandbox is exactly "allow-scripts"
     And the mounted frame's srcdoc starts with the guard's policy
+
+    Examples:
+      | modules | theme          |
+      | kernl's | offers         |
+      | no      | does not offer |

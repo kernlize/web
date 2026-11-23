@@ -1,0 +1,140 @@
+Feature: Modules
+  Every opinion outside the kernel is a module a host loads, leaves out or
+  replaces. A shell offers applets only the domains a loaded module answers,
+  and a module reaches the shell only through the kernel's context: it signs
+  through consent and never holds a signer or kehto's bridge (D-061).
+
+  Background:
+    Given a kernl host over empty storage
+    And a fake applesauce pool serving a signed manifest for "chat" requiring "relay"
+
+  Rule: a shell offers what its modules answer
+
+    Scenario: a shell that names no modules loads kernl's own
+      Given a kernl shell over that host and pool
+      Then the shell offers "theme"
+      And the shell offers "common"
+      And the composed shell starts applets with "shell,inc,theme,storage,keys"
+      And the shell has no "theme" member
+
+    Scenario: without the theme module, theme is neither offered nor in the baseline
+      Given a kernl shell over that host and pool with modules "social"
+      Then the shell does not offer "theme"
+      And the composed shell starts applets with "shell,inc,storage,keys"
+      When the shell resolves the manifest address
+      And the shell plans the summary
+      Then the shell plan is for window "applet-1" with domains "shell,storage,inc,keys"
+
+    Scenario: an applet that asks for the theme of a shell without the module gets no answer
+      Given a kernl shell over that host and pool with modules ""
+      And a mounted applet
+      When the applet sends its hello through the shell
+      And the applet asks "shell.ready" over its port
+      Then the applet received a "shell.init" with domains "shell,storage,inc,keys"
+      When the applet asks "theme.get" over its port
+      Then the applet received no "theme.get.result"
+
+    Scenario: an applet that requires the theme shows it missing on a shell without the module
+      Given a fake applesauce pool serving a signed manifest for "chat" requiring "theme"
+      And a kernl shell over that host and pool with modules "social"
+      When the shell resolves the manifest address
+      And the shell plans the summary
+      Then the shell plan is missing "theme"
+
+    Scenario: without the social module, social actions are not offered
+      Given a kernl shell over that host and pool with modules "theme"
+      Then the shell does not offer "common"
+      And the shell offers "theme"
+
+    Scenario: a domain a module offers through prelude bindings waits for a kehto that renders them
+      Given a kernl shell over that host and pool with modules "bound,binding-only"
+      Then the shell does not offer "torrent"
+      And the shell does not offer "nzb"
+      And modules "bound" set up where bindings render offer "torrent"
+
+    Scenario: the social module signs a follow the person agreed to and publishes it
+      Given a kernl shell over that host and pool with modules "social"
+      And the shell is signed in
+      And a mounted applet granted "common" that has said hello
+      When the applet asks to follow "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d" over its port
+      Then the shell asks the person "Change who you follow" before signing
+      When the person answers yes to the follow
+      Then the applet is told its follow succeeded
+      And the fake pool published a kind 3 event
+
+  Rule: modules are checked before anything is built
+
+    Scenario: a module's api appears on the shell, and a module reaches another's
+      Given a kernl shell over that host and pool with modules "clock,needs-clock"
+      Then the shell has a "clock" member
+      And the "needs-clock" module tells the time from "clock" as 42
+
+    Scenario Outline: a module list that cannot be composed is refused
+      When a kernl shell is composed over that host and pool with modules "<modules>"
+      Then the shell refused with "<reason>"
+
+      Examples:
+        | modules          | reason                          |
+        | needs-clock      | invalid:module-missing:clock    |
+        | theme,theme      | invalid:module-duplicate:theme  |
+        | profiles         | invalid:module-reserved:profiles |
+        | grants           | invalid:module-reserved:grants  |
+        | relay-thief      | invalid:module-domain:relay     |
+
+    Scenario: a module that fails to set up closes the ones before it
+      When a kernl shell is composed over that host and pool with modules "first,broken-setup"
+      Then the shell refused with "invalid:broken-setup"
+      And the modules were disposed in the order "first"
+
+  Rule: modules close in the reverse of the order they were loaded
+
+    Scenario: the last module loaded closes first
+      Given a kernl shell over that host and pool with modules "first,second"
+      When the shell is destroyed
+      Then the modules were disposed in the order "second,first"
+
+    Scenario: a module that fails to close does not keep the others open
+      Given a kernl shell over that host and pool with modules "first,broken-dispose,rejecting-dispose,second"
+      When the shell is destroyed
+      Then the modules were disposed in the order "second,first"
+
+  Rule: a module reaches the shell through the kernel's context
+
+    Scenario: signed out, a module sees nobody and cannot sign
+      Given a kernl shell over that host and pool with modules "probe"
+      Then the probe sees nobody signed in
+      When the probe signs a kind 1 note for the mounted window
+      Then the shell refused with "denied:read-only"
+
+    Scenario: a module reaches the kernel's parts, and nothing else by a name nobody loaded
+      Given a kernl shell over that host and pool with modules "probe"
+      Then the probe reaches the kernel parts "profiles,people"
+      When the probe asks for the module "nothing"
+      Then the shell refused with "invalid:module-missing:nothing"
+      When the probe loads a follow list for "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d"
+      Then the probe asked the pool for kind 3
+
+    Scenario: a load the network fails leaves the module waiting on nothing
+      Given a kernl shell over that host and pool with modules "probe"
+      And the pool fails every request
+      When the probe loads a follow list for "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d"
+      Then the probe asked the pool for kind 3
+
+    Scenario: a module signs a routine note without asking, for a window it can name
+      Given a kernl shell over that host and pool with modules "probe"
+      And the shell is signed in
+      And a mounted applet granted "relay" that has said hello
+      Then the probe sees the signed-in identity, able to sign
+      And the probe sees "chat" in the mounted window
+      When the probe signs a kind 1 note for the mounted window
+      Then the probe holds a signed kind 1 note by the signed-in identity
+      And the host was not asked for consent
+
+    Scenario: a module's write that replaces the person's record waits for them
+      Given a kernl shell over that host and pool with modules "probe"
+      And the shell is signed in
+      And a mounted applet granted "relay" that has said hello
+      When the probe starts signing a kind 0 event for the mounted window
+      Then the host was asked "Update your profile" marked "destructive" for applet "chat"
+      When the host answers the consent prompt with no
+      Then the probe's signing ended with "denied:consent"

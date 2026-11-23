@@ -23,12 +23,19 @@ Feature: Floor: an applet that reads messages is sealed, whatever modules are lo
     Then the ACL allows "intent:read" for "chat"
     And the ACL denies "intent:write" for "chat"
 
-  Scenario: granting messages to a running applet that holds the network stops it
-    Given a kernl host over empty storage
+  Scenario Outline: granting messages to a running applet that holds the network stops it
+    Given the shell loads <modules> modules
+    And a kernl host over empty storage
     And a fake applesauce pool serving a signed manifest for "chat" requiring "relay"
     And a kernl shell over that host and pool
+    And the shell <theme> "theme"
     And the shell is signed in
     And a mounted applet granted "relay" that has said hello
     When the user also grants the mounted applet "dm"
     Then the host was told the window was revoked for "grant-narrowed"
     And the mounted frame was removed
+
+    Examples:
+      | modules | theme          |
+      | kernl's | offers         |
+      | no      | does not offer |

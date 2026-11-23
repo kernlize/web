@@ -7,12 +7,21 @@ Feature: Floor: the guard sees every message first, whatever modules are loaded
     Given a kernl host over empty storage
     And a fake applesauce pool serving a signed manifest for "chat" requiring "relay"
 
-  Scenario: a fresh shell starts in the strict profile
-    Given a kernl shell over that host and pool without a blob fetcher
+  Scenario Outline: a fresh shell starts in the strict profile
+    Given the shell loads <modules> modules
+    And a kernl shell over that host and pool without a blob fetcher
+    And the shell <theme> "theme"
     Then the shell guard profile is "strict" with mitigations described
 
-  Scenario: the message that crosses the limit is never answered
-    Given a kernl shell over that host and pool
+    Examples:
+      | modules | theme          |
+      | kernl's | offers         |
+      | no      | does not offer |
+
+  Scenario Outline: the message that crosses the limit is never answered
+    Given the shell loads <modules> modules
+    And a kernl shell over that host and pool
+    And the shell <theme> "theme"
     And a mounted applet
     When the applet sends its hello through the shell
     And the applet asks "shell.ready" over its port
@@ -21,11 +30,23 @@ Feature: Floor: the guard sees every message first, whatever modules are loaded
     And every message before it was answered
     And the message that crossed the limit was never answered
 
-  Scenario: a hidden applet's requests are held until it is visible
-    Given a kernl shell over that host and pool
+    Examples:
+      | modules | theme          |
+      | kernl's | offers         |
+      | no      | does not offer |
+
+  Scenario Outline: a hidden applet's requests are held until it is visible
+    Given the shell loads <modules> modules
+    And a kernl shell over that host and pool
+    And the shell <theme> "theme"
     And a mounted applet granted "relay" that has said hello
     When the applet window becomes "hidden"
     And the applet sends 1 "storage.set" requests over its port, 0 ms apart
     Then "storage.set" requests 1 to 1 got no answer
     When the applet window becomes "focused"
     Then "storage.set" requests 1 to 1 were answered
+
+    Examples:
+      | modules | theme          |
+      | kernl's | offers         |
+      | no      | does not offer |
