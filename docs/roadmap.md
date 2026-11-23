@@ -39,7 +39,6 @@ The Downloads panel shows in-kernl jobs only; a hand-off job cannot be tracked, 
 - Per-conversation provider migration: move a correspondent from `legacy` to `private` when both clients can read it, shown as a reversible choice.
 - Show which provider carried a message. The applet sees opaque ids and cannot say; the shell knows, and should mark a conversation's window or a sent message when it used something other than the first provider ([D-027](./decisions.md#d-027)).
 - Messages applet: take `napplet:dm/open` requests from other applets and open the conversation they name, once its SDK has the delivery hook; publish it to the store so other shells can run it; names and pictures for people, which the shell could fill in on `DmPeer` from profiles it already holds.
-- Tell open applets when the shell's theme is switched, through the theme service's broadcast.
 
 ## 4. Mobile layouts
 
