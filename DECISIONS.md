@@ -994,7 +994,7 @@ Each of `packages/core/src` is assigned a level. NAP domains are the registry ke
 
 The composition files become the kernel's composition and the preset; they hold no opinion of their own.
 
-**Four questions, recommended and awaiting the owner.**
+**Four questions, settled by the owner on 2026-11-23 as recommended.**
 
 1. **The guard's profile** is a tunable starting profile only, as SOUL §3 says. The guard itself is floor; no module removes it or moves a message past it.
 2. **A module may add a NAP domain only if it is on the napplet track** (`napplet/naps`, read with `nap_list`). A module never invents protocol surface; a domain off the track is a spec gap raised upstream.
