@@ -24,7 +24,7 @@ media.onState(sessionId, (state) => console.log(state.status));
 
 ## The person's settings
 
-Settings → Media holds five choices, kept on this device at `kernl:media:v1`. Each takes effect on what is playing now.
+Settings → Media holds six choices, kept on this device at `kernl:media:v1`. Each takes effect on what is playing now.
 
 | Setting | Choices (default first) | What the applet sees |
 | --- | --- | --- |
@@ -33,6 +33,7 @@ Settings → Media holds five choices, kept on this device at `kernl:media:v1`. 
 | Videos | In their own window · In the player | A shell-played video opens in a window of its own, placed by the layout like any window, or plays in the player at the bottom. Closing a video's window ends the session with `reason: "user"`; Escape does not close it. |
 | Hidden windows | Keep playing · Pause until shown | While the applet's window is minimised, or the page is hidden, its sessions are paused with `focus-lost`, and resumed with `focus-gained` when it is shown, unless the person or the applet paused or stopped it in between. |
 | Starting on its own | Allowed · Wait for play | `autoplay: true` is ignored: the session is created paused and starts when the person presses Play. |
+| When its applet closes | Keep playing · Pause · Stop | What the shell plays is detached from the closed applet and kept, playing or paused, in the player and its video window, marked "(closed)"; the person ends it there. Stop ends it with the applet. Nothing is sent to the closed applet either way. |
 
 An applet's own `media.command` `play` on a session the shell plays follows the same settings: with **Wait for play** it counts only while the person is working in the applet's window, and with **Pause until shown** not while that window is hidden. Pause, stop, seek and volume always count.
 
@@ -50,7 +51,7 @@ The browser's media controls (media keys, the system's now-playing panel) follow
 
 An applet whose window is hidden can report on and steer the sessions it has, but a new session waits until the window is shown: the guard holds back anything that would make the shell fetch from a window nobody sees.
 
-Closing an applet ends its sessions and closes its videos' windows. Nothing keeps playing after the applet that started it is gone.
+Media an applet plays in its own frame ends with the applet. What the shell plays for it follows **When its applet closes**: a kept session gets an id of the form `<window>/<session>`, which no applet can name, so a new instance of the same applet cannot reach or replace it. A kept session still plays one at a time with the others. The browser's media keys do not reach it.
 
 ## Using it from core
 
