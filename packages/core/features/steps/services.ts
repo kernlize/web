@@ -5,12 +5,13 @@ import { PrivateKeySigner } from 'applesauce-signers';
 import { AccountManager } from 'applesauce-accounts';
 import { PrivateKeyAccount } from 'applesauce-accounts/accounts';
 import type { ShellAdapter } from '@kehto/shell';
-import type { CommonServiceOptions, Uploader } from '@kehto/services';
+import type { CommonServiceOptions, ConfigServiceOptions, Uploader } from '@kehto/services';
 import type { NappletMessage } from '@napplet/core';
 import type { BridgeContext, BridgeRegistry, TorrentBackend } from '@kernlize/bridges';
 import type { MessagingBackend, MessagingRegistry } from '@kernlize/messaging';
 import { createMemoryBackend } from '@kernlize/messaging';
 import {
+  createAppletConfig,
   createBlossomUploader,
   createCommonActions,
   createDefaultBridges,
@@ -58,7 +59,7 @@ function fakeBridges(calls: ServicesScratch['bridgeCalls']): BridgeRegistry {
   };
 }
 
-async function build(world: CoreWorld, options: { signer?: boolean; theme?: Record<string, unknown> | null; common?: CommonServiceOptions; uploader?: Uploader; remoteTools?: RemoteToolsSettings } = {}): Promise<void> {
+async function build(world: CoreWorld, options: { signer?: boolean; theme?: Record<string, unknown> | null; common?: CommonServiceOptions; uploader?: Uploader; config?: ConfigServiceOptions; remoteTools?: RemoteToolsSettings } = {}): Promise<void> {
   const s = scratch(world);
   const signer = new PrivateKeySigner();
   const pubkey = await signer.getPublicKey();
@@ -85,6 +86,7 @@ async function build(world: CoreWorld, options: { signer?: boolean; theme?: Reco
     ...(theme === null ? { theme } : isTheme(theme) ? { theme } : {}),
     ...(options.common ? { common: options.common } : {}),
     ...(options.uploader ? { uploader: options.uploader } : {}),
+    ...(options.config ? { config: options.config } : {}),
     ...(options.remoteTools ? { remoteTools: options.remoteTools } : {}),
     shortcuts: { isFocused: () => true },
     resolveIdentity: (windowId) => (windowId === 'w1' ? IDENTITY : null),
@@ -114,7 +116,7 @@ Given('the signing account publishes a relay list writing to {string}', async (w
   (scratch(world).eventStore as EventStore).add(event);
 });
 
-Given('kernl services that leave the theme to a module and are handed social actions and an uploader', async (world: CoreWorld) => {
+Given('kernl services that leave the theme to a module and are handed social actions, an uploader and settings', async (world: CoreWorld) => {
   const common = createCommonActions({
     store: scratch(world).eventStore as EventStore,
     profiles: { settled: async (pubkey) => toProfileCard(pubkey, undefined) },
@@ -127,7 +129,8 @@ Given('kernl services that leave the theme to a module and are handed social act
     loadFollows: async () => undefined,
   });
   const uploader = createBlossomUploader({ servers: async () => [], signer: () => undefined, ask: async () => false });
-  await build(world, { theme: null, common, uploader });
+  const config = createAppletConfig({ storage: scratch(world).storage, appletOf: () => undefined, present: () => undefined });
+  await build(world, { theme: null, common, uploader, config });
 });
 
 Given('kernl services without a signer', async (world: CoreWorld) => {

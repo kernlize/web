@@ -30,3 +30,13 @@ Feature: Applet settings
     Then the shell offers the "config" domain
     Given a kernl shell over that host and pool
     Then the shell does not offer the "config" domain
+
+  Scenario: settings are a module: left out, or given no form, the shell offers none
+    Given a kernl host over empty storage
+    And a fake applesauce pool serving a signed manifest for "chat" requiring "relay"
+    And a kernl shell over that host and pool whose host shows settings, with modules "settings"
+    Then the shell offers the "config" domain
+    Given a kernl shell over that host and pool whose host shows settings, with modules "theme"
+    Then the shell does not offer the "config" domain
+    Given a kernl shell over that host and pool whose host shows settings, with modules "settings-without-a-form"
+    Then the shell does not offer the "config" domain

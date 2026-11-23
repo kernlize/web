@@ -1,9 +1,9 @@
 import { expect, vi } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import type { ConfigServiceOptions, ConfigSettingsContext } from '@kehto/services';
-import { createAppletConfig, type SettingsPrompt } from '@kernlize/core';
+import { createAppletConfig, settingsModule, themeModule, type SettingsPrompt } from '@kernlize/core';
 import { blobFetcher, boot, k } from './kernl.js';
-import { scratch, type CoreWorld } from './world.js';
+import { scratch, splitList, type CoreWorld } from './world.js';
 
 interface ConfigScratch {
   config: ConfigServiceOptions;
@@ -55,6 +55,14 @@ Given('a kernl shell over that host and pool whose host shows settings', (world:
   const shown: SettingsPrompt[] = [];
   scratch(world).settingsShown = shown;
   boot(world, {}, { ...blobFetcher(world), presentSettings: (prompt) => void shown.push(prompt) });
+});
+
+Given('a kernl shell over that host and pool whose host shows settings, with modules {string}', (world: CoreWorld, names: string) => {
+  const shown: SettingsPrompt[] = [];
+  scratch(world).settingsShown = shown;
+  const present = (prompt: SettingsPrompt): void => void shown.push(prompt);
+  const modules = splitList(names).map((name) => (name === 'settings' ? settingsModule(present) : name === 'settings-without-a-form' ? settingsModule() : themeModule()));
+  boot(world, { modules }, { ...blobFetcher(world), presentSettings: present });
 });
 
 const shownForms = (world: CoreWorld): SettingsPrompt[] => scratch(world).settingsShown as SettingsPrompt[];
