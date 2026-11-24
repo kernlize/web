@@ -17,6 +17,7 @@ export default defineConfig({
       '@kernlize/core/crypto': pkg('core', 'crypto/index.ts'),
       '@kernlize/core/cache': pkg('core', 'cache/index.ts'),
       '@kernlize/core/seal': pkg('core', 'seal/index.ts'),
+      '@kernlize/core/asks': pkg('core', 'asks/index.ts'),
       '@kernlize/core': pkg('core'),
     },
   },
