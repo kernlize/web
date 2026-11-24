@@ -210,10 +210,10 @@ export { createAccountFileServers, DEFAULT_FILE_SERVERS, fileServersFromEvent, f
 export { askUploadConsent, createBlossomUploader, describeUpload, sizeWords, type BlossomUploaderOptions, type MultiServerUpload, type UploadDetails } from '../files/uploader.js';
 export { createAppletConfig, type AppletConfigOptions, type SettingsPrompt } from '../applets/applet-config.js';
 export { createCommonActions, type CommonActionsOptions, type ConsentedSigner, type SignerAndGate } from '../social/common-actions.js';
-export type { AnyKernlModule, IntersectionOf, KernelContext, KernlModule, ModuleApiEntry, ModuleApis, ModuleIdentity, ModuleInstance, ReplaceablePointer } from '../modules/module.js';
+export type { AnyKernlModule, IntersectionOf, KernelContext, KernlModule, ModuleApiEntry, ModuleApis, ModuleIdentity, ModuleInstance, ReplaceablePointer } from '../module-host/module.js';
 export { ASK_KINDS, ASK_REFUSALS, type Ask, type AskAnswer, type AskKind, type AskKinds, type AskRenderer, type AskRenderers, type AskSignal } from '../asks/kinds.js';
 export { createAskChannel, toAskChannel, type AskChannel, type AskChannelOptions, type AskHost } from '../asks/channel.js';
-export { KERNEL_DOMAINS, MODULE_NATIVE_DOMAINS, checkModules, mergeExtensions, setupModules, type ComposedModules, type KernelContextParts } from '../modules/compose.js';
+export { KERNEL_DOMAINS, MODULE_NATIVE_DOMAINS, checkModules, mergeExtensions, setupModules, type ComposedModules, type KernelContextParts } from '../module-host/compose.js';
 export { directoryModule } from '../modules/directory.js';
 export { cacheModule } from '../modules/cache.js';
 export { profilesModule } from '../modules/profiles.js';

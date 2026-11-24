@@ -1,6 +1,6 @@
 import type { BridgeRegistry, TorrentBackend } from '@kernlize/bridges';
 import { createDefaultBridges } from '../bridges/default-registry.js';
-import type { KernlModule } from './module.js';
+import type { KernlModule } from '../module-host/module.js';
 
 /**
  * The bridges: how the shell reaches a locator, from a web address to a magnet link, as

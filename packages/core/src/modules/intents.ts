@@ -1,7 +1,7 @@
 import { createKernlIntents } from '../kernl-intents.js';
 import type { NostrEvent } from '@napplet/core';
 import type { HandlerPrompt, Intents } from '../types.js';
-import type { KernlModule } from './module.js';
+import type { KernlModule } from '../module-host/module.js';
 
 /** kernl's own heading for the handler question. */
 const CHOOSER_TEXT = Object.freeze({ title: 'Choose an applet' });

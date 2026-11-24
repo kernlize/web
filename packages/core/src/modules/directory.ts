@@ -1,5 +1,5 @@
 import { createRelayDirectory, type RelayDirectory, type RelayDirectoryOptions } from '../relays/directory.js';
-import type { KernlModule } from './module.js';
+import type { KernlModule } from '../module-host/module.js';
 
 /**
  * The relay directory: servers the monitors report on, for suggestions and search (D-029). It

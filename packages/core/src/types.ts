@@ -33,7 +33,7 @@ import type { ShortcutKey } from './shortcut-key.js';
 
 export type { ShortcutKey } from './shortcut-key.js';
 export type { MessagingBackendFactories } from './messaging/backend-factories.js';
-import type { AnyKernlModule } from './modules/module.js';
+import type { AnyKernlModule } from './module-host/module.js';
 import type { AskRenderers } from './asks/kinds.js';
 
 

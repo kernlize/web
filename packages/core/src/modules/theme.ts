@@ -1,6 +1,6 @@
 import { createThemeService } from '@kehto/services';
 import type { Theme } from '@napplet/nap/theme/types';
-import type { KernlModule } from './module.js';
+import type { KernlModule } from '../module-host/module.js';
 
 /**
  * What the shell may do with the `theme` domain: tell the applets that are open the colours

@@ -2,7 +2,7 @@ import { describe, expectTypeOf, it } from 'vitest';
 import { createKernl } from '../create-kernl.js';
 import { createKernel } from '../kernl.js';
 import type { Kernel, Kernl, KernlOptions } from '../types.js';
-import { kernlModules } from './default.js';
+import { kernlModules } from '../modules/default.js';
 import type { AnyKernlModule, KernlModule, ModuleApis } from './module.js';
 
 type Clock = KernlModule<'clock', { now(): number }>;

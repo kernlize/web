@@ -2,7 +2,7 @@ import { Subject, Subscription, takeUntil } from 'rxjs';
 import { lookupRelaysOf } from '../applesauce/identity-providers.js';
 import type { RelayDirectory } from '../relays/directory.js';
 import { createAccountMailboxes, type AccountMailboxes, type AccountMailboxesOptions } from '../relays/mailboxes.js';
-import type { KernlModule } from './module.js';
+import type { KernlModule } from '../module-host/module.js';
 
 /**
  * The signed-in identity's inboxes and outboxes (NIP-65): `kernl.mailboxes`. Where the identity

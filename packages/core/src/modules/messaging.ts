@@ -11,7 +11,7 @@ import type { MessagingProviderModule, ProviderParts } from '../messaging/provid
 import { locateRecipients, locateSendRecipients } from '../people/locate-recipients.js';
 import type { People } from '../people/person.js';
 import type { Profiles } from '../profiles/profiles.js';
-import type { KernelContext, KernlModule } from './module.js';
+import type { KernelContext, KernlModule } from '../module-host/module.js';
 
 /** kernl's own words for the reply question. */
 const REPLY_TEXT = Object.freeze({ title: 'How should this reply travel?' });

@@ -27,8 +27,8 @@ import { abbreviate } from './consent/describe-change.js';
 import { createKernlServices, type KernlServiceDeps } from './kernl-services.js';
 import { createShellAdapter } from './kernl-adapter.js';
 import { createAppletLifecycle, resolveWindow } from './kernl-lifecycle.js';
-import { checkModules, setupModules, type ComposedModules, type KernelContextParts } from './modules/compose.js';
-import type { AnyKernlModule, ModuleApis } from './modules/module.js';
+import { checkModules, setupModules, type ComposedModules, type KernelContextParts } from './module-host/compose.js';
+import type { AnyKernlModule, ModuleApis } from './module-host/module.js';
 import { supportsDomainBindings } from './applets/domain-bindings.js';
 
 /** What the kernel reads of a profile to label the session: whether one was found, and its name. */
