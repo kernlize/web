@@ -14,17 +14,11 @@ import type { NostrEvent } from '@napplet/core';
 import type { GuardConfig, GuardEvent, GuardProfile, MitigationDescription, WindowVisibility } from '@kernlize/guard';
 import type { MessagingRegistry, ReplyAnswer, ReplyPrompt } from '@kernlize/messaging';
 import type { BridgeRegistry, ClientFetch, PageScheme, TorrentBackend } from '@kernlize/bridges';
-import type { DownloadClients } from './downloads/download-clients.js';
 import type { SecretsDescription, SecretsProvider } from './secrets/secrets.js';
 import type { CatalogEntry } from './catalog/entry.js';
 import type { KernlMedia } from './media/kernl-media.js';
-import type { Profiles } from './profiles/profiles.js';
-import type { People } from './people/person.js';
 import type { EventCacheOpener } from './cache/connect.js';
-import type { AccountMailboxes } from './relays/mailboxes.js';
-import type { AccountFileServers } from './files/file-servers.js';
 import type { SettingsPrompt } from './applets/applet-config.js';
-import type { RelayDirectory } from './relays/directory.js';
 import type { LoadCatalogOptions } from './catalog/fetch.js';
 import type { HandlerDefaults } from './intents/defaults.js';
 import type { InstalledApplet } from './intents/installed.js';
@@ -32,6 +26,7 @@ import type { ShortcutSettings } from './keys/shortcuts.js';
 import type { ShortcutKey } from './shortcut-key.js';
 
 export type { ShortcutKey } from './shortcut-key.js';
+export type { Kernl, KernlMembers, ModuleMembers } from './kernl-members.js';
 export type { MessagingBackendFactories } from './messaging/backend-factories.js';
 import type { AnyKernlModule } from './module-host/module.js';
 import type { AskRenderers } from './asks/kinds.js';
@@ -578,8 +573,11 @@ export interface GuardFacade {
   release(windowId: string): void;
 }
 
-/** The composed shell. One per page. */
-export interface Kernl {
+/**
+ * The composed shell: the kernel's own members. A host that names its modules gets this with each
+ * module's api beside it; `Kernl` is this with kernl's own (D-062, D-068).
+ */
+export interface Kernel {
   readonly accounts: AccountManager;
   readonly eventStore: EventStore;
   readonly pool: RelayPool;
@@ -592,27 +590,8 @@ export interface Kernl {
   readonly traffic$: Observable<AppletMessage>;
   readonly grants: Grants;
   readonly relays: RelayTiers;
-  /** The person's messaging providers, their order and their reply rule (D-016, D-018). */
-  readonly messaging: MessagingRegistry;
-  readonly bridges: BridgeRegistry;
-  readonly catalog: AppletCatalog;
-  /** People's names and pictures, loaded from their profiles on demand. */
-  readonly profiles: Profiles;
-  /** Finds a person from hex, `npub` or `nprofile`, asking the servers an `nprofile` names. */
-  readonly people: People;
-  /** The signed-in account's published inbox and outbox (NIP-65); the `outbox` tier follows its outboxes. */
-  readonly mailboxes: AccountMailboxes;
-  /** Where the account's uploads go (BUD-03, kind 10063); the defaults while it has no list. */
-  readonly files: AccountFileServers;
-  /** The person's servers, helpers and trusted tool families for meeting people and calling remote tools (D-043). */
-  readonly multiplayer: KernlMultiplayer;
-  /** The download programs the person set up on this device, and the check an address goes through before it is kept (D-050). */
-  readonly downloads: DownloadClients;
   /** How the shell's secrets are kept, so a settings screen can say so (D-052). */
   readonly secrets: SecretsDescription;
-  /** Monitored servers (NIP-66) for completing and suggesting; idle until `start()`. */
-  readonly directory: RelayDirectory;
-  readonly intents: Intents;
   /** The rules for what applets may ask for without the person being asked, and the answers in force. */
   readonly firewall: Firewall;
   /** Media applets play through the shell, and the person's media settings (D-063). */
@@ -637,14 +616,3 @@ export interface Kernl {
   destroy(): void;
 }
 
-/**
- * The members of the shell that modules provide, named by module id. Each is present when its
- * module is loaded, as it is with `kernlModules()` (D-062).
- */
-export type ModuleMembers = 'directory' | 'profiles' | 'people' | 'mailboxes' | 'files' | 'catalog' | 'intents' | 'bridges' | 'downloads' | 'multiplayer' | 'messaging';
-
-/**
- * The shell without the members modules provide: what `createKernl` returns, with each loaded
- * module's api beside it, when the host names its own modules. `Kernl` is this with kernl's own.
- */
-export type Kernel = Omit<Kernl, ModuleMembers>;
