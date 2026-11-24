@@ -1,5 +1,13 @@
 # @kernlize/core
 
+## 0.23.0
+
+### Minor Changes
+
+- 52bf0eb: The bridges are a module, `bridgesModule({ registry, torrent })`, in `kernlModules({ bridges, torrent })`, exposed as `kernl.bridges`. The kernel's `resource` service and downloads resolve through it; without it `resource` is not offered. `KernlOptions.bridges` and `KernlOptions.torrent` still reach it when a host names no modules. `KernlServiceDeps.bridges` is optional.
+- 136b5a9: Applets handing work to each other, the `intent` domain, are a module, `intentsModule()`, in `kernlModules({ intentRetry })`, exposed as `kernl.intents`. Without it `intent` is not offered and `kernl.install` refuses with `unavailable:intents`. `Intents` gains `record(summary)`. `KernelContext` gains `applets()` and `host`. `KernlIntentDeps` takes the signed-in `identity` instead of the account manager.
+- cfdfbf7: Applets' keyboard shortcuts, the `keys` domain, are a module, `keysModule(settings)`, in `kernlModules({ shortcuts })`. Without it `keys` is not offered and leaves the baseline every applet starts with. `KernelContext` gains `isFocused(windowId)`. `KernlServiceDeps.keys: null` leaves the domain to the module, and `KernlServices.keys` may be undefined.
+
 ## 0.22.0
 
 ### Minor Changes
