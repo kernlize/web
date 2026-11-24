@@ -41,6 +41,14 @@ Feature: Ask queues
     Then the ask for window "w1" was answered with nothing
     And the queue shows nothing
 
+  Scenario: a question answered before the kernel withdraws it keeps its answer
+    Given an ask queue for "firewall.approve"
+    When "firewall.approve" is asked for window "w1" with a signal
+    And the person answers yes
+    And the kernel withdraws it
+    Then the ask for window "w1" was answered yes
+    And the queue shows nothing
+
   Scenario: a question withdrawn before it was put in line never waits
     Given an ask queue for "firewall.approve"
     When "firewall.approve" is asked for window "w1" with a signal already aborted
