@@ -156,3 +156,11 @@ test('findKernelModuleImports flags a kernel file importing a module, and lets i
   });
   expect(findKernelModuleImports(join(root, 'src'))).toEqual(['packages/core/src/applets/resolve.ts imports ../catalog/entry.js; the kernel imports no module (D-068)']);
 });
+
+test('findKernelModuleImports counts the mailboxes and the directory as modules, though they sit in relays/', () => {
+  const root = packages({
+    'src/relays/tiers.ts': "import { createMailboxes } from './mailboxes.js';\n",
+    'src/relays/mailboxes.ts': "import { createRelayTiers } from './tiers.js';\n",
+  });
+  expect(findKernelModuleImports(join(root, 'src'))).toEqual(['packages/core/src/relays/tiers.ts imports ./mailboxes.js; the kernel imports no module (D-068)']);
+});
