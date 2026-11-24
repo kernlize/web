@@ -9,7 +9,9 @@ import type { RelayDirectory } from './relays/directory.js';
 import type { EventCacheOpener } from './cache/connect.js';
 import type { ShortcutSettings } from './keys/shortcuts.js';
 import type { AnyKernlModule } from './module-host/module.js';
-import type { AppletCatalog, DirectConnectionsSettings, DownloadsOptions, Intents, Kernel, KernelBaseOptions, KernlMultiplayer, RemoteToolsSettings } from './types.js';
+import type { AppletCatalog } from './catalog/types.js';
+import type { KernlMultiplayer } from './multiplayer/types.js';
+import type { DirectConnectionsSettings, DownloadsOptions, Intents, Kernel, KernelBaseOptions, RemoteToolsSettings } from './types.js';
 
 /** The members of the shell that kernl's own modules provide, by module id (D-062). Each is present when its module is loaded. */
 export interface KernlMembers {

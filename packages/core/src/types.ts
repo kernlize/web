@@ -6,24 +6,22 @@ import type { ShellBridge, ShellEnvironment } from '@kehto/shell';
 import type { Capability } from '@kehto/runtime';
 import type { PermissionRuleAction, PermissionRules } from '@kehto/firewall';
 import type { CvmRegistryFamily } from '@kehto/services';
-import type { MultiplayerSettings } from './multiplayer/settings.js';
 import type { AppletMessage } from './applets/traffic.js';
-import type { ToolFamilyCandidate } from './multiplayer/tool-discovery.js';
 import type { NappletArtifactCache, NappletManifest } from '@kehto/nip/5d';
 import type { NostrEvent } from '@napplet/core';
 import type { GuardConfig, GuardEvent, GuardProfile, MitigationDescription, WindowVisibility } from '@kernlize/guard';
 import type { ReplyAnswer, ReplyPrompt } from '@kernlize/messaging';
 import type { ClientFetch, PageScheme } from '@kernlize/bridges';
 import type { SecretsDescription, SecretsProvider } from './secrets/secrets.js';
-import type { CatalogEntry } from './catalog/entry.js';
 import type { KernlMedia } from './media/kernl-media.js';
 import type { SettingsPrompt } from './applets/applet-config.js';
-import type { LoadCatalogOptions } from './catalog/fetch.js';
 import type { HandlerDefaults } from './intents/defaults.js';
 import type { InstalledApplet } from './intents/installed.js';
 import type { ShortcutKey } from './shortcut-key.js';
 
 export type { ShortcutKey } from './shortcut-key.js';
+export type { AppletCatalog } from './catalog/types.js';
+export type { KernlMultiplayer } from './multiplayer/types.js';
 export type { Kernl, KernlMembers, KernlModuleOptionKeys, KernlModuleOptions, KernlOptions, ModuleMembers } from './kernl-members.js';
 export type { MessagingBackendFactories } from './messaging/backend-factories.js';
 import type { AnyKernlModule } from './module-host/module.js';
@@ -496,26 +494,12 @@ export interface DirectConnectionsSettings {
   readonly createPeer?: (configuration: RTCConfiguration) => RTCPeerConnection;
 }
 
-/** The person's settings for meeting people and calling remote tools, kept on this device, and the search for tool families. */
-export interface KernlMultiplayer extends MultiplayerSettings {
-  /** Find tool families from an announcement reference, a schema hash or a website, over the servers in use (D-043). */
-  discover(input: string): Promise<readonly ToolFamilyCandidate[]>;
-}
-
 /** The host's settings for remote tools. */
 export interface RemoteToolsSettings {
   /** Relays a tool server is looked for on when the applet names none; the general (`super`) tier by default. */
   readonly relays?: readonly string[];
   /** Tool families pinned to verified schemas, for applets that ask by family; none by default. */
   readonly registry?: readonly CvmRegistryFamily[];
-}
-
-/** The applet store's catalogue. */
-export interface AppletCatalog {
-  /** List the applets published to the store's relays, newest first, once every relay has finished. */
-  load(options?: LoadCatalogOptions): Promise<readonly CatalogEntry[]>;
-  /** The same list, emitted again as manifests arrive; completes when every relay has finished. */
-  stream(options?: LoadCatalogOptions): Observable<readonly CatalogEntry[]>;
 }
 
 /** Applets handing work to each other: what is installed, and which applet the user prefers for what. */
