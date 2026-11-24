@@ -1,26 +1,22 @@
-/* global $state, $derived, $effect */
-export interface Notice {
-  readonly id: number;
-  readonly title: string;
-  readonly body?: string;
-  readonly tone: 'info' | 'warning';
-  readonly windowId?: string;
-}
+import { createNoticeStore, type Notice } from '@kernlize/ui-model';
+import { observe } from './observe.svelte';
 
-const LIFETIME_MS: Readonly<Record<Notice['tone'], number>> = { info: 6000, warning: 12_000 };
+export type { Notice };
 
+/** The toasts' binding to the notice store model (#74). */
 export class NoticeStore {
-  items = $state.raw<readonly Notice[]>([]);
-  #next = 1;
+  readonly model = createNoticeStore();
+  readonly #items = observe(this.model.items$, []);
+
+  get items(): readonly Notice[] {
+    return this.#items.value;
+  }
 
   push(notice: Omit<Notice, 'id'>): Notice {
-    const entry: Notice = { ...notice, id: this.#next++ };
-    this.items = [...this.items, entry];
-    setTimeout(() => this.dismiss(entry.id), LIFETIME_MS[notice.tone]);
-    return entry;
+    return this.model.push(notice);
   }
 
   dismiss(id: number): void {
-    this.items = this.items.filter((item) => item.id !== id);
+    this.model.dismiss(id);
   }
 }

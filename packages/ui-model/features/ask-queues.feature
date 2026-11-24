@@ -67,3 +67,13 @@ Feature: Ask queues
     And the renderers made from only the "sign.replace" queue draw only "sign.replace"
     When the "settings.present" renderer is asked for window "w1"
     Then the "settings.present" queue shows the ask for window "w1"
+
+  Scenario: a renderer that is not Svelte draws the same queue and answers it
+    Given an ask queue for "sign.replace" drawn by a plain text renderer
+    When "sign.replace" is asked for window "w1" and for window "w2"
+    Then the plain renderer shows "sign.replace for w1 (1 more)"
+    When the plain renderer's "Allow" is pressed
+    Then the ask for window "w1" was answered yes
+    And the plain renderer shows "sign.replace for w2"
+    When the plain renderer's "Deny" is pressed
+    Then the plain renderer shows "nothing to answer"

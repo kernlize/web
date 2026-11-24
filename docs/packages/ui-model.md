@@ -1,6 +1,6 @@
 # @kernlize/ui-model
 
-Framework-free view models for a kernl shell's panels. A host's UI binds to them and keeps its own look. It holds the grants list and the ask queues. The guard and traffic logs, notices and unread counts move here from kernl.run next (#74).
+Framework-free view models for a kernl shell's panels. A host's UI binds to them and keeps its own look. It holds the grants list, the ask queues, the guard and traffic logs, the notices and the unread count (#74). kernl.run's panels are thin bindings over them.
 
 | Field | Value |
 | --- | --- |
@@ -8,7 +8,7 @@ Framework-free view models for a kernl shell's panels. A host's UI binds to them
 | JSR | `@kernl/ui-model` |
 | Version | `0.1.0` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts` |
-| Dependencies | `@kernlize/core workspace:^` |
+| Dependencies | `@kernlize/core`, `@kernlize/guard`, `@kernlize/messaging` (`workspace:^`), `rxjs ^7.8.2` |
 | Peer dependencies | none |
 | Side effects | none |
 
@@ -75,6 +75,26 @@ consent.current$.subscribe((ask) => draw(ask?.defaultText.title));
 consent.answer(true);
 ```
 
+## Logs, notices and the unread count
+
+These keep order, caps and counts; the words are the host's. All of them are kept in memory only.
+
+- **`createGuardLog(keep = 50)`:** the newest guard events (`events$`), the windows in quarantine (`quarantined$`), and a `total$` that keeps counting after old events go.
+- **`createTrafficLog(keep = 200)`:** what each window sent and received, newest first, with its error and warning marks counted past the rows kept. `retain(ids)` forgets closed windows. The traffic can hold private messages, so it is never stored.
+- **`createNoticeStore(schedule?)`:** each notice goes by itself after `NOTICE_LIFETIME_MS` for its tone, or when dismissed.
+- **`createUnreadCount()`:** counts messages from other people that arrive while the person is elsewhere. A provider's own unread number never goes down, because nothing tells a provider what was read.
+
+A host binds the streams to its framework. kernl.run mirrors them into Svelte state, and a test drives the same ask queue with a plain text renderer.
+
+```ts
+import { createNoticeStore } from '@kernlize/ui-model';
+
+const notices = createNoticeStore();
+const list = document.createElement('ul');
+notices.items$.subscribe((items) => list.replaceChildren(...items.map((item) => Object.assign(document.createElement('li'), { textContent: item.title }))));
+notices.push({ title: 'Saved', tone: 'info' });
+```
+
 ## Exports
 
 | Export | Signature | Description |
@@ -90,7 +110,9 @@ consent.answer(true);
 | `createAskQueue` | `<K extends AskKind>() => AskQueue<K>` | A queue of asks: `waiting$`, `current$`, `enqueue`, `answer`, `dismissWindow`, `forWindow`. |
 | `createAskQueues` | `() => AskQueues` | One queue for each ask kind. |
 | `createAskRenderers` | `(queues: AskQueuesByKind) => AskRenderers` | `KernlHost.asks` over the queues; a kind left out has no renderer, so the kernel refuses it. |
+| `createGuardLog`, `createTrafficLog`, `createNoticeStore`, `createUnreadCount` | factories | The logs, notices and unread count above. |
+| `NOTICE_LIFETIME_MS` | `{ info: 6000, warning: 12000 }` | How long each tone stays on screen. |
 | `PACKAGE_NAME` | `'@kernlize/ui-model'` | |
-| `GrantInput`, `GrantState`, `GrantChoices`, `GrantGroup`, `GrantGroupId`, `GrantRow`, `GrantOp`, `AskQueue`, `AskQueues`, `AskQueuesByKind` | types | |
+| `GrantInput`, `GrantState`, `GrantChoices`, `GrantGroup`, `GrantGroupId`, `GrantRow`, `GrantOp`, `AskQueue`, `AskQueues`, `AskQueuesByKind`, `GuardLog`, `TrafficLog`, `TrafficRow`, `TrafficMarks`, `Notice`, `NoticeStore`, `UnreadCount` | types | |
 
 Generated module: [`_kernlize_ui-model`](../api/modules/_kernlize_ui-model.html){target="_self"}

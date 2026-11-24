@@ -1,3 +1,4 @@
+import { combineLatest } from 'rxjs';
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import { ASK_KINDS, type Ask, type AskKind } from '@kernlize/core/asks';
@@ -135,4 +136,29 @@ When('the {string} renderer is asked for window {string}', (world: QueuesWorld, 
 
 Then('the {string} queue shows the ask for window {string}', (world: QueuesWorld, kind: AskKind, windowId: string) => {
   expect((world.queues as AskQueues)[kind].current()?.windowId).toBe(windowId);
+});
+
+/** A renderer with no framework: the queue's streams become one line of text and two buttons. */
+function plainRenderer(queue: AskQueue<AskKind>): { text(): string; press(button: 'Allow' | 'Deny'): void } {
+  let text = 'nothing to answer';
+  combineLatest([queue.current$, queue.waiting$]).subscribe(([current, waiting]) => {
+    text = current ? `${current.kind} for ${current.windowId}${waiting.length > 1 ? ` (${waiting.length - 1} more)` : ''}` : 'nothing to answer';
+  });
+  return { text: () => text, press: (button) => queue.answer((button === 'Allow') as never) };
+}
+
+Given('an ask queue for {string} drawn by a plain text renderer', (world: QueuesWorld) => {
+  const queue = createAskQueue<AskKind>();
+  state(world).queue = queue;
+  Object.assign(world, { plain: plainRenderer(queue) });
+});
+
+Then('the plain renderer shows {string}', async (world: QueuesWorld, text: string) => {
+  await settle();
+  expect((Reflect.get(world, 'plain') as ReturnType<typeof plainRenderer>).text()).toBe(text);
+});
+
+When("the plain renderer's {string} is pressed", async (world: QueuesWorld, button: 'Allow' | 'Deny') => {
+  (Reflect.get(world, 'plain') as ReturnType<typeof plainRenderer>).press(button);
+  await settle();
 });

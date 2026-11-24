@@ -1,32 +1,21 @@
-/* global $state */
+import { createUnreadCount } from '@kernlize/ui-model';
 import type { MessagingBackend } from '@kernlize/messaging';
+import { observe } from './observe.svelte';
 
-/**
- * Messages that arrived while the user was not looking at them. The count is the shell's own:
- * a provider's unread number never goes down, because nothing tells a provider what was read.
- */
+/** The Messages badge's binding to the unread count model (#74): what arrived while the person was elsewhere. */
 export class UnreadMessages {
-  count = $state(0);
+  readonly model = createUnreadCount();
+  readonly #count = observe(this.model.count$, 0);
 
-  /** Count what arrives from other people until the returned function is called. */
+  get count(): number {
+    return this.#count.value;
+  }
+
   watch(backend: MessagingBackend, reading: () => boolean): () => void {
-    let stopped = false;
-    let subscriptionId: string | undefined;
-    void (async () => {
-      const owner = (await backend.status()).ownerPubkey;
-      const subscription = await backend.subscribe({}, (message) => {
-        if (message.senderPubkey !== owner && !reading()) this.count += 1;
-      });
-      if (stopped) void backend.unsubscribe(subscription.subscriptionId);
-      else subscriptionId = subscription.subscriptionId;
-    })();
-    return () => {
-      stopped = true;
-      if (subscriptionId !== undefined) void backend.unsubscribe(subscriptionId);
-    };
+    return this.model.watch(backend, reading);
   }
 
   clear(): void {
-    this.count = 0;
+    this.model.clear();
   }
 }

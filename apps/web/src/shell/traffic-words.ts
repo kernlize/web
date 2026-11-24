@@ -1,3 +1,4 @@
+import type { TrafficMarks } from '@kernlize/ui-model';
 import type { GuardEvent } from '@kernlize/guard';
 import type { AppletMessage } from './contract';
 
@@ -22,10 +23,7 @@ export interface TrafficEntry {
 }
 
 /** Errors and warnings an applet has had. */
-export interface TrafficMarks {
-  readonly errors: number;
-  readonly warnings: number;
-}
+export type { TrafficMarks } from '@kernlize/ui-model';
 
 /**
  * A row for a message: marked as an error when it reports a failure.

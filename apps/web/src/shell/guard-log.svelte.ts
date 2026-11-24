@@ -1,5 +1,7 @@
-/* global $state, $derived, $effect */
+/* global $state */
+import { createGuardLog } from '@kernlize/ui-model';
 import type { GuardEvent, OpClass } from '@kernlize/guard';
+import { observe } from './observe.svelte';
 
 const KEEP = 50;
 
@@ -48,24 +50,31 @@ export function describeGuardEvent(event: GuardEvent, title: string): string {
   return `Applet ${title} ${guardEventWords(event)}`;
 }
 
+/** The guard panel's binding to the guard log model (#74); the words above are the shell's own. */
 export class GuardLog {
-  events = $state.raw<readonly GuardEvent[]>([]);
-  quarantined = $state.raw<ReadonlySet<string>>(new Set());
-  total = $state(0);
+  readonly model = createGuardLog(KEEP);
+  readonly #events = observe(this.model.events$, []);
+  readonly #quarantined = observe(this.model.quarantined$, new Set<string>());
+  readonly #total = observe(this.model.total$, 0);
+
+  get events(): readonly GuardEvent[] {
+    return this.#events.value;
+  }
+
+  get quarantined(): ReadonlySet<string> {
+    return this.#quarantined.value;
+  }
+
+  get total(): number {
+    return this.#total.value;
+  }
 
   push(event: GuardEvent): void {
-    this.events = [event, ...this.events].slice(0, KEEP);
-    this.total += 1;
-    if (event.disposition === 'quarantine' && !this.quarantined.has(event.windowId)) {
-      this.quarantined = new Set([...this.quarantined, event.windowId]);
-    }
+    this.model.push(event);
   }
 
   released(windowId: string): void {
-    if (!this.quarantined.has(windowId)) return;
-    const next = new Set(this.quarantined);
-    next.delete(windowId);
-    this.quarantined = next;
+    this.model.released(windowId);
   }
 
   forWindow(windowId: string): readonly GuardEvent[] {
