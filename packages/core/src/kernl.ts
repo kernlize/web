@@ -11,7 +11,7 @@ import { createKernlAccounts } from './applesauce/accounts.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
 import type { ProfileCard, Profiles } from './profiles/profiles.js';
 import { createKernlNetwork } from './kernl-network.js';
-import type { ConnectedEventCache } from './cache/connect.js';
+import type { CacheLookup } from './cache-lookup.js';
 import type { Filter, NostrEvent } from 'applesauce-core/helpers';
 import { createRelayTiers } from './relays/tiers.js';
 import { SHELL_RELAY_OPTIONS } from './applesauce/relay-hooks.js';
@@ -244,7 +244,7 @@ export function createKernel<const M extends readonly AnyKernlModule[]>(options:
   const identityOf = (windowId: string): AppletIdentity | undefined => handles.get(windowId)?.summary.identity;
   const modulesSetUp: { composed?: ComposedModules } = {};
   // The cache module's lookup, asked before any relay; nothing is cached until it is set up or when it is left out.
-  const cacheRequest = (filters: Filter[]): Promise<NostrEvent[]> => (modulesSetUp.composed?.apis.cache as ConnectedEventCache | undefined)?.cacheRequest(filters) ?? Promise.resolve([]);
+  const cacheRequest = (filters: Filter[]): Promise<NostrEvent[]> => (modulesSetUp.composed?.apis.cache as CacheLookup | undefined)?.cacheRequest(filters) ?? Promise.resolve([]);
   const { replaceableLoader } = createKernlNetwork({ eventStore, pool, tiers, accounts, cacheRequest });
   const lookupBefore = lookupReplaceable(eventStore, { loader: replaceableLoader, relays: () => [...tiers.get().outbox, ...tiers.get().discovery] });
   // An answer is the asking window's only: it is discarded once that window closed or runs another applet (D-067).

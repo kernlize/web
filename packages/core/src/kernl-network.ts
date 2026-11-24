@@ -6,7 +6,7 @@ import type { AddressPointerLoader } from 'applesauce-loaders/loaders';
 import type { RelayTiers } from './types.js';
 import type { People } from './people/person.js';
 import { createReplaceableLoader, loadReplaceableQuietly } from './applesauce/identity-providers.js';
-import type { ConnectedEventCache } from './cache/connect.js';
+import type { CacheLookup } from './cache-lookup.js';
 import type { Profiles } from './profiles/profiles.js';
 import type { CommonServiceOptions } from '@kehto/services';
 import type { SigningConsent } from './consent/handler.js';
@@ -26,7 +26,7 @@ export interface KernlNetworkParts {
   readonly tiers: RelayTiers;
   readonly accounts: AccountManager;
   /** The cache module's lookup, asked before any relay; nothing is cached without it (D-030, D-062). */
-  readonly cacheRequest?: ConnectedEventCache['cacheRequest'];
+  readonly cacheRequest?: CacheLookup['cacheRequest'];
 }
 
 /**
