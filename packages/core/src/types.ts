@@ -6,32 +6,23 @@ import type { ShellBridge, ShellEnvironment } from '@kehto/shell';
 import type { Capability } from '@kehto/runtime';
 import type { PermissionRuleAction, PermissionRules } from '@kehto/firewall';
 import type { CvmRegistryFamily } from '@kehto/services';
-import type { MultiplayerSettings } from './multiplayer/settings.js';
 import type { AppletMessage } from './applets/traffic.js';
-import type { ToolFamilyCandidate } from './multiplayer/tool-discovery.js';
 import type { NappletArtifactCache, NappletManifest } from '@kehto/nip/5d';
 import type { NostrEvent } from '@napplet/core';
 import type { GuardConfig, GuardEvent, GuardProfile, MitigationDescription, WindowVisibility } from '@kernlize/guard';
-import type { MessagingRegistry, ReplyAnswer, ReplyPrompt } from '@kernlize/messaging';
-import type { BridgeRegistry, ClientFetch, PageScheme, TorrentBackend } from '@kernlize/bridges';
-import type { DownloadClients } from './downloads/download-clients.js';
+import type { ReplyAnswer, ReplyPrompt } from '@kernlize/messaging';
+import type { ClientFetch, PageScheme } from '@kernlize/bridges';
 import type { SecretsDescription, SecretsProvider } from './secrets/secrets.js';
-import type { CatalogEntry } from './catalog/entry.js';
 import type { KernlMedia } from './media/kernl-media.js';
-import type { Profiles } from './profiles/profiles.js';
-import type { People } from './people/person.js';
-import type { EventCacheOpener } from './cache/connect.js';
-import type { AccountMailboxes } from './relays/mailboxes.js';
-import type { AccountFileServers } from './files/file-servers.js';
 import type { SettingsPrompt } from './applets/applet-config.js';
-import type { RelayDirectory } from './relays/directory.js';
-import type { LoadCatalogOptions } from './catalog/fetch.js';
 import type { HandlerDefaults } from './intents/defaults.js';
 import type { InstalledApplet } from './intents/installed.js';
-import type { ShortcutSettings } from './keys/shortcuts.js';
 import type { ShortcutKey } from './shortcut-key.js';
 
 export type { ShortcutKey } from './shortcut-key.js';
+export type { AppletCatalog } from './catalog/types.js';
+export type { KernlMultiplayer } from './multiplayer/types.js';
+export type { Kernl, KernlMembers, KernlModuleOptionKeys, KernlModuleOptions, KernlOptions, ModuleMembers } from './kernl-members.js';
 export type { MessagingBackendFactories } from './messaging/backend-factories.js';
 import type { AnyKernlModule } from './module-host/module.js';
 import type { AskRenderers } from './asks/kinds.js';
@@ -452,7 +443,8 @@ export interface KernlHost {
 }
 
 
-export interface KernlOptions {
+/** What the kernel takes: the host and the parts a host may supply. */
+export interface KernelBaseOptions {
   readonly host: KernlHost;
   readonly relays?: Partial<Record<RelayTier, readonly string[]>>;
   readonly guard?: { readonly profile?: GuardProfile };
@@ -460,47 +452,16 @@ export interface KernlOptions {
   readonly accounts?: AccountManager;
   readonly eventStore?: EventStore;
   readonly pool?: RelayPool;
-  /** A messaging registry the host built, used as is and left open when the shell closes. Read only when `modules` is left out; otherwise pass it to `messagingModule({ registry })`. */
-  readonly messaging?: MessagingRegistry;
-  readonly bridges?: BridgeRegistry;
-  /**
-   * The engine for magnet links when `bridges` is not given. With one, magnet links download
-   * inside kernl instead of handing off to an app on the device (D-017).
-   */
-  readonly torrent?: TorrentBackend;
-  /** Theme pushed to applets that hold `theme:read`. Read only when `modules` is left out; otherwise pass it to `themeModule`. */
-  readonly theme?: Record<string, unknown>;
   /** Opens the verified-artifact cache. Defaults to Cache Storage when the page has it, otherwise none. */
   readonly artifactCache?: () => Promise<NappletArtifactCache | undefined>;
-  /** Opens the event cache, such as `() => openEventCache(defaultWebCacheAdapters())` from `@kernlize/core/cache`. Without one the shell keeps events in memory only (D-030). Read only when `modules` is left out; otherwise pass it to `cacheModule`. */
-  readonly eventCache?: EventCacheOpener;
-  /**
-   * The opinions this shell loads (D-061). `kernlModules()` by default; a module left out is not
-   * offered to applets. Fixed once the shell is composed, because the firewall admits an applet's
-   * domains before its code runs (D-056).
-   */
-  readonly modules?: readonly AnyKernlModule[];
   /** Applets that come with the host, opened by `kernl:<id>` without a lookup. */
   readonly builtins?: readonly BuiltinApplet[];
-  /** How intent delivery waits for a target to come up; `DELIVERY_RETRY` by default. */
-  readonly intentRetry?: { readonly intervalMs: number; readonly attempts: number };
-  /** Where applets' remote tools are looked for, and which tool families the host vouches for (D-041). */
-  readonly remoteTools?: RemoteToolsSettings;
-  /** How applets connect people directly: the relays that introduce them and the ICE servers that help (D-042). */
-  readonly directConnections?: DirectConnectionsSettings;
-  /** How the shell reaches the person's download programs, and whether their domains are offered (D-050). */
-  readonly downloads?: DownloadsOptions;
   /** Where the shell keeps passwords and keys of services it signs in to; the host's storage, as typed, by default (D-052). */
   readonly secrets?: SecretsProvider;
-  /** The chords the shell keeps from applets' keyboard shortcuts, and where key presses are heard (D-054). Read only when `modules` is left out; otherwise pass them to `keysModule`. */
-  readonly shortcuts?: ShortcutSettings;
 }
 
-/** The options `createKernl` reads only to build kernl's own modules when the host names none. */
-export type KernlModuleOptionKeys = 'messaging' | 'bridges' | 'torrent' | 'theme' | 'eventCache' | 'intentRetry' | 'remoteTools' | 'directConnections' | 'downloads' | 'shortcuts';
-
 /** What `createKernel` takes: the host, optional pre-built parts, and the modules, which are all the opinions it loads. */
-export type KernelOptions<M extends readonly AnyKernlModule[] = readonly AnyKernlModule[]> = Omit<KernlOptions, KernlModuleOptionKeys | 'modules'> & { readonly modules: M };
+export type KernelOptions<M extends readonly AnyKernlModule[] = readonly AnyKernlModule[]> = KernelBaseOptions & { readonly modules: M };
 
 /** The host's settings for the `torrent`, `nzb` and `soulseek` domains. */
 export interface DownloadsOptions {
@@ -533,26 +494,12 @@ export interface DirectConnectionsSettings {
   readonly createPeer?: (configuration: RTCConfiguration) => RTCPeerConnection;
 }
 
-/** The person's settings for meeting people and calling remote tools, kept on this device, and the search for tool families. */
-export interface KernlMultiplayer extends MultiplayerSettings {
-  /** Find tool families from an announcement reference, a schema hash or a website, over the servers in use (D-043). */
-  discover(input: string): Promise<readonly ToolFamilyCandidate[]>;
-}
-
 /** The host's settings for remote tools. */
 export interface RemoteToolsSettings {
   /** Relays a tool server is looked for on when the applet names none; the general (`super`) tier by default. */
   readonly relays?: readonly string[];
   /** Tool families pinned to verified schemas, for applets that ask by family; none by default. */
   readonly registry?: readonly CvmRegistryFamily[];
-}
-
-/** The applet store's catalogue. */
-export interface AppletCatalog {
-  /** List the applets published to the store's relays, newest first, once every relay has finished. */
-  load(options?: LoadCatalogOptions): Promise<readonly CatalogEntry[]>;
-  /** The same list, emitted again as manifests arrive; completes when every relay has finished. */
-  stream(options?: LoadCatalogOptions): Observable<readonly CatalogEntry[]>;
 }
 
 /** Applets handing work to each other: what is installed, and which applet the user prefers for what. */
@@ -578,8 +525,11 @@ export interface GuardFacade {
   release(windowId: string): void;
 }
 
-/** The composed shell. One per page. */
-export interface Kernl {
+/**
+ * The composed shell: the kernel's own members. A host that names its modules gets this with each
+ * module's api beside it; `Kernl` is this with kernl's own (D-062, D-068).
+ */
+export interface Kernel {
   readonly accounts: AccountManager;
   readonly eventStore: EventStore;
   readonly pool: RelayPool;
@@ -592,27 +542,8 @@ export interface Kernl {
   readonly traffic$: Observable<AppletMessage>;
   readonly grants: Grants;
   readonly relays: RelayTiers;
-  /** The person's messaging providers, their order and their reply rule (D-016, D-018). */
-  readonly messaging: MessagingRegistry;
-  readonly bridges: BridgeRegistry;
-  readonly catalog: AppletCatalog;
-  /** People's names and pictures, loaded from their profiles on demand. */
-  readonly profiles: Profiles;
-  /** Finds a person from hex, `npub` or `nprofile`, asking the servers an `nprofile` names. */
-  readonly people: People;
-  /** The signed-in account's published inbox and outbox (NIP-65); the `outbox` tier follows its outboxes. */
-  readonly mailboxes: AccountMailboxes;
-  /** Where the account's uploads go (BUD-03, kind 10063); the defaults while it has no list. */
-  readonly files: AccountFileServers;
-  /** The person's servers, helpers and trusted tool families for meeting people and calling remote tools (D-043). */
-  readonly multiplayer: KernlMultiplayer;
-  /** The download programs the person set up on this device, and the check an address goes through before it is kept (D-050). */
-  readonly downloads: DownloadClients;
   /** How the shell's secrets are kept, so a settings screen can say so (D-052). */
   readonly secrets: SecretsDescription;
-  /** Monitored servers (NIP-66) for completing and suggesting; idle until `start()`. */
-  readonly directory: RelayDirectory;
-  readonly intents: Intents;
   /** The rules for what applets may ask for without the person being asked, and the answers in force. */
   readonly firewall: Firewall;
   /** Media applets play through the shell, and the person's media settings (D-063). */
@@ -637,14 +568,3 @@ export interface Kernl {
   destroy(): void;
 }
 
-/**
- * The members of the shell that modules provide, named by module id. Each is present when its
- * module is loaded, as it is with `kernlModules()` (D-062).
- */
-export type ModuleMembers = 'directory' | 'profiles' | 'people' | 'mailboxes' | 'files' | 'catalog' | 'intents' | 'bridges' | 'downloads' | 'multiplayer' | 'messaging';
-
-/**
- * The shell without the members modules provide: what `createKernl` returns, with each loaded
- * module's api beside it, when the host names its own modules. `Kernl` is this with kernl's own.
- */
-export type Kernel = Omit<Kernl, ModuleMembers>;
