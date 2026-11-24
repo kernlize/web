@@ -457,8 +457,7 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
   const guard = createPreviewGuard();
   const grants = createPreviewGrants(host.storage);
   const relays = createPreviewRelays(host.storage);
-  const asks = toAskChannel(host);
-  const messaging = createPreviewMessaging(host.storage, PREVIEW_OWNER, asks.has('messaging.choose-reply') ? (prompt) => asks.ask({ kind: 'messaging.choose-reply', facts: prompt, defaultText: { title: 'How should this reply travel?' } }) : undefined);
+  const messaging = createPreviewMessaging(host.storage, PREVIEW_OWNER, toAskChannel(host));
   const shipped = createPreviewBuiltins(builtins, grants);
   const bridges = createPreviewBridges(host, torrent);
   const session$ = new BehaviorSubject<Session | null>(null);

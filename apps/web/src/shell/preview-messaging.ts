@@ -7,10 +7,10 @@ import {
   createRatchetMessagesProvider,
   type MemoryBackend,
   type MessagingRegistry,
-  type MessagingRegistryOptions,
+  type ReplyPrompt,
   type SavedMessagingPreferences,
 } from '@kernlize/messaging';
-import type { StorageLike } from './contract';
+import type { AskChannel, StorageLike } from './contract';
 
 const PREFERENCES_KEY = 'kernl:preview:messaging:v1';
 const ADA = 'c21d7e4f9a0b3c6d8e1f2a5b7c9d0e3f4a6b8c1d2e5f7a9b0c3d6e8f1a4b7c9d';
@@ -96,12 +96,13 @@ function scripted(backend: MemoryBackend, owner: string, opens: Correspondent, n
  * which the preview has none of, and the ratchet provider is registered and reports
  * itself unavailable, which is the truth in a browser without its runtime.
  */
-export function createPreviewMessaging(storage: StorageLike, owner: string, askReply?: MessagingRegistryOptions['askReply']): MessagingRegistry {
+export function createPreviewMessaging(storage: StorageLike, owner: string, asks?: AskChannel): MessagingRegistry {
   const now = (): number => Math.floor(Date.now() / 1000);
   const registry = createMessagingRegistry({
     preferences: loadPreferences(storage),
     onChange: (preferences) => storage.setItem(PREFERENCES_KEY, JSON.stringify(preferences)),
-    ...(askReply ? { askReply } : {}),
+    // With nothing to draw the reply question the order picks, as in the live shell (D-067).
+    ...(asks?.has('messaging.choose-reply') ? { askReply: (prompt: ReplyPrompt) => asks.ask({ kind: 'messaging.choose-reply', facts: prompt, defaultText: { title: 'How should this reply travel?' } }) } : {}),
   });
   const available = (): { available: true } => ({ available: true });
   registry.register(
