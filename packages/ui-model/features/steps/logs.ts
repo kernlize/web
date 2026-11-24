@@ -1,8 +1,10 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import type { GuardEvent } from '@kernlize/guard';
-import type { DmMessage } from '@napplet/core';
+import type { MessagingBackend } from '@kernlize/messaging';
 import { createGuardLog, createNoticeStore, createTrafficLog, createUnreadCount, type GuardLog, type NoticeStore, type TrafficLog, type UnreadCount } from '@kernlize/ui-model';
+
+type DmMessage = Parameters<Parameters<MessagingBackend['subscribe']>[1]>[0];
 
 interface Row { readonly windowId: string; readonly mark?: 'error' | 'warning'; readonly n: number }
 
@@ -77,7 +79,7 @@ When('window {string} logs rows marked {string} and window {string} logs a row m
 Then('window {string} shows {int} rows, newest first, with {int} error(s) and {int} warning(s) counted', (world: LogsWorld, windowId: string, rows: number, errors: number, warnings: number) => {
   const shown = world.traffic?.forWindow(windowId) ?? [];
   expect(shown.length).toBe(rows);
-  expect(shown.map((entry) => entry.n)).toEqual([...shown.map((entry) => entry.n)].sort((a, b) => b - a));
+  expect(shown.map((entry) => entry.n)).toEqual(shown.map((entry) => entry.n).sort((a, b) => b - a));
   expect(world.traffic?.marks(windowId)).toEqual({ errors, warnings });
 });
 
