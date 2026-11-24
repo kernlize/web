@@ -1,5 +1,5 @@
 import type { CatalogEntry, HandlerPrompt } from './contract';
-import { domainLabel } from './domains';
+import { domainLabel } from '@kernlize/ui-model';
 
 /** An encoded address anywhere in the text, as the core's `decodePointer` finds it: pasted bare, behind `nostr:`, in a link or in a sentence. */
 const SHARED_ADDRESS = /(?:naddr|nevent|note)1[02-9ac-hj-np-z]{20,}/i;

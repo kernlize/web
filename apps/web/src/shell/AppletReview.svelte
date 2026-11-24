@@ -1,7 +1,7 @@
 <script lang="ts">
   import Publisher from './Publisher.svelte';
   import type { AppletSummary, ShellKernl, StorageLike } from './contract';
-  import { grantGroups, grantsToApply, startingChoices, type GrantChoices, type GrantInput, type GrantState } from './domains';
+  import { grantGroups, grantsToApply, startingChoices, type GrantChoices, type GrantInput, type GrantState } from '@kernlize/ui-model';
   import GrantList from './GrantList.svelte';
   import { explainOpenFailure } from './launcher-reasons';
   import { readRemember, writeRemember } from './remember-grants';

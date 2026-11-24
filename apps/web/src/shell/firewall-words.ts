@@ -1,5 +1,5 @@
 import type { Firewall, FirewallChoice, FirewallDecision, FirewallRequest, FirewallRuleTarget, FirewallSummary } from './contract';
-import { domainLabel } from './domains';
+import { domainLabel } from '@kernlize/ui-model';
 
 /** What the firewall does with a request no answer covers. */
 export type RuleAction = 'allow' | 'ask' | 'deny';

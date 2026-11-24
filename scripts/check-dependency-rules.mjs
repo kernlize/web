@@ -6,6 +6,10 @@ import { pathToFileURL } from 'node:url';
 export const FRAMEWORKS = ['svelte', 'react', 'vue', 'preact', 'solid-js', 'lit'];
 export const KEHTO_ALLOWANCES = { guard: ['@kehto/rate-limit'] };
 const LEAF_PACKAGES = ['guard', 'messaging', 'bridges'];
+/** The view models sit over the core, which composes kehto; they reach kehto only through it. */
+const KEHTO_FREE_PACKAGES = [...LEAF_PACKAGES, 'ui-model'];
+/** The package of view models a host's UI binds to; nothing it builds on may import it. */
+export const VIEW_MODEL_PACKAGE = '@kernlize/ui-model';
 const DEPENDENCY_FIELDS = ['dependencies', 'peerDependencies', 'optionalDependencies', 'devDependencies'];
 
 const PACKAGE_SOURCE = /\.(?:ts|mts|js|mjs)$/;
@@ -70,7 +74,7 @@ export function findAppNostrToolsImports(appSrcDir) {
 }
 
 /**
- * Find `@kehto/*` imports in the leaf packages, allowing only `guard → @kehto/rate-limit`.
+ * Find `@kehto/*` imports in the leaf packages and the view models, allowing only `guard → @kehto/rate-limit`.
  * @param {string} packagesDir Absolute path of the packages directory.
  * @returns {string[]} One violation per offending import.
  * @example
@@ -78,11 +82,30 @@ export function findAppNostrToolsImports(appSrcDir) {
  */
 export function findKehtoImports(packagesDir) {
   const violations = [];
-  for (const slug of LEAF_PACKAGES) {
+  for (const slug of KEHTO_FREE_PACKAGES) {
     const allowed = new Set(KEHTO_ALLOWANCES[slug] ?? []);
     for (const file of sourceFiles(join(packagesDir, slug, 'src'))) {
       const offending = importSpecifiers(readFileSync(file, 'utf8')).filter((spec) => spec.startsWith('@kehto/') && !allowed.has(packageOf(spec)));
       for (const spec of offending) violations.push(`${relative(packagesDir, file)} imports ${spec}; only @kernlize/core composes kehto (guard may import @kehto/rate-limit)`);
+    }
+  }
+  return violations;
+}
+
+/**
+ * Find imports of the view models from any other package: the layers below them never depend on
+ * what a UI binds to (#74).
+ * @param {string} packagesDir Absolute path of the packages directory.
+ * @returns {string[]} One violation per offending import.
+ * @example
+ * findViewModelImports('/repo/packages'); // []
+ */
+export function findViewModelImports(packagesDir) {
+  const violations = [];
+  for (const slug of packageSlugs(packagesDir).filter((slug) => slug !== 'ui-model')) {
+    for (const file of sourceFiles(join(packagesDir, slug, 'src'))) {
+      const offending = importSpecifiers(readFileSync(file, 'utf8')).filter((spec) => packageOf(spec) === VIEW_MODEL_PACKAGE);
+      for (const spec of offending) violations.push(`${relative(packagesDir, file)} imports ${spec}; only a host's UI depends on the view models`);
     }
   }
   return violations;
@@ -124,6 +147,7 @@ export function checkDependencyRules(packagesDir, appSrcDir) {
   return [
     ...findNostrToolsImports(packagesDir),
     ...findKehtoImports(packagesDir),
+    ...findViewModelImports(packagesDir),
     ...findFrameworkDependencies(packagesDir),
     ...(appSrcDir ? findAppNostrToolsImports(appSrcDir) : []),
   ];

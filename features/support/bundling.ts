@@ -30,6 +30,10 @@ Given('a host that composes kernl with its own modules', (world: BundleWorld) =>
   world.host = "import { createKernl } from '@kernlize/core';\nexport const compose = (host) => createKernl({ host });";
 });
 
+Given('a host that draws the grants list from the view models', (world: BundleWorld) => {
+  world.host = "import { grantGroups } from '@kernlize/ui-model';\nexport const groups = grantGroups;";
+});
+
 When('the host is bundled for the browser from the built packages', async (world: BundleWorld) => {
   // Resolved from the web app, which depends on the built `@kernlize/core` as any host would.
   const result = await build({
@@ -52,4 +56,9 @@ Then('the bundle holds no code from {string}', (world: BundleWorld, name: string
 
 Then('the bundle holds code from {string}', (world: BundleWorld, name: string) => {
   expect(fromPackage(world.inputs, name).length).toBeGreaterThan(0);
+});
+
+Then('the bundle holds no code from any installed package', (world: BundleWorld) => {
+  // The view models and the seal they read come from the workspace; nothing under node_modules, not rxjs, kehto or applesauce.
+  expect((world.inputs ?? []).filter((path) => path.includes('/node_modules/'))).toEqual([]);
 });

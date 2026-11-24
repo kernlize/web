@@ -1,4 +1,4 @@
-import { MESSAGE_COMPANION_DOMAINS, sealsApplet } from '@kernlize/core';
+import { MESSAGE_COMPANION_DOMAINS, sealsApplet } from '@kernlize/core/seal';
 
 /** Plain words for every domain the shell can offer (D-006). */
 const LABELS: Readonly<Record<string, string>> = {
@@ -31,26 +31,65 @@ const LABELS: Readonly<Record<string, string>> = {
   soulseek: 'shared libraries',
 };
 
-/** What a withheld row says under its label, in the launcher and in the grants panel (D-046). */
+/**
+ * What a withheld row says under its label, in the launcher and in the grants panel (D-046).
+ *
+ * @example
+ * ```ts
+ * WITHHELD_NOTE; // 'off while it can read your messages'
+ * ```
+ */
 export const WITHHELD_NOTE = 'off while it can read your messages';
 
 /**
  * Whether a domain is withheld from an applet given the domains switched on for it: it can read
  * messages, and this domain is not one of the few that cannot send them anywhere (D-046).
+ *
+ * @param domain - The domain to ask about.
+ * @param on - The domains switched on for the applet.
+ * @returns True when the domain is withheld.
+ * @example
+ * ```ts
+ * withheldByMessages('upload', ['dm']); // true
+ * withheldByMessages('theme', ['dm']); // false
+ * ```
  */
 export const withheldByMessages = (domain: string, on: readonly string[]): boolean => sealsApplet(on) && !MESSAGE_COMPANION_DOMAINS.includes(domain);
 
-/** What the launcher says for a domain it has no words for: never the wire name. */
+/**
+ * What the launcher says for a domain it has no words for: never the wire name.
+ *
+ * @example
+ * ```ts
+ * domainLabel('something-new') === UNKNOWN_DOMAIN_LABEL; // true
+ * ```
+ */
 export const UNKNOWN_DOMAIN_LABEL = 'another capability';
 
 /**
  * The contract a grant stands for, as the shell writes it beside the plain words: the NAP domain in
  * capitals (`RESOURCE`, `OUTBOX`). It is an identifier, like an address, so it is the one place the
  * raw name is shown, and only next to words that say what it means (D-057).
+ *
+ * @param domain - The NAP domain.
+ * @returns The domain in capitals.
+ * @example
+ * ```ts
+ * contractName('resource'); // 'RESOURCE'
+ * ```
  */
 export const contractName = (domain: string): string => domain.toUpperCase();
 
-/** Plain words for a grant domain. Unknown domains get a generic label, never their raw name. */
+/**
+ * Plain words for a grant domain. Unknown domains get a generic label, never their raw name.
+ *
+ * @param domain - The NAP domain.
+ * @returns The words the shell shows for it.
+ * @example
+ * ```ts
+ * domainLabel('relay'); // 'network'
+ * ```
+ */
 export const domainLabel = (domain: string): string => (Object.hasOwn(LABELS, domain) ? (LABELS[domain] as string) : UNKNOWN_DOMAIN_LABEL);
 
 /** The domain an applet needs to receive requests other applets hand it. */
@@ -59,7 +98,14 @@ const RECEIVING_DOMAIN = 'intent';
 /** Where a grant row sits: the unsafe combination first, then what the applet requires, what it may use, and anything else a screen offers. */
 export type GrantGroupId = 'unsafe' | 'required' | 'optional' | 'other';
 
-/** Small captions that mark where each group starts. They label; they do not divide. */
+/**
+ * Small captions that mark where each group starts. They label; they do not divide.
+ *
+ * @example
+ * ```ts
+ * GROUP_LABELS.unsafe; // 'Unsafe with messages'
+ * ```
+ */
 export const GROUP_LABELS: Readonly<Record<GrantGroupId, string>> = {
   unsafe: 'Unsafe with messages',
   required: 'Required',
@@ -83,6 +129,7 @@ export interface GrantRow {
   readonly required: boolean;
 }
 
+/** A captioned run of grant rows. */
 export interface GrantGroup {
   readonly id: GrantGroupId;
   readonly label: string;
@@ -225,7 +272,16 @@ export function grantsToApply(input: GrantInput, choices: GrantChoices, state: G
 
 const UNITS = ['B', 'KiB', 'MiB', 'GiB'];
 
-/** `1.5 MiB` style byte counts for the grants panel. */
+/**
+ * `1.5 MiB` style byte counts for the grants panel.
+ *
+ * @param bytes - A byte count.
+ * @returns The count in binary units.
+ * @example
+ * ```ts
+ * formatBytes(1536); // '1.5 KiB'
+ * ```
+ */
 export function formatBytes(bytes: number): string {
   let value = bytes;
   let unit = 0;

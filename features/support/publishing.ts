@@ -6,7 +6,7 @@ import { expect } from 'vitest';
 import ts from 'typescript';
 
 const root = resolve(import.meta.dirname, '../..');
-const slugs = ['bridges', 'core', 'guard', 'messaging'];
+const slugs = ['bridges', 'core', 'guard', 'messaging', 'ui-model'];
 const json = (path: string) => JSON.parse(readFileSync(path, 'utf8'));
 
 Given('the publishable workspace packages', () => {
@@ -32,12 +32,16 @@ Then('JSR packages use the kernl scope and TypeScript exports', () => {
   }
 });
 Then('JSR internal dependencies use the matching workspace versions', () => {
-  const core = json(join(root, '.jsr/core/deno.json'));
-  for (const slug of slugs.filter((name) => name !== 'core')) {
-    const pkg = json(join(root, 'packages', slug, 'package.json'));
-    expect(core.imports[pkg.name]).toBe(`jsr:@kernl/${slug}@^${pkg.version}`);
+  // Each package maps the workspace packages it depends on, whichever way round they stand.
+  const versionOf = (name: string): string => json(join(root, 'packages', name.replace('@kernlize/', ''), 'package.json')).version;
+  for (const slug of slugs) {
+    const deno = json(join(root, '.jsr', slug, 'deno.json'));
+    const internal = Object.keys(json(join(root, 'packages', slug, 'package.json')).dependencies ?? {}).filter((name) => name.startsWith('@kernlize/'));
+    for (const name of internal) expect(deno.imports[name]).toBe(`jsr:@kernl/${name.replace('@kernlize/', '')}@^${versionOf(name)}`);
   }
-  expect(core.imports['rxjs']).toBe('npm:rxjs@7.8.2');
+  expect(json(join(root, '.jsr/core/deno.json')).imports['@kernlize/guard']).toBeDefined();
+  expect(json(join(root, '.jsr/ui-model/deno.json')).imports['@kernlize/core']).toBe(`jsr:@kernl/core@^${versionOf('@kernlize/core')}`);
+  expect(json(join(root, '.jsr/core/deno.json')).imports['rxjs']).toBe('npm:rxjs@7.8.2');
 });
 Then('JSR sources exclude tests and resolve relative TypeScript imports', () => {
   const check = (dir: string) => {

@@ -1,6 +1,6 @@
 # Packages
 
-kernl has four packages. Each has two names: `@kernlize/*` on npm and `@kernl/*` on JSR, for the same code at the same version. Neither registry has a release yet (see [Install](#install)). Three are pure contracts and engines with zero framework dependencies; one composes them with kehto and applesauce. The shell app at `apps/web` is not published.
+kernl has five packages. Each has two names: `@kernlize/*` on npm and `@kernl/*` on JSR, for the same code at the same version. Neither registry has a release yet (see [Install](#install)). Three are pure contracts and engines with zero framework dependencies; one composes them with kehto and applesauce; and one holds framework-free view models for a shell's panels over it. The shell app at `apps/web` is not published.
 
 | npm | Version | JSR | Role | Dependencies | Peer dependencies |
 | --- | --- | --- | --- | --- | --- |
@@ -8,6 +8,7 @@ kernl has four packages. Each has two names: `@kernlize/*` on npm and `@kernl/*`
 | [`@kernlize/messaging`](./messaging.md) | `0.4.1` | `@kernl/messaging` | Messaging provider contract, registry, composite direct-message adapter, in-memory backend. | none | `@napplet/core` (the `Dm*` wire types) |
 | [`@kernlize/bridges`](./bridges.md) | `0.3.0` | `@kernl/bridges` | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy. | none | none |
 | [`@kernlize/core`](./core.md) | `0.26.0` | `@kernl/core` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts, persistence. | the three above, `@kehto/*`, `applesauce-*`, `rxjs` | `@napplet/core`, `@napplet/nap`, `@napplet/shim`, `nostr-tools` (required by kehto and applesauce; never imported) |
+| [`@kernlize/ui-model`](./ui-model.md) | `0.1.0` | `@kernl/ui-model` | Framework-free view models for a shell's panels: the grants list today, the ask queues and logs next (#74). | `@kernlize/core` | none |
 
 ## Shared rules
 
@@ -31,6 +32,7 @@ Every package has an npm name and a JSR name. The code, the exports and the vers
 | `packages/messaging` | `@kernlize/messaging` | `@kernl/messaging` |
 | `packages/bridges` | `@kernlize/bridges` | `@kernl/bridges` |
 | `packages/core` | `@kernlize/core` | `@kernl/core` |
+| `packages/ui-model` | `@kernlize/ui-model` | `@kernl/ui-model` |
 
 After the first release, install from either registry:
 

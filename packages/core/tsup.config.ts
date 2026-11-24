@@ -28,6 +28,8 @@ export default defineConfig({
     'wm/index': 'src/wm/index.ts',
     'crypto/index': 'src/crypto/index.ts',
     'cache/index': 'src/cache/index.ts',
+    // The message seal alone, for view models that must load before the core (#74).
+    'seal/index': 'src/seal/index.ts',
     'sqlite-worker': 'src/cache/sqlite-worker.ts',
   },
   format: ['esm'],

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { FirewallRuleTarget, ShellKernl } from './contract';
-  import { domainLabel } from './domains';
+  import { domainLabel } from '@kernlize/ui-model';
   import { actionWords, decisionWords, inheritWords, LINK_REQUEST, RULE_ACTIONS, ruleChoice, toRuleAction } from './firewall-words';
   import { observe } from './observe.svelte';
   import Overlay from './Overlay.svelte';

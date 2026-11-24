@@ -38,6 +38,7 @@ const page = (name, version = '0.1.0') =>
 test('typedocModuleFile mirrors TypeDoc package naming', () => {
   expect(typedocModuleFile('@kernlize/guard')).toBe('_kernlize_guard.html');
   expect(typedocModuleFile('@kernlize/core')).toBe('_kernlize_core.html');
+  expect(typedocModuleFile('@kernlize/ui-model')).toBe('_kernlize_ui-model.html');
 });
 
 test('publicPackages lists scoped packages sorted by slug and skips others', () => {
