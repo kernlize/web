@@ -5,7 +5,7 @@ import type { AccountManager, IAccount } from 'applesauce-accounts';
 import type { BridgeRegistry } from '@kernlize/bridges';
 import { buildShellCapabilities, createShellBridge, type ShellAdapter, type ShellBridge } from '@kehto/shell';
 import { QUARANTINE_WINDOW_MS, createGuardConfig, describeMitigations, type GuardConfig, type GuardEvent } from '@kernlize/guard';
-import type { AppletIdentity, AppletStopLimit, GuardFacade, Intents, Kernel, KernelOptions, Kernl, RelayTiers, Session } from './types.js';
+import type { AppletIdentity, AppletStopLimit, GuardFacade, Intents, Kernel, KernelOptions, RelayTiers, Session } from './types.js';
 import { createStorageSecrets } from './secrets/secrets.js';
 import { createKernlAccounts } from './applesauce/accounts.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
@@ -80,7 +80,7 @@ function followShellState({ bridge, accounts, session$, profiles }: ShellState):
 }
 
 /** Signing in and out. The session itself is a getter on the shell, so spreading this never copies a stale value. */
-function createSignIn(accounts: AccountManager): Pick<Kernl, 'login' | 'logout'> {
+function createSignIn(accounts: AccountManager): Pick<Kernel, 'login' | 'logout'> {
   return {
     async login(account) {
       if (!accounts.getAccount(account.id)) accounts.addAccount(account);
