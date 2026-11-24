@@ -72,10 +72,10 @@ Create `apps/my-host/index.html`. The `<meta>` in the head is kernl's frame poli
 
 ## 3. Implement the host
 
-Create `apps/my-host/src/main.ts`. The core never touches the page directly; everything it needs from the page goes through a `KernlHost`. This one stores in `localStorage`, asks with `window.confirm`, and reports visibility from the document.
+Create `apps/my-host/src/main.ts`. The core never touches the page directly; everything it needs from the page goes through a `KernlHost`. This one stores in `localStorage`, draws the one question it shows, a destructive write, with `window.confirm`, and reports visibility from the document. A question the host has no renderer for is refused ([Asks](../concepts/asks.md)).
 
 ```ts
-import { createKernl, type ConsentPrompt, type KernlHost } from '@kernlize/core';
+import { createKernl, type Ask, type KernlHost } from '@kernlize/core';
 import type { WindowVisibility } from '@kernlize/guard';
 
 const status = document.querySelector<HTMLParagraphElement>('#status')!;
@@ -86,14 +86,14 @@ function visibilityOf(windowId: string): WindowVisibility {
   return { visible, focused: visible && document.hasFocus() };
 }
 
-function describe(prompt: ConsentPrompt): string {
-  const lines = prompt.summary.lines.map((line) => `${line.label}: ${line.before ?? '-'} -> ${line.after ?? '-'}`);
-  return [prompt.summary.title, ...lines].join('\n');
+function describe(ask: Ask<'sign.replace'>): string {
+  const lines = ask.defaultText.lines.map((line) => `${line.label}: ${line.before ?? '-'} -> ${line.after ?? '-'}`);
+  return [ask.defaultText.title, ...lines].join('\n');
 }
 
 const host: KernlHost = {
   storage: localStorage,
-  presentConsent: (prompt) => prompt.resolve(window.confirm(describe(prompt))),
+  asks: { 'sign.replace': (ask) => window.confirm(describe(ask)) },
   notify: (notice) => {
     status.textContent = `${notice.title}${notice.body ? `: ${notice.body}` : ''}`;
   },
@@ -203,8 +203,8 @@ document.addEventListener('visibilitychange', () => {
 
 A page that is a complete kernl host: it verifies an applet before running it, runs it in a frame with no network of its own, keeps the guard informed, and stops the applet when the guard quarantines it. Three things this page leaves out on purpose:
 
-- **Signing.** A read-only account cannot sign, so the consent prompt never appears. With a signing account, an applet that tries to change your profile, follows, connections or lists, or to delete something, reaches `presentConsent` first, and a "no" fails the write with `denied:consent`.
-- **Firewall questions.** The host has no `presentApproval`, so a request a firewall rule says to ask about is refused. With kernl's shipped rules that is every link an applet opens, which needs the `link` grant this page never gives. [Embed kernl core](../how-tos/embed-kernl-core.md#_2-implement-kernlhost-and-create-the-shell) adds it.
+- **Signing.** A read-only account cannot sign, so the consent prompt never appears. With a signing account, an applet that tries to change your profile, follows, connections or lists, or to delete something, reaches the `sign.replace` renderer first, and a "no" fails the write with `denied:consent`.
+- **Firewall questions.** The host has no `firewall.approve` renderer, so a request a firewall rule says to ask about is refused. With kernl's shipped rules that is every link an applet opens, which needs the `link` grant this page never gives. [Embed kernl core](../how-tos/embed-kernl-core.md#_2-implement-kernlhost-and-create-the-shell) adds it.
 - **Grants.** The page never calls `kernl.grants.allowDomain`, so applets get only the baseline (`shell`, `inc`, `theme`, `storage`, `keys`) and are not told who is signed in. [Grant and revoke](../how-tos/grant-and-revoke.md) shows the calls.
 
 ## Where next

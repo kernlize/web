@@ -79,13 +79,10 @@ describe('boot', () => {
     expect(modules).toHaveBeenCalledWith({ eventCache: expect.any(Function), shortcuts: { reserved: ['Alt+/'] }, torrent: expect.anything() });
   });
 
-  it('hands the host\'s settings form to the modules, so applets can open their settings', async () => {
-    const show = vi.fn();
+  it('leaves the settings form to the host\'s settings renderer, which the settings module draws through', async () => {
     const { boot } = await bootWith({ createKernl: vi.fn(() => ({ pool: {} })), kernlModules: modules });
-    await boot({ ...host, presentSettings: show }, new URLSearchParams());
-    const { presentSettings } = modules.mock.calls.at(-1)?.[0] as { presentSettings?: (prompt: unknown) => void };
-    presentSettings?.({ title: 'Chat' });
-    expect(show).toHaveBeenCalledWith({ title: 'Chat' });
+    await boot(host, new URLSearchParams());
+    expect(modules.mock.calls.at(-1)?.[0]).not.toHaveProperty('presentSettings');
   });
 
   it('gives the preview no theme when the page has none', async () => {

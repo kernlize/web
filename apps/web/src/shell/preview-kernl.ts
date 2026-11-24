@@ -24,7 +24,7 @@ import {
   type VisibilityGate,
   type WindowVisibility,
 } from '@kernlize/guard';
-import { createKernlMedia, describeAppletMessage, domainsInForce, grantNarrowingReason, type AppletMessage, type AppletMessageDirection } from '@kernlize/core';
+import { createKernlMedia, describeAppletMessage, toAskChannel, domainsInForce, grantNarrowingReason, type AppletMessage, type AppletMessageDirection } from '@kernlize/core';
 import { BehaviorSubject, of, Subject, type Subscription } from 'rxjs';
 import type {
   AppletHandle,
@@ -218,7 +218,7 @@ function createActions({ host, bridges, pubkeyOf, intents, config }: ActionParts
    * publishes go straight out. Imported on first use so the core stays out of the shell's first chunk.
    */
   const publish = async (entry: Mounted, draft: Draft): Promise<void> => {
-    const { describeChange, isDestructiveKind, toAskChannel } = await import('@kernlize/core');
+    const { describeChange, isDestructiveKind } = await import('@kernlize/core');
     const now = Math.floor(Date.now() / 1000);
     const event = { id: '0'.repeat(64), pubkey: pubkeyOf(), created_at: now, sig: '', ...draft };
     const summary: ConsentSummary = describeChange(event, undefined, entry.plan.summary.identity);
@@ -457,7 +457,8 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
   const guard = createPreviewGuard();
   const grants = createPreviewGrants(host.storage);
   const relays = createPreviewRelays(host.storage);
-  const messaging = createPreviewMessaging(host.storage, PREVIEW_OWNER, host.chooseReply?.bind(host));
+  const asks = toAskChannel(host);
+  const messaging = createPreviewMessaging(host.storage, PREVIEW_OWNER, asks.has('messaging.choose-reply') ? (prompt) => asks.ask({ kind: 'messaging.choose-reply', facts: prompt, defaultText: { title: 'How should this reply travel?' } }) : undefined);
   const shipped = createPreviewBuiltins(builtins, grants);
   const bridges = createPreviewBridges(host, torrent);
   const session$ = new BehaviorSubject<Session | null>(null);

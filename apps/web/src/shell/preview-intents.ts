@@ -1,5 +1,5 @@
 import { BehaviorSubject, Subject } from 'rxjs';
-import type { HandlerDefaults, InstallableApplet, InstalledApplet, InstalledApplets, IntentDeliveryOptions, IntentRouter } from '@kernlize/core';
+import type { HandlerDefaults, HandlerPrompt, InstallableApplet, InstalledApplet, InstalledApplets, IntentDeliveryOptions, IntentRouter } from '@kernlize/core';
 import type { Intents, KernlHost, StorageLike } from './contract';
 import { readStored } from './preview-state';
 
@@ -116,10 +116,11 @@ export function createPreviewIntents(deps: PreviewIntentDeps): PreviewIntents {
         },
         retry: deps.retry,
       });
+      const asks = core.toAskChannel(deps.host);
       return core.createIntentRouter({
         installed,
         defaults,
-        ...(deps.host.chooseHandler ? { choose: deps.host.chooseHandler.bind(deps.host) } : {}),
+        ...(asks.has('intent.choose-handler') ? { choose: (prompt: HandlerPrompt) => asks.ask({ kind: 'intent.choose-handler', facts: prompt, defaultText: { title: 'Choose an applet' } }) } : {}),
         describeSender: titleOf,
         deliver: (params) =>
           deliver(params).catch((error: Error) => {

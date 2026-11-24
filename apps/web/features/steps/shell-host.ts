@@ -1,7 +1,9 @@
 import { expect, vi } from 'vitest';
 import { After, Given, Then, When } from 'quickpickle';
 import type { GuardProfile } from '@kernlize/guard';
-import type { AppletStopLimit, ConsentPrompt, KernlHost, StorageLike } from '../../src/shell/contract.ts';
+import { ASK_KINDS, type AskKind, type AskRenderer, type FirewallSummary, type SettingsPrompt } from '@kernlize/core';
+import type { ReplyPrompt } from '@kernlize/messaging';
+import type { AppletStopLimit, ConsentPrompt, FirewallPrompt, KernlHost, StorageLike } from '../../src/shell/contract.ts';
 import { createHost, pickStorage, PREVIEW_STORAGE_PREFIX, scopedStorage, type AppletOpener } from '../../src/shell/host.ts';
 import { SHELL_CHORDS, shellShortcut, type ShortcutRunner } from '../../src/shell/shortcuts.ts';
 import { describeStop, type StopReport } from '../../src/shell/stop-words.ts';
@@ -21,7 +23,7 @@ interface FakeWindow {
 interface HostScratch {
   readonly host: KernlHost;
   readonly queued: ConsentPrompt[];
-  readonly firewallQueued: unknown[];
+  readonly firewallQueued: FirewallPrompt[];
   readonly settings: unknown[];
   readonly notices: unknown[];
   readonly windows: Map<string, FakeWindow>;
@@ -104,7 +106,7 @@ Given('the shell host with window {string} titled {string}', (world: HostWorld, 
   const notices: unknown[] = [];
   const windows = new Map<string, FakeWindow>([[windowId, { title }]]);
   const opened: unknown[][] = [];
-  const firewallQueued: unknown[] = [];
+  const firewallQueued: FirewallPrompt[] = [];
   const confirmations: string[] = [];
   const asked: unknown[] = [];
   const focused: string[] = [];
@@ -144,12 +146,17 @@ Given('the shell host with window {string} titled {string}', (world: HostWorld, 
   world.shellHost = scratch;
 });
 
+/** The host's renderer for a kind, which the shell host always registers. */
+function drawOf<K extends AskKind>(host: KernlHost, kind: K): AskRenderer<K> {
+  return host.asks?.[kind] as AskRenderer<K>;
+}
+
 Then('the shell host forwards consent, notices and visibility for window {string}', (world: HostWorld, windowId: string) => {
   const scratch = hostOf(world);
-  const prompt = fake<ConsentPrompt>({ summary: { title: 'Delete a note' }, resolve: () => undefined });
-  scratch.host.presentConsent(prompt);
+  const summary = fake<ConsentPrompt['summary']>({ title: 'Delete a note' });
+  void drawOf(scratch.host, 'sign.replace')(fake({ kind: 'sign.replace', defaultText: summary }));
   scratch.host.notify({ title: 'Saved', tone: 'info' });
-  expect(scratch.queued).toEqual([prompt]);
+  expect(scratch.queued.map((queued) => queued.summary)).toEqual([summary]);
   expect(scratch.notices).toEqual([{ title: 'Saved', tone: 'info' }]);
   expect(scratch.host.getVisibility(windowId)).toEqual({ visible: true, focused: false });
   expect(scratch.host.storage.getItem('anything')).toBeNull();
@@ -158,7 +165,7 @@ Then('the shell host forwards consent, notices and visibility for window {string
 Then('the shell host asks the chooser, opens applets through the desktop once it can, and brings windows forward', async (world: HostWorld) => {
   const scratch = hostOf(world);
   const prompt = { archetype: 'profile', action: 'open', convention: 'napplet:profile/open', source: 'Notes', options: [] };
-  expect(await scratch.host.chooseHandler?.(prompt)).toEqual({ id: 'picked', remember: true });
+  expect(await drawOf(scratch.host, 'intent.choose-handler')(fake({ kind: 'intent.choose-handler', facts: prompt }))).toEqual({ id: 'picked', remember: true });
   expect(scratch.asked).toEqual([prompt]);
   expect(await scratch.host.openApplet?.('naddr1x')).toBeUndefined();
   scratch.opener.open = async (address) => `window-for-${address}`;
@@ -183,9 +190,10 @@ Then('the shell host did not ask again', (world: HostWorld) => {
 
 Then('the shell host puts a firewall question in the firewall queue', (world: HostWorld) => {
   const scratch = hostOf(world);
-  const prompt = { summary: { kind: 'link' }, resolve: () => undefined };
-  scratch.host.presentApproval?.(prompt as never);
-  expect(scratch.firewallQueued).toEqual([prompt]);
+  const facts = fake<FirewallSummary>({ kind: 'link' });
+  const signal = new AbortController().signal;
+  void drawOf(scratch.host, 'firewall.approve')(fake({ kind: 'firewall.approve', facts, signal }));
+  expect(scratch.firewallQueued.map((queued) => ({ summary: queued.summary, signal: queued.signal }))).toEqual([{ summary: facts, signal }]);
 });
 
 Then('the shell host asked before opening {string}', (world: HostWorld, url: string) => {
@@ -236,16 +244,29 @@ Then('the shell host warns {string} because {string} for window {string}', (worl
 Then('the shell host puts the reply question to the reply dialog', async (world: HostWorld) => {
   const scratch = hostOf(world);
   const provider = { id: 'private', name: 'Private messages' };
-  const prompt = fake<Parameters<NonNullable<KernlHost['chooseReply']>>[0]>({ peer: { pubkey: 'ab'.repeat(32) }, theirs: provider, mine: provider });
-  expect(await scratch.host.chooseReply?.(prompt)).toEqual({ use: 'theirs', remember: 'conversation' });
+  const prompt = fake<ReplyPrompt>({ peer: { pubkey: 'ab'.repeat(32) }, theirs: provider, mine: provider });
+  expect(await drawOf(scratch.host, 'messaging.choose-reply')(fake({ kind: 'messaging.choose-reply', facts: prompt }))).toEqual({ use: 'theirs', remember: 'conversation' });
   expect(scratch.asked).toEqual([prompt]);
 });
 
 Then('the shell host shows an applet\'s settings in the settings form', (world: HostWorld) => {
   const scratch = hostOf(world);
-  const prompt = fake<Parameters<NonNullable<KernlHost['presentSettings']>>[0]>({ title: 'Notes', context: { schema: {}, values: {}, commit: (values: unknown) => values } });
-  scratch.host.presentSettings?.(prompt);
+  const prompt = fake<SettingsPrompt>({ title: 'Notes', context: { schema: {}, values: {}, commit: (values: unknown) => values } });
+  void drawOf(scratch.host, 'settings.present')(fake({ kind: 'settings.present', facts: prompt }));
   expect(scratch.settings).toEqual([prompt]);
+});
+
+Then('the shell host draws every kind of question the kernel asks, through no prompt callback', (world: HostWorld) => {
+  const { host } = hostOf(world);
+  expect(Object.keys(host.asks ?? {}).sort()).toEqual([...ASK_KINDS].sort());
+  for (const callback of ['presentConsent', 'presentApproval', 'chooseHandler', 'chooseReply', 'presentSettings']) expect(callback in host).toBe(false);
+});
+
+Then('an upload, a download and a direct session wait in the consent queue with kernl\'s words', (world: HostWorld) => {
+  const scratch = hostOf(world);
+  const kinds = ['upload.file', 'download.add', 'connection.direct'] as const;
+  for (const kind of kinds) void drawOf(scratch.host, kind)(fake({ kind, defaultText: fake<ConsentPrompt['summary']>({ title: kind }) }));
+  expect(scratch.queued.map((queued) => queued.summary.title)).toEqual([...kinds]);
 });
 
 interface ScopedWorld extends HostWorld {

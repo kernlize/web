@@ -1,6 +1,6 @@
 # Embed kernl core
 
-`apps/web` is one host for `@kernlize/core`; your own page can be another. This how-to implements `KernlHost`, calls `createKernl`, and mounts an applet in an iframe you own. The sample is type-checked with `strict` on by `node scripts/check-doc-samples.mjs`, part of `pnpm docs:check`. For a slower, step-by-step version with a complete page, follow the tutorial [Embed kernl in a page](../tutorials/embed-a-host-page.md).
+`apps/web` is one host for `@kernlize/core`; your own page can be another. This how-to implements `KernlHost` with renderers for the questions the kernel asks, calls `createKernl`, and mounts an applet in an iframe you own. The sample is type-checked with `strict` on by `node scripts/check-doc-samples.mjs`, part of `pnpm docs:check`. For a slower, step-by-step version with a complete page, follow the tutorial [Embed kernl in a page](../tutorials/embed-a-host-page.md).
 
 The packages are not released yet, neither on npm (`@kernlize/*`) nor on JSR (`@kernl/*`), so your page lives in a clone of the kernl source as a workspace package that depends on `@kernlize/core` and `@kernlize/guard` with `workspace:^`, and you run `pnpm build` first ([Packages](../packages/index.md#install)).
 
@@ -16,25 +16,38 @@ Put it in the `<head>` of the HTML the server sends, before any script runs, as 
 
 ## 2. Implement `KernlHost` and create the shell
 
-`KernlHost` is the only way the core reaches the user or the page. Six members are required:
+`KernlHost` is the only way the core reaches the user or the page. Five members are required, and `asks` is how the person is asked anything:
 
 | Member | What the core expects |
 | --- | --- |
 | `storage` | A synchronous `StorageLike` (`getItem`, `setItem`, `removeItem`). `localStorage` satisfies it. Grants, accounts, relay tiers and messaging preferences persist here under `kernl:` keys. |
-| `presentConsent(prompt)` | Called when an applet window asks to sign, through `relay.publish` or `outbox.publish`, a destructive change: any replaceable or addressable kind (profile, follows, inbox and outbox, lists, other records), a deletion or a request to vanish. The core looks up the current version first, waiting up to `CURRENT_VERSION_TIMEOUT_MS` for the network, so the prompt can arrive a few seconds after the request. `prompt.summary.event` is the unsigned draft. Show `prompt.summary` (title, lines) and call `prompt.resolve(true \| false)`. `false`, which you also send on dismiss, makes signing fail with `denied:consent`. The core never times out. Routine writes never reach this hook. |
 | `notify(notice)` | Show `{ title, body?, windowId?, tone }`. Applets reach it through the `notify` domain; the guard and revocations use it too. |
 | `openLink(url, options?)` | Open a URL outside the shell. For an applet's link it is called only after the link service allowed the protocol (`https:`, `mailto:`) and the firewall let that exact link through, and then `options.approved` is `true`: the user was already asked, or a rule of theirs allows it, so do not ask again. Without `approved`, for example when a bridge hands a download to an app on the device, confirming with the user is your choice. |
 | `getVisibility(windowId)` | Current visibility for a window, when the core needs it synchronously: return `{ visible, focused, msSinceFocusGain? }`. The guard asks the first time it meets a window you have not reported with `handle.setVisibility`; after that it uses what you report. |
+| `asks` | One renderer per kind of question, `(ask) => answer`. Every ask carries its `facts` and kernl's own words as `defaultText`, which you may reword ([Asks](../concepts/asks.md)). A kind you register no renderer for is refused, never allowed, so register those your page can show. |
 | `onRevoked(windowId, reason, details?)` | Called after the core removed a frame because its binding was revoked (`quarantine`, `second-load`, `grant-narrowed`, `firewall`, …). `details` carries kehto's diagnostic line and, for a quarantine, the limit crossed. Update your UI. |
 
 `fetchBlob` and `now` are optional; without them the core fetches artifact blobs with `defaultFetchBlob` and uses `Date.now`.
 
 If your shell has keyboard shortcuts of its own, name them in `createKernl({ shortcuts: { reserved: ['Alt+/'] } })` so no applet is given them, and implement `onShortcut(key)`: a key pressed inside an applet that holds no binding for it arrives there, and without it your shortcuts stop working whenever an applet has focus.
 
-`presentApproval(prompt)` is optional too, but a host that shows applets links needs it. kehto's firewall decides every request, and kernl's shipped rules ask the user about each link an applet opens ([Guard](../concepts/guard.md#the-firewall)). The question arrives as a `FirewallPrompt`: show `prompt.summary` (`kind`, the `applet`, the `requests`, each with a `domain`, an `operation` and a `target`), then call `prompt.resolve` with one of `summary.choices`, or with `undefined` on dismiss. Close your dialog when `prompt.signal` aborts. Without `presentApproval`, a request a rule says to ask about is refused, so no applet can open a link.
+Two renderers matter to almost every host:
+
+- **`sign.replace`** is asked when an applet window asks to sign a destructive change, through `relay.publish` or `outbox.publish`. That covers any replaceable or addressable kind (profile, follows, inbox and outbox, lists, other records), a deletion and a request to vanish.
+  - The core first looks up the current version, waiting up to `CURRENT_VERSION_TIMEOUT_MS` for the network, so the question can arrive a few seconds after the request.
+  - `ask.facts.draft` is the unsigned draft and `ask.facts.before` the version it replaces, when found. `ask.defaultText` is kernl's summary (title, lines).
+  - Resolve `true` or `false`. `false`, which you also give on dismiss, makes signing fail with `denied:consent`.
+  - The core never times this question out, and routine writes never reach it.
+- **`firewall.approve`** is asked about each link an applet opens, under kernl's shipped rules ([Guard](../concepts/guard.md#the-firewall)).
+  - `ask.facts` is a `FirewallSummary`: its `kind`, the `applet`, and the `requests`, each with a `domain`, an `operation` and a `target`.
+  - Resolve one of `facts.choices`, or `undefined` on dismiss.
+  - Close your dialog when `ask.signal` aborts.
+  - Without this renderer, a request a rule says to ask about is refused, so no applet can open a link.
+
+The other kinds are `upload.file`, `download.add`, `connection.direct`, `intent.choose-handler`, `messaging.choose-reply` and `settings.present`; [the core package](../packages/core.md#asks) lists each one's facts and refusal. The `presentConsent`, `presentApproval`, `chooseHandler`, `chooseReply` and `presentSettings` callbacks still work for one minor, but new hosts should use `asks`.
 
 ```ts
-import { createKernl, type AppletHandle, type ConsentPrompt, type FirewallPrompt, type KernlHost } from '@kernlize/core';
+import { createKernl, type AppletHandle, type Ask, type KernlHost } from '@kernlize/core';
 import type { WindowVisibility } from '@kernlize/guard';
 import { ReadonlyAccount } from 'applesauce-accounts/accounts';
 
@@ -47,23 +60,25 @@ function visibilityOf(windowId: string): WindowVisibility {
   return { visible, focused: visible && focusedId === windowId };
 }
 
-function describe(prompt: ConsentPrompt): string {
-  const lines = prompt.summary.lines.map((line) => `${line.label}: ${line.before ?? '-'} -> ${line.after ?? '-'}`);
-  return [prompt.summary.title, ...lines].join('\n');
+function describe(ask: Ask<'sign.replace'>): string {
+  const lines = ask.defaultText.lines.map((line) => `${line.label}: ${line.before ?? '-'} -> ${line.after ?? '-'}`);
+  return [ask.defaultText.title, ...lines].join('\n');
 }
 
-function ask(prompt: FirewallPrompt): void {
-  const { summary } = prompt;
-  const what = summary.requests.map((request) => `${request.operation}: ${request.target}`).join('\n');
+function approve(ask: Ask<'firewall.approve'>): 'allow-once' | 'allow-session' | 'allow-always' | 'deny' {
+  const { facts } = ask;
+  const what = facts.requests.map((request) => `${request.operation}: ${request.target}`).join('\n');
   // The first choice is the narrowest yes: once for a link, while the applet stays open for a start.
-  const yes = summary.choices.find((choice) => choice !== 'deny');
-  prompt.resolve(yes !== undefined && window.confirm(`${summary.applet.title} asks:\n${what}`) ? yes : 'deny');
+  const yes = facts.choices.find((choice) => choice !== 'deny');
+  return yes !== undefined && window.confirm(`${facts.applet.title} asks:\n${what}`) ? yes : 'deny';
 }
 
 const host: KernlHost = {
   storage: localStorage,
-  presentConsent: (prompt) => prompt.resolve(window.confirm(describe(prompt))),
-  presentApproval: ask,
+  asks: {
+    'sign.replace': (ask) => window.confirm(describe(ask)),
+    'firewall.approve': approve,
+  },
   notify: (notice) => console.info(`[${notice.tone}] ${notice.title}${notice.body ? `: ${notice.body}` : ''}`),
   openLink(url, options) {
     if (!options?.approved && !window.confirm(`Leave this page and open ${url}?`)) return;
@@ -132,9 +147,10 @@ After mount, keep the guard informed: call `handle.setVisibility(...)` whenever 
 
 - Open an applet that `requires` `relay` and decline it: `plan.missingRequired` is `['relay']` and the applet's `shell.init` lacks it.
 - Hide its container and call `setVisibility`: from then on the applet's resource requests count against the hidden allowance, and an overrun quarantines the window and appears on `kernl.guard.events$`.
-- Have the applet publish a profile change: `presentConsent` is called with the title "Update your profile". Answer `false` and the applet's publish fails with `denied:consent`.
-- Grant an applet `link` and have it open a link: `presentApproval` is called with `summary.kind` `'link'` and the choices `allow-once` and `deny`. Answer `allow-once` and `openLink` is called with `{ approved: true }`; the next link asks again.
+- Have the applet publish a profile change: your `sign.replace` renderer is asked, with `defaultText.title` "Update your profile". Answer `false` and the applet's publish fails with `denied:consent`.
+- Grant an applet `link` and have it open a link: your `firewall.approve` renderer is asked, with `facts.kind` `'link'` and the choices `allow-once` and `deny`. Answer `allow-once` and `openLink` is called with `{ approved: true }`; the next link asks again.
 - Call `kernl.firewall.setRule({ operation: 'link.open' }, 'allow')`: links open without a question ([Change the firewall rules](./change-firewall-rules.md)).
+- Leave a renderer out, `upload.file` for one: an applet's upload is refused without anyone being asked.
 - Subscribe to `kernl.guard.events$` and `kernl.session$` and render them; they are the same streams `apps/web` shows in its guard panel and sign-in screen.
 
 ## Related

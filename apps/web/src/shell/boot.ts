@@ -42,9 +42,9 @@ export async function boot(host: KernlHost, search: URLSearchParams, theme?: She
     // The library loads on the first download, never with the page (D-017).
     const downloads = createShellDownloads({ storage: host.storage, client: loadWebTorrent, open: (uri) => host.openLink(uri), inKernl: canReachPeers() });
     // Naming the modules is what types `kernl.theme`, the only thing that may publish a colour change (D-064).
-    // A shell that names them hands the theme, the event cache, the settings form, its reserved shortcuts and its torrent engine to the modules; `createKernl` reads none of them (D-062).
-    const settings = host.presentSettings?.bind(host);
-    const modules = core.kernlModules({ eventCache: openShellEventCache, shortcuts: { reserved: SHELL_CHORDS }, torrent: downloads.torrent, ...(theme ? { theme } : {}), ...(settings ? { presentSettings: settings } : {}) });
+    // A shell that names them hands the theme, the event cache, its reserved shortcuts and its torrent engine to the modules; `createKernl` reads none of them (D-062).
+    // The settings form is the host's `settings.present` renderer, which the settings module draws through (D-067).
+    const modules = core.kernlModules({ eventCache: openShellEventCache, shortcuts: { reserved: SHELL_CHORDS }, torrent: downloads.torrent, ...(theme ? { theme } : {}) });
     const kernl = core.createKernl({ host, builtins: [MESSAGES_APPLET], modules });
     NostrConnectSigner.pool = kernl.pool;
     return { kernl, mode: 'live', downloads };

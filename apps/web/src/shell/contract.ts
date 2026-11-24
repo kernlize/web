@@ -13,6 +13,9 @@ import type { ShellTheme } from './shell-theme';
 export type ShellKernl = Omit<Kernl, 'bridge' | 'eventStore' | 'pool'> & { readonly theme: { publish(theme: ShellTheme): void } };
 
 export type {
+  Ask,
+  AskChannel,
+  AskRenderers,
   AppletHandle,
   AppletMessage,
   AppletStopDetails,

@@ -1,5 +1,5 @@
 import { createConfigService } from '@kehto/services';
-import { createAppletConfig } from '@kernlize/core';
+import { createAppletConfig, toAskChannel, type SettingsPrompt } from '@kernlize/core';
 import type { KernlHost } from './contract';
 
 /** The settings the Notes sample registers: one of each kind the shell's form draws. */
@@ -35,8 +35,9 @@ export interface PreviewConfig {
  * Like the live shell, there are none when the host cannot show the form (D-036).
  */
 export function createPreviewConfig(host: KernlHost, appletOf: (windowId: string) => { readonly key: string; readonly title: string } | undefined): PreviewConfig | undefined {
-  const present = host.presentSettings?.bind(host);
-  if (!present) return undefined;
+  const asks = toAskChannel(host);
+  if (!asks.has('settings.present')) return undefined;
+  const present = (prompt: SettingsPrompt): void => void asks.ask({ kind: 'settings.present', facts: prompt, defaultText: { title: prompt.title } });
   const service = createConfigService(createAppletConfig({ storage: host.storage, appletOf, present }));
   const registered = new Set<string>();
   const ignore = (): void => undefined;
