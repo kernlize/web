@@ -11,11 +11,11 @@ Feature: Shell services and adapter
     And kernl services with a signing account and a fake bridge registry
 
   Scenario: the registry covers the domains kernl serves
-    Then the service registry has "relay,identity,theme,keys,notify,link,resource,media,outbox,cvm"
+    Then the service registry has "relay,identity,theme,notify,link,resource,media,outbox,cvm"
 
   Scenario: the theme can be left to a module, and uploads and settings handed in
     Given kernl services that leave the theme to a module and are handed an uploader and settings
-    Then the service registry has "relay,identity,keys,notify,link,resource,media,outbox,cvm,config,upload"
+    Then the service registry has "relay,identity,notify,link,resource,media,outbox,cvm,config,upload"
 
   Scenario: remote tools look for servers on the general relays when the host names none
     When service "cvm" handles '{"type":"cvm.discover","id":"d1"}' from window "w1"

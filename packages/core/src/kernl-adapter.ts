@@ -6,7 +6,7 @@ import type { RelayTier, RelayTiers } from './types.js';
 import { createAuthHooks } from './applesauce/auth-hooks.js';
 import type { SigningConsent } from './consent/handler.js';
 import { createRelayPoolHooks, type ApplesaucePool } from './applesauce/relay-hooks.js';
-import type { ShortcutKey } from './keys/shortcuts.js';
+import type { ShortcutKey } from './types.js';
 
 const TIERS: readonly string[] = ['discovery', 'apps', 'outbox', 'super'];
 

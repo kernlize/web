@@ -172,7 +172,6 @@ function servicesFor(options: KernelOptions, parts: ServiceParts): ReturnType<ty
     theme: null,
     remoteTools: null,
     shortcuts: { isFocused: parts.isFocused },
-    keys: null,
     resolveIdentity(windowId) {
       const identity = identityOf(windowId);
       return identity ? { dTag: identity.dTag, aggregateHash: identity.hash } : null;

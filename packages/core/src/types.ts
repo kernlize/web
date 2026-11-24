@@ -28,7 +28,7 @@ import type { RelayDirectory } from './relays/directory.js';
 import type { LoadCatalogOptions } from './catalog/fetch.js';
 import type { HandlerDefaults } from './intents/defaults.js';
 import type { InstalledApplet } from './intents/installed.js';
-import type { ShortcutKey, ShortcutSettings } from './keys/shortcuts.js';
+import type { ShortcutSettings } from './keys/shortcuts.js';
 import type { AnyKernlModule } from './modules/module.js';
 import type { AskRenderers } from './asks/kinds.js';
 
@@ -374,6 +374,16 @@ export interface HandlerChoice {
   readonly id: string;
   /** Make it the default for the archetype. */
   readonly remember: boolean;
+}
+
+/** A key press, as the page's `KeyboardEvent` names its parts. */
+export interface ShortcutKey {
+  readonly key: string;
+  readonly code: string;
+  readonly ctrlKey: boolean;
+  readonly altKey: boolean;
+  readonly shiftKey: boolean;
+  readonly metaKey: boolean;
 }
 
 /** Host hooks the core calls. Applets never reach these. */
