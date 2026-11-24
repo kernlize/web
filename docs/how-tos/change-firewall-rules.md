@@ -61,13 +61,13 @@ kernl.firewall.forgetAll();
 - **What a change stops.** `setRule` and `restoreDefaults` take back every answer the old rules gave that the new ones no longer give. Each window that ran under one is removed, and the host hears `onRevoked(windowId, 'firewall')`. `forget` and `forgetAll` do the same for the answers they take back; `forgetAll` stops every applet, because every running applet was admitted under an answer.
 - **Where it is kept.** Rules at `kernl:firewall-rules:v1`; the answers the user asked to keep at `kernl:firewall-decisions:v1` ([Persistence](../concepts/persistence.md#keys-the-core-writes)).
 
-A rule that asks needs a host that can ask. An embedding host implements `KernlHost.presentApproval`; without it, a request a rule says to ask about is refused ([Embed kernl core](./embed-kernl-core.md#_2-implement-kernlhost-and-create-the-shell)).
+A rule that asks needs a host that can ask. An embedding host draws `firewall.approve` in `KernlHost.asks`; without a renderer, a request a rule says to ask about is refused ([Embed kernl core](./embed-kernl-core.md#_2-implement-kernlhost-and-create-the-shell)).
 
 ## What a rule cannot change
 
 - **Grants.** A rule cannot give an applet a domain its grant does not. The grant is the ceiling; [Grant and revoke](./grant-and-revoke.md) covers it.
 - **Rates.** How often an applet may act is the guard profile's ([Change the guard profile](./change-guard-profile.md)). An approval does not lift a rate limit.
-- **Consent for destructive writes.** Signing a change that overwrites or deletes still asks through `presentConsent`, whatever the rules say.
+- **Consent for destructive writes.** Signing a change that overwrites or deletes still asks as a `sign.replace` ask, whatever the rules say.
 - **How long a link answer lasts.** With the rule on "ask", a link is answered for that one opening. To stop the questions, set the rule for links to `allow`.
 
 ## Related

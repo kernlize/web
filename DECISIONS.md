@@ -1109,7 +1109,8 @@ This changes D-062's "the context holds no signer" and the composability plan's 
   - `settings.present`: the `config` domain is not offered (D-036).
   The firewall and the handler chooser keep kehto's own refusal when nothing draws them.
 - **An answer is bound to its ask.** The kernel holds the answer callback, so a renderer cannot answer for another window. An answer that arrives once the asking window has closed, or runs another applet, is discarded as the refusal.
-- **Only the firewall's question is timed out** (D-056). No ask carries a secret.
+- **Only the firewall's question is timed out** (D-056).
+- **No ask carries the shell's own secrets**, the passwords and keys of services it signs in to for the person (D-052). `settings.present` is the one kind that carries values an applet marked secret: they are the applet's own, and its form must show them to edit them, masked as the host table says.
 - **A module asks through `KernelContext.ask`, and only the kinds it declares in `KernlModule.asks`.** The prompt callbacks leave `KernelContext.host`, and `canAsk(kind)` says whether the host draws a kind.
 - **The prompt callbacks stay for one minor.** An adapter registers them as renderers, and a renderer in `asks` wins over the callback it replaces. #73 closes when kernl.run draws through `asks`; a follow-up issue removes the callbacks after the next minor.
 

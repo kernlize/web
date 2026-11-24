@@ -18,7 +18,7 @@ These rules are floor features. No host and no module loosens them:
 - **A question nobody draws is refused.** A kind the host has no renderer for gets its refusal, never an allow, and so does a renderer that fails. A host that registers none gets a shell where every consent is refused, and nothing throws.
 - **An answer belongs to the window that asked.** The kernel holds the answer, not the host. An answer that arrives once that window has closed, or runs another applet, is discarded.
 - **Only a question a decision already bounds is timed out.** That is the firewall's, after ten minutes ([D-056](../decisions.md#d-056)). Every other question waits for the person.
-- **No ask carries a secret.** A download program's question is words only, never an address, path or credential.
+- **No ask carries the shell's own secrets.** A download program's question is words only, never an address, path or the password kernl signs in with (D-052). An applet's settings form is different: it carries the applet's own values, secret ones included, because the person edits them there, and the host masks those.
 
 Two kinds keep what a host without them always got: a reply leaves the way the person's provider order picks, and with no settings form the `config` domain is not offered (D-036).
 

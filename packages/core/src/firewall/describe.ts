@@ -37,7 +37,7 @@ function isLink(requests: readonly FirewallRequest[]): boolean {
  *
  * @param prompt - What kehto's approval coordinator asks.
  * @param applet - The applet the request came from, as the shell knows it.
- * @returns The summary for `KernlHost.presentApproval`.
+ * @returns The facts of a `firewall.approve` ask.
  * @example
  * ```ts
  * const summary = describeApproval(prompt, { title: 'Notes', catalogId, identity });
