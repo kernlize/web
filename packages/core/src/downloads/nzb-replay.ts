@@ -1,4 +1,4 @@
-import type { NamespacedStore } from '../persistence/store.js';
+import type { NamespacedStore } from '@kernlize/kernel';
 import { NZB_LIMITS, type NzbErrorCode } from './nzb-wire.js';
 
 const STORE_KEY = 'nzb-replay:v1';

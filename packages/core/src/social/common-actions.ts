@@ -3,7 +3,7 @@ import { getProfileContent, unixNow } from 'applesauce-core/helpers';
 import type { CommonServiceOptions } from '@kehto/services';
 import type { EventTemplate, NostrEvent } from '@napplet/core';
 import type { ISigner } from 'applesauce-signers';
-import type { SigningConsent } from '../consent/handler.js';
+import type { SigningConsent } from '@kernlize/kernel';
 import type { Profiles } from '../profiles/profiles.js';
 
 const FOLLOWS = 3;

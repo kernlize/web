@@ -5,7 +5,7 @@ import { createDirectConnectionsService } from '../multiplayer/direct-connection
 import { createRemoteToolsService, mergeFamilies } from '../multiplayer/remote-tools.js';
 import type { KernlMultiplayer } from '../multiplayer/types.js';
 import type { KernlOptions } from '../kernl-members.js';
-import type { KernlModule } from '../module-host/module.js';
+import type { KernlModule } from '@kernlize/kernel';
 
 /** What the host sets for remote tools and direct connections. */
 export interface MultiplayerModuleOptions {

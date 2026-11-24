@@ -1,7 +1,7 @@
 import type { ServiceHandler } from '@kehto/runtime';
-import type { ShortcutKey } from '../types.js';
+import type { ShortcutKey } from '@kernlize/kernel';
 
-export type { ShortcutKey } from '../types.js';
+export type { ShortcutKey } from '@kernlize/kernel';
 import { createKeysService } from '@kehto/services';
 
 

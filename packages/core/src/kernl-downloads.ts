@@ -1,14 +1,11 @@
-import type { Ask } from './asks/kinds.js';
+import type { Ask, PlannedExtensions, SecretsProvider, AppletIdentity, ConsentSummary, DownloadsOptions, KernlHost } from '@kernlize/kernel';
 import type { ServiceRegistry } from '@kehto/runtime';
-import type { PlannedExtensions } from './applets/plan.js';
 import { DOWNLOAD_BINDINGS, supportsDomainBindings } from './downloads/bindings.js';
 import { createDownloadClients, type DownloadClients } from './downloads/download-clients.js';
 import { createNzbService } from './downloads/nzb-service.js';
 import { createSoulseekService } from './downloads/soulseek-service.js';
 import { createTorrentService } from './downloads/torrent-service.js';
 import type { DownloadQuestion, DownloadService, DownloadServiceDeps } from './downloads/types.js';
-import type { SecretsProvider } from './secrets/secrets.js';
-import type { AppletIdentity, ConsentSummary, DownloadsOptions, KernlHost } from './types.js';
 
 /**
  * The domains kernl serves by driving the person's own download programs, in the order they are offered.

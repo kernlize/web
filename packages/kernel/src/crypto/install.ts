@@ -53,7 +53,7 @@ export function randomUuidFallback(scope: CryptoScope): boolean {
  * @returns What was added.
  * @example
  * ```ts
- * import { installCryptoFallback } from '@kernlize/core/crypto';
+ * import { installCryptoFallback } from '@kernlize/kernel/crypto';
  * installCryptoFallback(); // { randomUUID: false, subtle: false } over HTTPS
  * ```
  */

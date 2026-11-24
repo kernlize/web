@@ -1,0 +1,82 @@
+{
+  "name": "@kernlize/kernel",
+  "version": "0.1.0",
+  "description": "kernl's floor: applet resolve, plan and mount, the guard pipeline, the firewall, grants, signing consent, secrets, the media player, the module host and the ask channel",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./crypto": {
+      "types": "./dist/crypto/index.d.ts",
+      "import": "./dist/crypto/index.js"
+    },
+    "./seal": {
+      "types": "./dist/seal/index.d.ts",
+      "import": "./dist/seal/index.js"
+    },
+    "./asks": {
+      "types": "./dist/asks/index.d.ts",
+      "import": "./dist/asks/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "scripts": {
+    "build": "tsup",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@kehto/firewall": "^0.10.0",
+    "@kehto/nip": "^0.8.0",
+    "@kehto/rate-limit": "^0.2.0",
+    "@kehto/runtime": "^0.30.1",
+    "@kehto/services": "^0.34.0",
+    "@kehto/shell": "^0.35.0",
+    "@kernlize/bridges": "workspace:^",
+    "@kernlize/guard": "workspace:^",
+    "@kernlize/messaging": "workspace:^",
+    "@noble/ciphers": "^2.4.0",
+    "@noble/curves": "^2.4.0",
+    "@noble/hashes": "^2.4.0",
+    "applesauce-accounts": "^7.1.0",
+    "applesauce-core": "^7.1.3",
+    "applesauce-loaders": "^7.2.0",
+    "applesauce-relay": "^7.1.1",
+    "applesauce-signers": "^7.1.0",
+    "rxjs": "^7.8.2"
+  },
+  "peerDependencies": {
+    "@napplet/core": ">=0.41.0 <0.42.0",
+    "@napplet/nap": ">=0.37.0 <0.41.0"
+  },
+  "devDependencies": {
+    "quickpickle": "^1.11.2",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kernlize/web.git",
+    "directory": "packages/kernel"
+  },
+  "keywords": [
+    "kernl",
+    "shell",
+    "applet",
+    "view-model",
+    "rxjs"
+  ]
+}

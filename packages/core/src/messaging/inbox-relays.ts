@@ -3,7 +3,7 @@ import type { EventStore } from 'applesauce-core';
 import { kinds, mergeRelaySets, type NostrEvent } from 'applesauce-core/helpers';
 import { getRelaysFromList } from 'applesauce-common/helpers/lists';
 import type { AddressPointerLoader } from 'applesauce-loaders/loaders';
-import type { RelayTiers } from '../types.js';
+import type { RelayTiers } from '@kernlize/kernel';
 
 /**
  * Resolves where a person reads their private messages and invitations.

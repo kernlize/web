@@ -2,7 +2,7 @@ import { catchError, EMPTY, lastValueFrom, takeUntil, tap, timer } from 'rxjs';
 import type { EventStore } from 'applesauce-core';
 import { decodePointer } from 'applesauce-core/helpers';
 import type { NostrEvent } from '@napplet/core';
-import { asFilters, type ApplesaucePool } from '../applesauce/relay-hooks.js';
+import { asFilters, type ApplesaucePool } from '@kernlize/kernel';
 
 /** A person, and where whoever shared them said their data is kept. */
 export interface PersonPointer {

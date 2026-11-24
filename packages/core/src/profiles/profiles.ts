@@ -2,7 +2,7 @@ import { catchError, distinctUntilChanged, EMPTY, endWith, filter, firstValueFro
 import type { EventStore } from 'applesauce-core';
 import { getDisplayName, getOutboxes, getProfileContent, getProfilePicture } from 'applesauce-core/helpers';
 import type { NostrEvent } from '@napplet/core';
-import { abbreviate } from '../consent/describe-change.js';
+import { abbreviate } from '@kernlize/kernel';
 
 /** How a person is shown: their chosen name and picture, or a short key while none is known. */
 export interface ProfileCard {

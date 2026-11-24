@@ -1,10 +1,7 @@
 import type { ApprovalOutcome, ApprovalSignal, PermissionRequirement, ServiceHandler, ServiceRuntimeContext } from '@kehto/runtime';
-import type { Ask } from '../asks/kinds.js';
+import { type Ask, publishAccepted, subscribeWithEose, type ApplesaucePool, type AppletIdentity, type AppletSummary, type ConsentSummary, type DirectIceServer } from '@kernlize/kernel';
 import { createWebrtcService } from '@kehto/services';
 import type { NostrEvent } from '@napplet/core';
-import { publishAccepted } from '../applesauce/relay-backend.js';
-import { subscribeWithEose, type ApplesaucePool } from '../applesauce/relay-hooks.js';
-import type { AppletIdentity, AppletSummary, ConsentSummary, DirectIceServer } from '../types.js';
 import { createDirectSignaling, DIRECT_SIGNAL_KIND, type SignalRelay } from './direct-signaling.js';
 import type { WindowIdentities } from './window-identities.js';
 

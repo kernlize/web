@@ -1,7 +1,6 @@
-import type { DownloadQuestion } from '../asks/facts.js';
-export type { DownloadQuestion, DownloadQuestionLine } from '../asks/facts.js';
+import type { DownloadQuestion, AppletIdentity, StorageLike } from '@kernlize/kernel';
+export type { DownloadQuestion, DownloadQuestionLine } from '@kernlize/kernel';
 import type { ServiceHandler } from '@kehto/runtime';
-import type { AppletIdentity, StorageLike } from '../types.js';
 
 
 

@@ -1,10 +1,8 @@
 import { describe, expectTypeOf, it } from 'vitest';
 import { createKernl } from './create-kernl.js';
-import { createKernel } from './kernl.js';
-import type { Kernel } from './types.js';
+import { createKernel, type Kernel, type AnyKernlModule, type KernlModule, type ModuleApis } from '@kernlize/kernel';
 import type { Kernl, KernlOptions } from './kernl-members.js';
 import { kernlModules } from './modules/default.js';
-import type { AnyKernlModule, KernlModule, ModuleApis } from './module-host/module.js';
 
 type Clock = KernlModule<'clock', { now(): number }>;
 type Plain = KernlModule<'plain'>;

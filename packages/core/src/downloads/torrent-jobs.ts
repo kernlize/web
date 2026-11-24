@@ -1,7 +1,6 @@
 import type { TorrentClientFile, TorrentClientJob } from '@kernlize/bridges';
 import type { TorrentFileStatus, TorrentJobState, TorrentJobStatus, TorrentJobSummary, TorrentRetention, TorrentSettings } from '@napplet/core';
-import { createNamespacedStore } from '../persistence/store.js';
-import type { StorageLike } from '../types.js';
+import { createNamespacedStore, type StorageLike } from '@kernlize/kernel';
 import { definedFields, readStoredTorrentJob, TorrentFailure, torrentMagnet, type StoredTorrentJob, type TorrentAddPlan, type TorrentServiceMode } from './torrent-wire.js';
 import type { DownloadQuestion } from './types.js';
 

@@ -1,9 +1,7 @@
 import { Subscription, type Observable } from 'rxjs';
 import type { ServiceHandler, ServiceRuntimeContext } from '@kehto/runtime';
 import { createIntentService } from '@kehto/services';
-import type { HandlerChoice, HandlerPrompt, Intents, KernlHost, RelayTiers } from './types.js';
-import type { ApplesaucePool } from './applesauce/relay-hooks.js';
-import type { MountedApplet } from './applets/mount.js';
+import type { HandlerChoice, HandlerPrompt, Intents, KernlHost, RelayTiers, ApplesaucePool, MountedApplet } from '@kernlize/kernel';
 import { createHandlerDefaults, type PreferenceSigner } from './intents/defaults.js';
 import { createIntentDelivery } from './intents/delivery.js';
 import { createInstalledApplets, type InstalledApplets } from './intents/installed.js';

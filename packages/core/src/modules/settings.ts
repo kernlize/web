@@ -1,6 +1,5 @@
 import { createConfigService } from '@kehto/services';
-import { createAppletConfig, type SettingsPrompt } from '../applets/applet-config.js';
-import type { KernlModule } from '../module-host/module.js';
+import { createAppletConfig, type SettingsPrompt, type KernlModule } from '@kernlize/kernel';
 
 /**
  * Applets' own settings, the `config` domain (NAP-CONFIG, D-036). An applet registers a schema and

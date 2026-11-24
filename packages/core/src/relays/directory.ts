@@ -11,7 +11,7 @@ import {
   getRelayDiscoveryTypes,
   getRelayDiscoveryURL,
 } from 'applesauce-common/helpers';
-import { relayUrls, toRelayUrl } from './publish-outcome.js';
+import { relayUrls, toRelayUrl } from '@kernlize/kernel';
 
 /**
  * Servers that carry NIP-66 monitors' reports: the ones nostr.watch's own

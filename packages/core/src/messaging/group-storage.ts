@@ -1,7 +1,7 @@
 import { bytesToHex, hexToBytes } from 'applesauce-core/helpers';
 import type { ISigner } from 'applesauce-signers';
 import type { GenericKeyValueStore } from '@internet-privacy/marmot-ts';
-import type { StorageLike } from '../types.js';
+import type { StorageLike } from '@kernlize/kernel';
 
 /** NIP-44 encrypts at most 65535 bytes; a UTF-16 code unit takes at most three UTF-8 bytes, so 16384 units always fit. */
 const SEAL_UNITS = 16_384;

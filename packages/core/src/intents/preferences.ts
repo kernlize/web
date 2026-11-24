@@ -1,7 +1,7 @@
 import type { EventTemplate, NostrEvent } from '@napplet/core';
-import type { HandlerPreferences } from '../intents-contract.js';
+import type { HandlerPreferences } from '@kernlize/kernel';
 
-export type { HandlerPreferences } from '../intents-contract.js';
+export type { HandlerPreferences } from '@kernlize/kernel';
 
 /**
  * The addressable kind that records a user's preferred handlers, one event

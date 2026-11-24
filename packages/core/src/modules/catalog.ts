@@ -1,7 +1,7 @@
 import type { ConnectedEventCache } from '../cache/connect.js';
 import { loadCatalog, streamCatalog, type LoadCatalogOptions } from '../catalog/fetch.js';
 import type { AppletCatalog } from '../catalog/types.js';
-import type { KernlModule } from '../module-host/module.js';
+import type { KernlModule } from '@kernlize/kernel';
 
 /**
  * The applet store's catalogue: `kernl.catalog`, the applets published to the `apps` tier, newest

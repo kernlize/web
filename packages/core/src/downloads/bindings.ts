@@ -1,10 +1,10 @@
-import { bindingMethod as call, type DomainBinding, type DomainBindingMethod } from '../applets/domain-bindings.js';
+import { bindingMethod as call, type DomainBinding, type DomainBindingMethod } from '@kernlize/kernel';
 
 const torrent = (action: string, result: string, ...params: string[]): DomainBindingMethod => call(`torrent.${action}`, result, ...params);
 const nzb = (action: string, ...params: string[]): DomainBindingMethod => call(`nzb.${action}`, 'result', ...params);
 const soulseek = (action: string, ...params: string[]): DomainBindingMethod => call(`soulseek.${action}`, 'value', ...params);
 
-export { type BoundPreludeOptions, type DomainBinding, type DomainBindingMethod, supportsDomainBindings } from '../applets/domain-bindings.js';
+export { type BoundPreludeOptions, type DomainBinding, type DomainBindingMethod, supportsDomainBindings } from '@kernlize/kernel';
 
 /**
  * The applet-side bindings for the three download domains, one row per operation of

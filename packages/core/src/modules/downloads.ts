@@ -1,8 +1,7 @@
 import type { BridgeRegistry } from '@kernlize/bridges';
 import { createKernlDownloads } from '../kernl-downloads.js';
 import type { DownloadClients } from '../downloads/connections.js';
-import type { DownloadsOptions } from '../types.js';
-import type { KernlModule } from '../module-host/module.js';
+import type { DownloadsOptions, KernlModule } from '@kernlize/kernel';
 
 /**
  * Applets working through the download programs the person already runs: the `torrent`, `nzb` and
