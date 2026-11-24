@@ -429,7 +429,7 @@ export interface KernlHost {
 
 
 /**
- * Backend constructors for the three messaging providers. A provider whose
+ * Backend constructors for `createDefaultMessaging`'s four providers. A provider whose
  * constructor is absent reports itself unavailable with a stable reason.
  */
 export interface MessagingBackendFactories {
@@ -447,6 +447,7 @@ export interface KernlOptions {
   readonly accounts?: AccountManager;
   readonly eventStore?: EventStore;
   readonly pool?: RelayPool;
+  /** A messaging registry the host built, used as is and left open when the shell closes. Read only when `modules` is left out; otherwise pass it to `messagingModule({ registry })`. */
   readonly messaging?: MessagingRegistry;
   readonly bridges?: BridgeRegistry;
   /**
@@ -456,8 +457,6 @@ export interface KernlOptions {
   readonly torrent?: TorrentBackend;
   /** Theme pushed to applets that hold `theme:read`. Read only when `modules` is left out; otherwise pass it to `themeModule`. */
   readonly theme?: Record<string, unknown>;
-  /** Backends for the messaging providers; absent ones stay unavailable. */
-  readonly messagingBackends?: MessagingBackendFactories;
   /** Opens the verified-artifact cache. Defaults to Cache Storage when the page has it, otherwise none. */
   readonly artifactCache?: () => Promise<NappletArtifactCache | undefined>;
   /** Opens the event cache, such as `() => openEventCache(defaultWebCacheAdapters())` from `@kernlize/core/cache`. Without one the shell keeps events in memory only (D-030). Read only when `modules` is left out; otherwise pass it to `cacheModule`. */
@@ -483,6 +482,12 @@ export interface KernlOptions {
   /** The chords the shell keeps from applets' keyboard shortcuts, and where key presses are heard (D-054). Read only when `modules` is left out; otherwise pass them to `keysModule`. */
   readonly shortcuts?: ShortcutSettings;
 }
+
+/** The options `createKernl` reads only to build kernl's own modules when the host names none. */
+export type KernlModuleOptionKeys = 'messaging' | 'bridges' | 'torrent' | 'theme' | 'eventCache' | 'intentRetry' | 'remoteTools' | 'directConnections' | 'downloads' | 'shortcuts';
+
+/** What `createKernel` takes: the host, optional pre-built parts, and the modules, which are all the opinions it loads. */
+export type KernelOptions<M extends readonly AnyKernlModule[] = readonly AnyKernlModule[]> = Omit<KernlOptions, KernlModuleOptionKeys | 'modules'> & { readonly modules: M };
 
 /** The host's settings for the `torrent`, `nzb` and `soulseek` domains. */
 export interface DownloadsOptions {
@@ -574,6 +579,7 @@ export interface Kernl {
   readonly traffic$: Observable<AppletMessage>;
   readonly grants: Grants;
   readonly relays: RelayTiers;
+  /** The person's messaging providers, their order and their reply rule (D-016, D-018). */
   readonly messaging: MessagingRegistry;
   readonly bridges: BridgeRegistry;
   readonly catalog: AppletCatalog;
@@ -622,7 +628,7 @@ export interface Kernl {
  * The members of the shell that modules provide, named by module id. Each is present when its
  * module is loaded, as it is with `kernlModules()` (D-062).
  */
-export type ModuleMembers = 'directory' | 'profiles' | 'people' | 'mailboxes' | 'files' | 'catalog' | 'intents' | 'bridges' | 'downloads' | 'multiplayer';
+export type ModuleMembers = 'directory' | 'profiles' | 'people' | 'mailboxes' | 'files' | 'catalog' | 'intents' | 'bridges' | 'downloads' | 'multiplayer' | 'messaging';
 
 /**
  * The shell without the members modules provide: what `createKernl` returns, with each loaded

@@ -33,7 +33,7 @@ export const MESSAGING_UNAVAILABLE_REASONS: Readonly<Record<'signInRequired' | '
 /**
  * Whether a signer can carry messages that need `method`.
  *
- * @param signer - The active account's signer, or `undefined` while nobody is signed in.
+ * @param signer - The active account's signer, or only the encryption it offers, or `undefined` while nobody is signed in.
  * @param method - The encryption the provider uses.
  * @returns Available, or unavailable with `sign-in-required` or `signer-cannot-encrypt`.
  * @example
@@ -42,7 +42,7 @@ export const MESSAGING_UNAVAILABLE_REASONS: Readonly<Record<'signInRequired' | '
  * signerAvailability(new PrivateKeySigner(), 'nip44'); // { available: true }
  * ```
  */
-export function signerAvailability(signer: ISigner | undefined, method: MessagingEncryption): ProviderAvailability {
+export function signerAvailability(signer: Pick<ISigner, MessagingEncryption> | undefined, method: MessagingEncryption): ProviderAvailability {
   if (!signer) return { available: false, reason: MESSAGING_UNAVAILABLE_REASONS.signInRequired };
   return signer[method] ? { available: true } : { available: false, reason: MESSAGING_UNAVAILABLE_REASONS.signerCannotEncrypt };
 }

@@ -2,6 +2,7 @@ Feature: Floor: an applet that reads messages is sealed, whatever modules are lo
   The domains that may go with messages are an allowlist. Any domain not on it,
   including one a module adds, is withheld from an applet that reads messages,
   unless the person keeps that one domain beside messages (D-046, D-060, D-061).
+  Messages themselves come from the messaging module; the seal is the kernel's.
 
   Scenario: the allowlist is fixed
     Given a restrictive kehto ACL state in memory
@@ -24,7 +25,7 @@ Feature: Floor: an applet that reads messages is sealed, whatever modules are lo
     And the ACL denies "intent:write" for "chat"
 
   Scenario Outline: granting messages to a running applet that holds the network stops it
-    Given the shell loads <modules> modules
+    Given the shell loads <modules>
     And a kernl host over empty storage
     And a fake applesauce pool serving a signed manifest for "chat" requiring "relay"
     And a kernl shell over that host and pool
@@ -36,6 +37,6 @@ Feature: Floor: an applet that reads messages is sealed, whatever modules are lo
     And the mounted frame was removed
 
     Examples:
-      | modules | theme          |
-      | kernl's | offers         |
-      | no      | does not offer |
+      | modules                    | theme          |
+      | kernl's modules            | offers         |
+      | only the messaging module  | does not offer |

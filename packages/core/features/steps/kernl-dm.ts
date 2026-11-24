@@ -3,7 +3,7 @@ import { Given, Then, When } from 'quickpickle';
 import { PrivateKeySigner } from 'applesauce-signers';
 import type { DmMessage } from '@napplet/core';
 import type { MessagingBackend } from '@kernlize/messaging';
-import { createRatchetMessagesBackend, messagingSigner, type Kernl } from '@kernlize/core';
+import { createRatchetMessagesBackend, groups, kernlModules, legacyDm, messagingSigner, privateDm, ratchet, type Kernl } from '@kernlize/core';
 import { blobFetcher, boot, k } from './kernl.js';
 import { createRelayNetwork } from './relay-network.js';
 import { MemoryStorage, scratch, type CoreWorld } from './world.js';
@@ -50,7 +50,8 @@ Given('a kernl shell over a message network serving that manifest', (world: Core
   network.everywhere.push(scratch(world).manifest.event);
   scratch(world).pool = network as never;
   const storage = new MemoryStorage();
-  boot(world, { messagingBackends: { ratchet: () => ratchetFor(() => k(world).kernl, storage) } }, blobFetcher(world));
+  const providers = [privateDm(), legacyDm(), ratchet({ backend: () => ratchetFor(() => k(world).kernl, storage) }), groups()];
+  boot(world, { modules: kernlModules({ messaging: { providers } }) }, blobFetcher(world));
 });
 
 Given('bob opens ratchet sessions on the same relays', async (world: CoreWorld) => {

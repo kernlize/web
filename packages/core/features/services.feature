@@ -11,11 +11,11 @@ Feature: Shell services and adapter
     And kernl services with a signing account and a fake bridge registry
 
   Scenario: the registry covers the domains kernl serves
-    Then the service registry has "relay,identity,theme,keys,notify,link,resource,media,dm,outbox,cvm"
+    Then the service registry has "relay,identity,theme,keys,notify,link,resource,media,outbox,cvm"
 
-  Scenario: the theme can be left to a module, and social actions handed in
-    Given kernl services that leave the theme to a module and are handed social actions, an uploader and settings
-    Then the service registry has "relay,identity,keys,notify,link,resource,media,dm,outbox,cvm,config,common,upload"
+  Scenario: the theme can be left to a module, and uploads and settings handed in
+    Given kernl services that leave the theme to a module and are handed an uploader and settings
+    Then the service registry has "relay,identity,keys,notify,link,resource,media,outbox,cvm,config,upload"
 
   Scenario: remote tools look for servers on the general relays when the host names none
     When service "cvm" handles '{"type":"cvm.discover","id":"d1"}' from window "w1"
@@ -65,10 +65,6 @@ Feature: Shell services and adapter
     And the service replied with a "resource.bytes.result"
     And the resource init for window "ghost" names "shell" as requester
     And the resource init keeps headers when the service passes them
-
-  Scenario: direct messages answer through the composite backend
-    When service "dm" handles '{"type":"dm.status","id":"d1"}' from window "w1"
-    Then the service replied with a "dm.status.result"
 
   Scenario: outbox reads and writes use the router over the pool and the active signer
     Given the fake pool serves 1 events

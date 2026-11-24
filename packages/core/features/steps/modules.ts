@@ -7,7 +7,7 @@ import { AccountManager } from 'applesauce-accounts';
 import { ReadonlyAccount } from 'applesauce-accounts/accounts';
 import { createMessagingRegistry } from '@kernlize/messaging';
 import type { ServiceHandler } from '@kehto/runtime';
-import { abbreviate, catalogModule, multiplayerModule, directoryModule, keysModule, kernlModules, mailboxesModule, peopleModule, profilesModule, searchCatalog, setupModules, socialModule, themeModule, toCatalogEntry, type AnyKernlModule, type CatalogEntry, type DomainBinding, type KernelContext, type KernlModule, type RelayTier, type ThemeApi } from '@kernlize/core';
+import { abbreviate, catalogModule, messagingModule, privateDm, multiplayerModule, directoryModule, keysModule, kernlModules, mailboxesModule, peopleModule, profilesModule, searchCatalog, setupModules, socialModule, themeModule, toCatalogEntry, type AnyKernlModule, type CatalogEntry, type DomainBinding, type KernelContext, type KernlModule, type RelayTier, type ThemeApi } from '@kernlize/core';
 import { blobFetcher, boot, k, settle, vector } from './kernl.js';
 import { attempt, scratch, splitList, type CoreWorld } from './world.js';
 
@@ -48,6 +48,8 @@ function named(world: CoreWorld, name: string): readonly AnyKernlModule[] {
     profiles: () => [profilesModule()],
     people: () => [peopleModule()],
     'needs-multiplayer': () => [{ id: 'needs-multiplayer', requires: ['multiplayer'], setup: () => ({}) }],
+    'needs-messaging': () => [{ id: 'needs-messaging', requires: ['messaging'], setup: () => ({}) }],
+    'private-messaging': () => [messagingModule({ providers: [privateDm()] })],
     'needs-downloads': () => [{ id: 'needs-downloads', requires: ['downloads'], setup: () => ({}) }],
     'needs-bridges': () => [{ id: 'needs-bridges', requires: ['bridges'], setup: () => ({}) }],
     'needs-intents': () => [{ id: 'needs-intents', requires: ['intents'], setup: () => ({}) }],
@@ -79,6 +81,10 @@ Given(/^the shell loads (kernl's|no) modules$/, (world: CoreWorld, which: string
   scratch(world).modules = which === 'no' ? [] : undefined;
 });
 
+Given('the shell loads only the messaging module', (world: CoreWorld) => {
+  scratch(world).modules = [messagingModule({ providers: [privateDm()] })];
+});
+
 Given('a kernl shell over that host and pool with modules {string}', (world: CoreWorld, names: string) => {
   boot(world, { modules: modulesFrom(world, names) }, blobFetcher(world));
 });
@@ -93,6 +99,10 @@ Then('the modules were disposed in the order {string}', (world: CoreWorld, order
 
 Then('the shell has a {string} member', (world: CoreWorld, id: string) => {
   expect(id in k(world).kernl).toBe(true);
+});
+
+Then("the shell's messaging providers are {string}", (world: CoreWorld, ids: string) => {
+  expect(k(world).kernl.messaging.list().map((entry) => entry.provider.id)).toEqual(splitList(ids));
 });
 
 Then('the shell has no {string} member', (world: CoreWorld, id: string) => {

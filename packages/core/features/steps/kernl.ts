@@ -10,6 +10,8 @@ import {
   KERNL_FRAME_POLICY_META,
   createDefaultBridges,
   createKernl,
+  kernlModules,
+  privateDm,
   type AppletHandle,
   type AppletSummary,
   type ConsentPrompt,
@@ -146,7 +148,7 @@ Given('a kernl shell over that host and pool without a blob fetcher', (world: Co
 
 
 Given('a kernl shell over that host and pool with a private backend', (world: CoreWorld) => {
-  boot(world, { messagingBackends: { private: () => createMemoryBackend() } }, blobFetcher(world));
+  boot(world, { modules: kernlModules({ messaging: { providers: [privateDm({ backend: () => createMemoryBackend() })] } }) }, blobFetcher(world));
 });
 
 function bootWithFakeBridges(world: CoreWorld, hostExtra: Partial<KernlHost> = {}): void {

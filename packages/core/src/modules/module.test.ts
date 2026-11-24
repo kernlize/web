@@ -1,5 +1,6 @@
 import { describe, expectTypeOf, it } from 'vitest';
-import { createKernl } from '../kernl.js';
+import { createKernl } from '../create-kernl.js';
+import { createKernel } from '../kernl.js';
 import type { Kernel, Kernl, KernlOptions } from '../types.js';
 import { kernlModules } from './default.js';
 import type { AnyKernlModule, KernlModule, ModuleApis } from './module.js';
@@ -11,6 +12,7 @@ type Plain = KernlModule<'plain'>;
 const unnamed = (options: KernlOptions) => createKernl(options);
 const withClock = (options: KernlOptions, clock: Clock, plain: Plain) => createKernl({ ...options, modules: [clock, plain] });
 const withKernls = (options: KernlOptions) => createKernl({ ...options, modules: kernlModules() });
+const kernelWithClock = (options: KernlOptions, clock: Clock) => createKernel({ host: options.host, modules: [clock] });
 
 describe('the shell type follows the module list', () => {
   it('is exactly Kernl when no list is named', () => {
@@ -22,6 +24,10 @@ describe('the shell type follows the module list', () => {
     expectTypeOf<ReturnType<typeof withClock>>().toEqualTypeOf<Kernel & { readonly clock: { now(): number } }>();
     expectTypeOf<ReturnType<typeof withClock>>().not.toHaveProperty('directory');
     expectTypeOf<ReturnType<typeof withClock>>().not.toHaveProperty('plain');
+  });
+
+  it('is the kernel and the named modules\' apis from createKernel', () => {
+    expectTypeOf<ReturnType<typeof kernelWithClock>>().toEqualTypeOf<Kernel & { readonly clock: { now(): number } }>();
   });
 
   it('is a Kernl again with kernl\'s own modules named', () => {

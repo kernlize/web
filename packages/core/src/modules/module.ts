@@ -63,7 +63,7 @@ export interface KernelContext {
   /** Where passwords and keys of services the shell signs in to for the person are kept (D-052). */
   readonly secrets: SecretsProvider;
   /** The host's own callbacks a module may use until the host's questions become typed asks. */
-  readonly host: Pick<KernlHost, 'storage' | 'presentConsent' | 'openApplet' | 'focusApplet' | 'chooseHandler' | 'notify' | 'now' | 'openLink'>;
+  readonly host: Pick<KernlHost, 'storage' | 'presentConsent' | 'openApplet' | 'focusApplet' | 'chooseHandler' | 'chooseReply' | 'notify' | 'now' | 'openLink'>;
   /** Put a question to the person through the host's consent prompt; resolves with their answer. */
   ask(summary: ConsentSummary): Promise<boolean>;
   /** Load a replaceable event into the store from the cache and the lookup relays. Never rejects. */
