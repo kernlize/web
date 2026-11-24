@@ -1,4 +1,5 @@
 import type { ApprovalOutcome, ApprovalSignal, PermissionRequirement, ServiceHandler, ServiceRuntimeContext } from '@kehto/runtime';
+import type { Ask } from '../asks/kinds.js';
 import { createWebrtcService } from '@kehto/services';
 import type { NostrEvent } from '@napplet/core';
 import { publishAccepted } from '../applesauce/relay-backend.js';
@@ -21,8 +22,8 @@ export interface DirectConnectionsOptions {
   readonly appletOf: (windowId: string) => Pick<AppletSummary, 'identity' | 'publisher' | 'manifest'> | undefined;
   /** Whether the person granted this window's applet direct connections, and has not blocked it. */
   readonly isGranted: (windowId: string) => boolean;
-  /** Put the summary to the person; resolve true only on yes. */
-  readonly ask: (summary: ConsentSummary) => Promise<boolean>;
+  /** Put the session to the person as a `connection.direct` ask; resolve true only on yes. */
+  readonly ask: (ask: Ask<'connection.direct'>) => Promise<boolean>;
 }
 
 /**
@@ -126,7 +127,8 @@ export function createDirectConnectionsService(options: DirectConnectionsOptions
   const authorize = (lifetime: ApprovalSignal) => async <T>(windowId: string, _operation: string, requirements: readonly PermissionRequirement[], execute: (signal: ApprovalSignal) => T | Promise<T>, signal?: ApprovalSignal): Promise<ApprovalOutcome<T>> => {
     const applet = options.appletOf(windowId);
     if (!applet || !options.isGranted(windowId)) return { status: 'denied' };
-    if (!(await options.ask(describeDirectConnection(requirements, applet.identity)))) return { status: 'denied' };
+    const ask: Ask<'connection.direct'> = { kind: 'connection.direct', windowId, applet: applet.identity, facts: { requirements }, defaultText: describeDirectConnection(requirements, applet.identity) };
+    if (!(await options.ask(ask))) return { status: 'denied' };
     if (lifetime.aborted || signal?.aborted || !options.isGranted(windowId)) return { status: 'cancelled' };
     return { status: 'executed', value: await execute(lifetime) };
   };

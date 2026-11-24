@@ -211,6 +211,8 @@ export { askUploadConsent, createBlossomUploader, describeUpload, sizeWords, typ
 export { createAppletConfig, type AppletConfigOptions, type SettingsPrompt } from '../applets/applet-config.js';
 export { createCommonActions, type CommonActionsOptions, type ConsentedSigner, type SignerAndGate } from '../social/common-actions.js';
 export type { AnyKernlModule, IntersectionOf, KernelContext, KernlModule, ModuleApiEntry, ModuleApis, ModuleIdentity, ModuleInstance, ReplaceablePointer } from '../modules/module.js';
+export { ASK_KINDS, ASK_REFUSALS, type Ask, type AskAnswer, type AskKind, type AskKinds, type AskRenderer, type AskRenderers, type AskSignal } from '../asks/kinds.js';
+export { createAskChannel, toAskChannel, type AskChannel, type AskChannelOptions, type AskHost } from '../asks/channel.js';
 export { KERNEL_DOMAINS, MODULE_NATIVE_DOMAINS, checkModules, mergeExtensions, setupModules, type ComposedModules, type KernelContextParts } from '../modules/compose.js';
 export { directoryModule } from '../modules/directory.js';
 export { cacheModule } from '../modules/cache.js';

@@ -30,6 +30,7 @@ export interface MultiplayerModuleOptions {
 export function multiplayerModule(options: MultiplayerModuleOptions = {}): KernlModule<'multiplayer', KernlMultiplayer> {
   return {
     id: 'multiplayer',
+    asks: ['connection.direct'],
     setup(context) {
       const settings = createMultiplayerSettings(context.storage);
       const chosen = () => settings.state();
@@ -47,7 +48,7 @@ export function multiplayerModule(options: MultiplayerModuleOptions = {}): Kernl
         ...(createPeer ? { createPeer } : {}),
         appletOf: (windowId) => context.appletOf(windowId),
         isGranted: (windowId) => context.holds(windowId, 'webrtc'),
-        ask: (summary) => context.ask(summary),
+        ask: (ask) => context.ask(ask),
         pool: context.pool,
         relays: () => relays(direct.relays),
         identities,

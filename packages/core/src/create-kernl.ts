@@ -6,11 +6,9 @@ import type { Kernel, Kernl, KernlOptions } from './types.js';
 
 /** kernl's own modules, built from the options a host that names none passes to `createKernl`. */
 function modulesFrom(options: KernlOptions): readonly AnyKernlModule[] {
-  const { host } = options;
   return kernlModules({
     ...(isTheme(options.theme) ? { theme: options.theme } : {}),
     ...(options.eventCache ? { eventCache: options.eventCache } : {}),
-    ...(host.presentSettings ? { presentSettings: host.presentSettings.bind(host) } : {}),
     ...(options.shortcuts ? { shortcuts: options.shortcuts } : {}),
     ...(options.intentRetry ? { intentRetry: options.intentRetry } : {}),
     ...(options.bridges ? { bridges: options.bridges } : {}),

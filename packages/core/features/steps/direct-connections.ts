@@ -106,8 +106,8 @@ function join(world: CoreWorld, name: string, applet: string | undefined, pagePe
       ...(pagePeers ? {} : { createPeer: (configuration) => new NodePeer(configuration) }),
       appletOf: () => (applet ? summaryFor(applet) : undefined),
       isGranted: () => who.granted,
-      async ask(summary) {
-        who.asked.push(summary);
+      async ask(ask) {
+        who.asked.push(ask.defaultText);
         if (who.takeBackWhileAsked) who.granted = false;
         return who.answer;
       },

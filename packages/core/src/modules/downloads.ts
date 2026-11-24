@@ -22,11 +22,13 @@ import type { KernlModule } from './module.js';
 export function downloadsModule(options: DownloadsOptions = {}): KernlModule<'downloads', DownloadClients> {
   return {
     id: 'downloads',
+    asks: ['download.add'],
     // An NZB an applet names by address is fetched through the web bridge, under its policy (D-050).
     requires: ['bridges'],
     setup(context) {
       const downloads = createKernlDownloads({
         host: context.host,
+        ask: (ask) => context.ask(ask),
         options,
         secrets: context.secrets,
         identityOf: (windowId) => context.appletOf(windowId)?.identity,

@@ -9,6 +9,7 @@ import { createRuntimeRateLimiter, toGuardEvent } from './guard/runtime-rate-lim
 import { createAppletAdmissions, type AppletAdmissions } from './firewall/admission.js';
 import { createFirewall, type KernlFirewall } from './firewall/firewall.js';
 import { createFirewallPermissions } from './firewall/permissions.js';
+import type { AskChannel } from './asks/channel.js';
 import { createFirewallRules } from './firewall/rules.js';
 
 /** The legacy rate gate's stored configuration; nothing reads it since the firewall took over (D-056). */
@@ -17,6 +18,8 @@ const RETIRED_STORAGE_KEYS: readonly string[] = ['kernl:firewall:v1'];
 /** What the shell's firewall needs from the rest of the shell. */
 export interface ShellFirewallParts {
   readonly host: KernlHost;
+  /** The kernel's ask channel, through which firewall questions go. */
+  readonly asks: AskChannel;
   /** Its configuration is the guard profile in force, whose budgets the runtime charges against. */
   readonly pipeline: Pick<GuardPipeline, 'config'>;
   /** Live handles keyed by window id; a budget report names the applet its window runs. */
@@ -52,30 +55,29 @@ function plannedKey(subject: string, hash: string): string {
  * @returns The permission adapter, the applet register and `attach`.
  * @example
  * ```ts
- * const guarding = createShellFirewall({ host, pipeline, handles, guardEvents$ });
+ * const guarding = createShellFirewall({ host, asks, pipeline, handles, guardEvents$ });
  * const bridge = createShellBridge({ ...adapter, permissions: guarding.permissions });
  * const { firewall, admissions } = guarding.attach(bridge.runtime);
  * ```
  */
-export function createShellFirewall({ host, pipeline, handles, guardEvents$ }: ShellFirewallParts): ShellFirewall {
+export function createShellFirewall({ host, asks, pipeline, handles, guardEvents$ }: ShellFirewallParts): ShellFirewall {
   for (const key of RETIRED_STORAGE_KEYS) host.storage.removeItem(key);
   const rules = createFirewallRules(host.storage);
   const now = host.now ? host.now.bind(host) : Date.now;
-  const presentApproval = host.presentApproval?.bind(host);
   const planned = new Map<string, FirewallApplet>();
   let firewall: KernlFirewall | undefined;
-  const asking: Pick<KernlHost, 'presentApproval'> = presentApproval ? {
-    presentApproval: (prompt) => presentApproval({
-      ...prompt,
-      resolve(choice) {
-        prompt.resolve(choice);
-        // kehto stores the answer in the turn after this one; then the answers in force have changed.
-        setTimeout(() => firewall?.touch(), 0);
-      },
-    }),
-  } : {};
+  const asking: AskChannel = {
+    has: (kind) => asks.has(kind),
+    async ask(ask) {
+      const answer = await asks.ask(ask);
+      // kehto stores the answer in the turn after this one; then the answers in force have changed.
+      setTimeout(() => firewall?.touch(), 0);
+      return answer;
+    },
+  };
   const permissions = createFirewallPermissions({
-    host: { storage: host.storage, notify: (notice) => host.notify(notice), ...(host.now ? { now } : {}), ...asking },
+    host: { storage: host.storage, notify: (notice) => host.notify(notice), ...(host.now ? { now } : {}) },
+    asks: asking,
     rules,
     appletOf: (principal) => planned.get(plannedKey(permissionRuleSubject(principal), principal.artifactHash)),
     rateLimiter: createRuntimeRateLimiter(() => pipeline.config),

@@ -9,7 +9,8 @@ import type { RelayPool } from 'applesauce-relay';
 import { isReadOnlyAccount } from '../applesauce/auth-hooks.js';
 import { loadReplaceableQuietly } from '../applesauce/identity-providers.js';
 import type { AddressPointerLoader } from 'applesauce-loaders/loaders';
-import type { AppletSummary, KernlHost, RelayTiers, StorageLike } from '../types.js';
+import type { AppletSummary, RelayTiers, StorageLike } from '../types.js';
+import type { AskChannel } from '../asks/channel.js';
 import type { AnyKernlModule, KernelContext, ModuleInstance } from './module.js';
 
 /**
@@ -72,8 +73,10 @@ export interface KernelContextParts {
   readonly consent: SigningConsent;
   readonly replaceableLoader: AddressPointerLoader;
   readonly appletOf: (windowId: string) => AppletSummary | undefined;
-  /** The host's consent prompt. */
-  readonly host: Pick<KernlHost, 'presentConsent' | 'storage' | 'openApplet' | 'focusApplet' | 'chooseHandler' | 'chooseReply' | 'notify' | 'now' | 'openLink'>;
+  /** The host's effects a module may use. */
+  readonly host: KernelContext['host'];
+  /** The kernel's ask channel, over the host's renderers. */
+  readonly asks: AskChannel;
   /** The applets running now, by window id. */
   readonly applets: KernelContext['applets'];
   readonly secrets: KernelContext['secrets'];
@@ -92,7 +95,7 @@ export interface ComposedModules {
   dispose(): void;
 }
 
-function contextFor(parts: KernelContextParts, apis: Readonly<Record<string, unknown>>): KernelContext {
+function contextFor(parts: KernelContextParts, apis: Readonly<Record<string, unknown>>): Omit<KernelContext, 'ask'> {
   const { accounts } = parts;
   const pubkey$: Observable<string | undefined> = accounts.active$.pipe(map((account) => account?.pubkey));
   return {
@@ -119,7 +122,7 @@ function contextFor(parts: KernelContextParts, apis: Readonly<Record<string, unk
     secrets: parts.secrets,
     holds: parts.holds,
     host: parts.host,
-    ask: (summary) => new Promise((resolve) => parts.host.presentConsent({ summary, resolve })),
+    canAsk: (kind) => parts.asks.has(kind),
     replaceableLoader: parts.replaceableLoader,
     loadReplaceable: (pointer) => loadReplaceableQuietly(parts.replaceableLoader, parts.tiers, pointer),
     use<T>(id: string): T {
@@ -127,6 +130,18 @@ function contextFor(parts: KernelContextParts, apis: Readonly<Record<string, unk
       throw new Error(`invalid:module-missing:${id}`);
     },
     find: <T>(id: string): T | undefined => apis[id] as T | undefined,
+  };
+}
+
+/** The context a module is handed: it may ask only the kinds it declared (D-067). */
+function withAsks(context: Omit<KernelContext, 'ask'>, module: AnyKernlModule, asks: AskChannel): KernelContext {
+  const declared = module.asks ?? [];
+  return {
+    ...context,
+    ask(ask) {
+      if (!declared.includes(ask.kind)) return Promise.reject(new Error(`invalid:ask-undeclared:${ask.kind}`));
+      return asks.ask(ask);
+    },
   };
 }
 
@@ -187,7 +202,7 @@ export function setupModules(modules: readonly AnyKernlModule[], parts: KernelCo
   const instances: ModuleInstance<unknown>[] = [];
   try {
     for (const module of modules) {
-      const instance = offered(module.setup(context), bindings);
+      const instance = offered(module.setup(withAsks(context, module, parts.asks)), bindings);
       const taken = Object.keys(instance.services ?? {}).find((domain) => KERNEL_DOMAINS.includes(domain));
       if (taken !== undefined) throw new Error(`invalid:module-domain:${taken}`);
       instances.push(instance);

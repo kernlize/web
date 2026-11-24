@@ -1,7 +1,7 @@
 import { Subscription, type Observable } from 'rxjs';
 import type { ServiceHandler, ServiceRuntimeContext } from '@kehto/runtime';
 import { createIntentService } from '@kehto/services';
-import type { Intents, KernlHost, RelayTiers } from './types.js';
+import type { HandlerChoice, HandlerPrompt, Intents, KernlHost, RelayTiers } from './types.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import type { MountedApplet } from './applets/mount.js';
 import { createHandlerDefaults, type PreferenceSigner } from './intents/defaults.js';
@@ -11,7 +11,9 @@ import { createIntentRouter } from './intents/router.js';
 
 /** What {@link createKernlIntents} needs from the composed shell. */
 export interface KernlIntentDeps {
-  readonly host: Pick<KernlHost, 'storage' | 'now' | 'notify' | 'openApplet' | 'focusApplet' | 'chooseHandler'>;
+  readonly host: Pick<KernlHost, 'storage' | 'now' | 'notify' | 'openApplet' | 'focusApplet'>;
+  /** Asks the person which applet takes a request; without it, a request no default settles is refused. */
+  readonly choose?: (prompt: HandlerPrompt) => Promise<HandlerChoice | undefined>;
   readonly pool: ApplesaucePool;
   readonly tiers: RelayTiers;
   /** The signed-in identity: its pubkey, its changes, and a signer for the person's own preferences, none when it cannot sign. */
@@ -102,7 +104,7 @@ export function createKernlIntents(deps: KernlIntentDeps): KernlIntents {
   const router = createIntentRouter({
     installed,
     defaults,
-    ...(host.chooseHandler ? { choose: host.chooseHandler.bind(host) } : {}),
+    ...(deps.choose ? { choose: deps.choose } : {}),
     describeSender: titleOf,
     deliver: (params) =>
       deliver(params).catch((error: Error) => {

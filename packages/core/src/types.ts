@@ -30,6 +30,7 @@ import type { HandlerDefaults } from './intents/defaults.js';
 import type { InstalledApplet } from './intents/installed.js';
 import type { ShortcutKey, ShortcutSettings } from './keys/shortcuts.js';
 import type { AnyKernlModule } from './modules/module.js';
+import type { AskRenderers } from './asks/kinds.js';
 
 
 /** The two values an applet's grants are keyed on. Both come from verification, never from the applet. */
@@ -378,9 +379,23 @@ export interface HandlerChoice {
 /** Host hooks the core calls. Applets never reach these. */
 export interface KernlHost {
   readonly storage: StorageLike;
-  /** Ask the user. Resolve `false` on dismiss. The core never times this out. */
-  presentConsent(prompt: ConsentPrompt): void;
-  /** Show an applet's settings form. Without it applets cannot have settings, and the `config` domain is not offered (D-036). */
+  /**
+   * How the host draws each question the kernel puts to the person, one renderer per kind (D-067).
+   * A kind with no renderer, and no prompt callback below, is refused. Every ask carries its facts
+   * and kernl's own wording; a renderer may reword, never answer for another window.
+   */
+  readonly asks?: AskRenderers;
+  /**
+   * Ask the user. Resolve `false` on dismiss. The core never times this out. Draws `sign.replace`, `upload.file`,
+   * `download.add` and `connection.direct` when `asks` has no renderer for them. Deprecated: register a renderer in `asks` instead (D-067); this callback goes after one minor.
+   * @deprecated
+   */
+  presentConsent?(prompt: ConsentPrompt): void;
+  /**
+   * Show an applet's settings form. Without it applets cannot have settings, and the `config` domain is not offered (D-036).
+   * Draws `settings.present`. Deprecated: register a renderer in `asks` instead (D-067); this callback goes after one minor.
+   * @deprecated
+   */
   presentSettings?(prompt: SettingsPrompt): void;
   /** Show something the applet or the guard wants the user to know. */
   notify(notice: { readonly title: string; readonly body?: string; readonly windowId?: string; readonly tone: 'info' | 'warning' }): void;
@@ -400,6 +415,8 @@ export interface KernlHost {
   /**
    * Ask the user which applet should take a request. Resolve `undefined` on
    * dismiss. Without it, requests with several handlers and no default are refused.
+   * Draws `intent.choose-handler`. Deprecated: register a renderer in `asks` instead (D-067); this callback goes after one minor.
+   * @deprecated
    */
   chooseHandler?(prompt: HandlerPrompt): Promise<HandlerChoice | undefined>;
   /** Open the applet at an address, under its existing grants; resolve its window id, or undefined when it did not open. */
@@ -409,12 +426,15 @@ export interface KernlHost {
   /**
    * Ask the user which provider a reply should leave through when the person it is for last wrote
    * through another one. Resolve `undefined` on dismiss, which stops the send. Without it the
-   * provider the user's order picked is used.
+   * provider the user's order picked is used. Draws `messaging.choose-reply`. Deprecated: register a renderer in `asks` instead (D-067); this callback goes after one minor.
+   * @deprecated
    */
   chooseReply?(prompt: ReplyPrompt): Promise<ReplyAnswer | undefined>;
   /**
    * Put a firewall question to the person: a request a rule says to ask about, such as opening a link.
    * Close the prompt when `signal` aborts. Without it, such a request is refused (D-056).
+   * Draws `firewall.approve`. Deprecated: register a renderer in `asks` instead (D-067); this callback goes after one minor.
+   * @deprecated
    */
   presentApproval?(prompt: FirewallPrompt): void;
   /** Verify an artifact blob. Defaults to `fetch` over the manifest's servers. */
