@@ -111,6 +111,32 @@ export function findViewModelImports(packagesDir) {
   return violations;
 }
 
+/** Directories and files of `packages/core/src` that are the kernel (D-068); the rest are modules or kernl's preset. */
+export const KERNEL_PARTS = ['applesauce', 'applets', 'asks', 'consent', 'crypto', 'firewall', 'grants', 'guard', 'media', 'module-host', 'persistence', 'relays', 'secrets', 'seal', 'kernl.ts', 'kernl-adapter.ts', 'kernl-firewall.ts', 'kernl-lifecycle.ts', 'kernl-network.ts', 'kernl-services.ts', 'cache-lookup.ts', 'shortcut-key.ts'];
+
+/**
+ * Find kernel files in `packages/core/src` that import module code, so the edges cut for the package
+ * split (#75) stay cut. `types.ts`, still to split, and the re-export barrels are not kernel files here.
+ * @param {string} coreSrcDir Absolute path of `packages/core/src`.
+ * @returns {string[]} One violation per offending import.
+ * @example
+ * findKernelModuleImports('/repo/packages/core/src'); // []
+ */
+export function findKernelModuleImports(coreSrcDir) {
+  const violations = [];
+  const top = (path) => path.split('/')[0];
+  const isKernel = (path) => KERNEL_PARTS.includes(top(path));
+  for (const file of sourceFiles(coreSrcDir).filter((path) => !path.endsWith('.test.ts'))) {
+    const local = relative(coreSrcDir, file);
+    if (!isKernel(local)) continue;
+    for (const spec of importSpecifiers(readFileSync(file, 'utf8')).filter((spec) => spec.startsWith('.'))) {
+      const target = relative(coreSrcDir, join(file, '..', spec)).replace(/\.js$/, '.ts');
+      if (!isKernel(target) && target !== 'types.ts') violations.push(`packages/core/src/${local} imports ${spec}; the kernel imports no module (D-068)`);
+    }
+  }
+  return violations;
+}
+
 /**
  * Find UI framework dependencies declared by any package manifest.
  * @param {string} packagesDir Absolute path of the packages directory.
@@ -148,6 +174,7 @@ export function checkDependencyRules(packagesDir, appSrcDir) {
     ...findNostrToolsImports(packagesDir),
     ...findKehtoImports(packagesDir),
     ...findViewModelImports(packagesDir),
+    ...findKernelModuleImports(join(packagesDir, 'core', 'src')),
     ...findFrameworkDependencies(packagesDir),
     ...(appSrcDir ? findAppNostrToolsImports(appSrcDir) : []),
   ];

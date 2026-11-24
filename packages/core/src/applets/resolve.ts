@@ -10,7 +10,7 @@ import {
 import type { NostrEvent, NostrFilter } from '@napplet/core';
 import type { AppletPointer, AppletSummary, RelayTiers } from '../types.js';
 import { asFilters, type ApplesaucePool } from '../applesauce/relay-hooks.js';
-import { addressOf } from '../catalog/entry.js';
+import { addressOf } from './address.js';
 
 /**
  * Milliseconds a blob server gets before the next one is tried.
