@@ -2,8 +2,7 @@ import type { PermissionRequirement } from '@kehto/runtime';
 import type { ReplyAnswer, ReplyPrompt } from '@kernlize/messaging';
 import type { NostrEvent } from 'applesauce-core/helpers';
 import type { SettingsPrompt } from '../applets/applet-config.js';
-import type { DownloadQuestion } from '../downloads/types.js';
-import type { UploadDetails } from '../files/uploader.js';
+import type { DownloadQuestion, UploadDetails } from './facts.js';
 import type { AppletIdentity, ConsentSummary, FirewallChoice, FirewallSummary, HandlerChoice, HandlerPrompt } from '../types.js';
 
 /**

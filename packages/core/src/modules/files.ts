@@ -3,7 +3,7 @@ import { createUploadService } from '@kehto/services';
 import { lookupRelaysOf } from '../applesauce/identity-providers.js';
 import { createAccountFileServers, type AccountFileServers } from '../files/file-servers.js';
 import { createBlossomUploader, askUploadConsent } from '../files/uploader.js';
-import type { KernlModule } from './module.js';
+import type { KernlModule } from '../module-host/module.js';
 
 /**
  * The person's file servers and the `upload` domain (D-033): `kernl.files`. An applet's upload asks

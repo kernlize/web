@@ -1,5 +1,5 @@
 import { createPeople, type People, type PeopleOptions } from '../people/person.js';
-import type { KernlModule } from './module.js';
+import type { KernlModule } from '../module-host/module.js';
 
 /**
  * Reading a person from any form of their identity, asking the servers it names first:

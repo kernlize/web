@@ -4,15 +4,10 @@ import type { ISigner } from 'applesauce-signers';
 import type { NostrEvent } from '@napplet/core';
 import type { AppletIdentity, ConsentSummary } from '../types.js';
 import { toAskChannel, type AskChannel, type AskHost } from '../asks/channel.js';
+import type { UploadDetails } from '../asks/facts.js';
 
-/** What the person is asked about before a file leaves for a server. */
-export interface UploadDetails {
-  readonly filename?: string;
-  readonly mimeType: string;
-  readonly size: number;
-  readonly sha256: string;
-  readonly servers: readonly string[];
-}
+export type { UploadDetails } from '../asks/facts.js';
+
 
 /** Uploads to several servers, the first first and the rest as mirrors; hzrd149's `multiServerUpload` fits. */
 export type MultiServerUpload = (

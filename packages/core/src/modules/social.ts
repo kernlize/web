@@ -5,7 +5,7 @@ import { shellRelayOrigins } from '../kernl-services.js';
 import type { People } from '../people/person.js';
 import type { Profiles } from '../profiles/profiles.js';
 import { createCommonActions } from '../social/common-actions.js';
-import type { KernlModule } from './module.js';
+import type { KernlModule } from '../module-host/module.js';
 
 const FOLLOWS = 3;
 

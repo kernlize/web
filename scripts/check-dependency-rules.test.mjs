@@ -7,6 +7,7 @@ import {
   findAppNostrToolsImports,
   findFrameworkDependencies,
   findKehtoImports,
+  findKernelModuleImports,
   findNostrToolsImports,
   findViewModelImports,
   importSpecifiers,
@@ -143,4 +144,23 @@ test('findKehtoImports keeps kehto out of the view models', () => {
     'ui-model/src/index.ts': "import type { Runtime } from '@kehto/runtime';\n",
   });
   expect(findKehtoImports(root)).toEqual(['ui-model/src/index.ts imports @kehto/runtime; only @kernlize/core composes kehto (guard may import @kehto/rate-limit)']);
+});
+
+test('findKernelModuleImports flags a kernel file importing a module, and lets it import the kernel and the shared types', () => {
+  const root = packages({
+    'src/applets/resolve.ts': "import { addressOf } from '../catalog/entry.js';\nimport { plan } from './plan.js';\nimport type { Kernl } from '../types.js';\n",
+    'src/kernl.ts': "import { createKernlServices } from './kernl-services.js';\n",
+    'src/kernl-services.ts': '',
+    'src/catalog/entry.ts': "import { resolve } from '../applets/resolve.js';\n",
+    'src/applets/resolve.test.ts': "import { x } from '../catalog/entry.js';\n",
+  });
+  expect(findKernelModuleImports(join(root, 'src'))).toEqual(['packages/core/src/applets/resolve.ts imports ../catalog/entry.js; the kernel imports no module (D-068)']);
+});
+
+test('findKernelModuleImports counts the mailboxes and the directory as modules, though they sit in relays/', () => {
+  const root = packages({
+    'src/relays/tiers.ts': "import { createMailboxes } from './mailboxes.js';\n",
+    'src/relays/mailboxes.ts': "import { createRelayTiers } from './tiers.js';\n",
+  });
+  expect(findKernelModuleImports(join(root, 'src'))).toEqual(['packages/core/src/relays/tiers.ts imports ./mailboxes.js; the kernel imports no module (D-068)']);
 });

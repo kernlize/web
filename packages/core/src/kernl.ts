@@ -1,4 +1,4 @@
-import { BehaviorSubject, map, of, Subject, Subscription, switchMap } from 'rxjs';
+import { BehaviorSubject, map, of, Subject, Subscription, switchMap, type Observable } from 'rxjs';
 import { EventStore } from 'applesauce-core';
 import { RelayPool } from 'applesauce-relay';
 import type { AccountManager, IAccount } from 'applesauce-accounts';
@@ -9,9 +9,8 @@ import type { AppletIdentity, AppletStopLimit, GuardFacade, Intents, Kernel, Ker
 import { createStorageSecrets } from './secrets/secrets.js';
 import { createKernlAccounts } from './applesauce/accounts.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
-import type { ProfileCard, Profiles } from './profiles/profiles.js';
 import { createKernlNetwork } from './kernl-network.js';
-import type { ConnectedEventCache } from './cache/connect.js';
+import type { CacheLookup } from './cache-lookup.js';
 import type { Filter, NostrEvent } from 'applesauce-core/helpers';
 import { createRelayTiers } from './relays/tiers.js';
 import { SHELL_RELAY_OPTIONS } from './applesauce/relay-hooks.js';
@@ -28,9 +27,20 @@ import { abbreviate } from './consent/describe-change.js';
 import { createKernlServices, type KernlServiceDeps } from './kernl-services.js';
 import { createShellAdapter } from './kernl-adapter.js';
 import { createAppletLifecycle, resolveWindow } from './kernl-lifecycle.js';
-import { checkModules, setupModules, type ComposedModules, type KernelContextParts } from './modules/compose.js';
-import type { AnyKernlModule, ModuleApis } from './modules/module.js';
-import { supportsDomainBindings } from './downloads/bindings.js';
+import { checkModules, setupModules, type ComposedModules, type KernelContextParts } from './module-host/compose.js';
+import type { AnyKernlModule, ModuleApis } from './module-host/module.js';
+import { supportsDomainBindings } from './applets/domain-bindings.js';
+
+/** What the kernel reads of a profile to label the session: whether one was found, and its name. */
+export interface SessionCard {
+  readonly found: boolean;
+  readonly name: string;
+}
+
+/** The profiles module's lookup, as far as the session label needs it. */
+interface SessionNames {
+  card$(pubkey: string): Observable<SessionCard>;
+}
 
 /**
  * Describe an account as a session the UI can show.
@@ -42,7 +52,7 @@ import { supportsDomainBindings } from './downloads/bindings.js';
  * toSession(ReadonlyAccount.fromPubkey(pubkey)).readOnly; // true
  * ```
  */
-export function toSession(account: IAccount, card?: ProfileCard): Session {
+export function toSession(account: IAccount, card?: SessionCard): Session {
   const metadata = account.metadata as { name?: unknown } | undefined;
   const named = typeof metadata?.name === 'string' ? metadata.name : account.name;
   const label = named ?? (card?.found ? card.name : abbreviate(account.pubkey));
@@ -53,7 +63,7 @@ interface ShellState {
   readonly bridge: ShellBridge;
   readonly accounts: AccountManager;
   readonly session$: BehaviorSubject<Session | null>;
-  readonly profiles: Profiles | undefined;
+  readonly profiles: SessionNames | undefined;
 }
 
 /** Keep the session on the active account, labelled by its profile when the profiles module is loaded. */
@@ -170,9 +180,7 @@ function servicesFor(options: KernelOptions, parts: ServiceParts): ReturnType<ty
     host,
     ...(parts.bridges ? { bridges: parts.bridges } : {}),
     theme: null,
-    remoteTools: null,
     shortcuts: { isFocused: parts.isFocused },
-    keys: null,
     resolveIdentity(windowId) {
       const identity = identityOf(windowId);
       return identity ? { dTag: identity.dTag, aggregateHash: identity.hash } : null;
@@ -246,7 +254,7 @@ export function createKernel<const M extends readonly AnyKernlModule[]>(options:
   const identityOf = (windowId: string): AppletIdentity | undefined => handles.get(windowId)?.summary.identity;
   const modulesSetUp: { composed?: ComposedModules } = {};
   // The cache module's lookup, asked before any relay; nothing is cached until it is set up or when it is left out.
-  const cacheRequest = (filters: Filter[]): Promise<NostrEvent[]> => (modulesSetUp.composed?.apis.cache as ConnectedEventCache | undefined)?.cacheRequest(filters) ?? Promise.resolve([]);
+  const cacheRequest = (filters: Filter[]): Promise<NostrEvent[]> => (modulesSetUp.composed?.apis.cache as CacheLookup | undefined)?.cacheRequest(filters) ?? Promise.resolve([]);
   const { replaceableLoader } = createKernlNetwork({ eventStore, pool, tiers, accounts, cacheRequest });
   const lookupBefore = lookupReplaceable(eventStore, { loader: replaceableLoader, relays: () => [...tiers.get().outbox, ...tiers.get().discovery] });
   // An answer is the asking window's only: it is discarded once that window closed or runs another applet (D-067).
@@ -263,7 +271,7 @@ export function createKernel<const M extends readonly AnyKernlModule[]>(options:
     if (ownsPool) pool.close();
   });
   modulesSetUp.composed = composed;
-  const profiles = composed.apis.profiles as Profiles | undefined;
+  const profiles = composed.apis.profiles as SessionNames | undefined;
   const bridges = composed.apis.bridges as BridgeRegistry | undefined;
   const services = servicesFor(options, { pool, tiers, eventStore, adapter: () => adapter, consent, bridges, handles, isFocused });
 

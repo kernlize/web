@@ -1,15 +1,9 @@
 import type { ServiceHandler } from '@kehto/runtime';
+import type { ShortcutKey } from '../types.js';
+
+export type { ShortcutKey } from '../types.js';
 import { createKeysService } from '@kehto/services';
 
-/** A key press, as the page's `KeyboardEvent` names its parts. */
-export interface ShortcutKey {
-  readonly key: string;
-  readonly code: string;
-  readonly ctrlKey: boolean;
-  readonly altKey: boolean;
-  readonly shiftKey: boolean;
-  readonly metaKey: boolean;
-}
 
 /** The host's settings for applets' keyboard shortcuts. */
 export interface ShortcutSettings {

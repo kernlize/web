@@ -26,11 +26,8 @@ import {
 import type { Theme } from '@napplet/nap/theme/types';
 import type { EventTemplate, NostrEvent } from '@napplet/core';
 import { createBridgeRegistry, createBridgeResourceResolver, type BridgeContext, type BridgeRegistry, type ResourceResolveInit } from '@kernlize/bridges';
-import type { KernlHost, RelayTiers, RemoteToolsSettings } from './types.js';
-import { createRemoteToolsService } from './multiplayer/remote-tools.js';
-import { createWindowIdentities, type WindowIdentities } from './multiplayer/window-identities.js';
+import type { KernlHost, RelayTiers } from './types.js';
 import { createKernlMedia, type KernlMedia } from './media/kernl-media.js';
-import { createShortcutsService, type ShortcutsOptions, type ShortcutsService } from './keys/shortcuts.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { createAppletRelayService, createOutboxRelayPool } from './applesauce/relay-backend.js';
 import { createIdentityProviders, type IdentityProviders, type RelayPermissions } from './applesauce/identity-providers.js';
@@ -86,22 +83,14 @@ export interface KernlServiceDeps {
   readonly resolveIdentity: (windowId: string) => { dTag: string; aggregateHash: string } | null;
   /** Identity lookups; defaults to the applesauce-backed providers. */
   readonly identity?: IdentityProviders;
-  /** Keys for the work a window does under its own name; a fresh set by default (D-041). */
-  readonly identities?: WindowIdentities;
-  /** Where remote tools are looked for and which families the host vouches for. */
-  readonly remoteTools?: RemoteToolsSettings | null | undefined;
-  /** Reserved chords, the key listener's target and the focus source for the `keys` domain (D-054). */
-  readonly shortcuts: ShortcutsOptions;
-  /** `null` leaves the `keys` domain to the keys module (D-062). */
-  readonly keys?: null;
+  /** Whether a window is the focused one, for the media service's autoplay. */
+  readonly shortcuts: { readonly isFocused: (windowId: string) => boolean };
 }
 
 /** The registered services plus the handles the shell keeps calling. */
 export interface KernlServices {
   readonly registry: ServiceRegistry;
   readonly theme: ThemeService;
-  /** The `keys` service; `destroy()` gives back its key listener. */
-  readonly keys: ShortcutsService | undefined;
   /** The `media` service under the person's media settings. */
   readonly media: KernlMedia;
 }
@@ -338,8 +327,8 @@ function gateOutboxPublish(outbox: ServiceHandler, consent: SigningConsent): Ser
 /**
  * Register kehto's reference services over the shell's applesauce layer.
  *
- * `relay`, `identity`, `theme`, `keys`, `notify`, `link`, `resource`,
- * `outbox` and `cvm` are wired; every network path goes through the one pool, every
+ * `relay`, `identity`, `theme`, `notify`, `link`, `resource`,
+ * and `outbox` are wired; every network path goes through the one pool, every
  * resource fetch through the bridge registry's SSRF policy, links open only
  * over `https:` and `mailto:`, notifications surface through the host, outbox
  * publishes pass the consent gate before they are signed, and remote tools are
@@ -347,7 +336,7 @@ function gateOutboxPublish(outbox: ServiceHandler, consent: SigningConsent): Ser
  * window only.
  *
  * @param deps - Pool, tiers, store, auth, consent gate, host, registries and identity resolver.
- * @returns The service registry and the theme, keys and media handles.
+ * @returns The service registry and the theme and media handles.
  * @example
  * ```ts
  * const services = createKernlServices(deps);
@@ -359,8 +348,6 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
   const theme = createThemeService(deps.theme ? { initialTheme: deps.theme } : {});
   // Without the bridges module nothing resolves: an empty registry refuses every address with `unavailable:no-bridge`.
   const resolve = createBridgeResourceResolver(deps.bridges ?? createBridgeRegistry());
-  const identities = deps.identities ?? createWindowIdentities();
-  const keys = deps.keys === null ? undefined : createShortcutsService(deps.shortcuts);
   const resource = createResourceService({
     fetch: (url, init) =>
       fetchThroughFirewall(url, init, (signal) => resolve(url, resourceInitFor(deps, { ...init, signal }))).catch((error: unknown) => {
@@ -375,7 +362,6 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
     identity: createIdentityService({ getSigner: createIdentitySigner(deps.auth), ...identity }),
     // `null` leaves the domain to the theme module, which answers it or, left out, has it withheld (D-062).
     ...(deps.theme === null ? {} : { theme: theme.handler }),
-    ...(keys ? { keys } : {}),
     notify: createNotifyService({
       present: ({ windowId, message }) => deps.host.notify({ title: message.title, windowId, tone: 'info', ...(message.body ? { body: message.body } : {}) }),
     }),
@@ -391,15 +377,8 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
     ...(deps.bridges ? { resource } : {}),
     media: media.handler,
     outbox: gateOutboxPublish(createOutbox(deps, identity), deps.consent),
-    // `null` leaves remote tools and direct connections to the multiplayer module (D-062).
-    ...(deps.remoteTools === null ? {} : { cvm: createRemoteToolsService({
-      pool: deps.pool,
-      relays: () => deps.remoteTools?.relays ?? deps.tiers.get().super,
-      identities,
-      registry: () => deps.remoteTools?.registry ?? [],
-    }) }),
     ...(deps.config ? { config: createConfigService(deps.config).handler } : {}),
     ...(deps.uploader ? { upload: createUploadService({ uploader: deps.uploader, uploadInfo: { rails: [{ rail: 'blossom', enabled: true }] } }) } : {}),
   };
-  return { registry, theme, keys, media };
+  return { registry, theme, media };
 }

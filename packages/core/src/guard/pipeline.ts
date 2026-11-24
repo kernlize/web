@@ -19,8 +19,8 @@ import {
   type VisibilityGate,
   type WindowVisibility,
 } from '@kernlize/guard';
-import { createForwardedKeys } from '../keys/forwarded-keys.js';
-import { createKeymapHold } from '../keys/keymap-hold.js';
+import { createForwardedKeys } from './forwarded-keys.js';
+import { createKeymapHold } from './keymap-hold.js';
 
 /** The window a message came from, as the shell resolved it. Never taken from the message. */
 export interface WindowResolution {

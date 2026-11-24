@@ -1,5 +1,5 @@
 import { createShortcutsService, type ShortcutSettings } from '../keys/shortcuts.js';
-import type { KernlModule } from './module.js';
+import type { KernlModule } from '../module-host/module.js';
 
 /**
  * Applets' keyboard shortcuts, the `keys` domain (D-054): an applet binds chords, its actions run

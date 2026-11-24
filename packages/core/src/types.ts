@@ -12,7 +12,7 @@ import type { ToolFamilyCandidate } from './multiplayer/tool-discovery.js';
 import type { NappletArtifactCache, NappletManifest } from '@kehto/nip/5d';
 import type { NostrEvent } from '@napplet/core';
 import type { GuardConfig, GuardEvent, GuardProfile, MitigationDescription, WindowVisibility } from '@kernlize/guard';
-import type { MessagingBackend, MessagingRegistry, ReplyAnswer, ReplyPrompt } from '@kernlize/messaging';
+import type { MessagingRegistry, ReplyAnswer, ReplyPrompt } from '@kernlize/messaging';
 import type { BridgeRegistry, ClientFetch, PageScheme, TorrentBackend } from '@kernlize/bridges';
 import type { DownloadClients } from './downloads/download-clients.js';
 import type { SecretsDescription, SecretsProvider } from './secrets/secrets.js';
@@ -28,8 +28,12 @@ import type { RelayDirectory } from './relays/directory.js';
 import type { LoadCatalogOptions } from './catalog/fetch.js';
 import type { HandlerDefaults } from './intents/defaults.js';
 import type { InstalledApplet } from './intents/installed.js';
-import type { ShortcutKey, ShortcutSettings } from './keys/shortcuts.js';
-import type { AnyKernlModule } from './modules/module.js';
+import type { ShortcutSettings } from './keys/shortcuts.js';
+import type { ShortcutKey } from './shortcut-key.js';
+
+export type { ShortcutKey } from './shortcut-key.js';
+export type { MessagingBackendFactories } from './messaging/backend-factories.js';
+import type { AnyKernlModule } from './module-host/module.js';
 import type { AskRenderers } from './asks/kinds.js';
 
 
@@ -447,17 +451,6 @@ export interface KernlHost {
   now?(): number;
 }
 
-
-/**
- * Backend constructors for `createDefaultMessaging`'s four providers. A provider whose
- * constructor is absent reports itself unavailable with a stable reason.
- */
-export interface MessagingBackendFactories {
-  readonly private?: () => MessagingBackend;
-  readonly legacy?: () => MessagingBackend;
-  readonly ratchet?: () => MessagingBackend;
-  readonly group?: () => MessagingBackend;
-}
 
 export interface KernlOptions {
   readonly host: KernlHost;

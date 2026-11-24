@@ -16,6 +16,11 @@ Feature: Remote tools for applets
     Then window "w1" gets the answer "0.87"
     And every request reached the server sealed for it alone
 
+  Scenario: a window that asks before kehto registers the service still finds the tool server
+    Given the remote tools service looks on the loopback relay before kehto registers it
+    When window "w1" looks for remote tools
+    Then window "w1" finds "Trust fixture" offering "trust_score"
+
   Scenario: each window calls under its own key
     When window "w1" calls "trust_score" on the tool server
     And window "w2" calls "trust_score" on the tool server

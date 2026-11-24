@@ -2,11 +2,10 @@ import type { AccountManager } from 'applesauce-accounts';
 import { verifyEvent } from 'applesauce-core/helpers';
 import type { CapabilityHooks, NappletRevocation, ShellAdapter, UnroutedMessageInfo } from '@kehto/shell';
 import type { PermissionAdapter, ServiceRegistry } from '@kehto/runtime';
-import type { RelayTier, RelayTiers } from './types.js';
+import type { RelayTier, RelayTiers, ShortcutKey } from './types.js';
 import { createAuthHooks } from './applesauce/auth-hooks.js';
 import type { SigningConsent } from './consent/handler.js';
 import { createRelayPoolHooks, type ApplesaucePool } from './applesauce/relay-hooks.js';
-import type { ShortcutKey } from './keys/shortcuts.js';
 
 const TIERS: readonly string[] = ['discovery', 'apps', 'outbox', 'super'];
 
