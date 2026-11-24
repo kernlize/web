@@ -153,6 +153,18 @@ Feature: Modules
       And the shell does not offer "cvm"
       And the shell does not offer "webrtc"
 
+    Scenario: the multiplayer module looks for an applet's remote tools on the general relays
+      Given a kernl shell over that host and pool with modules "multiplayer"
+      And a mounted applet granted "cvm" that has said hello
+      When the applet asks for remote tools over its port
+      Then the fake pool was then asked on the "super" tier
+
+    Scenario: a host that names no modules hands its remote-tools relays to the multiplayer module
+      Given a kernl shell over that host and pool whose remote tools look on "wss://tools.example"
+      And a mounted applet granted "cvm" that has said hello
+      When the applet asks for remote tools over its port
+      Then the fake pool was then asked on "wss://tools.example"
+
     Scenario: kernl's own modules include the directory, which waits to be started
       Given a kernl shell over that host and pool
       Then the shell has a "directory" member
