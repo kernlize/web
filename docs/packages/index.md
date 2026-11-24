@@ -7,8 +7,8 @@ kernl has five packages. Each has two names: `@kernlize/*` on npm and `@kernl/*`
 | [`@kernlize/guard`](./guard.md) | `0.3.1` | `@kernl/guard` | Ingress flood control, visibility gate, focus-aware rate limiter, CSP profile, nested-frame lock, mitigation descriptions. | `@kehto/rate-limit` | `@napplet/core` |
 | [`@kernlize/messaging`](./messaging.md) | `0.4.1` | `@kernl/messaging` | Messaging provider contract, registry, composite direct-message adapter, in-memory backend. | none | `@napplet/core` (the `Dm*` wire types) |
 | [`@kernlize/bridges`](./bridges.md) | `0.3.0` | `@kernl/bridges` | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy. | none | none |
-| [`@kernlize/core`](./core.md) | `0.27.0` | `@kernl/core` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts, persistence. | the three above, `@kehto/*`, `applesauce-*`, `rxjs` | `@napplet/core`, `@napplet/nap`, `@napplet/shim`, `nostr-tools` (required by kehto and applesauce; never imported) |
-| [`@kernlize/ui-model`](./ui-model.md) | `0.2.0` | `@kernl/ui-model` | Framework-free view models for a shell's panels: the grants list today, the ask queues and logs next (#74). | `@kernlize/core` | none |
+| [`@kernlize/core`](./core.md) | `0.28.0` | `@kernl/core` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts, persistence. | the three above, `@kehto/*`, `applesauce-*`, `rxjs` | `@napplet/core`, `@napplet/nap`, `@napplet/shim`, `nostr-tools` (required by kehto and applesauce; never imported) |
+| [`@kernlize/ui-model`](./ui-model.md) | `0.2.1` | `@kernl/ui-model` | Framework-free view models for a shell's panels: the grants list today, the ask queues and logs next (#74). | `@kernlize/core` | none |
 
 ## Shared rules
 

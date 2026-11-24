@@ -1,6 +1,6 @@
 {
   "name": "@kernlize/ui-model",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Framework-free view models for a kernl shell: the grants list, ask queues and logs as rxjs streams",
   "type": "module",
   "main": "./dist/index.js",

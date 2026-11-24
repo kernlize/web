@@ -1,5 +1,12 @@
 # @kernlize/ui-model
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies [cbc86fd]
+  - @kernlize/core@0.28.0
+
 ## 0.2.0
 
 ### Minor Changes
