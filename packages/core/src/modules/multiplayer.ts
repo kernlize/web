@@ -41,7 +41,7 @@ export function multiplayerModule(options: MultiplayerModuleOptions = {}): Kernl
         pool: context.pool,
         relays: () => relays(options.remoteTools?.relays),
         identities,
-        registry: () => mergeFamilies(options.remoteTools?.registry ?? [], chosen().families ?? []),
+        registry: () => mergeFamilies(options.remoteTools?.registry ?? [], chosen().families),
       });
       const webrtc = canConnect ? createDirectConnectionsService({
         ...(createPeer ? { createPeer } : {}),
