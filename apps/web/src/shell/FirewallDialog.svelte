@@ -5,7 +5,7 @@
   import { trapFocus } from './focus-trap';
 
   interface Props {
-    prompt: FirewallPrompt;
+    prompt: Pick<FirewallPrompt, 'summary'>;
     /** How many more questions wait behind this one. */
     waiting: number;
     onanswer: (choice: FirewallChoice | undefined) => void;

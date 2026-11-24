@@ -5,7 +5,7 @@
   import { eventDetails } from './event-details';
 
   interface Props {
-    prompt: ConsentPrompt;
+    prompt: Pick<ConsentPrompt, 'summary'>;
     appletTitle: string;
     /** The active account's key; records it signs read "your account". */
     accountKey?: string | undefined;

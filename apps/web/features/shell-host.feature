@@ -42,6 +42,13 @@ Feature: The shell host
     Then the shell host did not ask again
     And the shell host opened "https://example.org" in a new, unlinked tab
 
+  Scenario: a stopped applet's waiting question goes with it, answered no
+    Given the shell host with window "w1" titled "Notes"
+    When window "w1" asks the shell host to sign a change, and so does window "w2"
+    And the shell host hears window "w1" was revoked for "host"
+    Then the consent queue holds only window "w2"'s question
+    And window "w1"'s question was answered no
+
   Scenario: firewall questions wait in their own queue
     Given the shell host with window "w1" titled "Notes"
     Then the shell host puts a firewall question in the firewall queue

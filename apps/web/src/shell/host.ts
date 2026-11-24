@@ -1,4 +1,5 @@
-import type { Ask, AskRenderers, KernlHost, StorageLike } from './contract';
+import { createAskRenderers } from '@kernlize/ui-model';
+import type { AskRenderers, KernlHost, StorageLike } from './contract';
 import type { ConsentQueue } from './consent-queue.svelte';
 import type { FirewallQueue } from './firewall-queue.svelte';
 import type { HandlerQueue } from './handler-queue.svelte';
@@ -11,13 +12,13 @@ import type { WindowStore } from './window-store.svelte';
 
 interface HostDeps {
   readonly storage: StorageLike;
-  readonly consent: ConsentQueue;
-  readonly firewall: Pick<FirewallQueue, 'enqueue'>;
-  readonly settings: Pick<SettingsQueue, 'show'>;
+  readonly consent: Pick<ConsentQueue, 'model'>;
+  readonly firewall: Pick<FirewallQueue, 'model'>;
+  readonly settings: Pick<SettingsQueue, 'model'>;
   readonly notices: NoticeStore;
   readonly windows: WindowStore;
-  readonly handlers: Pick<HandlerQueue, 'ask'>;
-  readonly replies: Pick<ReplyQueue, 'ask'>;
+  readonly handlers: Pick<HandlerQueue, 'model'>;
+  readonly replies: Pick<ReplyQueue, 'model'>;
   readonly opener: AppletOpener;
   readonly shortcuts: ShortcutRunner;
 }
@@ -63,22 +64,19 @@ export function scopedStorage(storage: StorageLike, prefix: string): StorageLike
 /** The prefix the offline preview keeps its state under. */
 export const PREVIEW_STORAGE_PREFIX = 'preview:';
 
-type ConsentKind = 'sign.replace' | 'upload.file' | 'download.add' | 'connection.direct';
-
-/** Every question the kernel puts to the person, drawn by the desktop's own dialogs (D-067). */
+/** Every question the kernel puts to the person, each kind waiting in its dialog's queue (D-067, #74). */
 function asksFor(deps: HostDeps): AskRenderers {
-  const consent = (ask: Ask<ConsentKind>): Promise<boolean> => new Promise((resolve) => deps.consent.enqueue({ summary: ask.defaultText, resolve }));
-  return {
+  const consent = deps.consent.model;
+  return createAskRenderers({
     'sign.replace': consent,
     'upload.file': consent,
     'download.add': consent,
     'connection.direct': consent,
-    // The kernel always hands a firewall question its signal; the dialog closes when it aborts.
-    'firewall.approve': (ask) => new Promise((resolve) => deps.firewall.enqueue({ summary: ask.facts, signal: ask.signal as NonNullable<typeof ask.signal>, resolve })),
-    'intent.choose-handler': (ask) => deps.handlers.ask(ask.facts),
-    'messaging.choose-reply': (ask) => deps.replies.ask(ask.facts),
-    'settings.present': (ask) => deps.settings.show(ask.facts),
-  };
+    'firewall.approve': deps.firewall.model,
+    'intent.choose-handler': deps.handlers.model,
+    'messaging.choose-reply': deps.replies.model,
+    'settings.present': deps.settings.model,
+  });
 }
 
 /** The UI's side of the contract: dialogs, firewall questions, applet settings, the handler chooser, the reply question, toasts, link confirmation, opening and focusing windows. */
@@ -100,6 +98,8 @@ export function createHost(deps: HostDeps): KernlHost {
       const title = deps.windows.get(windowId)?.plan.summary.title ?? 'An applet';
       const report = describeStop(reason, details, Date.now());
       deps.windows.markRevoked(windowId, report);
+      // A stopped applet's questions go with it, each answered with its refusal (#74).
+      for (const queue of [deps.consent, deps.firewall, deps.handlers, deps.replies, deps.settings]) queue.model.dismissWindow(windowId);
       deps.notices.push({ title: `${title} was stopped`, body: report.words, tone: 'warning', windowId });
     },
   };
