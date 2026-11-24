@@ -1,6 +1,6 @@
 # @kernlize/ui-model
 
-Framework-free view models for a kernl shell's panels. A host's UI binds to them and keeps its own look. Today the package holds the grants list. The ask queues, the guard and traffic logs, notices and unread counts move here from kernl.run next (#74).
+Framework-free view models for a kernl shell's panels. A host's UI binds to them and keeps its own look. It holds the grants list and the ask queues. The guard and traffic logs, notices and unread counts move here from kernl.run next (#74).
 
 | Field | Value |
 | --- | --- |
@@ -49,6 +49,32 @@ const ops = grantsToApply(input, choices, state);
   - A baseline domain is always on.
 - **`grantsToApply(input, choices, state)`:** what confirming comes to, as `allow` and `revoke` operations. An allowed unsafe domain is kept beside messages. Nothing is applied for what already stands, for a baseline domain, for one the shell cannot offer, or for one messages withhold.
 
+## Ask queues
+
+The kernel puts its questions to the person as asks, one renderer per kind ([Asks](../concepts/asks.md)). A queue holds them for a dialog:
+
+- **One at a time.** The queue shows its questions one at a time, in arrival order. `current$` is the one in front, and `answer(value)` resolves it and brings the next forward.
+- **Revoked windows.** `dismissWindow(windowId)` answers every waiting question from a window with its refusal, for when the shell stops an applet.
+- **Withdrawn questions.** One the kernel withdraws through its `signal`, such as a firewall question left unanswered, leaves the queue by itself.
+
+`createAskRenderers` turns queues into `KernlHost.asks`, and several kinds may share one queue, as kernl.run's consent dialog does. The queues read the kinds from `@kernlize/core/asks`, so they load without the network stack.
+
+```ts
+import { createKernl, type KernlHost } from '@kernlize/core';
+import { createAskQueue, createAskQueues, createAskRenderers } from '@kernlize/ui-model';
+
+declare const host: KernlHost;
+declare function draw(title: string | undefined): void;
+
+const queues = createAskQueues();
+const consent = createAskQueue<'sign.replace' | 'upload.file'>();
+const kernl = createKernl({ host: { ...host, asks: createAskRenderers({ ...queues, 'sign.replace': consent, 'upload.file': consent }) } });
+
+consent.current$.subscribe((ask) => draw(ask?.defaultText.title));
+// The person says yes to the question on screen:
+consent.answer(true);
+```
+
 ## Exports
 
 | Export | Signature | Description |
@@ -61,7 +87,10 @@ const ops = grantsToApply(input, choices, state);
 | `contractName` | `(domain: string) => string` | The contract beside the words, the domain in capitals (D-057). |
 | `formatBytes` | `(bytes: number) => string` | Byte counts in binary units. |
 | `GROUP_LABELS`, `WITHHELD_NOTE`, `UNKNOWN_DOMAIN_LABEL` | constants | The captions and notes the list shows. |
+| `createAskQueue` | `<K extends AskKind>() => AskQueue<K>` | A queue of asks: `waiting$`, `current$`, `enqueue`, `answer`, `dismissWindow`, `forWindow`. |
+| `createAskQueues` | `() => AskQueues` | One queue for each ask kind. |
+| `createAskRenderers` | `(queues: AskQueuesByKind) => AskRenderers` | `KernlHost.asks` over the queues; a kind left out has no renderer, so the kernel refuses it. |
 | `PACKAGE_NAME` | `'@kernlize/ui-model'` | |
-| `GrantInput`, `GrantState`, `GrantChoices`, `GrantGroup`, `GrantGroupId`, `GrantRow`, `GrantOp` | types | |
+| `GrantInput`, `GrantState`, `GrantChoices`, `GrantGroup`, `GrantGroupId`, `GrantRow`, `GrantOp`, `AskQueue`, `AskQueues`, `AskQueuesByKind` | types | |
 
 Generated module: [`_kernlize_ui-model`](../api/modules/_kernlize_ui-model.html){target="_self"}
