@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { expect, vi } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import { createAskChannel, type Ask, type AskChannel, type AskHost, type AskKind, type AskRenderers, type KernelContext, type KernlHost, type KernlModule } from '@kernlize/core';
@@ -131,6 +132,10 @@ When('the host answers the ask with {string}', async (world: CoreWorld, answer: 
   await settle();
 });
 
+Then('the applet was answered once the record it would replace was looked for', async (world: CoreWorld) => {
+  await vi.waitFor(() => expect(k(world).received.map((entry) => entry.type)).toContain('relay.publish.result'), { timeout: 2000 });
+});
+
 Then("the host's consent prompt was not used", (world: CoreWorld) => {
   expect(k(world).record.prompts).toEqual([]);
 });
@@ -166,7 +171,7 @@ Given('a kernl shell that offers the download domains, with a Transmission progr
   const transmission = await startFakeTransmission();
   // Kept where the downloads steps close their programs after the scenario.
   (scratch(world) as { downloads?: { prompts: never[]; sent: never[]; transmission: typeof transmission } }).downloads = { prompts: [], sent: [], transmission };
-  const password = 'transmission-password-0451';
+  const password = randomUUID();
   transmission.credentials = { username: 'ann', password };
   asks(world).password = password;
   boot(world, { downloads: { offer: true } }, { ...blobFetcher(world), asks: drawing(world, splitList(kinds) as AskKind[]) });

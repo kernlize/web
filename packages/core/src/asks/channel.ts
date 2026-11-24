@@ -1,5 +1,5 @@
 import type { KernlHost } from '../types.js';
-import { ASK_REFUSALS, type Ask, type AskAnswer, type AskKind, type AskRenderer, type AskRenderers } from './kinds.js';
+import { ASK_REFUSALS, type Ask, type AskAnswer, type AskKind, type AskRenderer } from './kinds.js';
 
 /** The host's side of the asks: its renderers, and the prompt callbacks they replace. */
 export type AskHost = Pick<KernlHost, 'asks' | 'presentConsent' | 'presentApproval' | 'chooseHandler' | 'chooseReply' | 'presentSettings'>;

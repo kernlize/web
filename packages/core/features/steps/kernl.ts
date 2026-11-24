@@ -639,8 +639,7 @@ Then("the applet's publish succeeded", (world: CoreWorld) => {
   expect(publishResult(world)).toMatchObject({ ok: true, id: 'publish-1' });
 });
 
-Then("the applet's publish failed with {string}", async (world: CoreWorld, error: string) => {
-  await vi.waitFor(() => expect(publishResult(world)).toBeDefined(), { timeout: 2000 });
+Then("the applet's publish failed with {string}", (world: CoreWorld, error: string) => {
   expect(publishResult(world)).toEqual({ type: 'relay.publish.result', id: 'publish-1', ok: false, error });
 });
 

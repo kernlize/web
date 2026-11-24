@@ -34,7 +34,8 @@ Feature: Floor: the kernel decides what is asked, and a question nobody draws is
       And the shell is signed in
       And a mounted applet granted "relay" that has said hello
       When the applet publishes a kind 0 event with content '{"name":"bob"}' over its port
-      Then the applet's publish failed with "denied:consent"
+      Then the applet was answered once the record it would replace was looked for
+      And the applet's publish failed with "denied:consent"
       And the fake pool published nothing
 
       Examples:
