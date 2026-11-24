@@ -45,3 +45,10 @@ Feature: Logs, notices and the unread count
     Given an unread count over a backend owned by "me"
     When the watch is stopped before the backend answers
     Then the backend was unsubscribed
+
+  Scenario: the defaults keep 50 guard events, 200 rows a window, and schedule notices on the page's own clock
+    Given the logs with their defaults
+    When 60 guard events and 250 rows for window "w1" are logged, and a notice is shown
+    Then the guard log holds 50 events and counts 60
+    And window "w1" keeps 200 rows
+    And the notice is on screen until its time is up

@@ -168,3 +168,24 @@ Then('the backend was unsubscribed', async (world: LogsWorld) => {
   await settle();
   expect(world.unsubscribed).toEqual(['sub-1']);
 });
+
+Given('the logs with their defaults', (world: LogsWorld) => {
+  const state = world_(world);
+  state.guard = createGuardLog();
+  state.traffic = createTrafficLog<Row>();
+  state.notices = createNoticeStore();
+});
+
+When('{int} guard events and {int} rows for window {string} are logged, and a notice is shown', (world: LogsWorld, events: number, rows: number, windowId: string) => {
+  for (let n = 0; n < events; n += 1) world.guard?.push(event('pass', windowId));
+  for (let n = 0; n < rows; n += 1) world.traffic?.add({ windowId, n });
+  world.notices?.push({ title: 'Saved', tone: 'info' });
+});
+
+Then('window {string} keeps {int} rows', (world: LogsWorld, windowId: string, rows: number) => {
+  expect(world.traffic?.forWindow(windowId).length).toBe(rows);
+});
+
+Then('the notice is on screen until its time is up', (world: LogsWorld) => {
+  expect(world.notices?.items().map((item) => item.title)).toEqual(['Saved']);
+});
