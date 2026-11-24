@@ -12,6 +12,7 @@ export default defineConfig({
       '@kernlize/messaging': pkg('messaging'),
       '@kernlize/bridges': pkg('bridges'),
       '@kernlize/ui-model': pkg('ui-model'),
+      '@kernlize/preset': pkg('preset'),
       // The subpath comes first: a string alias also matches as a path prefix.
       '@kernlize/core/wm': pkg('core', 'wm/index.ts'),
       '@kernlize/core/crypto': pkg('core', 'crypto/index.ts'),
