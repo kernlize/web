@@ -130,7 +130,14 @@ export interface NoticeStore {
   dismiss(id: number): void;
 }
 
-/** How long each tone stays on screen, in milliseconds. */
+/**
+ * How long each tone stays on screen, in milliseconds.
+ *
+ * @example
+ * ```ts
+ * NOTICE_LIFETIME_MS.warning; // 12000
+ * ```
+ */
 export const NOTICE_LIFETIME_MS: Readonly<Record<Notice['tone'], number>> = Object.freeze({ info: 6000, warning: 12_000 });
 
 /**
