@@ -1117,3 +1117,29 @@ This changes D-062's "the context holds no signer" and the composability plan's 
 **Consequences.** A host can compose kernl with its own UX and never miss a question, because a question it does not draw is refused. `presentConsent` became optional. Functions that took a host with `presentConsent` or `presentApproval` (`createSigningConsent`, `createConsentHandler`, `askUploadConsent`, `createFirewallPermissions`) take either a host or an ask channel. Custom kinds that a module adds are not part of this entry; a module raises only the kernel's kinds.
 
 **Reversal cost.** Moderate once the callbacks are removed, because hosts will have moved to `asks`. Before that, low.
+
+## D-068 · The kernel, its modules and kernl's preset are packages of their own
+
+**Context.** D-004 shipped four packages, with `@kernlize/core` composing everything. Phases 1 to 6 of #68 turned every opinion into a module and added `@kernlize/ui-model`. Even so, a host that wants only the kernel still installs and bundles kernl's whole module list, and the preview is a second implementation of the shell, so it can drift from the real one. #75 asks for the split.
+
+**Decision.**
+
+- **The layout:**
+  - `@kernlize/kernel` is the floor: the applesauce trio, the guard pipeline, the firewall, grants, signing consent, secrets, the media player (D-063), applet resolve, plan and mount, the module host, and the ask channel.
+  - `@kernlize/modules` has one subpath per module.
+  - `@kernlize/preset` holds `kernlPreset` and `previewPreset`.
+  - `@kernlize/core` re-exports kernel and preset for one minor, then goes.
+  - `@kernlize/guard`, `@kernlize/messaging`, `@kernlize/bridges` and `@kernlize/ui-model` are unchanged.
+- **The layering, enforced by `check-dependency-rules.mjs`:** the kernel imports no module; a module imports the kernel and only the modules it `requires`; nothing published imports the preset.
+- **The order, as the owner chose:**
+  1. Cut the kernel side's edges to module code.
+  2. Carve out the packages, with kernl.run running on `kernlPreset`.
+  3. Add the layering rules.
+  4. Make `previewPreset` replace the hand-written preview.
+- **The new packages stay private** until each has been created on JSR, linked to the repository, and published to npm once. A last PR makes them public.
+
+This supersedes D-004's package list.
+
+**Consequences.** A host installs the floor and only the opinions it wants. kernl.run's preview and live shell share one implementation. Every module change names the package it touches.
+
+**Reversal cost.** High once published. Before the flip to public, moderate: the packages are internal.
