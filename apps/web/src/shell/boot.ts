@@ -37,14 +37,14 @@ function reasonOf(error: unknown): string {
 export async function boot(host: KernlHost, search: URLSearchParams, theme?: ShellTheme): Promise<Booted> {
   if (search.get('preview') === '1') return preview(host, theme);
   try {
-    const core = await import('@kernlize/core');
+    const [core, preset] = await Promise.all([import('@kernlize/core'), import('@kernlize/preset')]);
     if (!('createKernl' in core) || typeof core.createKernl !== 'function') return preview(host, theme, 'The live shell is not part of this build yet.');
     // The library loads on the first download, never with the page (D-017).
     const downloads = createShellDownloads({ storage: host.storage, client: loadWebTorrent, open: (uri) => host.openLink(uri), inKernl: canReachPeers() });
-    // Naming the modules is what types `kernl.theme`, the only thing that may publish a colour change (D-064).
+    // kernl.run runs the kernel with kernl's preset (D-068). Naming the modules is what types `kernl.theme`, the only thing that may publish a colour change (D-064).
     // A shell that names them hands the theme, the event cache, its reserved shortcuts and its torrent engine to the modules; `createKernl` reads none of them (D-062).
     // The settings form is the host's `settings.present` renderer, which the settings module draws through (D-067).
-    const modules = core.kernlModules({ eventCache: openShellEventCache, shortcuts: { reserved: SHELL_CHORDS }, torrent: downloads.torrent, ...(theme ? { theme } : {}) });
+    const modules = preset.kernlPreset({ eventCache: openShellEventCache, shortcuts: { reserved: SHELL_CHORDS }, torrent: downloads.torrent, ...(theme ? { theme } : {}) });
     const kernl = core.createKernl({ host, builtins: [MESSAGES_APPLET], modules });
     NostrConnectSigner.pool = kernl.pool;
     return { kernl, mode: 'live', downloads };

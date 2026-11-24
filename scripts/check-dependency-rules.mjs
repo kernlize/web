@@ -10,6 +10,8 @@ const LEAF_PACKAGES = ['guard', 'messaging', 'bridges'];
 const KEHTO_FREE_PACKAGES = [...LEAF_PACKAGES, 'ui-model'];
 /** The package of view models a host's UI binds to; nothing it builds on may import it. */
 export const VIEW_MODEL_PACKAGE = '@kernlize/ui-model';
+/** kernl.run's module list; a host composes it, no package depends on it. */
+export const PRESET_PACKAGE = '@kernlize/preset';
 const DEPENDENCY_FIELDS = ['dependencies', 'peerDependencies', 'optionalDependencies', 'devDependencies'];
 
 const PACKAGE_SOURCE = /\.(?:ts|mts|js|mjs)$/;
@@ -92,6 +94,17 @@ export function findKehtoImports(packagesDir) {
   return violations;
 }
 
+function findImportsOf(packagesDir, owner, target, reason) {
+  const violations = [];
+  for (const slug of packageSlugs(packagesDir).filter((slug) => slug !== owner)) {
+    for (const file of sourceFiles(join(packagesDir, slug, 'src'))) {
+      const offending = importSpecifiers(readFileSync(file, 'utf8')).filter((spec) => packageOf(spec) === target);
+      for (const spec of offending) violations.push(`${relative(packagesDir, file)} imports ${spec}; ${reason}`);
+    }
+  }
+  return violations;
+}
+
 /**
  * Find imports of the view models from any other package: the layers below them never depend on
  * what a UI binds to (#74).
@@ -101,14 +114,19 @@ export function findKehtoImports(packagesDir) {
  * findViewModelImports('/repo/packages'); // []
  */
 export function findViewModelImports(packagesDir) {
-  const violations = [];
-  for (const slug of packageSlugs(packagesDir).filter((slug) => slug !== 'ui-model')) {
-    for (const file of sourceFiles(join(packagesDir, slug, 'src'))) {
-      const offending = importSpecifiers(readFileSync(file, 'utf8')).filter((spec) => packageOf(spec) === VIEW_MODEL_PACKAGE);
-      for (const spec of offending) violations.push(`${relative(packagesDir, file)} imports ${spec}; only a host's UI depends on the view models`);
-    }
-  }
-  return violations;
+  return findImportsOf(packagesDir, 'ui-model', VIEW_MODEL_PACKAGE, "only a host's UI depends on the view models");
+}
+
+/**
+ * Find imports of kernl's preset from any package: the preset is what kernl.run composes, and no
+ * package a host installs may pull kernl's whole module list in with it (D-068).
+ * @param {string} packagesDir Absolute path of the packages directory.
+ * @returns {string[]} One violation per offending import.
+ * @example
+ * findPresetImports('/repo/packages'); // []
+ */
+export function findPresetImports(packagesDir) {
+  return findImportsOf(packagesDir, 'preset', PRESET_PACKAGE, 'nothing published imports the preset (D-068)');
 }
 
 /** Directories and files of `packages/core/src` that are the kernel (D-068); the rest are modules or kernl's preset. */
@@ -178,6 +196,7 @@ export function checkDependencyRules(packagesDir, appSrcDir) {
     ...findNostrToolsImports(packagesDir),
     ...findKehtoImports(packagesDir),
     ...findViewModelImports(packagesDir),
+    ...findPresetImports(packagesDir),
     ...findKernelModuleImports(join(packagesDir, 'core', 'src')),
     ...findFrameworkDependencies(packagesDir),
     ...(appSrcDir ? findAppNostrToolsImports(appSrcDir) : []),

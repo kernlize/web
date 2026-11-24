@@ -3,6 +3,7 @@ import '../../packages/messaging/features/steps/index.ts';
 import '../../packages/bridges/features/steps/index.ts';
 import '../../packages/core/features/steps/index.ts';
 import '../../packages/ui-model/features/steps/index.ts';
+import '../../packages/preset/features/steps/index.ts';
 import '../../apps/web/features/steps/index.ts';
 import './publishing.ts';
 import './bundling.ts';

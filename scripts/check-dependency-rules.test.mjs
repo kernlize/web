@@ -9,6 +9,7 @@ import {
   findKehtoImports,
   findKernelModuleImports,
   findNostrToolsImports,
+  findPresetImports,
   findViewModelImports,
   importSpecifiers,
 } from './check-dependency-rules.mjs';
@@ -136,6 +137,16 @@ test('findViewModelImports flags any other package importing the view models, an
     'ui-model/src/index.ts': "import { sealsApplet } from '@kernlize/core';\n",
   });
   expect(findViewModelImports(root)).toEqual(["core/src/index.ts imports @kernlize/ui-model; only a host's UI depends on the view models"]);
+});
+
+test('findPresetImports flags any package importing the preset, and lets the preset import the core', () => {
+  const root = packages({
+    'ui-model/package.json': manifest('@kernlize/ui-model'),
+    'ui-model/src/index.ts': "import { kernlPreset } from '@kernlize/preset';\n",
+    'preset/package.json': manifest('@kernlize/preset', { private: true }),
+    'preset/src/index.ts': "import { kernlModules } from '@kernlize/core';\n",
+  });
+  expect(findPresetImports(root)).toEqual(['ui-model/src/index.ts imports @kernlize/preset; nothing published imports the preset (D-068)']);
 });
 
 test('findKehtoImports keeps kehto out of the view models', () => {
