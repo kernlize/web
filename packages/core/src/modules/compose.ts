@@ -24,7 +24,7 @@ import type { AnyKernlModule, KernelContext, ModuleInstance } from './module.js'
  */
 export const KERNEL_DOMAINS: readonly string[] = Object.freeze([
   'shell', 'storage', 'inc', 'relay', 'identity', 'notify', 'link', 'outbox',
-  'resource', 'dm', 'cvm', 'webrtc', 'torrent', 'nzb', 'soulseek', 'media',
+  'resource', 'dm', 'cvm', 'webrtc', 'media',
 ]);
 
 /**
@@ -76,6 +76,7 @@ export interface KernelContextParts {
   readonly host: Pick<KernlHost, 'presentConsent' | 'storage' | 'openApplet' | 'focusApplet' | 'chooseHandler' | 'notify' | 'now' | 'openLink'>;
   /** The applets running now, by window id. */
   readonly applets: KernelContext['applets'];
+  readonly secrets: KernelContext['secrets'];
   /** Whether a window is the focused one, as the guard sees it. */
   readonly isFocused: (windowId: string) => boolean;
 }
@@ -113,6 +114,7 @@ function contextFor(parts: KernelContextParts, apis: Readonly<Record<string, unk
     appletOf: parts.appletOf,
     isFocused: parts.isFocused,
     applets: parts.applets,
+    secrets: parts.secrets,
     host: parts.host,
     ask: (summary) => new Promise((resolve) => parts.host.presentConsent({ summary, resolve })),
     replaceableLoader: parts.replaceableLoader,
@@ -127,7 +129,7 @@ function contextFor(parts: KernelContextParts, apis: Readonly<Record<string, unk
 
 /** Leave out what a module offers through prelude bindings when this kehto cannot render them (D-053). */
 function offered(instance: ModuleInstance<unknown>, bindings: boolean): ModuleInstance<unknown> {
-  if (!instance.extensions || bindings) return instance;
+  if (!instance.extensions || bindings || instance.rendersBindings) return instance;
   const { extensions, ...rest } = instance;
   const services = Object.fromEntries(Object.entries(instance.services ?? {}).filter(([domain]) => !extensions.domains.includes(domain)));
   return { ...rest, services };

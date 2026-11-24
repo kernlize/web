@@ -4,13 +4,12 @@ import { RelayPool } from 'applesauce-relay';
 import type { AccountManager, IAccount } from 'applesauce-accounts';
 import type { ISigner } from 'applesauce-signers';
 import type { MessagingRegistry } from '@kernlize/messaging';
-import { createBridgeRegistry, type BridgeRegistry } from '@kernlize/bridges';
+import type { BridgeRegistry } from '@kernlize/bridges';
 import { buildShellCapabilities, createShellBridge, type ShellAdapter, type ShellBridge } from '@kehto/shell';
 import { QUARANTINE_WINDOW_MS, createGuardConfig, describeMitigations, type GuardConfig, type GuardEvent } from '@kernlize/guard';
 import type { AppletIdentity, AppletStopLimit, AppletSummary, Grants, GuardFacade, Intents, Kernel, Kernl, KernlMultiplayer, KernlOptions, RelayTiers, Session } from './types.js';
-import { createKernlDownloads, type KernlDownloads } from './kernl-downloads.js';
 import { createMultiplayerSettings } from './multiplayer/settings.js';
-import { createStorageSecrets, type SecretsProvider } from './secrets/secrets.js';
+import { createStorageSecrets } from './secrets/secrets.js';
 import { discoverToolFamilies } from './multiplayer/tool-discovery.js';
 import { createKernlAccounts } from './applesauce/accounts.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
@@ -41,7 +40,7 @@ import { createWindowIdentities } from './multiplayer/window-identities.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { createShellAdapter } from './kernl-adapter.js';
 import { createAppletLifecycle, resolveWindow } from './kernl-lifecycle.js';
-import { checkModules, mergeExtensions, setupModules, type ComposedModules, type KernelContextParts } from './modules/compose.js';
+import { checkModules, setupModules, type ComposedModules, type KernelContextParts } from './modules/compose.js';
 import { kernlModules } from './modules/default.js';
 import type { AnyKernlModule, ModuleApis } from './modules/module.js';
 import { supportsDomainBindings } from './downloads/bindings.js';
@@ -191,32 +190,11 @@ function directConnectionsFor(options: KernlOptions, appletOf: (windowId: string
   };
 }
 
-/**
- * The download programs and their services. An NZB an applet names by address is fetched through
- * the web bridge, so it meets the same address policy and size limit as any other fetch (D-050).
- */
-function downloadsFor(options: KernlOptions, bridges: BridgeRegistry, identityOf: (windowId: string) => AppletIdentity | undefined, ownerOf: (windowId: string) => string | undefined): KernlDownloads & { readonly secrets: SecretsProvider } {
-  const secrets = options.secrets ?? createStorageSecrets(options.host.storage);
-  return { secrets, ...createKernlDownloads({
-    host: options.host,
-    options: options.downloads,
-    secrets,
-    identityOf,
-    ownerOf,
-    async fetchDocument(url, signal) {
-      const result = await bridges.resolve(url, { requester: 'shell', signal });
-      if (result.kind !== 'bytes') throw new Error('unavailable:not-a-document');
-      return new Uint8Array(await result.response.arrayBuffer());
-    },
-  }) };
-}
-
 interface ShellParts {
   readonly handles: ReadonlyMap<string, MountedApplet>;
   readonly subscriptions: Subscription;
   readonly destroyed$: Subject<void>;
   readonly dm: { dispose(): void };
-  readonly downloads: { dispose(): void };
   readonly modules: { dispose(): void };
   readonly media: { destroy(): void };
   readonly bridge: ShellBridge;
@@ -233,7 +211,6 @@ function tearDown(parts: ShellParts): void {
   parts.subscriptions.unsubscribe();
   parts.destroyed$.next();
   parts.dm.dispose();
-  parts.downloads.dispose();
   parts.media.destroy();
   parts.bridge.destroy();
   parts.traffic.close();
@@ -354,7 +331,7 @@ export function createKernl<const M extends readonly AnyKernlModule[]>(options: 
 export function createKernl(options: KernlOptions): Kernl;
 export function createKernl(options: KernlOptions): Kernel {
   const { host } = options;
-  const modules = options.modules ?? kernlModules({ ...(isTheme(options.theme) ? { theme: options.theme } : {}), ...(options.eventCache ? { eventCache: options.eventCache } : {}), ...(host.presentSettings ? { presentSettings: host.presentSettings.bind(host) } : {}), ...(options.shortcuts ? { shortcuts: options.shortcuts } : {}), ...(options.intentRetry ? { intentRetry: options.intentRetry } : {}), ...(options.bridges ? { bridges: options.bridges } : {}), ...(options.torrent ? { torrent: options.torrent } : {}) });
+  const modules = options.modules ?? kernlModules({ ...(isTheme(options.theme) ? { theme: options.theme } : {}), ...(options.eventCache ? { eventCache: options.eventCache } : {}), ...(host.presentSettings ? { presentSettings: host.presentSettings.bind(host) } : {}), ...(options.shortcuts ? { shortcuts: options.shortcuts } : {}), ...(options.intentRetry ? { intentRetry: options.intentRetry } : {}), ...(options.bridges ? { bridges: options.bridges } : {}), ...(options.torrent ? { torrent: options.torrent } : {}), ...(options.downloads ? { downloads: options.downloads } : {}) });
   checkModules(modules);
   const ownsPool = !options.pool;
   const ownsMessaging = !options.messaging;
@@ -383,7 +360,8 @@ export function createKernl(options: KernlOptions): Kernel {
   const { replaceableLoader } = createKernlNetwork({ eventStore, pool, tiers, accounts, cacheRequest });
   const lookupBefore = lookupReplaceable(eventStore, { loader: replaceableLoader, relays: () => [...tiers.get().outbox, ...tiers.get().discovery] });
   const consent = createSigningConsent({ host, lookupBefore, resolveApplet: identityOf, pubkey: () => accounts.active?.pubkey });
-  const composed = composeOrClose(modules, { eventStore, pool, tiers, storage: host.storage, accounts, consent, replaceableLoader, appletOf: (windowId) => handles.get(windowId)?.summary, host, isFocused, applets: () => handles }, () => {
+  const secrets = options.secrets ?? createStorageSecrets(host.storage);
+  const composed = composeOrClose(modules, { eventStore, pool, tiers, storage: host.storage, accounts, consent, replaceableLoader, appletOf: (windowId) => handles.get(windowId)?.summary, host, isFocused, applets: () => handles, secrets }, () => {
     destroyed$.next();
     traffic.close();
     if (ownsMessaging) messaging.close();
@@ -394,13 +372,10 @@ export function createKernl(options: KernlOptions): Kernel {
   const people = composed.apis.people as People | undefined;
   const meeting = meetingFor(options, { pool, tiers, appletOf: (windowId) => handles.get(windowId)?.summary, grants: () => grants });
   const bridges = composed.apis.bridges as BridgeRegistry | undefined;
-  // Without the bridges module a download fetches nothing: an empty registry refuses every address.
-  const downloads = downloadsFor(options, bridges ?? createBridgeRegistry(), identityOf, (windowId) => handles.get(windowId)?.summary.manifest.catalogId);
   const services = servicesFor(options, { pool, tiers, eventStore, adapter: () => adapter, consent, bridges, messaging, network: { profiles, people }, handles, isFocused, meeting: meeting.deps });
 
-  Object.assign(services.registry, downloads.services);
   Object.assign(services.registry, composed.services);
-  const extensions = mergeExtensions([downloads.extensions, composed.extensions]);
+  const { extensions } = composed;
   const guarding = createShellFirewall({ host, pipeline, handles, guardEvents$ });
   const adapter: ShellAdapter = createShellAdapter({
     pool,
@@ -454,7 +429,7 @@ export function createKernl(options: KernlOptions): Kernel {
     grants,
     relays: tiers,
     messaging,
-    multiplayer: meeting.multiplayer, downloads: downloads.programs, secrets: downloads.secrets.description,
+    multiplayer: meeting.multiplayer, secrets: secrets.description,
     firewall,
     media: services.media,
     session$,
@@ -471,6 +446,6 @@ export function createKernl(options: KernlOptions): Kernel {
       lifecycle.handleWindowMessage(event);
     },
     destroy: () =>
-      tearDown({ traffic, handles, subscriptions, destroyed$, dm: services.dm, downloads, modules: composed, media: services.media, bridge, ...(ownsMessaging ? { messaging } : {}), ...(ownsPool ? { pool } : {}) }),
+      tearDown({ traffic, handles, subscriptions, destroyed$, dm: services.dm, modules: composed, media: services.media, bridge, ...(ownsMessaging ? { messaging } : {}), ...(ownsPool ? { pool } : {}) }),
   }, composed);
 }

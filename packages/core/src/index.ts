@@ -225,6 +225,7 @@ export { catalogModule } from './modules/catalog.js';
 export { keysModule } from './modules/keys.js';
 export { intentsModule } from './modules/intents.js';
 export { bridgesModule } from './modules/bridges.js';
+export { downloadsModule } from './modules/downloads.js';
 export { themeModule, type ThemeApi } from './modules/theme.js';
 export { socialModule } from './modules/social.js';
 export { commonActionsFor, createKernlNetwork, type KernlNetwork, type KernlNetworkParts } from './kernl-network.js';
