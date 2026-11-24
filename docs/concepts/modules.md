@@ -34,4 +34,4 @@ A shell without the theme module does not offer `theme`, and `theme` leaves the 
 
 Two ids are known to the kernel: `directory` and `cache`. The kernel reads the first for the mailboxes' suggestions and asks the second before any relay, so a module a host puts in their place has the same api as `directoryModule` and `cacheModule`.
 
-`createKernl({ host })` with no module list loads `kernlModules()`, kernl's own, so a host that names none gets the shell it always had. [The core package](../packages/core.md#modules) has the contract and an example.
+`createKernl({ host })` with no module list loads `kernlModules()`, kernl's own, so a host that names none gets the shell it always had. A host that names its own imports `createKernel` from `@kernlize/core/kernel`, which leaves kernl's list out of its bundle. Where a module has parts with heavy libraries, each part is its own import: the messaging module takes `privateDm()`, `legacyDm()`, `ratchet()` and `groups()`, and a shell that lists only the first bundles neither the ratchet nor the group library. [The core package](../packages/core.md#modules) has the contract and an example.

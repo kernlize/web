@@ -67,7 +67,7 @@ The three leaf packages have zero framework dependencies and import nothing from
 
 ## Where each NAP domain is served from
 
-An applet reaches the shell through the NAP domains in `window.napplet`. `createKernlServices` (`kernl-services.ts`) registers kehto's services, kernl's `media` ([Media](./media.md)), plus `config`, `common` and `upload` when the shell has what they need; `shell`, `inc`, `storage` and `keys` are routed by kehto's runtime itself. What one applet sees is `buildShellCapabilities(adapter).domains` narrowed by `createEnvironmentResolver(grants)`.
+An applet reaches the shell through the NAP domains in `window.napplet`. `createKernlServices` (`kernl-services.ts`) registers kehto's services the kernel answers and kernl's `media` ([Media](./media.md)); modules add the rest, such as `dm` from the messaging module and `common`, `upload` and `config` from the social, files and settings modules; `shell`, `inc`, `storage` and `keys` are routed by kehto's runtime itself. What one applet sees is `buildShellCapabilities(adapter).domains` narrowed by `createEnvironmentResolver(grants)`.
 
 | NAP domain | Served by | kernl supplies | Guarded by |
 | --- | --- | --- | --- |
@@ -78,7 +78,7 @@ An applet reaches the shell through the NAP domains in `window.napplet`. `create
 | `relay` | `createRelayPoolService`, wrapped by `createAppletRelayService` | `createAppletRelayBackend` over the one pool; publishes planned by kind with `selectRelayTier` and sent only to the plan | grant; rates `relay:subscribe`, `relay:publish`; subscribe envelope cap |
 | `outbox` | `createOutboxService` | `createRelayPoolOutboxRouter` over `createOutboxRelayPool`, relay lists from `createIdentityProviders`, signing through the active signer (`denied:read-only` without one) | grant; rates `outbox:subscribe`, `outbox:publish`; consent for destructive kinds |
 | `resource` | `createResourceService` | `createBridgeResourceResolver(bridges)` with the requesting applet named through `resourceInitFor` | grant; rate `resource:bytes`, resource envelope cap, hidden resource allowance, SSRF policy |
-| `dm` | `createDmService` | `messaging.composite()` | grant; rate `dm:send`; provider availability |
+| `dm` | `createDmService`, from the messaging module | `messaging.composite()` over the listed providers | grant; rate `dm:send`; provider availability |
 | `notify` | `createNotifyService` | `host.notify` with tone `info` | grant |
 | `link` | `createLinkService` | `host.openLink` after `LINK_PROTOCOLS` (`https:`, `mailto:`) allowed it | grant |
 | `intent` | `createIntentService` with kernl's router (`createKernlIntents`), through `intentsModule` | the installed set, the user's defaults and published preferences, `host.chooseHandler`, `host.openApplet`; delivery over the target's bound port | grant (`intent:read`, `intent:write`); rate `intent:invoke`; see [The store and intents](./store-and-intents.md) |
