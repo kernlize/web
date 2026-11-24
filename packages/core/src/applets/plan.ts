@@ -12,7 +12,7 @@ import {
 } from '@kehto/shell';
 import { createAppletCsp, renderInsertionLockScript, type GuardProfile } from '@kernlize/guard';
 import { renderRandomUuidFallbackScript } from '../crypto/install.js';
-import type { BoundPreludeOptions, DomainBinding } from '../downloads/bindings.js';
+import type { BoundPreludeOptions, DomainBinding } from './domain-bindings.js';
 import type { AppletSummary, MountPlan } from '../types.js';
 
 /** Domains kernl serves that kehto's shell does not list, as one applet is to see them. */

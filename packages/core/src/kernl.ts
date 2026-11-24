@@ -30,7 +30,7 @@ import { createShellAdapter } from './kernl-adapter.js';
 import { createAppletLifecycle, resolveWindow } from './kernl-lifecycle.js';
 import { checkModules, setupModules, type ComposedModules, type KernelContextParts } from './modules/compose.js';
 import type { AnyKernlModule, ModuleApis } from './modules/module.js';
-import { supportsDomainBindings } from './downloads/bindings.js';
+import { supportsDomainBindings } from './applets/domain-bindings.js';
 
 /**
  * Describe an account as a session the UI can show.
