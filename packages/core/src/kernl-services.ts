@@ -31,13 +31,11 @@ import type { Theme } from '@napplet/nap/theme/types';
 import type { EventTemplate, NostrEvent } from '@napplet/core';
 import { createBridgeRegistry, createBridgeResourceResolver, type BridgeContext, type BridgeRegistry, type ResourceResolveInit } from '@kernlize/bridges';
 import type { MessagingRegistry } from '@kernlize/messaging';
-import type { DirectConnectionsSettings, KernlHost, RelayTiers, RemoteToolsSettings } from './types.js';
-import { createDirectConnectionsService, type DirectConnectionsOptions } from './multiplayer/direct-connections.js';
-import { createRemoteToolsService, mergeFamilies } from './multiplayer/remote-tools.js';
+import type { KernlHost, RelayTiers, RemoteToolsSettings } from './types.js';
+import { createRemoteToolsService } from './multiplayer/remote-tools.js';
 import { createWindowIdentities, type WindowIdentities } from './multiplayer/window-identities.js';
 import { createKernlMedia, type KernlMedia } from './media/kernl-media.js';
 import { createShortcutsService, type ShortcutsOptions, type ShortcutsService } from './keys/shortcuts.js';
-import type { MultiplayerSettings } from './multiplayer/settings.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { createAppletRelayService, createOutboxRelayPool } from './applesauce/relay-backend.js';
 import { createIdentityProviders, type IdentityProviders, type RelayPermissions } from './applesauce/identity-providers.js';
@@ -107,20 +105,11 @@ export interface KernlServiceDeps {
   /** Keys for the work a window does under its own name; a fresh set by default (D-041). */
   readonly identities?: WindowIdentities;
   /** Where remote tools are looked for and which families the host vouches for. */
-  readonly remoteTools?: RemoteToolsSettings | undefined;
-  /** Direct connections; without them the `webrtc` domain is not offered (D-042). */
-  readonly directConnections?: DirectConnectionsDeps | undefined;
-  /** The person's own choices, which come before the host's (D-043). */
-  readonly multiplayer?: Pick<MultiplayerSettings, 'state'>;
+  readonly remoteTools?: RemoteToolsSettings | null | undefined;
   /** Reserved chords, the key listener's target and the focus source for the `keys` domain (D-054). */
   readonly shortcuts: ShortcutsOptions;
   /** `null` leaves the `keys` domain to the keys module (D-062). */
   readonly keys?: null;
-}
-
-/** What the `webrtc` service needs beyond the pool and the window identities. */
-export interface DirectConnectionsDeps extends Pick<DirectConnectionsOptions, 'createPeer' | 'appletOf' | 'isGranted' | 'ask'> {
-  readonly settings: Omit<DirectConnectionsSettings, 'createPeer'>;
 }
 
 /** The registered services plus the handles the shell keeps calling. */
@@ -393,8 +382,6 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
   // Without the bridges module nothing resolves: an empty registry refuses every address with `unavailable:no-bridge`.
   const resolve = createBridgeResourceResolver(deps.bridges ?? createBridgeRegistry());
   const identities = deps.identities ?? createWindowIdentities();
-  const direct = deps.directConnections;
-  const chosen = () => deps.multiplayer?.state();
   const keys = deps.keys === null ? undefined : createShortcutsService(deps.shortcuts);
   const resource = createResourceService({
     fetch: (url, init) =>
@@ -427,21 +414,13 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
     media: media.handler,
     dm,
     outbox: gateOutboxPublish(createOutbox(deps, identity), deps.consent),
-    cvm: createRemoteToolsService({
+    // `null` leaves remote tools and direct connections to the multiplayer module (D-062).
+    ...(deps.remoteTools === null ? {} : { cvm: createRemoteToolsService({
       pool: deps.pool,
-      relays: () => chosen()?.servers ?? deps.remoteTools?.relays ?? deps.tiers.get().super,
+      relays: () => deps.remoteTools?.relays ?? deps.tiers.get().super,
       identities,
-      registry: () => mergeFamilies(deps.remoteTools?.registry ?? [], chosen()?.families ?? []),
-    }),
-    ...(direct ? {
-      webrtc: createDirectConnectionsService({
-        ...direct,
-        pool: deps.pool,
-        relays: () => chosen()?.servers ?? direct.settings.relays ?? deps.tiers.get().super,
-        identities,
-        iceServers: () => chosen()?.helpers ?? direct.settings.iceServers ?? [],
-      }),
-    } : {}),
+      registry: () => deps.remoteTools?.registry ?? [],
+    }) }),
     ...(deps.config ? { config: createConfigService(deps.config).handler } : {}),
     ...(deps.common ? { common: createCommonService({ planRelays: relayPlan, ...deps.common }) } : {}),
     ...(deps.uploader ? { upload: createUploadService({ uploader: deps.uploader, uploadInfo: { rails: [{ rail: 'blossom', enabled: true }] } }) } : {}),

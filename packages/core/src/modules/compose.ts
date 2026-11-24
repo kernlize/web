@@ -24,7 +24,7 @@ import type { AnyKernlModule, KernelContext, ModuleInstance } from './module.js'
  */
 export const KERNEL_DOMAINS: readonly string[] = Object.freeze([
   'shell', 'storage', 'inc', 'relay', 'identity', 'notify', 'link', 'outbox',
-  'resource', 'dm', 'cvm', 'webrtc', 'media',
+  'resource', 'dm', 'media',
 ]);
 
 /**
@@ -77,6 +77,7 @@ export interface KernelContextParts {
   /** The applets running now, by window id. */
   readonly applets: KernelContext['applets'];
   readonly secrets: KernelContext['secrets'];
+  readonly holds: KernelContext['holds'];
   /** Whether a window is the focused one, as the guard sees it. */
   readonly isFocused: (windowId: string) => boolean;
 }
@@ -115,6 +116,7 @@ function contextFor(parts: KernelContextParts, apis: Readonly<Record<string, unk
     isFocused: parts.isFocused,
     applets: parts.applets,
     secrets: parts.secrets,
+    holds: parts.holds,
     host: parts.host,
     ask: (summary) => new Promise((resolve) => parts.host.presentConsent({ summary, resolve })),
     replaceableLoader: parts.replaceableLoader,

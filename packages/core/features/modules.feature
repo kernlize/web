@@ -145,6 +145,26 @@ Feature: Modules
       And the shell does not offer "nzb"
       And the shell does not offer "soulseek"
 
+    Scenario: without the multiplayer module there are no remote tools or direct connections, even where the page could connect
+      Given a kernl shell over that host and pool with modules "theme"
+      And a page that has its own peer connections
+      And a kernl shell over that host and pool with modules "theme"
+      Then the shell has no "multiplayer" member
+      And the shell does not offer "cvm"
+      And the shell does not offer "webrtc"
+
+    Scenario: the multiplayer module looks for an applet's remote tools on the general relays
+      Given a kernl shell over that host and pool with modules "multiplayer"
+      And a mounted applet granted "cvm" that has said hello
+      When the applet asks for remote tools over its port
+      Then the fake pool was then asked on the "super" tier
+
+    Scenario: a host that names no modules hands its remote-tools relays to the multiplayer module
+      Given a kernl shell over that host and pool whose remote tools look on "wss://tools.example"
+      And a mounted applet granted "cvm" that has said hello
+      When the applet asks for remote tools over its port
+      Then the fake pool was then asked on "wss://tools.example"
+
     Scenario: kernl's own modules include the directory, which waits to be started
       Given a kernl shell over that host and pool
       Then the shell has a "directory" member
@@ -201,6 +221,7 @@ Feature: Modules
         | needs-intents    | invalid:module-missing:intents   |
         | needs-bridges    | invalid:module-missing:bridges   |
         | needs-downloads  | invalid:module-missing:downloads |
+        | needs-multiplayer | invalid:module-missing:multiplayer |
         | social           | invalid:module-missing:profiles |
         | social,profiles,people | invalid:module-order:profiles |
         | grants           | invalid:module-reserved:grants  |

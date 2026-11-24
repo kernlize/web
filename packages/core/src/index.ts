@@ -226,6 +226,7 @@ export { keysModule } from './modules/keys.js';
 export { intentsModule } from './modules/intents.js';
 export { bridgesModule } from './modules/bridges.js';
 export { downloadsModule } from './modules/downloads.js';
+export { multiplayerModule, type MultiplayerModuleOptions } from './modules/multiplayer.js';
 export { themeModule, type ThemeApi } from './modules/theme.js';
 export { socialModule } from './modules/social.js';
 export { commonActionsFor, createKernlNetwork, type KernlNetwork, type KernlNetworkParts } from './kernl-network.js';
@@ -240,7 +241,7 @@ export { createMultiplayerSettings, validFamily, type MultiplayerSettings, type 
 export { discoverToolFamilies, TOOL_DISCOVERY_TIMEOUT_MS, type ToolDiscoveryOptions, type ToolFamilyCandidate } from './multiplayer/tool-discovery.js';
 export { createDirectConnectionsService, describeDirectConnection, directNamespace, type DirectConnectionsOptions } from './multiplayer/direct-connections.js';
 export { createDirectSignaling, DIRECT_MAX_PAYLOAD_BYTES, DIRECT_SIGNAL_KIND, DIRECT_SIGNALING_PROFILE, type DirectSignalingOptions, type SignalRelay, type SignalSigner } from './multiplayer/direct-signaling.js';
-export { LINK_PROTOCOLS, acceptAnyRelay, createKernlServices, fetchThroughFirewall, isTheme, resourceErrorFor, resourceInitFor, shellRelayOrigins, type DirectConnectionsDeps, type KernlServiceDeps, type KernlServices } from './kernl-services.js';
+export { LINK_PROTOCOLS, acceptAnyRelay, createKernlServices, fetchThroughFirewall, isTheme, resourceErrorFor, resourceInitFor, shellRelayOrigins, type KernlServiceDeps, type KernlServices } from './kernl-services.js';
 export { createShellAdapter, type ShellAdapterDeps } from './kernl-adapter.js';
 export { createAppletLifecycle, grantNarrowingReason, resolveWindow, type AppletLifecycle, type LifecycleContext } from './kernl-lifecycle.js';
 export { createKernl, toSession } from './kernl.js';
