@@ -248,7 +248,7 @@ export { createDirectSignaling, DIRECT_MAX_PAYLOAD_BYTES, DIRECT_SIGNAL_KIND, DI
 export { LINK_PROTOCOLS, acceptAnyRelay, createKernlServices, fetchThroughFirewall, isTheme, resourceErrorFor, resourceInitFor, shellRelayOrigins, type KernlServiceDeps, type KernlServices } from '../kernl-services.js';
 export { createShellAdapter, type ShellAdapterDeps } from '../kernl-adapter.js';
 export { createAppletLifecycle, grantNarrowingReason, resolveWindow, type AppletLifecycle, type LifecycleContext } from '../kernl-lifecycle.js';
-export { createKernel, toSession } from '../kernl.js';
+export { createKernel, toSession, type SessionCard } from '../kernl.js';
 export { PERSON_HINT_TIMEOUT_MS, createPeople, parsePerson, type People, type PeopleOptions, type PersonPointer } from '../people/person.js';
 export { locateRecipients, locateSendRecipients } from '../people/locate-recipients.js';
 export { createProfiles, toProfileCard, type ProfileCard, type ProfileLoader, type ProfilePointer, type Profiles, type ProfilesOptions } from '../profiles/profiles.js';
