@@ -1080,3 +1080,18 @@ This changes D-062's "the context holds no signer" and the composability plan's 
 
 **Reversal cost.** Low while few modules use `signer()`: each would route its writes through a host-started consent question instead.
 
+
+## D-066 · The kernel has its own entry, and a provider with a heavy library is its own import
+
+**Context.** #72 asks that a shell composed with `messagingModule({ providers: [privateDm()] })` alone not bundle the ratchet or group libraries. Neither `nostr-double-ratchet` nor `@internet-privacy/marmot-ts` declares itself free of side effects, so a bundler keeps any file that imports one once a host reaches that file. `createKernl` falls back to `kernlModules()`, which lists all four providers, and the trap-8 rule keeps that fallback: `createKernl({ host })` returns the shell it always did. Tree-shaking cannot help while the default list is reachable from the root entry.
+
+**Decision.**
+
+- **`createKernel(options)` composes the kernel and the modules named, and nothing else.** `createKernl` wraps it with kernl's own list when the host names none.
+- **`@kernlize/core/kernel` is everything but `createKernl`, `kernlModules` and the ratchet and group providers.** A host that names its own modules imports from there.
+- **A provider with a heavy library is its own entry.** `ratchet()` is `@kernlize/core/messaging/ratchet` and `groups()` is `@kernlize/core/messaging/groups`. The root entry still exports everything, for hosts on kernl's own list.
+- **It is checked on the built packages.** `features/bundling.feature` bundles a host from `dist` and looks for each library among the bundle's inputs.
+
+**Consequences.** A host on the root `createKernl` still bundles both libraries, as kernl.run does. Splitting the core into packages (#75) can make the kernel the package and the default list another; this entry is the step that needs no package split.
+
+**Reversal cost.** Low: the entries are additive, and the root exports are unchanged apart from `createKernel` and the new providers.

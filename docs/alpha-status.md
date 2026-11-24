@@ -16,7 +16,7 @@ kernl is a first draft. This page says what runs, what is a contract without an 
 
 ## Messaging providers in the live shell
 
-`createKernl` registers all three providers and, unless `KernlOptions.messagingBackends` overrides them, wires two real backends from `@kernlize/core`: `createPrivateMessagesBackend` for `private` (NIP-17 gift-wrapped messages) and `createLegacyMessagesBackend` for `legacy` (NIP-04 direct messages). Both sign and encrypt with the active account's signer and nothing else ([D-015](./decisions.md#d-015)). Availability follows the active account, and an unavailable provider reports a reason from `MESSAGING_UNAVAILABLE_REASONS`:
+`createKernl` loads the messaging module with all four providers and wires real backends, among them two from `@kernlize/core`: `createPrivateMessagesBackend` for `private` (NIP-17 gift-wrapped messages) and `createLegacyMessagesBackend` for `legacy` (NIP-04 direct messages). Both sign and encrypt with the active account's signer and nothing else ([D-015](./decisions.md#d-015)). Availability follows the active account, and an unavailable provider reports a reason from `MESSAGING_UNAVAILABLE_REASONS`:
 
 | Provider | Available when | Reason otherwise |
 | --- | --- | --- |

@@ -15,11 +15,16 @@ function assertWorkerBeside(dir = 'dist'): void {
 
 export default defineConfig({
   // `wm`, `crypto` and `cache` are their own entries so a shell can load them without the network stack (D-022, D-024, D-027).
+  // `kernel` is the root without kernl's own module list, and the ratchet and group providers are their own entries, so a
+  // host that names its modules bundles neither provider's library unless it lists it.
   // The sqlite worker is an entry so the cache can start it by URL. The cache's code is shared with the root
   // entry, so it lands in a chunk at the top of dist, and the worker is emitted there too. sqlite-wasm stays
   // external and is imported only by the worker.
   entry: {
     index: 'src/index.ts',
+    'kernel/index': 'src/kernel/index.ts',
+    'messaging/ratchet/index': 'src/messaging/ratchet/index.ts',
+    'messaging/groups/index': 'src/messaging/groups/index.ts',
     'wm/index': 'src/wm/index.ts',
     'crypto/index': 'src/crypto/index.ts',
     'cache/index': 'src/cache/index.ts',

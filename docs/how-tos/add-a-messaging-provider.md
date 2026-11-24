@@ -121,23 +121,28 @@ The three built-ins (`createPrivateMessagesProvider`, `createLegacyMessagesProvi
 
 ## 4. Register it
 
-The three built-in providers are registered by `createDefaultMessaging` in `packages/core/src/messaging/default-registry.ts`, which `createKernl` calls when `KernlOptions.messaging` is absent. You do not edit `createKernl`. A host has two options-based paths:
+The built-in providers are the messaging module's: `messagingModule({ providers })` in `packages/core/src/modules/messaging.ts` registers the ones a host lists, and `kernlModules()` lists all four. You do not edit `createKernl`. A host has three paths:
 
-- **A backend for a built-in provider.** Pass `KernlOptions.messagingBackends`, a `MessagingBackendFactories` (`{ private?, legacy?, ratchet? }`, each `() => MessagingBackend`). Your factory replaces kernl's backend for that provider (`createPrivateMessagesBackend` or `createLegacyMessagesBackend` by default); availability still follows the active account's signer.
-- **A new provider.** Build the default registry yourself, register yours on it, and pass it as `KernlOptions.messaging`. The defaults stay registered:
+- **A backend for a built-in provider.** Pass it to the provider: `privateDm({ backend })`, `legacyDm({ backend })`, `ratchet({ backend })` or `groups({ backend })`, each `backend` a `() => MessagingBackend`. It replaces kernl's backend for that provider; availability still follows the active identity's signer.
+- **A new provider beside kernl's.** A host that composes its own module list adds a `MessagingProviderModule` beside the built-ins: an `id`, the provider factory as `describe`, the `encryption` its signer must offer, and its `backend` over the shell's parts.
+- **A registry you built.** Register yours on it and pass it as `messagingModule({ registry })`, or as `KernlOptions.messaging` when you name no modules. The shell uses it as is and leaves it open.
 
 <!-- sample:continues -->
 ```ts
-import { createDefaultMessaging, createKernl, type KernlHost } from '@kernlize/core';
+import { createKernel, createDefaultMessaging, legacyDm, messagingModule, privateDm, type KernlHost, type MessagingProviderModule } from '@kernlize/core/kernel';
 
 declare const host: KernlHost;
+declare const exampleSession: ExampleDeps;
 
+const example: MessagingProviderModule = { id: 'example', describe: (deps) => defineProvider(EXAMPLE_DEFINITION, deps), encryption: 'nip44', backend: () => createExampleBackend(exampleSession) };
+export const shell = createKernel({ host, modules: [messagingModule({ providers: [privateDm(), legacyDm(), example] })] });
+
+// Or a registry built by hand, with kernl's own modules otherwise.
 const messaging = createDefaultMessaging({ storage: host.storage });
 messaging.register(provider);
-const kernl = createKernl({ host, messaging });
 ```
 
-When `messaging` is supplied, `createKernl` uses it as is and ignores `messagingBackends`; pass any built-in backends to `createDefaultMessaging({ storage, backends })` instead. To ship a provider inside kernl itself, register it in `createDefaultMessaging` next to the three built-ins.
+A registry built by `createDefaultMessaging` has all four built-ins and takes their backends as `createDefaultMessaging({ storage, backends })`. To ship a provider inside kernl itself, give it a file in `packages/core/src/messaging/`, as `privateDm()` has, and list it in `kernlModules()`; a provider with a heavy library gets its own entry, as `ratchet()` has, so a shell that does not list it does not bundle the library.
 
 Registration does not enable, unless the user's saved preferences already list `example`; then it starts on registration if `available()` agrees, and otherwise waits until it does. A new provider joins the end of the user's order. The user switches it on, and moves it, under Settings, Messages, which calls `registry.enable('example')` and `registry.setOrder([...])`. Registering the same id twice throws `invalid:duplicate-provider`. See `registry.feature`, scenarios "a registered provider starts disabled", "saved preferences enable providers as they register" and "a waiting provider starts as soon as it can run".
 

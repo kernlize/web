@@ -165,6 +165,29 @@ Feature: Modules
       When the applet asks for remote tools over its port
       Then the fake pool was then asked on "wss://tools.example"
 
+    Scenario: without the messaging module there are no messages, and an applet that needs them shows them missing
+      Given a fake applesauce pool serving a signed manifest for "chat" requiring "dm"
+      And a kernl shell over that host and pool with modules "theme"
+      Then the shell has no "messaging" member
+      And the shell does not offer "dm"
+      When the shell resolves the manifest address
+      And the shell plans the summary
+      Then the shell plan is missing "dm"
+      And the store lists the applet only when asked for incompatible ones
+
+    Scenario: the messaging module answers messages over the providers it lists, and only those
+      Given a kernl shell over that host and pool with modules "private-messaging"
+      Then the shell offers "dm"
+      And the shell's messaging providers are "private"
+      Given a mounted applet granted "dm" that has said hello
+      When the applet asks "dm.status" over its port
+      Then the applet received a "dm.status.result"
+
+    Scenario: kernl's own messaging lists all four providers, in their first-run order
+      Given a kernl shell over that host and pool
+      Then the shell's messaging providers are "private,legacy,ratchet,group"
+      And the shell's switched-on messaging providers are ""
+
     Scenario: kernl's own modules include the directory, which waits to be started
       Given a kernl shell over that host and pool
       Then the shell has a "directory" member
@@ -222,6 +245,7 @@ Feature: Modules
         | needs-bridges    | invalid:module-missing:bridges   |
         | needs-downloads  | invalid:module-missing:downloads |
         | needs-multiplayer | invalid:module-missing:multiplayer |
+        | needs-messaging  | invalid:module-missing:messaging |
         | social           | invalid:module-missing:profiles |
         | social,profiles,people | invalid:module-order:profiles |
         | grants           | invalid:module-reserved:grants  |

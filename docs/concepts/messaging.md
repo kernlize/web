@@ -51,7 +51,7 @@ interface ProviderDeps {
 }
 ```
 
-The three built-in factories (`createPrivateMessagesProvider`, `createLegacyMessagesProvider`, `createRatchetMessagesProvider`) take the same `ProviderDeps` and supply the definition themselves. In the shell, `@kernlize/core` builds each provider's `ProviderDeps`: `createKernl` supplies `createPrivateMessagesBackend` and `createLegacyMessagesBackend` unless `KernlOptions.messagingBackends` overrides them, and `available` follows the active account ([The shell's backends](#the-shell-s-backends)). In tests and the preview, `createBackend` returns `createMemoryBackend()`. See `providers.feature`, scenario "availability and the backend come from the shell".
+The three built-in factories (`createPrivateMessagesProvider`, `createLegacyMessagesProvider`, `createRatchetMessagesProvider`) take the same `ProviderDeps` and supply the definition themselves. In the shell, the messaging module builds each listed provider's `ProviderDeps`: kernl's backend over the active identity's signer, or the one the host passed as `privateDm({ backend })`, and `available` follows the active identity ([The shell's backends](#the-shell-s-backends)). In tests and the preview, `createBackend` returns `createMemoryBackend()`. See `providers.feature`, scenario "availability and the backend come from the shell".
 
 ## Security properties
 

@@ -3,9 +3,7 @@ import { verifyEvent } from 'applesauce-core/helpers';
 import type { AuthHooks } from '@kehto/shell';
 import type { ServiceHandler, ServiceRegistry, Signer } from '@kehto/runtime';
 import {
-  createCommonService,
   createConfigService,
-  createDmService,
   createIdentityService,
   createBrowserMediaPlayback,
   createLinkService,
@@ -16,9 +14,7 @@ import {
   ResourceServiceError,
   createThemeService,
   createUploadService,
-  type CommonServiceOptions,
   type ConfigServiceOptions,
-  type DmService,
   type OutboxPublishResult,
   type OutboxRouter,
   type RelayListEntry,
@@ -30,7 +26,6 @@ import {
 import type { Theme } from '@napplet/nap/theme/types';
 import type { EventTemplate, NostrEvent } from '@napplet/core';
 import { createBridgeRegistry, createBridgeResourceResolver, type BridgeContext, type BridgeRegistry, type ResourceResolveInit } from '@kernlize/bridges';
-import type { MessagingRegistry } from '@kernlize/messaging';
 import type { KernlHost, RelayTiers, RemoteToolsSettings } from './types.js';
 import { createRemoteToolsService } from './multiplayer/remote-tools.js';
 import { createWindowIdentities, type WindowIdentities } from './multiplayer/window-identities.js';
@@ -40,10 +35,6 @@ import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { createAppletRelayService, createOutboxRelayPool } from './applesauce/relay-backend.js';
 import { createIdentityProviders, type IdentityProviders, type RelayPermissions } from './applesauce/identity-providers.js';
 import type { SigningConsent, SigningTemplate } from './consent/handler.js';
-import { locateRecipients, locateSendRecipients } from './people/locate-recipients.js';
-import type { People } from './people/person.js';
-import { labelConversations } from './messaging/label-conversations.js';
-import type { Profiles } from './profiles/profiles.js';
 
 /**
  * Whether a host-supplied theme has the colours NAP-THEME requires.
@@ -85,17 +76,10 @@ export interface KernlServiceDeps {
   readonly host: Pick<KernlHost, 'notify' | 'openLink' | 'storage'>;
   /** The bridges module's registry; without it the `resource` domain is not offered and the shell plays only what applets play themselves. */
   readonly bridges?: BridgeRegistry;
-  readonly messaging: MessagingRegistry;
   /** Applet settings (NAP-CONFIG); without them the `config` domain is not offered. */
   readonly config?: ConfigServiceOptions;
-  /** Social actions for applets (NAP-COMMON); without them the `common` domain is not offered. */
-  readonly common?: CommonServiceOptions;
   /** Uploads for applets (NAP-UPLOAD); without it the `upload` domain is not offered. */
   readonly uploader?: Uploader;
-  /** Names conversation participants for applets; without it they are listed by key alone. */
-  readonly profiles?: Pick<Profiles, 'settled'>;
-  /** Reads the people an applet names in any form of their identity; without it only hex is taken. */
-  readonly people?: Pick<People, 'locate'>;
   /** The theme pushed to applets; `null` leaves the `theme` domain to a module (D-061). */
   readonly theme?: Theme | null;
   /** Maps a live window to its verified identity, or null. */
@@ -116,7 +100,6 @@ export interface KernlServiceDeps {
 export interface KernlServices {
   readonly registry: ServiceRegistry;
   readonly theme: ThemeService;
-  readonly dm: DmService;
   /** The `keys` service; `destroy()` gives back its key listener. */
   readonly keys: ShortcutsService | undefined;
   /** The `media` service under the person's media settings. */
@@ -355,7 +338,7 @@ function gateOutboxPublish(outbox: ServiceHandler, consent: SigningConsent): Ser
 /**
  * Register kehto's reference services over the shell's applesauce layer.
  *
- * `relay`, `identity`, `theme`, `keys`, `notify`, `link`, `resource`, `dm`,
+ * `relay`, `identity`, `theme`, `keys`, `notify`, `link`, `resource`,
  * `outbox` and `cvm` are wired; every network path goes through the one pool, every
  * resource fetch through the bridge registry's SSRF policy, links open only
  * over `https:` and `mailto:`, notifications surface through the host, outbox
@@ -364,7 +347,7 @@ function gateOutboxPublish(outbox: ServiceHandler, consent: SigningConsent): Ser
  * window only.
  *
  * @param deps - Pool, tiers, store, auth, consent gate, host, registries and identity resolver.
- * @returns The service registry and the theme, dm and keys handles.
+ * @returns The service registry and the theme, keys and media handles.
  * @example
  * ```ts
  * const services = createKernlServices(deps);
@@ -374,11 +357,6 @@ function gateOutboxPublish(outbox: ServiceHandler, consent: SigningConsent): Ser
 export function createKernlServices(deps: KernlServiceDeps): KernlServices {
   const identity = deps.identity ?? createIdentityProviders(deps.eventStore, deps.pool, deps.tiers);
   const theme = createThemeService(deps.theme ? { initialTheme: deps.theme } : {});
-  const located = deps.people ? locateRecipients(deps.messaging.composite(), deps.people) : deps.messaging.composite();
-  const relayPlan = (): readonly string[] => shellRelayOrigins(deps.tiers);
-  const labelled = deps.profiles ? labelConversations(located, deps.profiles) : located;
-  const dmService = createDmService({ adapter: { ...labelled, planRelays: relayPlan } });
-  const dm = deps.people ? locateSendRecipients(dmService, deps.people) : dmService;
   // Without the bridges module nothing resolves: an empty registry refuses every address with `unavailable:no-bridge`.
   const resolve = createBridgeResourceResolver(deps.bridges ?? createBridgeRegistry());
   const identities = deps.identities ?? createWindowIdentities();
@@ -412,7 +390,6 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
     // The firewall approves a web address's server before it is contacted (D-056); a bridge's reason becomes a NAP-RESOURCE code (D-055).
     ...(deps.bridges ? { resource } : {}),
     media: media.handler,
-    dm,
     outbox: gateOutboxPublish(createOutbox(deps, identity), deps.consent),
     // `null` leaves remote tools and direct connections to the multiplayer module (D-062).
     ...(deps.remoteTools === null ? {} : { cvm: createRemoteToolsService({
@@ -422,8 +399,7 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
       registry: () => deps.remoteTools?.registry ?? [],
     }) }),
     ...(deps.config ? { config: createConfigService(deps.config).handler } : {}),
-    ...(deps.common ? { common: createCommonService({ planRelays: relayPlan, ...deps.common }) } : {}),
     ...(deps.uploader ? { upload: createUploadService({ uploader: deps.uploader, uploadInfo: { rails: [{ rail: 'blossom', enabled: true }] } }) } : {}),
   };
-  return { registry, theme, dm, keys, media };
+  return { registry, theme, keys, media };
 }

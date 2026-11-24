@@ -11,6 +11,18 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./kernel": {
+      "types": "./dist/kernel/index.d.ts",
+      "import": "./dist/kernel/index.js"
+    },
+    "./messaging/ratchet": {
+      "types": "./dist/messaging/ratchet/index.d.ts",
+      "import": "./dist/messaging/ratchet/index.js"
+    },
+    "./messaging/groups": {
+      "types": "./dist/messaging/groups/index.d.ts",
+      "import": "./dist/messaging/groups/index.js"
+    },
     "./wm": {
       "types": "./dist/wm/index.d.ts",
       "import": "./dist/wm/index.js"

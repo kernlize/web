@@ -24,7 +24,7 @@ import type { AnyKernlModule, KernelContext, ModuleInstance } from './module.js'
  */
 export const KERNEL_DOMAINS: readonly string[] = Object.freeze([
   'shell', 'storage', 'inc', 'relay', 'identity', 'notify', 'link', 'outbox',
-  'resource', 'dm', 'media',
+  'resource', 'media',
 ]);
 
 /**
@@ -73,7 +73,7 @@ export interface KernelContextParts {
   readonly replaceableLoader: AddressPointerLoader;
   readonly appletOf: (windowId: string) => AppletSummary | undefined;
   /** The host's consent prompt. */
-  readonly host: Pick<KernlHost, 'presentConsent' | 'storage' | 'openApplet' | 'focusApplet' | 'chooseHandler' | 'notify' | 'now' | 'openLink'>;
+  readonly host: Pick<KernlHost, 'presentConsent' | 'storage' | 'openApplet' | 'focusApplet' | 'chooseHandler' | 'chooseReply' | 'notify' | 'now' | 'openLink'>;
   /** The applets running now, by window id. */
   readonly applets: KernelContext['applets'];
   readonly secrets: KernelContext['secrets'];
@@ -105,7 +105,8 @@ function contextFor(parts: KernelContextParts, apis: Readonly<Record<string, unk
       pubkey$,
       canSign: () => !!accounts.active && !isReadOnlyAccount(accounts.active),
     },
-    signer: () => (accounts.active && !isReadOnlyAccount(accounts.active) ? accounts.active.signer : undefined),
+    // The account, not its bare signer: it queues requests, which a remote signer needs.
+    signer: () => (accounts.active && !isReadOnlyAccount(accounts.active) ? accounts.active : undefined),
     async sign(windowId, template) {
       const account = accounts.active;
       if (!account || isReadOnlyAccount(account)) throw new Error('denied:read-only');

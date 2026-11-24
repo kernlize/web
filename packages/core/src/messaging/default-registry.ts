@@ -5,6 +5,7 @@ import {
   createPrivateMessagesProvider,
   createRatchetMessagesProvider,
   type MessagingBackend,
+  type MessagingProvider,
   type MessagingRegistry,
   type MessagingRegistryOptions,
   type ProviderAvailability,
@@ -40,28 +41,71 @@ export interface DefaultMessagingOptions {
   readonly askReply?: MessagingRegistryOptions['askReply'];
 }
 
-const ENCRYPTION: Readonly<Record<keyof MessagingBackendFactories, MessagingEncryption>> = { private: 'nip44', legacy: 'nip04', ratchet: 'nip44', group: 'nip44' };
+/**
+ * One provider a registry is built with: its description, the encryption it needs, and either its
+ * backend or why it cannot run without one.
+ */
+export type RegisteredProvider = {
+  /** Joins the provider's fixed description with the availability check and backend the registry injects. */
+  readonly describe: (deps: ProviderDeps) => MessagingProvider;
+  /** What the active signer must offer for the provider to run. */
+  readonly encryption: MessagingEncryption;
+} & ({ readonly backend: () => MessagingBackend } | { readonly missing: string });
 
-function availabilityFor(id: keyof MessagingBackendFactories, options: DefaultMessagingOptions): () => ProviderAvailability {
-  const factory = options.backends?.[id];
-  const { signer } = options;
-  if (factory && signer) return () => signerAvailability(signer(), ENCRYPTION[id]);
-  if (factory) return () => ({ available: true });
-  const reason = id === 'ratchet' || id === 'group' ? MESSAGING_UNAVAILABLE_REASONS.noRuntime : MESSAGING_UNAVAILABLE_REASONS.signInRequired;
-  return () => ({ available: false, reason });
+/** Options for {@link createProviderMessaging}. */
+export interface ProviderMessagingOptions {
+  readonly storage: StorageLike;
+  /** The providers to register, in their first-run order. */
+  readonly providers: readonly RegisteredProvider[];
+  /** What the active identity's signer can encrypt, read on every availability check; see {@link DefaultMessagingOptions.signer}. */
+  readonly signer?: () => Pick<ISigner, MessagingEncryption> | undefined;
+  /** Puts the reply question to the person; see `MessagingRegistryOptions.askReply`. */
+  readonly askReply?: MessagingRegistryOptions['askReply'];
 }
 
-function depsFor(id: keyof MessagingBackendFactories, options: DefaultMessagingOptions): ProviderDeps {
-  const available = availabilityFor(id, options);
-  const factory = options.backends?.[id] as () => MessagingBackend;
+function availabilityFor(provider: RegisteredProvider, signer: ProviderMessagingOptions['signer']): () => ProviderAvailability {
+  if ('missing' in provider) return () => ({ available: false, reason: provider.missing });
+  if (signer) return () => signerAvailability(signer(), provider.encryption);
+  return () => ({ available: true });
+}
+
+function depsFor(provider: RegisteredProvider, signer: ProviderMessagingOptions['signer']): ProviderDeps {
+  const available = availabilityFor(provider, signer);
   return {
     available,
     createBackend(): MessagingBackend {
       const availability = available();
       if (!availability.available) throw new Error(`unavailable:${availability.reason}`);
-      return factory();
+      return (provider as { readonly backend: () => MessagingBackend }).backend();
     },
   };
+}
+
+/**
+ * A messaging registry over the providers given, with preferences persisted at
+ * `kernl:messaging:v1` and `private` and `legacy` switched on for someone who has never chosen.
+ * A provider that is not given is not listed; one given without a backend is listed as unavailable.
+ *
+ * @param options - Storage, the providers, the active signer and the reply question.
+ * @returns A `MessagingRegistry` with each provider registered in the order given.
+ * @example
+ * ```ts
+ * const messaging = createProviderMessaging({
+ *   storage: localStorage,
+ *   providers: [{ describe: createPrivateMessagesProvider, encryption: 'nip44', backend: () => createMemoryBackend() }],
+ * });
+ * messaging.list().map((entry) => entry.provider.id); // ['private']
+ * ```
+ */
+export function createProviderMessaging(options: ProviderMessagingOptions): MessagingRegistry {
+  const store = createNamespacedStore(options.storage, 'kernl');
+  const registry = createMessagingRegistry({
+    preferences: store.getJson<SavedMessagingPreferences | null>(STORAGE_KEY, null) ?? FIRST_RUN,
+    ...(options.askReply ? { askReply: options.askReply } : {}),
+    onChange: (next) => store.setJson(STORAGE_KEY, next),
+  });
+  for (const provider of options.providers) registry.register(provider.describe(depsFor(provider, options.signer)));
+  return registry;
 }
 
 /**
@@ -91,15 +135,17 @@ function depsFor(id: keyof MessagingBackendFactories, options: DefaultMessagingO
  * ```
  */
 export function createDefaultMessaging(options: DefaultMessagingOptions): MessagingRegistry {
-  const store = createNamespacedStore(options.storage, 'kernl');
-  const registry = createMessagingRegistry({
-    preferences: store.getJson<SavedMessagingPreferences | null>(STORAGE_KEY, null) ?? FIRST_RUN,
-    ...(options.askReply ? { askReply: options.askReply } : {}),
-    onChange: (next) => store.setJson(STORAGE_KEY, next),
+  const backends = options.backends ?? {};
+  const listed = (describe: RegisteredProvider['describe'], encryption: MessagingEncryption, backend: (() => MessagingBackend) | undefined, missing: string): RegisteredProvider => (backend ? { describe, encryption, backend } : { describe, encryption, missing });
+  const { signInRequired, noRuntime } = MESSAGING_UNAVAILABLE_REASONS;
+  // The storage, signer and reply question pass through as they are; the backends become the providers.
+  return createProviderMessaging({
+    ...options,
+    providers: [
+      listed(createPrivateMessagesProvider, 'nip44', backends.private, signInRequired),
+      listed(createLegacyMessagesProvider, 'nip04', backends.legacy, signInRequired),
+      listed(createRatchetMessagesProvider, 'nip44', backends.ratchet, noRuntime),
+      listed(createGroupMessagesProvider, 'nip44', backends.group, noRuntime),
+    ],
   });
-  registry.register(createPrivateMessagesProvider(depsFor('private', options)));
-  registry.register(createLegacyMessagesProvider(depsFor('legacy', options)));
-  registry.register(createRatchetMessagesProvider(depsFor('ratchet', options)));
-  registry.register(createGroupMessagesProvider(depsFor('group', options)));
-  return registry;
 }

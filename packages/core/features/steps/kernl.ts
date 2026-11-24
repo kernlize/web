@@ -10,6 +10,8 @@ import {
   KERNL_FRAME_POLICY_META,
   createDefaultBridges,
   createKernl,
+  kernlModules,
+  privateDm,
   type AppletHandle,
   type AppletSummary,
   type ConsentPrompt,
@@ -146,7 +148,7 @@ Given('a kernl shell over that host and pool without a blob fetcher', (world: Co
 
 
 Given('a kernl shell over that host and pool with a private backend', (world: CoreWorld) => {
-  boot(world, { messagingBackends: { private: () => createMemoryBackend() } }, blobFetcher(world));
+  boot(world, { modules: kernlModules({ messaging: { providers: [privateDm({ backend: () => createMemoryBackend() })] } }) }, blobFetcher(world));
 });
 
 function bootWithFakeBridges(world: CoreWorld, hostExtra: Partial<KernlHost> = {}): void {
@@ -222,6 +224,10 @@ Then('the shell messaging provider {string} is unavailable because {string}', (w
 When('the shell enables messaging provider {string} and {string}', (world: CoreWorld, first: string, second: string) => {
   k(world).kernl.messaging.enable(first);
   k(world).kernl.messaging.enable(second);
+});
+
+Then("a message through the shell's messaging is refused with {string}", async (world: CoreWorld, reason: string) => {
+  await expect(k(world).kernl.messaging.composite().send({ recipients: ['3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d'], content: 'hi' })).rejects.toThrow(reason);
 });
 
 Then('the shell messaging status is available for the signed-in account', async (world: CoreWorld) => {

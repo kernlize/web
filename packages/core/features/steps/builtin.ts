@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import { createMemoryBackend, type MemoryBackend, type ReplyPrompt } from '@kernlize/messaging';
-import { BUILTIN_PUBLISHER, builtinAddress, type AppletPointer, type BuiltinApplet } from '@kernlize/core';
+import { BUILTIN_PUBLISHER, builtinAddress, groups, kernlModules, legacyDm, privateDm, ratchet, type AppletPointer, type BuiltinApplet, type MessagingProviderModule } from '@kernlize/core';
 import { blobFetcher, boot, k } from './kernl.js';
 import { attempt, scratch, splitList, type CoreWorld } from './world.js';
 
@@ -81,6 +81,14 @@ Then('the shell lists {string} as installed at {string}', (world: CoreWorld, id:
   ]);
 });
 
+const PROVIDERS: Record<string, (options: { backend: () => MemoryBackend }) => MessagingProviderModule> = { private: privateDm, legacy: legacyDm, ratchet, group: groups };
+
+function providerFor(id: string, backend: () => MemoryBackend): MessagingProviderModule {
+  const make = PROVIDERS[id];
+  if (!make) throw new Error(`no provider ${id}`);
+  return make({ backend });
+}
+
 interface ReplyScratch {
   readonly prompts: ReplyPrompt[];
   readonly backends: Record<string, MemoryBackend>;
@@ -96,7 +104,7 @@ Given(
     scratch(world).reply = state;
     boot(
       world,
-      { messagingBackends: { [first]: () => state.backends[first] as MemoryBackend, [second]: () => state.backends[second] as MemoryBackend } },
+      { modules: kernlModules({ messaging: { providers: [first, second].map((id) => providerFor(id, () => state.backends[id] as MemoryBackend)) } }) },
       {
         ...blobFetcher(world),
         async chooseReply(prompt) {
