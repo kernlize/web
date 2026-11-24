@@ -1,5 +1,12 @@
 # @kernlize/core
 
+## 0.25.0
+
+### Minor Changes
+
+- c4e6666: Messaging is a module, `messagingModule({ providers })`, in `kernlModules()`, exposed as `kernl.messaging`, over `privateDm()`, `legacyDm()`, `ratchet()` and `groups()`; without it `dm` is not offered. Each provider takes its own `backend`, which replaces `KernlOptions.messagingBackends` (removed). A registry the host built goes in as `messagingModule({ registry })`, or still as `KernlOptions.messaging` when the host names no modules, and is left open when the shell closes. `createKernel` composes the kernel with the named modules only, and `@kernlize/core/kernel` exports everything but kernl's own module list, so a host that lists only `privateDm()` bundles neither the ratchet nor the group library; `ratchet()` and `groups()` are also on `@kernlize/core/messaging/ratchet` and `@kernlize/core/messaging/groups` (D-066). `dm` leaves `KERNEL_DOMAINS`; `ModuleMembers` gains `messaging`; `KernelContext.host` gains `chooseReply`, and `KernelContext.signer()` returns the active account, which queues requests. `createKernlServices` no longer registers `dm` or `common`: `KernlServiceDeps` loses `messaging`, `profiles`, `people` and `common`, and `KernlServices` loses `dm`. `createProviderMessaging` builds a registry over the providers given.
+- 353de2f: Remote tools and direct connections are a module, `multiplayerModule({ remoteTools, directConnections })`, in `kernlModules()`, exposed as `kernl.multiplayer`. Without it `cvm` and `webrtc` are not offered. `KernelContext` gains `holds(windowId, domain)`. `createKernlServices` no longer wires `webrtc` or reads the person's multiplayer settings, and `KernlServiceDeps` loses `directConnections` and `multiplayer`; `remoteTools: null` leaves `cvm` to the module. `DirectConnectionsDeps` is removed.
+
 ## 0.24.0
 
 ### Minor Changes
