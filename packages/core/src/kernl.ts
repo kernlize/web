@@ -170,7 +170,6 @@ function servicesFor(options: KernelOptions, parts: ServiceParts): ReturnType<ty
     host,
     ...(parts.bridges ? { bridges: parts.bridges } : {}),
     theme: null,
-    remoteTools: null,
     shortcuts: { isFocused: parts.isFocused },
     resolveIdentity(windowId) {
       const identity = identityOf(windowId);

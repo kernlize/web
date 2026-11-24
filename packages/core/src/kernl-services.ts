@@ -26,9 +26,7 @@ import {
 import type { Theme } from '@napplet/nap/theme/types';
 import type { EventTemplate, NostrEvent } from '@napplet/core';
 import { createBridgeRegistry, createBridgeResourceResolver, type BridgeContext, type BridgeRegistry, type ResourceResolveInit } from '@kernlize/bridges';
-import type { KernlHost, RelayTiers, RemoteToolsSettings } from './types.js';
-import { createRemoteToolsService } from './multiplayer/remote-tools.js';
-import { createWindowIdentities, type WindowIdentities } from './multiplayer/window-identities.js';
+import type { KernlHost, RelayTiers } from './types.js';
 import { createKernlMedia, type KernlMedia } from './media/kernl-media.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { createAppletRelayService, createOutboxRelayPool } from './applesauce/relay-backend.js';
@@ -85,10 +83,6 @@ export interface KernlServiceDeps {
   readonly resolveIdentity: (windowId: string) => { dTag: string; aggregateHash: string } | null;
   /** Identity lookups; defaults to the applesauce-backed providers. */
   readonly identity?: IdentityProviders;
-  /** Keys for the work a window does under its own name; a fresh set by default (D-041). */
-  readonly identities?: WindowIdentities;
-  /** Where remote tools are looked for and which families the host vouches for. */
-  readonly remoteTools?: RemoteToolsSettings | null | undefined;
   /** Whether a window is the focused one, for the media service's autoplay. */
   readonly shortcuts: { readonly isFocused: (windowId: string) => boolean };
 }
@@ -334,7 +328,7 @@ function gateOutboxPublish(outbox: ServiceHandler, consent: SigningConsent): Ser
  * Register kehto's reference services over the shell's applesauce layer.
  *
  * `relay`, `identity`, `theme`, `notify`, `link`, `resource`,
- * `outbox` and `cvm` are wired; every network path goes through the one pool, every
+ * and `outbox` are wired; every network path goes through the one pool, every
  * resource fetch through the bridge registry's SSRF policy, links open only
  * over `https:` and `mailto:`, notifications surface through the host, outbox
  * publishes pass the consent gate before they are signed, and remote tools are
@@ -354,7 +348,6 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
   const theme = createThemeService(deps.theme ? { initialTheme: deps.theme } : {});
   // Without the bridges module nothing resolves: an empty registry refuses every address with `unavailable:no-bridge`.
   const resolve = createBridgeResourceResolver(deps.bridges ?? createBridgeRegistry());
-  const identities = deps.identities ?? createWindowIdentities();
   const resource = createResourceService({
     fetch: (url, init) =>
       fetchThroughFirewall(url, init, (signal) => resolve(url, resourceInitFor(deps, { ...init, signal }))).catch((error: unknown) => {
@@ -384,13 +377,6 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
     ...(deps.bridges ? { resource } : {}),
     media: media.handler,
     outbox: gateOutboxPublish(createOutbox(deps, identity), deps.consent),
-    // `null` leaves remote tools and direct connections to the multiplayer module (D-062).
-    ...(deps.remoteTools === null ? {} : { cvm: createRemoteToolsService({
-      pool: deps.pool,
-      relays: () => deps.remoteTools?.relays ?? deps.tiers.get().super,
-      identities,
-      registry: () => deps.remoteTools?.registry ?? [],
-    }) }),
     ...(deps.config ? { config: createConfigService(deps.config).handler } : {}),
     ...(deps.uploader ? { upload: createUploadService({ uploader: deps.uploader, uploadInfo: { rails: [{ rail: 'blossom', enabled: true }] } }) } : {}),
   };
