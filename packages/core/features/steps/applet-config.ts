@@ -61,8 +61,12 @@ Given('a kernl shell over that host and pool whose host shows settings, with mod
   const shown: SettingsPrompt[] = [];
   scratch(world).settingsShown = shown;
   const present = (prompt: SettingsPrompt): void => void shown.push(prompt);
-  const modules = splitList(names).map((name) => (name === 'settings' ? settingsModule(present) : name === 'settings-without-a-form' ? settingsModule() : themeModule()));
+  const modules = splitList(names).map((name) => (name === 'settings' ? settingsModule(present) : name === 'settings-from-the-host' ? settingsModule() : themeModule()));
   boot(world, { modules }, { ...blobFetcher(world), presentSettings: present });
+});
+
+Given('a kernl shell over that host and pool whose host draws no settings, with modules {string}', (world: CoreWorld, names: string) => {
+  boot(world, { modules: splitList(names).map(() => settingsModule()) }, blobFetcher(world));
 });
 
 const shownForms = (world: CoreWorld): SettingsPrompt[] => scratch(world).settingsShown as SettingsPrompt[];

@@ -1070,7 +1070,7 @@ The composition files become the kernel's composition and the preset; they hold 
 
 **Decision.**
 
-- **A module may hold the active signer.** `KernelContext.signer()` is the active identity's signer, or none for a read-only or signed-out session. A module is code the host chose to load, trusted as the host is. The key stays inside the applesauce signer; key custody (D-061) is unchanged.
+- **A module may hold the active signer.** `KernelContext.signer()` is the active identity's signer, or none for a read-only or signed-out session. Since #102 it is the active account, which is itself a signer and queues requests, as a remote signer needs. A module is code the host chose to load, trusted as the host is. The key stays inside the applesauce signer; key custody (D-061) is unchanged.
 - **Consent is the guarantee for applets.** A write an applet asked for goes through `sign(windowId, template)` and the consent gate, whatever module serves it, as it did. A module that signs an applet's write with `signer()` instead breaks that guarantee; that is a rule for module authors, as staying on the napplet track is (D-061).
 - **`find(id)`.** The context also gives `find(id)`, another module's api or nothing, so a module can use one that a host may leave out. The mailboxes use it for the directory's suggestions.
 
@@ -1095,3 +1095,25 @@ This changes D-062's "the context holds no signer" and the composability plan's 
 **Consequences.** A host on the root `createKernl` still bundles both libraries, as kernl.run does. Splitting the core into packages (#75) can make the kernel the package and the default list another; this entry is the step that needs no package split.
 
 **Reversal cost.** Low: the entries are additive, and the root exports are unchanged apart from `createKernel` and the new providers.
+
+## D-067 · Typed asks: the kernel decides what is asked, the host draws it
+
+**Context.** #73. `KernlHost` was a flat bag of callbacks whose prompts were kernl's own shapes. `presentConsent` alone carried five different questions: a write that replaces the person's record, kehto's consent request, an upload, a download program's action, and a direct session. A host could not tell them apart except by reading the wording. A host that wanted its own UX had to reimplement kernl's prompts or accept their shape.
+
+**Decision.** The owner settled the four open questions as recommended.
+
+- **One kind per question.** The kinds are `sign.replace`, `upload.file`, `download.add`, `connection.direct`, `firewall.approve`, `intent.choose-handler`, `messaging.choose-reply` and `settings.present`. kehto's consent request with an event is a `sign.replace`.
+- **Every ask carries facts and `defaultText`.** The facts are structured, and `defaultText` is kernl's own wording. A host registers one renderer per kind in `KernlHost.asks` and may reword.
+- **A kind nobody draws gets its refusal, never an allow.** A renderer that throws or rejects gets the same refusal. Two kinds keep what a host without them always got:
+  - `messaging.choose-reply`: the provider order picks.
+  - `settings.present`: the `config` domain is not offered (D-036).
+  The firewall and the handler chooser keep kehto's own refusal when nothing draws them.
+- **An answer is bound to its ask.** The kernel holds the answer callback, so a renderer cannot answer for another window. An answer that arrives once the asking window has closed, or runs another applet, is discarded as the refusal.
+- **Only the firewall's question is timed out** (D-056).
+- **No ask carries the shell's own secrets**, the passwords and keys of services it signs in to for the person (D-052). `settings.present` is the one kind that carries values an applet marked secret: they are the applet's own, and its form must show them to edit them, masked as the host table says.
+- **A module asks through `KernelContext.ask`, and only the kinds it declares in `KernlModule.asks`.** The prompt callbacks leave `KernelContext.host`, and `canAsk(kind)` says whether the host draws a kind.
+- **The prompt callbacks stay for one minor.** An adapter registers them as renderers, and a renderer in `asks` wins over the callback it replaces. #73 closes when kernl.run draws through `asks`; a follow-up issue removes the callbacks after the next minor.
+
+**Consequences.** A host can compose kernl with its own UX and never miss a question, because a question it does not draw is refused. `presentConsent` became optional. Functions that took a host with `presentConsent` or `presentApproval` (`createSigningConsent`, `createConsentHandler`, `askUploadConsent`, `createFirewallPermissions`) take either a host or an ask channel. Custom kinds that a module adds are not part of this entry; a module raises only the kernel's kinds.
+
+**Reversal cost.** Moderate once the callbacks are removed, because hosts will have moved to `asks`. Before that, low.

@@ -218,7 +218,7 @@ function createActions({ host, bridges, pubkeyOf, intents, config }: ActionParts
    * publishes go straight out. Imported on first use so the core stays out of the shell's first chunk.
    */
   const publish = async (entry: Mounted, draft: Draft): Promise<void> => {
-    const { describeChange, isDestructiveKind } = await import('@kernlize/core');
+    const { describeChange, isDestructiveKind, toAskChannel } = await import('@kernlize/core');
     const now = Math.floor(Date.now() / 1000);
     const event = { id: '0'.repeat(64), pubkey: pubkeyOf(), created_at: now, sig: '', ...draft };
     const summary: ConsentSummary = describeChange(event, undefined, entry.plan.summary.identity);
@@ -226,10 +226,9 @@ function createActions({ host, bridges, pubkeyOf, intents, config }: ActionParts
       reply(entry, true, `${summary.title}: done (preview).`);
       return;
     }
-    host.presentConsent({
-      summary,
-      resolve: (allowed) => reply(entry, allowed, allowed ? `${summary.title}: done (preview).` : `${summary.title}: you said no.`),
-    });
+    const { windowId } = entry.plan;
+    const allowed = await toAskChannel(host).ask({ kind: 'sign.replace', windowId, applet: entry.plan.summary.identity, facts: { draft: event }, defaultText: summary });
+    reply(entry, allowed, allowed ? `${summary.title}: done (preview).` : `${summary.title}: you said no.`);
   };
 
   /** A shared download resolves through the same bridges the live shell uses (D-010, D-017). */

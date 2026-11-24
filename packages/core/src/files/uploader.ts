@@ -2,7 +2,8 @@ import { Actions, computeBlobSha256, createUploadAuth, type BlobDescriptor, type
 import type { Uploader, UploadRequest, UploadResult } from '@kehto/services';
 import type { ISigner } from 'applesauce-signers';
 import type { NostrEvent } from '@napplet/core';
-import type { AppletIdentity, ConsentSummary, KernlHost } from '../types.js';
+import type { AppletIdentity, ConsentSummary } from '../types.js';
+import { toAskChannel, type AskChannel, type AskHost } from '../asks/channel.js';
 
 /** What the person is asked about before a file leaves for a server. */
 export interface UploadDetails {
@@ -98,21 +99,22 @@ export function describeUpload(details: UploadDetails, applet: AppletIdentity): 
 }
 
 /**
- * Put an upload to the person through the host's consent prompt. An applet the
- * shell cannot name is refused without asking.
+ * Put an upload to the person as an `upload.file` ask: the file's name, type, size, hash and
+ * servers, and kernl's summary of them. An applet the shell cannot name is refused without asking.
  *
- * @param host - Supplies `presentConsent`.
+ * @param host - The host whose renderer draws `upload.file`, or an ask channel.
  * @param applet - The asking applet's identity, if the shell knows it.
  * @param details - The file and its servers.
+ * @param windowId - The window that asked, whose answer it is.
  * @returns Whether the person allowed it.
  * @example
  * ```ts
- * ask: (windowId, details) => askUploadConsent(host, identityOf(windowId), details);
+ * ask: (windowId, details) => askUploadConsent(host, identityOf(windowId), details, windowId);
  * ```
  */
-export function askUploadConsent(host: Pick<KernlHost, 'presentConsent'>, applet: AppletIdentity | undefined, details: UploadDetails): Promise<boolean> {
+export function askUploadConsent(host: AskHost | AskChannel, applet: AppletIdentity | undefined, details: UploadDetails, windowId?: string): Promise<boolean> {
   if (!applet) return Promise.resolve(false);
-  return new Promise((resolve) => host.presentConsent({ summary: describeUpload(details, applet), resolve }));
+  return toAskChannel(host).ask({ kind: 'upload.file', ...(windowId === undefined ? {} : { windowId }), applet, facts: details, defaultText: describeUpload(details, applet) });
 }
 
 const asBlob = (request: UploadRequest): Blob => (request.data instanceof Blob ? request.data : new Blob([request.data], request.mimeType ? { type: request.mimeType } : {}));

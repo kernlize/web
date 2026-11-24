@@ -21,6 +21,7 @@ import type { MountedApplet } from './applets/mount.js';
 import { createAppletTraffic } from './applets/traffic.js';
 import { createGuardPipeline, type GuardPipeline } from './guard/pipeline.js';
 import { createShellFirewall } from './kernl-firewall.js';
+import { createAskChannel } from './asks/channel.js';
 import { createEnvironmentResolver, createGrants, type KernlGrants } from './grants/grants.js';
 import { createConsentHandler, createSigningConsent, lookupReplaceable } from './consent/handler.js';
 import { abbreviate } from './consent/describe-change.js';
@@ -248,9 +249,11 @@ export function createKernel<const M extends readonly AnyKernlModule[]>(options:
   const cacheRequest = (filters: Filter[]): Promise<NostrEvent[]> => (modulesSetUp.composed?.apis.cache as ConnectedEventCache | undefined)?.cacheRequest(filters) ?? Promise.resolve([]);
   const { replaceableLoader } = createKernlNetwork({ eventStore, pool, tiers, accounts, cacheRequest });
   const lookupBefore = lookupReplaceable(eventStore, { loader: replaceableLoader, relays: () => [...tiers.get().outbox, ...tiers.get().discovery] });
-  const consent = createSigningConsent({ host, lookupBefore, resolveApplet: identityOf, pubkey: () => accounts.active?.pubkey });
+  // An answer is the asking window's only: it is discarded once that window closed or runs another applet (D-067).
+  const asks = createAskChannel({ host, isAsking: (windowId, ask) => handles.get(windowId)?.summary.identity.hash === ask.applet?.hash });
+  const consent = createSigningConsent({ host: asks, lookupBefore, resolveApplet: identityOf, pubkey: () => accounts.active?.pubkey });
   const secrets = options.secrets ?? createStorageSecrets(host.storage);
-  const composed = composeOrClose(modules, { eventStore, pool, tiers, storage: host.storage, accounts, consent, replaceableLoader, appletOf: (windowId) => handles.get(windowId)?.summary, host, isFocused, applets: () => handles, secrets, holds(windowId, domain) {
+  const composed = composeOrClose(modules, { eventStore, pool, tiers, storage: host.storage, accounts, consent, replaceableLoader, appletOf: (windowId) => handles.get(windowId)?.summary, host, asks, isFocused, applets: () => handles, secrets, holds(windowId, domain) {
     const identity = handles.get(windowId)?.summary.identity;
     const record = identity && grants.get(identity);
     return !!record && !record.blocked && record.domains.includes(domain);
@@ -266,7 +269,7 @@ export function createKernel<const M extends readonly AnyKernlModule[]>(options:
 
   Object.assign(services.registry, composed.services);
   const { extensions } = composed;
-  const guarding = createShellFirewall({ host, pipeline, handles, guardEvents$ });
+  const guarding = createShellFirewall({ host, asks, pipeline, handles, guardEvents$ });
   const adapter: ShellAdapter = createShellAdapter({
     pool,
     tiers,
@@ -284,7 +287,7 @@ export function createKernel<const M extends readonly AnyKernlModule[]>(options:
   });
   const bridge = createShellBridge(adapter);
   grants = createGrants({ acl: bridge.runtime.aclState, storage: host.storage, availableDomains: () => [...buildShellCapabilities(adapter).domains, ...(extensions?.domains ?? [])], unanswered: () => composed.unanswered });
-  bridge.registerConsentHandler(createConsentHandler(host, lookupBefore, identityOf));
+  bridge.registerConsentHandler(createConsentHandler(asks, lookupBefore, identityOf));
 
   const { firewall, admissions } = guarding.attach(bridge.runtime);
   subscriptions.add(() => firewall.close());

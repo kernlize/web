@@ -7,7 +7,8 @@ import type { RelayPool } from 'applesauce-relay';
 import type { AddressPointerLoader } from 'applesauce-loaders/loaders';
 import type { SecretsProvider } from '../secrets/secrets.js';
 import type { ISigner } from 'applesauce-signers';
-import type { AppletSummary, ConsentSummary, KernlHost, RelayTiers, StorageLike } from '../types.js';
+import type { AppletSummary, KernlHost, RelayTiers, StorageLike } from '../types.js';
+import type { Ask, AskAnswer, AskKind } from '../asks/kinds.js';
 
 /** The signed-in identity as a module sees it: who, and whether they can sign, never their signer. */
 export interface ModuleIdentity {
@@ -62,10 +63,17 @@ export interface KernelContext {
   applets(): ReadonlyMap<string, { readonly windowId: string; readonly summary: AppletSummary }>;
   /** Where passwords and keys of services the shell signs in to for the person are kept (D-052). */
   readonly secrets: SecretsProvider;
-  /** The host's own callbacks a module may use until the host's questions become typed asks. */
-  readonly host: Pick<KernlHost, 'storage' | 'presentConsent' | 'openApplet' | 'focusApplet' | 'chooseHandler' | 'chooseReply' | 'notify' | 'now' | 'openLink'>;
-  /** Put a question to the person through the host's consent prompt; resolves with their answer. */
-  ask(summary: ConsentSummary): Promise<boolean>;
+  /** The host's effects a module may use. Questions go through {@link KernelContext.ask}. */
+  readonly host: Pick<KernlHost, 'storage' | 'openApplet' | 'focusApplet' | 'notify' | 'now' | 'openLink'>;
+  /**
+   * Put a question to the person through the host's renderer for its kind, and resolve with their
+   * answer: the kind's refusal when nothing draws it, the renderer fails, or the asking window has
+   * closed. Rejects `invalid:ask-undeclared:<kind>` for a kind the module did not declare in
+   * {@link KernlModule.asks} (D-067).
+   */
+  ask<K extends AskKind>(ask: Ask<K>): Promise<AskAnswer<K>>;
+  /** Whether the host draws a kind, for a module that offers something only when it can be asked about. */
+  canAsk(kind: AskKind): boolean;
   /** Load a replaceable event into the store from the cache and the lookup relays. Never rejects. */
   loadReplaceable(pointer: ReplaceablePointer): Promise<void>;
   /** The shell's replaceable loader, which asks the cache module first when it is loaded. */
@@ -114,6 +122,8 @@ export interface KernlModule<Id extends string = string, Api = void> {
   readonly id: Id;
   /** Ids of modules or kernel parts that must be loaded with this one. */
   readonly requires?: readonly string[];
+  /** The kinds of question this module may put to the person through {@link KernelContext.ask} (D-067). */
+  readonly asks?: readonly AskKind[];
   setup(context: KernelContext): ModuleInstance<Api>;
 }
 

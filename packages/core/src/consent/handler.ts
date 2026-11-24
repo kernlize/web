@@ -4,7 +4,9 @@ import { isAddressableKind, isReplaceable } from 'applesauce-core/helpers';
 import type { AddressPointerLoader } from 'applesauce-loaders/loaders';
 import type { ConsentRequest } from '@kehto/runtime';
 import type { EventTemplate, NostrEvent } from '@napplet/core';
-import type { AppletIdentity, ConsentLine, ConsentSummary, KernlHost } from '../types.js';
+import type { AppletIdentity, ConsentLine, ConsentSummary } from '../types.js';
+import { toAskChannel, type AskChannel, type AskHost } from '../asks/channel.js';
+import type { Ask } from '../asks/kinds.js';
 import { describeChange, isDestructiveKind } from './describe-change.js';
 
 /** Finds the current version of a replaceable event so the summary can show a diff; undefined when it cannot be found. */
@@ -92,11 +94,13 @@ function identifierOf(event: NostrEvent): string | undefined {
  * and says so first, rather than reading as a first version that removes
  * nothing.
  */
-async function describeAgainstCurrent(event: NostrEvent, lookupBefore: LookupBefore, applet: AppletIdentity): Promise<ConsentSummary> {
-  if (!isReplaceable(event.kind)) return describeChange(event, undefined, applet);
-  const before = await lookupBefore(event.kind, event.pubkey, identifierOf(event));
-  const summary = describeChange(event, before, applet);
-  return before ? summary : { ...summary, lines: [UNKNOWN_CURRENT_VERSION, ...summary.lines] };
+/** The `sign.replace` ask for a draft: the version it replaces, when found, and kernl's summary of the change. */
+async function signAsk(windowId: string, draft: NostrEvent, lookupBefore: LookupBefore, applet: AppletIdentity): Promise<Ask<'sign.replace'>> {
+  const ask = (before: NostrEvent | undefined, defaultText: ConsentSummary): Ask<'sign.replace'> => ({ kind: 'sign.replace', windowId, applet, facts: { draft, ...(before ? { before } : {}) }, defaultText });
+  if (!isReplaceable(draft.kind)) return ask(undefined, describeChange(draft, undefined, applet));
+  const before = await lookupBefore(draft.kind, draft.pubkey, identifierOf(draft));
+  const summary = describeChange(draft, before, applet);
+  return ask(before, before ? summary : { ...summary, lines: [UNKNOWN_CURRENT_VERSION, ...summary.lines] });
 }
 
 /**
@@ -111,7 +115,7 @@ async function describeAgainstCurrent(event: NostrEvent, lookupBefore: LookupBef
  * kehto release that adds such prompts is answered honestly; one from a
  * window the shell cannot name is refused.
  *
- * @param host - Supplies `presentConsent`.
+ * @param host - The host whose renderer draws `sign.replace`, or the kernel's ask channel.
  * @param lookupBefore - Finds the current replaceable event for the diff.
  * @param resolveApplet - Maps the requesting window to its applet identity.
  * @returns A handler for `bridge.registerConsentHandler`.
@@ -121,7 +125,7 @@ async function describeAgainstCurrent(event: NostrEvent, lookupBefore: LookupBef
  * ```
  */
 export function createConsentHandler(
-  host: Pick<KernlHost, 'presentConsent'>,
+  host: AskHost | AskChannel,
   lookupBefore: LookupBefore,
   resolveApplet: ResolveAppletIdentity,
 ): (request: ConsentRequest) => void {
@@ -132,9 +136,8 @@ export function createConsentHandler(
       request.resolve(false);
       return;
     }
-    void describeAgainstCurrent(event, lookupBefore, applet).then((summary) =>
-      host.presentConsent({ summary, resolve: (allowed) => request.resolve(allowed) }),
-    );
+    const asks = toAskChannel(host);
+    void signAsk(request.windowId, event, lookupBefore, applet).then((ask) => asks.ask(ask)).then((allowed) => request.resolve(allowed));
   };
 }
 
@@ -152,7 +155,8 @@ export type SigningConsent = (windowId: string, template: SigningTemplate) => Pr
 
 /** What {@link createSigningConsent} needs from the shell. */
 export interface SigningConsentOptions {
-  readonly host: Pick<KernlHost, 'presentConsent'>;
+  /** The host whose renderer draws `sign.replace`, or the kernel's ask channel. */
+  readonly host: AskHost | AskChannel;
   readonly lookupBefore: LookupBefore;
   readonly resolveApplet: ResolveAppletIdentity;
   /** The account that will sign, for the before lookup; undefined while nobody is signed in. */
@@ -179,7 +183,7 @@ function draftOf(template: SigningTemplate, kind: number, pubkey: string): Nostr
  * {@link isDestructiveKind}) is described against the account's current
  * version, from the event store or the network (see {@link lookupReplaceable}),
  * and put to the user through
- * `host.presentConsent`; the gate waits for the answer and nothing is signed
+ * the host's `sign.replace` renderer; the gate waits for the answer and nothing is signed
  * unless it is yes. The summary's `event` is the unsigned draft: its `id` and
  * `sig` are empty because signing has not happened yet.
  *
@@ -200,8 +204,7 @@ export function createSigningConsent(options: SigningConsentOptions): SigningCon
     if (!applet) throw new Error('denied:unknown-applet');
     const pubkey = options.pubkey();
     if (pubkey === undefined) throw new Error('denied:signed-out');
-    const summary = await describeAgainstCurrent(draftOf(template, kind, pubkey), options.lookupBefore, applet);
-    const allowed = await new Promise<boolean>((resolve) => options.host.presentConsent({ summary, resolve }));
+    const allowed = await toAskChannel(options.host).ask(await signAsk(windowId, draftOf(template, kind, pubkey), options.lookupBefore, applet));
     if (!allowed) throw new Error('denied:consent');
   };
 }

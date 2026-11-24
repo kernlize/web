@@ -2,7 +2,7 @@ import { Subject, takeUntil } from 'rxjs';
 import { createUploadService } from '@kehto/services';
 import { lookupRelaysOf } from '../applesauce/identity-providers.js';
 import { createAccountFileServers, type AccountFileServers } from '../files/file-servers.js';
-import { createBlossomUploader, describeUpload } from '../files/uploader.js';
+import { createBlossomUploader, askUploadConsent } from '../files/uploader.js';
 import type { KernlModule } from './module.js';
 
 /**
@@ -21,6 +21,7 @@ import type { KernlModule } from './module.js';
 export function filesModule(): KernlModule<'files', AccountFileServers> {
   return {
     id: 'files',
+    asks: ['upload.file'],
     setup(context) {
       const stopped$ = new Subject<void>();
       const files = createAccountFileServers({
@@ -36,10 +37,7 @@ export function filesModule(): KernlModule<'files', AccountFileServers> {
       const uploader = createBlossomUploader({
         servers: () => files.current(),
         signer: () => context.signer(),
-        ask(windowId, details) {
-          const applet = context.appletOf(windowId)?.identity;
-          return applet ? context.ask(describeUpload(details, applet)) : Promise.resolve(false);
-        },
+        ask: (windowId, details) => askUploadConsent({ ask: context.ask, has: context.canAsk }, context.appletOf(windowId)?.identity, details, windowId),
       });
       return {
         services: { upload: createUploadService({ uploader, uploadInfo: { rails: [{ rail: 'blossom', enabled: true }] } }) },

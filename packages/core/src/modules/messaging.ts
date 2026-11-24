@@ -2,7 +2,7 @@ import type { IAccount } from 'applesauce-accounts';
 import { ReadonlyAccount } from 'applesauce-accounts/accounts';
 import type { ISigner } from 'applesauce-signers';
 import { createDmService, type DmService } from '@kehto/services';
-import type { MessagingRegistry } from '@kernlize/messaging';
+import type { MessagingRegistry, ReplyPrompt } from '@kernlize/messaging';
 import { shellRelayOrigins } from '../kernl-services.js';
 import { messagingSigner } from '../messaging/availability.js';
 import { createProviderMessaging } from '../messaging/default-registry.js';
@@ -12,6 +12,9 @@ import { locateRecipients, locateSendRecipients } from '../people/locate-recipie
 import type { People } from '../people/person.js';
 import type { Profiles } from '../profiles/profiles.js';
 import type { KernelContext, KernlModule } from './module.js';
+
+/** kernl's own words for the reply question. */
+const REPLY_TEXT = Object.freeze({ title: 'How should this reply travel?' });
 
 /** The providers the shell registers, or a registry the host built, which the shell uses as is and leaves open. */
 export type MessagingModuleOptions =
@@ -47,11 +50,11 @@ function registryFor(options: MessagingModuleOptions, context: KernelContext): M
     selfPubkey: () => context.identity.pubkey(),
     accountChanges: context.identity.pubkey$,
   };
-  const { chooseReply } = context.host;
   return createProviderMessaging({
     storage: context.storage,
     signer,
-    ...(chooseReply ? { askReply: chooseReply.bind(context.host) } : {}),
+    // With nothing to draw the question the order's pick is used, as it always was (D-067).
+    ...(context.canAsk('messaging.choose-reply') ? { askReply: (prompt: ReplyPrompt) => context.ask({ kind: 'messaging.choose-reply', facts: prompt, defaultText: REPLY_TEXT }) } : {}),
     providers: options.providers.map((provider) => ({ describe: provider.describe, encryption: provider.encryption, backend: () => provider.backend(parts) })),
   });
 }
@@ -82,6 +85,7 @@ function dmFor(registry: MessagingRegistry, context: KernelContext): DmService {
 export function messagingModule(options: MessagingModuleOptions): KernlModule<'messaging', MessagingRegistry> {
   return {
     id: 'messaging',
+    asks: ['messaging.choose-reply'],
     setup(context) {
       const registry = registryFor(options, context);
       const dm = dmFor(registry, context);

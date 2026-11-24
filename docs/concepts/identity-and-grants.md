@@ -76,7 +76,7 @@ Most writes an applet asks the shell to sign are additive: a note, a reaction, a
 
 When no current version is found, in the store or on the network within the timeout, a replaceable or addressable summary starts with "Current version: could not be loaded; this replaces it entirely" (`UNKNOWN_CURRENT_VERSION`), so the user is not shown a first version that seems to remove nothing.
 
-The gate calls `host.presentConsent({ summary, resolve })` and waits. *Allow* signs the event. Deny or dismiss rejects with `denied:consent`: nothing is signed and nothing is published. The core never times a prompt out. A destructive write from a window kernl did not mount is refused with `denied:unknown-applet`, one while nobody is signed in with `denied:signed-out`, and a write whose kind is not a number with `invalid:event-kind`.
+The gate puts a `sign.replace` ask to the host, its facts the draft and the version it replaces and its `defaultText` the summary, and waits ([Asks](./asks.md)). *Allow* signs the event. Deny or dismiss rejects with `denied:consent`: nothing is signed and nothing is published. The core never times a prompt out. A destructive write from a window kernl did not mount is refused with `denied:unknown-applet`, one while nobody is signed in with `denied:signed-out`, and a write whose kind is not a number with `invalid:event-kind`.
 
 Three limits are deliberate:
 

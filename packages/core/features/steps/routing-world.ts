@@ -85,13 +85,10 @@ export async function openStore(state: RoutingState): Promise<DownloadClients> {
 /** The composed download services, wired as `createKernlDownloads` wires them, answering every question yes. */
 export function openShell(state: RoutingState): KernlDownloads {
   state.downloads = createKernlDownloads({
-    host: {
-      storage: state.storage,
-      presentConsent: (prompt) => {
-        state.questions.push({ kind: 'add', title: prompt.summary.title, lines: prompt.summary.lines.map((line) => ({ label: line.label, value: String(line.after) })) });
-        prompt.resolve(true);
-      },
-      now: () => state.clock,
+    host: { storage: state.storage, now: () => state.clock },
+    ask: async (ask) => {
+      state.questions.push({ kind: 'add', title: ask.defaultText.title, lines: ask.defaultText.lines.map((line) => ({ label: line.label, value: String(line.after) })) });
+      return true;
     },
     options: { offer: true, pageScheme: () => 'http' },
     secrets: withholdingSecrets(state),

@@ -1,7 +1,8 @@
 import type { ApprovalAnswer, ApprovalPrompt, PermissionAdapter, PermissionRateEvent, PermissionStorageFailure, TemporalPolicy } from '@kehto/runtime';
 import type { PermissionPrincipal } from '@kehto/firewall';
 import { createRateLimiter, defaultPromptRateLimitConfig } from '@kehto/rate-limit';
-import type { AppletSummary, FirewallApplet, KernlHost } from '../types.js';
+import type { AppletSummary, FirewallApplet, FirewallSummary, KernlHost } from '../types.js';
+import { toAskChannel, type AskChannel } from '../asks/channel.js';
 import { answerFor, describeApproval } from './describe.js';
 import type { FirewallRules } from './rules.js';
 
@@ -52,9 +53,18 @@ const STORAGE_FAILURES: Readonly<Record<PermissionStorageFailure, string>> = Obj
   'storage-unavailable': 'This browser keeps no stored answers, so "always" cannot be given.',
 });
 
+/** kernl's own heading for each kind of firewall question. */
+const FIREWALL_TITLES: Readonly<Record<FirewallSummary['kind'], string>> = Object.freeze({
+  link: 'Open a link outside kernl',
+  access: 'Start with what it asks for',
+  request: 'Go ahead with a request',
+});
+
 /** Options for {@link createFirewallPermissions}. */
 export interface FirewallPermissionsOptions {
-  readonly host: Pick<KernlHost, 'storage' | 'presentApproval' | 'notify' | 'now'>;
+  readonly host: Pick<KernlHost, 'storage' | 'asks' | 'presentApproval' | 'notify' | 'now'>;
+  /** The channel `firewall.approve` goes through; the host's own by default. */
+  readonly asks?: AskChannel;
   readonly rules: Pick<FirewallRules, 'decide'>;
   /** The applet a principal belongs to, from what this shell planned; `undefined` for one it does not know. */
   readonly appletOf: (principal: PermissionPrincipal) => FirewallApplet | undefined;
@@ -69,7 +79,7 @@ export interface FirewallPermissionsOptions {
  *
  * A request no stored answer covers goes to the rules first. What they allow
  * goes ahead, what they deny is refused, and what they say to ask about is
- * put to the person through `host.presentApproval`; a host without one has
+ * put to the person as a `firewall.approve` ask; a host that draws none has
  * such a request refused, never allowed. A question for an applet this shell
  * did not plan is cancelled. "Always" answers are kept under
  * {@link FIREWALL_DECISIONS_STORAGE_KEY}; a failed write is told to the person
@@ -86,21 +96,17 @@ export interface FirewallPermissionsOptions {
  */
 export function createFirewallPermissions(options: FirewallPermissionsOptions): PermissionAdapter {
   const { host } = options;
-  const present = host.presentApproval?.bind(host);
-  const ask = (present: NonNullable<KernlHost['presentApproval']>) => (prompt: ApprovalPrompt): Promise<ApprovalAnswer> => {
+  const asks = options.asks ?? toAskChannel(host);
+  const ask = (prompt: ApprovalPrompt): Promise<ApprovalAnswer> => {
     const applet = options.appletOf(prompt.request.principal);
     if (!applet) return Promise.resolve({ effect: 'cancel' });
     const summary = describeApproval(prompt, applet);
     return new Promise((resolve) => {
       const withdrawn = (): void => resolve({ effect: 'cancel' });
       prompt.signal.addEventListener('abort', withdrawn, { once: true });
-      present({
-        summary,
-        signal: prompt.signal,
-        resolve(choice) {
-          prompt.signal.removeEventListener('abort', withdrawn);
-          resolve(answerFor(summary, choice));
-        },
+      void asks.ask({ kind: 'firewall.approve', applet: applet.identity, facts: summary, defaultText: { title: FIREWALL_TITLES[summary.kind] }, signal: prompt.signal }).then((choice) => {
+        prompt.signal.removeEventListener('abort', withdrawn);
+        resolve(answerFor(summary, choice));
       });
     });
   };
@@ -112,7 +118,7 @@ export function createFirewallPermissions(options: FirewallPermissionsOptions): 
       return () => clearTimeout(timer);
     },
     timeoutMs: FIREWALL_PROMPT_TIMEOUT_MS,
-    ...(present ? { prompt: ask(present) } : {}),
+    ...(asks.has('firewall.approve') ? { prompt: ask } : {}),
     defaultDecision: (request, missing) => options.rules.decide(request, missing),
     persistence: {
       load: () => host.storage.getItem(FIREWALL_DECISIONS_STORAGE_KEY),

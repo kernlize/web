@@ -1,3 +1,4 @@
+import type { Ask } from './asks/kinds.js';
 import type { ServiceRegistry } from '@kehto/runtime';
 import type { PlannedExtensions } from './applets/plan.js';
 import { DOWNLOAD_BINDINGS, supportsDomainBindings } from './downloads/bindings.js';
@@ -21,7 +22,9 @@ export const DOWNLOAD_DOMAINS: readonly string[] = Object.freeze(['torrent', 'nz
 
 /** What the download services need from the composed shell. */
 export interface KernlDownloadsDeps {
-  readonly host: Pick<KernlHost, 'storage' | 'presentConsent' | 'now'>;
+  readonly host: Pick<KernlHost, 'storage' | 'now'>;
+  /** Put a download program's question to the person as a `download.add` ask; resolve true only on yes. */
+  readonly ask: (ask: Ask<'download.add'>) => Promise<boolean>;
   readonly options: DownloadsOptions | undefined;
   /** Where the programs' passwords and keys are kept. */
   readonly secrets: SecretsProvider;
@@ -103,7 +106,7 @@ export function createKernlDownloads(deps: KernlDownloadsDeps): KernlDownloads {
     ask(windowId, question) {
       const applet = deps.identityOf(windowId);
       if (!applet) return Promise.resolve(false);
-      return new Promise((resolve) => host.presentConsent({ summary: describeDownloadQuestion(question, applet, exposesAddress), resolve }));
+      return deps.ask({ kind: 'download.add', windowId, applet, facts: { question, exposesAddress }, defaultText: describeDownloadQuestion(question, applet, exposesAddress) });
     },
   });
   // An NZB downloader is keyed by its connection's routing key, so a handle issued for jobs at an old address never reaches the new one's.
