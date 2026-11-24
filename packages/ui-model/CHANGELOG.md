@@ -1,5 +1,12 @@
 # @kernlize/ui-model
 
+## 0.2.2
+
+### Patch Changes
+
+- Updated dependencies [9478570]
+  - @kernlize/core@0.29.0
+
 ## 0.2.1
 
 ### Patch Changes
