@@ -226,6 +226,10 @@ When('the shell enables messaging provider {string} and {string}', (world: CoreW
   k(world).kernl.messaging.enable(second);
 });
 
+Then("a message through the shell's messaging is refused with {string}", async (world: CoreWorld, reason: string) => {
+  await expect(k(world).kernl.messaging.composite().send({ recipients: ['3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d'], content: 'hi' })).rejects.toThrow(reason);
+});
+
 Then('the shell messaging status is available for the signed-in account', async (world: CoreWorld) => {
   const status = await k(world).kernl.messaging.composite().status();
   expect(status).toMatchObject({ available: true, ownerPubkey: k(world).kernl.session?.pubkey, implementations: ['nip17', 'nip04', 'ndr'] });

@@ -69,6 +69,14 @@ Feature: The composed shell
     Then the shell messaging status is available for the signed-in account
     When the shell is destroyed
 
+  Scenario: a backend still running when the identity turns read-only says it cannot encrypt
+    Given a kernl shell over that host and pool
+    When the shell logs in with a password account named "alice"
+    And the shell enables messaging provider "private" and "legacy"
+    And the shell logs in with a read-only account
+    Then a message through the shell's messaging is refused with "unavailable:signer-cannot-encrypt"
+    When the shell is destroyed
+
   Scenario: someone who never chose a provider has two switched on once they sign in
     Given a kernl shell over that host and pool
     Then the shell's switched-on messaging providers are ""

@@ -40,3 +40,10 @@ Feature: Floor: an applet that reads messages is sealed, whatever modules are lo
       | modules                    | theme          |
       | kernl's modules            | offers         |
       | only the messaging module  | does not offer |
+
+  Scenario: a shell with no modules offers no messages, so no grant can seal an applet
+    Given the shell loads no modules
+    And a kernl host over empty storage
+    And a fake applesauce pool serving a signed manifest for "chat" requiring "relay"
+    And a kernl shell over that host and pool
+    Then the shell does not offer "dm"

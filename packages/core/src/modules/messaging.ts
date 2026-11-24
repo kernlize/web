@@ -1,8 +1,10 @@
+import type { IAccount } from 'applesauce-accounts';
+import { ReadonlyAccount } from 'applesauce-accounts/accounts';
 import type { ISigner } from 'applesauce-signers';
 import { createDmService, type DmService } from '@kehto/services';
 import type { MessagingRegistry } from '@kernlize/messaging';
 import { shellRelayOrigins } from '../kernl-services.js';
-import type { MessagingEncryption } from '../messaging/availability.js';
+import { messagingSigner } from '../messaging/availability.js';
 import { createProviderMessaging } from '../messaging/default-registry.js';
 import { labelConversations } from '../messaging/label-conversations.js';
 import type { MessagingProviderModule, ProviderParts } from '../messaging/provider-module.js';
@@ -16,17 +18,26 @@ export type MessagingModuleOptions =
   | { readonly providers: readonly MessagingProviderModule[]; readonly registry?: never }
   | { readonly registry: MessagingRegistry; readonly providers?: never };
 
-/** A read-only identity is signed in but can encrypt nothing, which the person is told apart from nobody being signed in. */
-const ENCRYPTS_NOTHING: Pick<ISigner, MessagingEncryption> = Object.freeze({});
-
-/** What the active identity can encrypt, for the providers' availability. */
-function encryption(context: KernelContext): Pick<ISigner, MessagingEncryption> | undefined {
-  return context.signer() ?? (context.identity.pubkey() ? ENCRYPTS_NOTHING : undefined);
+/**
+ * The active identity's signer for messages, read on every call: its account, or for a read-only
+ * identity a signer that can encrypt nothing, so the person is told `signer-cannot-encrypt` and not
+ * asked to sign in, by the registry and by a backend still running when the identity changes.
+ */
+function signerFor(context: KernelContext): () => ISigner | undefined {
+  let readOnly: { readonly pubkey: string; readonly signer: ISigner | undefined } | undefined;
+  return () => {
+    const signer = context.signer();
+    if (signer) return signer;
+    const pubkey = context.identity.pubkey();
+    if (!pubkey) return undefined;
+    if (readOnly?.pubkey !== pubkey) readOnly = { pubkey, signer: messagingSigner(ReadonlyAccount.fromPubkey(pubkey) as IAccount) };
+    return readOnly.signer;
+  };
 }
 
 function registryFor(options: MessagingModuleOptions, context: KernelContext): MessagingRegistry {
   if (options.registry) return options.registry;
-  const signer = (): ISigner | undefined => context.signer();
+  const signer = signerFor(context);
   const parts: ProviderParts = {
     store: context.eventStore,
     pool: context.pool,
@@ -39,7 +50,7 @@ function registryFor(options: MessagingModuleOptions, context: KernelContext): M
   const { chooseReply } = context.host;
   return createProviderMessaging({
     storage: context.storage,
-    signer: () => encryption(context),
+    signer,
     ...(chooseReply ? { askReply: chooseReply.bind(context.host) } : {}),
     providers: options.providers.map((provider) => ({ describe: provider.describe, encryption: provider.encryption, backend: () => provider.backend(parts) })),
   });
