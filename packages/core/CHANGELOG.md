@@ -1,5 +1,12 @@
 # @kernlize/core
 
+## 0.27.0
+
+### Minor Changes
+
+- 87dfd5b: `@kernlize/core/asks` is a new entry: `ASK_KINDS`, `ASK_REFUSALS`, `createAskChannel`, `toAskChannel` and the ask types, without the network stack, so a UI's ask queues load before the core.
+- f2996c2: `@kernlize/core/seal` is a new entry: the message seal (`MESSAGES_DOMAIN`, `MESSAGE_COMPANION_DOMAINS`, `sealsApplet`, `domainsInForce`, `withheldDomains`, `capabilitiesInForce`) and the domain capabilities (`BASELINE_DOMAINS`, `DOMAIN_CAPABILITIES`, `capabilitiesForDomain`, `capabilitiesForDomains`), without the network stack. `@kernlize/ui-model` reads the seal through it, so a host that draws the grants list bundles no third-party code.
+
 ## 0.26.0
 
 ### Minor Changes
