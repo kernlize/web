@@ -1,22 +1,9 @@
+import type { DownloadQuestion } from '../asks/facts.js';
+export type { DownloadQuestion, DownloadQuestionLine } from '../asks/facts.js';
 import type { ServiceHandler } from '@kehto/runtime';
 import type { AppletIdentity, StorageLike } from '../types.js';
 
-/** One line of what the person is shown before a download service acts for an applet. */
-export interface DownloadQuestionLine {
-  readonly label: string;
-  readonly value: string;
-}
 
-/**
- * What a download service puts to the person before it acts for an applet. Words only:
- * no address, path, credential or raw backend id belongs in a line.
- */
-export interface DownloadQuestion {
-  /** Which decision this is, so the host can word and rank it. */
-  readonly kind: 'add' | 'session' | 'delete';
-  readonly title: string;
-  readonly lines: readonly DownloadQuestionLine[];
-}
 
 /** What every download service needs from the shell. */
 export interface DownloadServiceDeps {
