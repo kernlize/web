@@ -56,6 +56,8 @@ export interface KernelContext {
   appletOf(windowId: string): AppletSummary | undefined;
   /** Whether a window is the focused one, as the guard sees it. */
   isFocused(windowId: string): boolean;
+  /** Whether a window's applet holds a domain the person granted, and is not blocked. Read-only: only the person grants. */
+  holds(windowId: string, domain: string): boolean;
   /** The applets running now, by window id. */
   applets(): ReadonlyMap<string, { readonly windowId: string; readonly summary: AppletSummary }>;
   /** Where passwords and keys of services the shell signs in to for the person are kept (D-052). */

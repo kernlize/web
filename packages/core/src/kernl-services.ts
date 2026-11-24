@@ -107,7 +107,7 @@ export interface KernlServiceDeps {
   /** Keys for the work a window does under its own name; a fresh set by default (D-041). */
   readonly identities?: WindowIdentities;
   /** Where remote tools are looked for and which families the host vouches for. */
-  readonly remoteTools?: RemoteToolsSettings | undefined;
+  readonly remoteTools?: RemoteToolsSettings | null | undefined;
   /** Direct connections; without them the `webrtc` domain is not offered (D-042). */
   readonly directConnections?: DirectConnectionsDeps | undefined;
   /** The person's own choices, which come before the host's (D-043). */
@@ -427,12 +427,13 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
     media: media.handler,
     dm,
     outbox: gateOutboxPublish(createOutbox(deps, identity), deps.consent),
-    cvm: createRemoteToolsService({
+    // `null` leaves remote tools and direct connections to the multiplayer module (D-062).
+    ...(deps.remoteTools === null ? {} : { cvm: createRemoteToolsService({
       pool: deps.pool,
       relays: () => chosen()?.servers ?? deps.remoteTools?.relays ?? deps.tiers.get().super,
       identities,
       registry: () => mergeFamilies(deps.remoteTools?.registry ?? [], chosen()?.families ?? []),
-    }),
+    }) }),
     ...(direct ? {
       webrtc: createDirectConnectionsService({
         ...direct,

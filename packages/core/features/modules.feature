@@ -145,6 +145,14 @@ Feature: Modules
       And the shell does not offer "nzb"
       And the shell does not offer "soulseek"
 
+    Scenario: without the multiplayer module there are no remote tools or direct connections, even where the page could connect
+      Given a kernl shell over that host and pool with modules "theme"
+      And a page that has its own peer connections
+      And a kernl shell over that host and pool with modules "theme"
+      Then the shell has no "multiplayer" member
+      And the shell does not offer "cvm"
+      And the shell does not offer "webrtc"
+
     Scenario: kernl's own modules include the directory, which waits to be started
       Given a kernl shell over that host and pool
       Then the shell has a "directory" member
@@ -201,6 +209,7 @@ Feature: Modules
         | needs-intents    | invalid:module-missing:intents   |
         | needs-bridges    | invalid:module-missing:bridges   |
         | needs-downloads  | invalid:module-missing:downloads |
+        | needs-multiplayer | invalid:module-missing:multiplayer |
         | social           | invalid:module-missing:profiles |
         | social,profiles,people | invalid:module-order:profiles |
         | grants           | invalid:module-reserved:grants  |

@@ -8,9 +8,7 @@ import type { BridgeRegistry } from '@kernlize/bridges';
 import { buildShellCapabilities, createShellBridge, type ShellAdapter, type ShellBridge } from '@kehto/shell';
 import { QUARANTINE_WINDOW_MS, createGuardConfig, describeMitigations, type GuardConfig, type GuardEvent } from '@kernlize/guard';
 import type { AppletIdentity, AppletStopLimit, AppletSummary, Grants, GuardFacade, Intents, Kernel, Kernl, KernlMultiplayer, KernlOptions, RelayTiers, Session } from './types.js';
-import { createMultiplayerSettings } from './multiplayer/settings.js';
 import { createStorageSecrets } from './secrets/secrets.js';
-import { discoverToolFamilies } from './multiplayer/tool-discovery.js';
 import { createKernlAccounts } from './applesauce/accounts.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
 import type { ProfileCard, Profiles } from './profiles/profiles.js';
@@ -36,7 +34,6 @@ import { createLegacyMessagesBackend } from './messaging/legacy-backend.js';
 import { createRatchetMessagesBackend } from './messaging/ratchet-backend.js';
 import { createGroupMessagesBackend } from './messaging/group-backend.js';
 import { createKernlServices, isTheme, type DirectConnectionsDeps, type KernlServiceDeps } from './kernl-services.js';
-import { createWindowIdentities } from './multiplayer/window-identities.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { createShellAdapter } from './kernl-adapter.js';
 import { createAppletLifecycle, resolveWindow } from './kernl-lifecycle.js';
@@ -147,49 +144,6 @@ function messagingFor(options: KernlOptions, parts: MessagingParts): MessagingRe
   return options.messaging ?? createAccountMessaging(options, parts);
 }
 
-interface MeetingParts {
-  readonly pool: ApplesaucePool;
-  readonly tiers: RelayTiers;
-  readonly appletOf: (windowId: string) => AppletSummary | undefined;
-  readonly grants: () => Grants;
-}
-
-/**
- * Remote tools and direct connections: the window keys they share, the host's settings, and the
- * person's own, with a search for tool families over the servers they chose, else the host's, else
- * the general ones (D-041, D-042, D-043).
- */
-function meetingFor(options: KernlOptions, parts: MeetingParts): { deps: Pick<KernlServiceDeps, 'identities' | 'remoteTools' | 'directConnections' | 'multiplayer'>; multiplayer: KernlMultiplayer } {
-  const settings = createMultiplayerSettings(options.host.storage);
-  const relays = (): readonly string[] => settings.state().servers ?? options.remoteTools?.relays ?? parts.tiers.get().super;
-  const multiplayer = { ...settings, discover: (input: string) => discoverToolFamilies(input, { pool: parts.pool, relays: relays(), fetch: globalThis.fetch.bind(globalThis) }) };
-  return {
-    deps: { identities: createWindowIdentities(), remoteTools: options.remoteTools, directConnections: directConnectionsFor(options, parts.appletOf, parts.grants), multiplayer },
-    multiplayer,
-  };
-}
-
-/**
- * Direct connections, when this page can make peer connections. A session is
- * open to an applet the person granted `webrtc` and did not block, and each one
- * is put to the person through the host's consent prompt (D-042).
- */
-function directConnectionsFor(options: KernlOptions, appletOf: (windowId: string) => AppletSummary | undefined, grants: () => Grants): DirectConnectionsDeps | undefined {
-  const { createPeer, ...settings } = options.directConnections ?? {};
-  if (!createPeer && typeof RTCPeerConnection !== 'function') return undefined;
-  return {
-    settings,
-    ...(createPeer ? { createPeer } : {}),
-    appletOf,
-    isGranted(windowId) {
-      const identity = appletOf(windowId)?.identity;
-      const record = identity && grants().get(identity);
-      return !!record && !record.blocked && record.domains.includes('webrtc');
-    },
-    ask: (summary) => new Promise((resolve) => options.host.presentConsent({ summary, resolve })),
-  };
-}
-
 interface ShellParts {
   readonly handles: ReadonlyMap<string, MountedApplet>;
   readonly subscriptions: Subscription;
@@ -254,7 +208,6 @@ interface ServiceParts {
   readonly handles: ReadonlyMap<string, MountedApplet>;
   /** Whether a window is the focused one, as the guard sees it. */
   readonly isFocused: (windowId: string) => boolean;
-  readonly meeting: ReturnType<typeof meetingFor>['deps'];
 }
 
 /** kehto's services over the kernel's parts; `theme` and `common` are left to modules (D-062). */
@@ -274,7 +227,7 @@ function servicesFor(options: KernlOptions, parts: ServiceParts): ReturnType<typ
     ...(network.profiles ? { profiles: network.profiles } : {}),
     ...(network.people ? { people: network.people } : {}),
     theme: null,
-    ...parts.meeting,
+    remoteTools: null,
     shortcuts: { isFocused: parts.isFocused },
     keys: null,
     resolveIdentity(windowId) {
@@ -331,7 +284,7 @@ export function createKernl<const M extends readonly AnyKernlModule[]>(options: 
 export function createKernl(options: KernlOptions): Kernl;
 export function createKernl(options: KernlOptions): Kernel {
   const { host } = options;
-  const modules = options.modules ?? kernlModules({ ...(isTheme(options.theme) ? { theme: options.theme } : {}), ...(options.eventCache ? { eventCache: options.eventCache } : {}), ...(host.presentSettings ? { presentSettings: host.presentSettings.bind(host) } : {}), ...(options.shortcuts ? { shortcuts: options.shortcuts } : {}), ...(options.intentRetry ? { intentRetry: options.intentRetry } : {}), ...(options.bridges ? { bridges: options.bridges } : {}), ...(options.torrent ? { torrent: options.torrent } : {}), ...(options.downloads ? { downloads: options.downloads } : {}) });
+  const modules = options.modules ?? kernlModules({ ...(isTheme(options.theme) ? { theme: options.theme } : {}), ...(options.eventCache ? { eventCache: options.eventCache } : {}), ...(host.presentSettings ? { presentSettings: host.presentSettings.bind(host) } : {}), ...(options.shortcuts ? { shortcuts: options.shortcuts } : {}), ...(options.intentRetry ? { intentRetry: options.intentRetry } : {}), ...(options.bridges ? { bridges: options.bridges } : {}), ...(options.torrent ? { torrent: options.torrent } : {}), ...(options.downloads ? { downloads: options.downloads } : {}), ...(options.remoteTools ? { remoteTools: options.remoteTools } : {}), ...(options.directConnections ? { directConnections: options.directConnections } : {}) });
   checkModules(modules);
   const ownsPool = !options.pool;
   const ownsMessaging = !options.messaging;
@@ -361,7 +314,11 @@ export function createKernl(options: KernlOptions): Kernel {
   const lookupBefore = lookupReplaceable(eventStore, { loader: replaceableLoader, relays: () => [...tiers.get().outbox, ...tiers.get().discovery] });
   const consent = createSigningConsent({ host, lookupBefore, resolveApplet: identityOf, pubkey: () => accounts.active?.pubkey });
   const secrets = options.secrets ?? createStorageSecrets(host.storage);
-  const composed = composeOrClose(modules, { eventStore, pool, tiers, storage: host.storage, accounts, consent, replaceableLoader, appletOf: (windowId) => handles.get(windowId)?.summary, host, isFocused, applets: () => handles, secrets }, () => {
+  const composed = composeOrClose(modules, { eventStore, pool, tiers, storage: host.storage, accounts, consent, replaceableLoader, appletOf: (windowId) => handles.get(windowId)?.summary, host, isFocused, applets: () => handles, secrets, holds(windowId, domain) {
+    const identity = handles.get(windowId)?.summary.identity;
+    const record = identity && grants.get(identity);
+    return !!record && !record.blocked && record.domains.includes(domain);
+  } }, () => {
     destroyed$.next();
     traffic.close();
     if (ownsMessaging) messaging.close();
@@ -370,9 +327,8 @@ export function createKernl(options: KernlOptions): Kernel {
   modulesSetUp.composed = composed;
   const profiles = composed.apis.profiles as Profiles | undefined;
   const people = composed.apis.people as People | undefined;
-  const meeting = meetingFor(options, { pool, tiers, appletOf: (windowId) => handles.get(windowId)?.summary, grants: () => grants });
   const bridges = composed.apis.bridges as BridgeRegistry | undefined;
-  const services = servicesFor(options, { pool, tiers, eventStore, adapter: () => adapter, consent, bridges, messaging, network: { profiles, people }, handles, isFocused, meeting: meeting.deps });
+  const services = servicesFor(options, { pool, tiers, eventStore, adapter: () => adapter, consent, bridges, messaging, network: { profiles, people }, handles, isFocused });
 
   Object.assign(services.registry, composed.services);
   const { extensions } = composed;
@@ -429,7 +385,7 @@ export function createKernl(options: KernlOptions): Kernel {
     grants,
     relays: tiers,
     messaging,
-    multiplayer: meeting.multiplayer, secrets: secrets.description,
+    secrets: secrets.description,
     firewall,
     media: services.media,
     session$,
