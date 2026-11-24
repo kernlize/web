@@ -26,6 +26,8 @@
   },
   "dependencies": {
     "@kernlize/core": "workspace:^",
+    "@kernlize/guard": "workspace:^",
+    "@kernlize/messaging": "workspace:^",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
