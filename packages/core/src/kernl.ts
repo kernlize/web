@@ -4,7 +4,7 @@ import { RelayPool } from 'applesauce-relay';
 import type { AccountManager, IAccount } from 'applesauce-accounts';
 import type { ISigner } from 'applesauce-signers';
 import type { MessagingRegistry } from '@kernlize/messaging';
-import type { BridgeContext } from '@kernlize/bridges';
+import { createBridgeRegistry, type BridgeRegistry } from '@kernlize/bridges';
 import { buildShellCapabilities, createShellBridge, type ShellAdapter, type ShellBridge } from '@kehto/shell';
 import { QUARANTINE_WINDOW_MS, createGuardConfig, describeMitigations, type GuardConfig, type GuardEvent } from '@kernlize/guard';
 import type { AppletIdentity, AppletStopLimit, AppletSummary, Grants, GuardFacade, Intents, Kernel, Kernl, KernlMultiplayer, KernlOptions, RelayTiers, Session } from './types.js';
@@ -36,7 +36,6 @@ import { createPrivateMessagesBackend } from './messaging/private-backend.js';
 import { createLegacyMessagesBackend } from './messaging/legacy-backend.js';
 import { createRatchetMessagesBackend } from './messaging/ratchet-backend.js';
 import { createGroupMessagesBackend } from './messaging/group-backend.js';
-import { createDefaultBridges } from './bridges/default-registry.js';
 import { createKernlServices, isTheme, type DirectConnectionsDeps, type KernlServiceDeps } from './kernl-services.js';
 import { createWindowIdentities } from './multiplayer/window-identities.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
@@ -144,31 +143,9 @@ function createAccountMessaging(options: KernlOptions, parts: MessagingParts): M
   });
 }
 
-/**
- * The servers a running applet's manifest names, for the applet the bridges say asked. An applet's
- * own assets sit beside its artifact, and a `blossom:` reference usually names no server (D-055).
- */
-function manifestServersOf(handles: ReadonlyMap<string, MountedApplet>, requester: BridgeContext['requester']): readonly string[] {
-  if (requester === 'shell') return [];
-  for (const handle of handles.values()) {
-    const { identity, manifest } = handle.summary;
-    if (identity.dTag === requester.dTag && identity.hash === requester.hash) return manifest.servers;
-  }
-  return [];
-}
-
-/** The host's messaging and bridge registries, or kernl's defaults over the shell's parts. */
-function registriesFor(options: KernlOptions, parts: MessagingParts, handles: ReadonlyMap<string, MountedApplet>): Pick<Kernl, 'messaging' | 'bridges'> {
-  const { host } = options;
-  return {
-    messaging: options.messaging ?? createAccountMessaging(options, parts),
-    // host.openLink asks before leaving kernl, so every hand-off is confirmed by the user (D-010).
-    bridges: options.bridges ?? createDefaultBridges({
-      handoff: (uri) => host.openLink(uri),
-      blossomServers: (requester) => manifestServersOf(handles, requester),
-      ...(options.torrent ? { torrent: options.torrent } : {}),
-    }),
-  };
+/** The host's messaging registry, or kernl's default over the shell's parts. */
+function messagingFor(options: KernlOptions, parts: MessagingParts): MessagingRegistry {
+  return options.messaging ?? createAccountMessaging(options, parts);
 }
 
 interface MeetingParts {
@@ -218,7 +195,7 @@ function directConnectionsFor(options: KernlOptions, appletOf: (windowId: string
  * The download programs and their services. An NZB an applet names by address is fetched through
  * the web bridge, so it meets the same address policy and size limit as any other fetch (D-050).
  */
-function downloadsFor(options: KernlOptions, bridges: Kernl['bridges'], identityOf: (windowId: string) => AppletIdentity | undefined, ownerOf: (windowId: string) => string | undefined): KernlDownloads & { readonly secrets: SecretsProvider } {
+function downloadsFor(options: KernlOptions, bridges: BridgeRegistry, identityOf: (windowId: string) => AppletIdentity | undefined, ownerOf: (windowId: string) => string | undefined): KernlDownloads & { readonly secrets: SecretsProvider } {
   const secrets = options.secrets ?? createStorageSecrets(options.host.storage);
   return { secrets, ...createKernlDownloads({
     host: options.host,
@@ -294,7 +271,7 @@ interface ServiceParts {
   readonly eventStore: EventStore;
   readonly adapter: () => ShellAdapter;
   readonly consent: KernlServiceDeps['consent'];
-  readonly bridges: Kernl['bridges'];
+  readonly bridges: BridgeRegistry | undefined;
   readonly messaging: MessagingRegistry;
   readonly network: { readonly profiles: Profiles | undefined; readonly people: People | undefined };
   readonly handles: ReadonlyMap<string, MountedApplet>;
@@ -315,7 +292,7 @@ function servicesFor(options: KernlOptions, parts: ServiceParts): ReturnType<typ
     auth: { getSigner: () => parts.adapter().auth.getSigner(), getUserPubkey: () => parts.adapter().auth.getUserPubkey() },
     consent: parts.consent,
     host,
-    bridges: parts.bridges,
+    ...(parts.bridges ? { bridges: parts.bridges } : {}),
     messaging: parts.messaging,
     ...(network.profiles ? { profiles: network.profiles } : {}),
     ...(network.people ? { people: network.people } : {}),
@@ -377,7 +354,7 @@ export function createKernl<const M extends readonly AnyKernlModule[]>(options: 
 export function createKernl(options: KernlOptions): Kernl;
 export function createKernl(options: KernlOptions): Kernel {
   const { host } = options;
-  const modules = options.modules ?? kernlModules({ ...(isTheme(options.theme) ? { theme: options.theme } : {}), ...(options.eventCache ? { eventCache: options.eventCache } : {}), ...(host.presentSettings ? { presentSettings: host.presentSettings.bind(host) } : {}), ...(options.shortcuts ? { shortcuts: options.shortcuts } : {}), ...(options.intentRetry ? { intentRetry: options.intentRetry } : {}) });
+  const modules = options.modules ?? kernlModules({ ...(isTheme(options.theme) ? { theme: options.theme } : {}), ...(options.eventCache ? { eventCache: options.eventCache } : {}), ...(host.presentSettings ? { presentSettings: host.presentSettings.bind(host) } : {}), ...(options.shortcuts ? { shortcuts: options.shortcuts } : {}), ...(options.intentRetry ? { intentRetry: options.intentRetry } : {}), ...(options.bridges ? { bridges: options.bridges } : {}), ...(options.torrent ? { torrent: options.torrent } : {}) });
   checkModules(modules);
   const ownsPool = !options.pool;
   const ownsMessaging = !options.messaging;
@@ -386,7 +363,7 @@ export function createKernl(options: KernlOptions): Kernel {
   const accounts = options.accounts ?? createKernlAccounts(host.storage);
   const tiers = createRelayTiers(host.storage, options.relays ?? {});
   const handles = new Map<string, MountedApplet>();
-  const { messaging, bridges } = registriesFor(options, { eventStore, pool, tiers, accounts }, handles);
+  const messaging = messagingFor(options, { eventStore, pool, tiers, accounts });
 
   const guardEvents$ = new Subject<GuardEvent>();
   const session$ = new BehaviorSubject<Session | null>(null);
@@ -416,7 +393,9 @@ export function createKernl(options: KernlOptions): Kernel {
   const profiles = composed.apis.profiles as Profiles | undefined;
   const people = composed.apis.people as People | undefined;
   const meeting = meetingFor(options, { pool, tiers, appletOf: (windowId) => handles.get(windowId)?.summary, grants: () => grants });
-  const downloads = downloadsFor(options, bridges, identityOf, (windowId) => handles.get(windowId)?.summary.manifest.catalogId);
+  const bridges = composed.apis.bridges as BridgeRegistry | undefined;
+  // Without the bridges module a download fetches nothing: an empty registry refuses every address.
+  const downloads = downloadsFor(options, bridges ?? createBridgeRegistry(), identityOf, (windowId) => handles.get(windowId)?.summary.manifest.catalogId);
   const services = servicesFor(options, { pool, tiers, eventStore, adapter: () => adapter, consent, bridges, messaging, network: { profiles, people }, handles, isFocused, meeting: meeting.deps });
 
   Object.assign(services.registry, downloads.services);
@@ -475,7 +454,6 @@ export function createKernl(options: KernlOptions): Kernel {
     grants,
     relays: tiers,
     messaging,
-    bridges,
     multiplayer: meeting.multiplayer, downloads: downloads.programs, secrets: downloads.secrets.description,
     firewall,
     media: services.media,

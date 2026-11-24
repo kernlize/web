@@ -133,6 +133,11 @@ Feature: Modules
       When the shell plans the summary
       Then the shell plan is missing "relay"
 
+    Scenario: without the bridges module, web fetches are not offered and there are no bridges
+      Given a kernl shell over that host and pool with modules "theme"
+      Then the shell does not offer "resource"
+      And the shell has no "bridges" member
+
     Scenario: kernl's own modules include the directory, which waits to be started
       Given a kernl shell over that host and pool
       Then the shell has a "directory" member
@@ -187,6 +192,7 @@ Feature: Modules
         | needs-settings   | invalid:module-missing:settings  |
         | needs-catalog    | invalid:module-missing:catalog   |
         | needs-intents    | invalid:module-missing:intents   |
+        | needs-bridges    | invalid:module-missing:bridges   |
         | social           | invalid:module-missing:profiles |
         | social,profiles,people | invalid:module-order:profiles |
         | grants           | invalid:module-reserved:grants  |

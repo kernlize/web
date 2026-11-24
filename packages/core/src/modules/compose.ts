@@ -73,7 +73,7 @@ export interface KernelContextParts {
   readonly replaceableLoader: AddressPointerLoader;
   readonly appletOf: (windowId: string) => AppletSummary | undefined;
   /** The host's consent prompt. */
-  readonly host: Pick<KernlHost, 'presentConsent' | 'storage' | 'openApplet' | 'focusApplet' | 'chooseHandler' | 'notify' | 'now'>;
+  readonly host: Pick<KernlHost, 'presentConsent' | 'storage' | 'openApplet' | 'focusApplet' | 'chooseHandler' | 'notify' | 'now' | 'openLink'>;
   /** The applets running now, by window id. */
   readonly applets: KernelContext['applets'];
   /** Whether a window is the focused one, as the guard sees it. */
