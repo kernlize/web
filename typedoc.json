@@ -5,6 +5,7 @@
     "packages/guard",
     "packages/messaging",
     "packages/bridges",
+    "packages/kernel",
     "packages/core",
     "packages/ui-model"
   ],
