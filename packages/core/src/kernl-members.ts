@@ -1,12 +1,11 @@
 import type { MessagingRegistry } from '@kernlize/messaging';
-import type { BridgeRegistry } from '@kernlize/bridges';
+import type { BridgeRegistry, TorrentBackend } from '@kernlize/bridges';
 import type { DownloadClients } from './downloads/download-clients.js';
 import type { Profiles } from './profiles/profiles.js';
 import type { People } from './people/person.js';
 import type { AccountMailboxes } from './relays/mailboxes.js';
 import type { AccountFileServers } from './files/file-servers.js';
 import type { RelayDirectory } from './relays/directory.js';
-import type { TorrentBackend } from '@kernlize/bridges';
 import type { EventCacheOpener } from './cache/connect.js';
 import type { ShortcutSettings } from './keys/shortcuts.js';
 import type { AnyKernlModule } from './module-host/module.js';
