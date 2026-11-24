@@ -41,11 +41,12 @@ test('typedocModuleFile mirrors TypeDoc package naming', () => {
   expect(typedocModuleFile('@kernlize/ui-model')).toBe('_kernlize_ui-model.html');
 });
 
-test('publicPackages lists scoped packages sorted by slug and skips others', () => {
+test('publicPackages lists public scoped packages sorted by slug and skips others', () => {
   const root = fixture({
     'packages/guard/package.json': manifest('@kernlize/guard'),
     'packages/bridges/package.json': manifest('@kernlize/bridges', '0.2.0'),
     'packages/other/package.json': manifest('@other/thing'),
+    'packages/preset/package.json': JSON.stringify({ name: '@kernlize/preset', version: '0.0.0', private: true }),
     'packages/empty/.keep': '',
   });
   expect(publicPackages(join(root, 'packages'))).toEqual([

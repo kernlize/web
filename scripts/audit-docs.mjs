@@ -19,7 +19,8 @@ export function typedocModuleFile(packageName) {
 }
 
 /**
- * Read every published package manifest under a packages directory.
+ * Read every published package manifest under a packages directory. A private package has no docs
+ * page until it is published (D-068).
  * @param {string} packagesDir Absolute path of the `packages/` directory.
  * @returns {{ slug: string, name: string, version: string }[]} Packages in the kernl scope, sorted by slug.
  * @example
@@ -31,7 +32,7 @@ export function publicPackages(packagesDir) {
     .map((slug) => ({ slug, manifest: join(packagesDir, slug, 'package.json') }))
     .filter(({ manifest }) => existsSync(manifest))
     .map(({ slug, manifest }) => ({ slug, ...JSON.parse(readFileSync(manifest, 'utf8')) }))
-    .filter((pkg) => typeof pkg.name === 'string' && pkg.name.startsWith(SCOPE))
+    .filter((pkg) => typeof pkg.name === 'string' && pkg.name.startsWith(SCOPE) && pkg.private !== true)
     .map(({ slug, name, version }) => ({ slug, name, version }))
     .sort((a, b) => a.slug.localeCompare(b.slug));
 }
