@@ -46,6 +46,7 @@ function named(world: CoreWorld, name: string): readonly AnyKernlModule[] {
     grants: () => [{ id: 'grants', setup: () => ({ api: {} }) }],
     profiles: () => [profilesModule()],
     people: () => [peopleModule()],
+    'needs-downloads': () => [{ id: 'needs-downloads', requires: ['downloads'], setup: () => ({}) }],
     'needs-bridges': () => [{ id: 'needs-bridges', requires: ['bridges'], setup: () => ({}) }],
     'needs-intents': () => [{ id: 'needs-intents', requires: ['intents'], setup: () => ({}) }],
     'needs-catalog': () => [{ id: 'needs-catalog', requires: ['catalog'], setup: () => ({}) }],

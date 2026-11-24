@@ -138,6 +138,13 @@ Feature: Modules
       Then the shell does not offer "resource"
       And the shell has no "bridges" member
 
+    Scenario: without the downloads module there are no download programs and no download domains
+      Given a kernl shell over that host and pool with modules "theme"
+      Then the shell has no "downloads" member
+      And the shell does not offer "torrent"
+      And the shell does not offer "nzb"
+      And the shell does not offer "soulseek"
+
     Scenario: kernl's own modules include the directory, which waits to be started
       Given a kernl shell over that host and pool
       Then the shell has a "directory" member
@@ -193,6 +200,7 @@ Feature: Modules
         | needs-catalog    | invalid:module-missing:catalog   |
         | needs-intents    | invalid:module-missing:intents   |
         | needs-bridges    | invalid:module-missing:bridges   |
+        | needs-downloads  | invalid:module-missing:downloads |
         | social           | invalid:module-missing:profiles |
         | social,profiles,people | invalid:module-order:profiles |
         | grants           | invalid:module-reserved:grants  |
