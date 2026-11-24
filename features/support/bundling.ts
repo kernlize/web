@@ -26,6 +26,10 @@ Given('a host that composes the kernel with messages over {string}', (world: Bun
   ].join('\n');
 });
 
+Given('a host that composes the kernel package with no modules', (world: BundleWorld) => {
+  world.host = "import { createKernel } from '@kernlize/kernel';\nexport const compose = (host) => createKernel({ host, modules: [] });";
+});
+
 Given('a host that composes kernl with its own modules', (world: BundleWorld) => {
   world.host = "import { createKernl } from '@kernlize/core';\nexport const compose = (host) => createKernl({ host });";
 });
@@ -57,6 +61,16 @@ Then('the bundle holds no code from {string}', (world: BundleWorld, name: string
 
 Then('the bundle holds code from {string}', (world: BundleWorld, name: string) => {
   expect(fromPackage(world.inputs, name).length).toBeGreaterThan(0);
+});
+
+const fromWorkspace = (inputs: readonly string[] | undefined, slug: string): readonly string[] => (inputs ?? []).filter((path) => path.includes(`packages/${slug}/`));
+
+Then('the bundle holds code from the workspace package {string}', (world: BundleWorld, slug: string) => {
+  expect(fromWorkspace(world.inputs, slug).length).toBeGreaterThan(0);
+});
+
+Then('the bundle holds no code from the workspace package {string}', (world: BundleWorld, slug: string) => {
+  expect(fromWorkspace(world.inputs, slug)).toEqual([]);
 });
 
 Then('the bundle holds no code from any installed package', (world: BundleWorld) => {

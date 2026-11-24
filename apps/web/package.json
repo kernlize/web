@@ -16,6 +16,7 @@
     "@kernlize/bridges": "workspace:^",
     "@kernlize/core": "workspace:^",
     "@kernlize/guard": "workspace:^",
+    "@kernlize/kernel": "workspace:^",
     "@kernlize/messaging": "workspace:^",
     "@kernlize/preset": "workspace:^",
     "@kernlize/ui-model": "workspace:^",
