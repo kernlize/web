@@ -1,3 +1,4 @@
+import { toAskChannel } from '@kernlize/core';
 import { expect, vi } from 'vitest';
 import { After, Given, Then, When } from 'quickpickle';
 import type { MessagingBackend, MessagingRegistry, ReplyPrompt, WithProvider } from '@kernlize/messaging';
@@ -53,8 +54,8 @@ When('the preview messaging opens', (world: MessagingWorld) => {
   const scratch = scratchOf(world);
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
   const { replyUse } = scratch;
-  const ask = replyUse && (async (prompt: ReplyPrompt) => (scratch.replyPrompts.push(prompt), { use: replyUse, remember: 'once' as const }));
-  scratch.registry = createPreviewMessaging(scratch.storage, OWNER, ask);
+  const asks = toAskChannel(replyUse ? { asks: { 'messaging.choose-reply': async (ask) => (scratch.replyPrompts.push(ask.facts), { use: replyUse, remember: 'once' as const }) } } : {});
+  scratch.registry = createPreviewMessaging(scratch.storage, OWNER, asks);
 });
 
 Given('the preview user answers the reply question with {string}', (world: MessagingWorld, use: string) => {

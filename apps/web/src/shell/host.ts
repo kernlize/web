@@ -1,4 +1,4 @@
-import type { KernlHost, StorageLike } from './contract';
+import type { Ask, AskRenderers, KernlHost, StorageLike } from './contract';
 import type { ConsentQueue } from './consent-queue.svelte';
 import type { FirewallQueue } from './firewall-queue.svelte';
 import type { HandlerQueue } from './handler-queue.svelte';
@@ -63,22 +63,36 @@ export function scopedStorage(storage: StorageLike, prefix: string): StorageLike
 /** The prefix the offline preview keeps its state under. */
 export const PREVIEW_STORAGE_PREFIX = 'preview:';
 
+type ConsentKind = 'sign.replace' | 'upload.file' | 'download.add' | 'connection.direct';
+
+/** Every question the kernel puts to the person, drawn by the desktop's own dialogs (D-067). */
+function asksFor(deps: HostDeps): AskRenderers {
+  const consent = (ask: Ask<ConsentKind>): Promise<boolean> => new Promise((resolve) => deps.consent.enqueue({ summary: ask.defaultText, resolve }));
+  return {
+    'sign.replace': consent,
+    'upload.file': consent,
+    'download.add': consent,
+    'connection.direct': consent,
+    // The kernel always hands a firewall question its signal; the dialog closes when it aborts.
+    'firewall.approve': (ask) => new Promise((resolve) => deps.firewall.enqueue({ summary: ask.facts, signal: ask.signal as NonNullable<typeof ask.signal>, resolve })),
+    'intent.choose-handler': (ask) => deps.handlers.ask(ask.facts),
+    'messaging.choose-reply': (ask) => deps.replies.ask(ask.facts),
+    'settings.present': (ask) => deps.settings.show(ask.facts),
+  };
+}
+
 /** The UI's side of the contract: dialogs, firewall questions, applet settings, the handler chooser, the reply question, toasts, link confirmation, opening and focusing windows. */
 export function createHost(deps: HostDeps): KernlHost {
   return {
     storage: deps.storage,
-    presentConsent: (prompt) => deps.consent.enqueue(prompt),
-    presentSettings: (prompt) => deps.settings.show(prompt),
+    asks: asksFor(deps),
     notify: (notice) => void deps.notices.push(notice),
-    presentApproval: (prompt) => deps.firewall.enqueue(prompt),
     openLink(url, options) {
       // The firewall already put this link to the person, or a rule of theirs let it through; anything else is asked about here.
       if (!options?.approved && !window.confirm(`Leave kernl and open this link?\n\n${url}`)) return;
       window.open(url, '_blank', 'noopener,noreferrer');
     },
     getVisibility: (windowId) => deps.windows.visibilityOf(windowId),
-    chooseHandler: (prompt) => deps.handlers.ask(prompt),
-    chooseReply: (prompt) => deps.replies.ask(prompt),
     openApplet: async (address) => deps.opener.open?.(address),
     focusApplet: (windowId) => deps.windows.focus(windowId),
     onShortcut: (key) => deps.shortcuts.run?.(key),

@@ -1,4 +1,4 @@
-import { createFirewallRules } from '@kernlize/core';
+import { createFirewallRules, toAskChannel } from '@kernlize/core';
 import { of } from 'rxjs';
 import type { AppletSummary, Firewall, FirewallSummary, KernlHost } from './contract';
 import { LINK_REQUEST } from './firewall-words';
@@ -25,7 +25,7 @@ const NEVER_WITHDRAWN = { aborted: false, addEventListener: () => undefined, rem
  * preview's storage, so the panel behaves the same; nothing runs for real here, so no answer is
  * ever in force and there is none to take back.
  */
-export function createPreviewFirewall(host: Pick<KernlHost, 'storage' | 'presentApproval' | 'openLink'>): PreviewFirewall {
+export function createPreviewFirewall(host: Pick<KernlHost, 'storage' | 'asks' | 'presentApproval' | 'openLink'>): PreviewFirewall {
   const rules = createFirewallRules(host.storage);
   const firewall: Firewall = {
     rules: () => rules.current(),
@@ -50,16 +50,17 @@ export function createPreviewFirewall(host: Pick<KernlHost, 'storage' | 'present
         return OPENED;
       };
       if (action === 'allow') return open();
-      const present = host.presentApproval?.bind(host);
+      const asks = toAskChannel(host);
       // A host with nobody to ask refuses, as the live shell does.
-      if (!present) return NOT_OPENED;
+      if (!asks.has('firewall.approve')) return NOT_OPENED;
       const question: FirewallSummary = {
         kind: 'link',
         applet: { title: summary.title, catalogId, identity: summary.identity },
         requests: [{ kind: 'resource', domain: 'link', operation: LINK_REQUEST, target: url }],
         choices: ['allow-once', 'deny'],
       };
-      return new Promise((resolve) => present({ summary: question, signal: NEVER_WITHDRAWN, resolve: (choice) => resolve(choice === 'allow-once' ? open() : NOT_OPENED) }));
+      const choice = await asks.ask({ kind: 'firewall.approve', applet: summary.identity, facts: question, defaultText: { title: 'Open a link outside kernl' }, signal: NEVER_WITHDRAWN });
+      return choice === 'allow-once' ? open() : NOT_OPENED;
     },
   };
 }
