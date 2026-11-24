@@ -1,19 +1,18 @@
-/* global $state, $derived, $effect */
-import type { ConsentPrompt } from './contract';
+/* global $derived */
+import { createAskQueue, type AskQueue } from '@kernlize/ui-model';
+import type { ConsentSummary } from './contract';
+import { observe } from './observe.svelte';
 
-/** One dialog at a time; the rest wait in arrival order. */
+/** The four kinds the consent dialog draws. */
+export type ConsentKind = 'sign.replace' | 'upload.file' | 'download.add' | 'connection.direct';
+
+/** The consent dialog's binding to its ask queue: one question at a time across the four kinds, in arrival order (#74). */
 export class ConsentQueue {
-  queue = $state.raw<readonly ConsentPrompt[]>([]);
-  readonly current = $derived(this.queue[0]);
-
-  enqueue(prompt: ConsentPrompt): void {
-    this.queue = [...this.queue, prompt];
-  }
+  readonly model: AskQueue<ConsentKind> = createAskQueue();
+  readonly #waiting = observe(this.model.waiting$, []);
+  readonly current = $derived(this.#waiting.value[0] && { summary: this.#waiting.value[0].defaultText as ConsentSummary });
 
   answer(allowed: boolean): void {
-    const [head, ...rest] = this.queue;
-    if (!head) return;
-    this.queue = rest;
-    head.resolve(allowed);
+    this.model.answer(allowed);
   }
 }

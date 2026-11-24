@@ -25,7 +25,8 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@kernlize/core": "workspace:^"
+    "@kernlize/core": "workspace:^",
+    "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "quickpickle": "^1.11.2",

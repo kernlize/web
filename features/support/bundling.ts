@@ -45,7 +45,8 @@ When('the host is bundled for the browser from the built packages', async (world
     write: false,
     logLevel: 'silent',
   });
-  world.inputs = Object.keys((result.metafile as Metafile).inputs);
+  // What reaches the output: esbuild parses files tree shaking then drops, so a parsed input alone is not bundled code.
+  world.inputs = Object.values((result.metafile as Metafile).outputs).flatMap((output) => Object.entries(output.inputs).filter(([, input]) => input.bytesInOutput > 0).map(([path]) => path));
 });
 
 const fromPackage = (inputs: readonly string[] | undefined, name: string): readonly string[] => (inputs ?? []).filter((path) => path.includes(`/node_modules/${name}/`));

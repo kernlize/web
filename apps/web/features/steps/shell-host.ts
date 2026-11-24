@@ -1,7 +1,8 @@
 import { expect, vi } from 'vitest';
 import { After, Given, Then, When } from 'quickpickle';
 import type { GuardProfile } from '@kernlize/guard';
-import { ASK_KINDS, type AskKind, type AskRenderer, type FirewallSummary, type SettingsPrompt } from '@kernlize/core';
+import { ASK_KINDS, type Ask, type AskKind, type AskRenderer, type FirewallSummary, type SettingsPrompt } from '@kernlize/core';
+import { createAskQueue, type AskQueue } from '@kernlize/ui-model';
 import type { ReplyPrompt } from '@kernlize/messaging';
 import type { AppletStopLimit, ConsentPrompt, FirewallPrompt, KernlHost, StorageLike } from '../../src/shell/contract.ts';
 import { createHost, pickStorage, PREVIEW_STORAGE_PREFIX, scopedStorage, type AppletOpener } from '../../src/shell/host.ts';
@@ -22,8 +23,8 @@ interface FakeWindow {
 
 interface HostScratch {
   readonly host: KernlHost;
-  readonly queued: ConsentPrompt[];
-  readonly firewallQueued: FirewallPrompt[];
+  readonly queued: Pick<ConsentPrompt, 'summary'>[];
+  readonly firewallQueued: Pick<FirewallPrompt, 'summary' | 'signal'>[];
   readonly settings: unknown[];
   readonly notices: unknown[];
   readonly windows: Map<string, FakeWindow>;
@@ -31,6 +32,7 @@ interface HostScratch {
   readonly confirmations: string[];
   confirm: boolean;
   readonly asked: unknown[];
+  readonly answers: Map<string, unknown>;
   readonly focused: string[];
   readonly opener: AppletOpener;
   readonly shortcuts: ShortcutRunner;
@@ -101,26 +103,40 @@ Then('the shell host keeps {string} as {string} for the page only', (world: Host
 });
 
 Given('the shell host with window {string} titled {string}', (world: HostWorld, windowId: string, title: string) => {
-  const queued: ConsentPrompt[] = [];
+  const queued: Pick<ConsentPrompt, 'summary'>[] = [];
   const settings: unknown[] = [];
   const notices: unknown[] = [];
   const windows = new Map<string, FakeWindow>([[windowId, { title }]]);
   const opened: unknown[][] = [];
-  const firewallQueued: FirewallPrompt[] = [];
+  const firewallQueued: Pick<FirewallPrompt, 'summary' | 'signal'>[] = [];
   const confirmations: string[] = [];
   const asked: unknown[] = [];
   const focused: string[] = [];
   const opener: AppletOpener = {};
   const shortcuts: ShortcutRunner = {};
+  // Real queues behind the dialogs; what waits in them is mirrored where the scenarios read it.
+  const mirror = <T>(target: T[], queue: AskQueue<AskKind>, view: (ask: Ask) => T): void => void queue.waiting$.subscribe((asks) => target.splice(0, target.length, ...asks.map(view)));
+  const answering = (queue: AskQueue<AskKind>, answer: unknown): AskQueue<AskKind> => {
+    queue.current$.subscribe((ask) => {
+      if (!ask) return;
+      asked.push(ask.facts);
+      queue.answer(answer as never);
+    });
+    return queue;
+  };
+  const models = { consent: createAskQueue(), firewall: createAskQueue(), settings: createAskQueue() };
+  mirror(queued, models.consent, (ask) => ({ summary: ask.defaultText as ConsentPrompt['summary'] }));
+  mirror(firewallQueued, models.firewall, (ask) => ({ summary: ask.facts as FirewallPrompt['summary'], signal: ask.signal as FirewallPrompt['signal'] }));
+  mirror(settings, models.settings, (ask) => ask.facts);
   const deps = fake<HostDeps>({
     shortcuts,
-    handlers: { ask: async (prompt: unknown) => (asked.push(prompt), { id: 'picked', remember: true }) },
-    replies: { ask: async (prompt: unknown) => (asked.push(prompt), { use: 'theirs', remember: 'conversation' }) },
+    handlers: { model: answering(createAskQueue(), { id: 'picked', remember: true }) },
+    replies: { model: answering(createAskQueue(), { use: 'theirs', remember: 'conversation' }) },
     opener,
     storage: { getItem: () => null, setItem: () => undefined, removeItem: () => undefined },
-    consent: { enqueue: (prompt: ConsentPrompt) => void queued.push(prompt) },
-    firewall: { enqueue: (prompt: unknown) => void firewallQueued.push(prompt) },
-    settings: { show: (prompt: unknown) => void settings.push(prompt) },
+    consent: { model: models.consent },
+    firewall: { model: models.firewall },
+    settings: { model: models.settings },
     notices: { push: (notice: unknown) => notices.push(notice) },
     windows: {
       get: (id: string) => {
@@ -135,7 +151,7 @@ Given('the shell host with window {string} titled {string}', (world: HostWorld, 
       },
     },
   });
-  const scratch: HostScratch = { host: createHost(deps), queued, firewallQueued, settings, notices, windows, opened, confirmations, confirm: false, asked, focused, opener, shortcuts, ran: [] };
+  const scratch: HostScratch = { host: createHost(deps), queued, firewallQueued, settings, notices, windows, opened, confirmations, confirm: false, asked, answers: new Map(), focused, opener, shortcuts, ran: [] };
   vi.stubGlobal('window', {
     confirm: (message: string) => {
       confirmations.push(message);
@@ -316,3 +332,18 @@ Then('an applet cannot bind {string}', (_world: HostWorld, chord: string) => {
   expect(SHELL_CHORDS).toContain(chord);
 });
 
+When('window {string} asks the shell host to sign a change, and so does window {string}', (world: HostWorld, first: string, second: string) => {
+  const scratch = hostOf(world);
+  for (const windowId of [first, second]) {
+    void drawOf(scratch.host, 'sign.replace')(fake({ kind: 'sign.replace', windowId, defaultText: fake<ConsentPrompt['summary']>({ title: windowId }) })).then((answer) => scratch.answers.set(windowId, answer));
+  }
+});
+
+Then("the consent queue holds only window {string}'s question", (world: HostWorld, windowId: string) => {
+  expect(hostOf(world).queued.map((queued) => queued.summary.title)).toEqual([windowId]);
+});
+
+Then("window {string}'s question was answered no", async (world: HostWorld, windowId: string) => {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(hostOf(world).answers.get(windowId)).toBe(false);
+});

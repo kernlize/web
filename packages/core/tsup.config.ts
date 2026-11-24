@@ -30,6 +30,8 @@ export default defineConfig({
     'cache/index': 'src/cache/index.ts',
     // The message seal alone, for view models that must load before the core (#74).
     'seal/index': 'src/seal/index.ts',
+    // The ask kinds and channel alone, for a UI's ask queues (#74).
+    'asks/index': 'src/asks/index.ts',
     'sqlite-worker': 'src/cache/sqlite-worker.ts',
   },
   format: ['esm'],

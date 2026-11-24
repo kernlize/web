@@ -38,6 +38,10 @@
     "./seal": {
       "types": "./dist/seal/index.d.ts",
       "import": "./dist/seal/index.js"
+    },
+    "./asks": {
+      "types": "./dist/asks/index.d.ts",
+      "import": "./dist/asks/index.js"
     }
   },
   "files": [

@@ -1,26 +1,15 @@
-/* global $state, $derived */
-import type { ReplyAnswer, ReplyPrompt } from '@kernlize/messaging';
+/* global $derived */
+import { createAskQueue, type AskQueue } from '@kernlize/ui-model';
+import type { ReplyAnswer } from '@kernlize/messaging';
+import { observe } from './observe.svelte';
 
-interface Pending {
-  readonly prompt: ReplyPrompt;
-  readonly resolve: (answer: ReplyAnswer | undefined) => void;
-}
-
-/** Which provider a reply should leave through: one question at a time, the rest wait in arrival order. */
+/** The reply question's binding to its ask queue: one at a time, in arrival order (#74). */
 export class ReplyQueue {
-  queue = $state.raw<readonly Pending[]>([]);
-  readonly current = $derived(this.queue[0]?.prompt);
-
-  ask(prompt: ReplyPrompt): Promise<ReplyAnswer | undefined> {
-    return new Promise((resolve) => {
-      this.queue = [...this.queue, { prompt, resolve }];
-    });
-  }
+  readonly model: AskQueue<'messaging.choose-reply'> = createAskQueue();
+  readonly #waiting = observe(this.model.waiting$, []);
+  readonly current = $derived(this.#waiting.value[0]?.facts);
 
   answer(answer: ReplyAnswer | undefined): void {
-    const [head, ...rest] = this.queue;
-    if (!head) return;
-    this.queue = rest;
-    head.resolve(answer);
+    this.model.answer(answer);
   }
 }

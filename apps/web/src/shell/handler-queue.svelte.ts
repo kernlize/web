@@ -1,26 +1,15 @@
-/* global $state, $derived */
-import type { HandlerChoice, HandlerPrompt } from './contract';
+/* global $derived */
+import { createAskQueue, type AskQueue } from '@kernlize/ui-model';
+import type { HandlerChoice } from './contract';
+import { observe } from './observe.svelte';
 
-interface Pending {
-  readonly prompt: HandlerPrompt;
-  readonly resolve: (choice: HandlerChoice | undefined) => void;
-}
-
-/** Which applet should take a request: one chooser at a time, the rest wait in arrival order. */
+/** The handler chooser's binding to its ask queue: one chooser at a time, in arrival order (#74). */
 export class HandlerQueue {
-  queue = $state.raw<readonly Pending[]>([]);
-  readonly current = $derived(this.queue[0]?.prompt);
-
-  ask(prompt: HandlerPrompt): Promise<HandlerChoice | undefined> {
-    return new Promise((resolve) => {
-      this.queue = [...this.queue, { prompt, resolve }];
-    });
-  }
+  readonly model: AskQueue<'intent.choose-handler'> = createAskQueue();
+  readonly #waiting = observe(this.model.waiting$, []);
+  readonly current = $derived(this.#waiting.value[0]?.facts);
 
   answer(choice: HandlerChoice | undefined): void {
-    const [head, ...rest] = this.queue;
-    if (!head) return;
-    this.queue = rest;
-    head.resolve(choice);
+    this.model.answer(choice);
   }
 }

@@ -1,24 +1,17 @@
-/* global $state, $derived, $effect */
-import type { FirewallChoice, FirewallPrompt } from './contract';
+/* global $derived */
+import { createAskQueue, type AskQueue } from '@kernlize/ui-model';
+import type { FirewallChoice } from './contract';
+import { observe } from './observe.svelte';
 
-/** One firewall question at a time; the rest wait in arrival order. A question the shell withdraws leaves the queue. */
+/** The firewall dialog's binding to its ask queue: one question at a time; a question the shell withdraws leaves it (#74). */
 export class FirewallQueue {
-  queue = $state.raw<readonly FirewallPrompt[]>([]);
-  readonly current = $derived(this.queue[0]);
-
-  enqueue(prompt: FirewallPrompt): void {
-    if (prompt.signal.aborted) return;
-    this.queue = [...this.queue, prompt];
-    prompt.signal.addEventListener('abort', () => {
-      this.queue = this.queue.filter((waiting) => waiting !== prompt);
-    }, { once: true });
-  }
+  readonly model: AskQueue<'firewall.approve'> = createAskQueue();
+  readonly #waiting = observe(this.model.waiting$, []);
+  readonly queue = $derived(this.#waiting.value);
+  readonly current = $derived(this.#waiting.value[0] && { summary: this.#waiting.value[0].facts });
 
   /** Answer the question on screen; `undefined` dismisses it without storing anything. */
   answer(choice: FirewallChoice | undefined): void {
-    const [head, ...rest] = this.queue;
-    if (!head) return;
-    this.queue = rest;
-    head.resolve(choice);
+    this.model.answer(choice);
   }
 }

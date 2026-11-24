@@ -1,16 +1,14 @@
-/* global $state, $derived */
-import type { SettingsPrompt } from './contract';
+/* global $derived */
+import { createAskQueue, type AskQueue } from '@kernlize/ui-model';
+import { observe } from './observe.svelte';
 
-/** One applet's settings form at a time; the rest wait in arrival order. */
+/** The settings form's binding to its ask queue: one applet's form at a time, in arrival order (#74). */
 export class SettingsQueue {
-  queue = $state.raw<readonly SettingsPrompt[]>([]);
-  readonly current = $derived(this.queue[0]);
-
-  show(prompt: SettingsPrompt): void {
-    this.queue = [...this.queue, prompt];
-  }
+  readonly model: AskQueue<'settings.present'> = createAskQueue();
+  readonly #waiting = observe(this.model.waiting$, []);
+  readonly current = $derived(this.#waiting.value[0]?.facts);
 
   close(): void {
-    this.queue = this.queue.slice(1);
+    this.model.answer(undefined);
   }
 }

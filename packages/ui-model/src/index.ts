@@ -1,6 +1,6 @@
 /**
- * Framework-free view models for a kernl shell's panels: the grants list today, and the ask queues
- * and logs as they move here (#74). Streams are rxjs Observables.
+ * Framework-free view models for a kernl shell's panels: the grants list and the ask queues, and
+ * the logs as they move here (#74). Streams are rxjs Observables.
  *
  * @packageDocumentation
  */
@@ -34,3 +34,5 @@ export {
   type GrantRow,
   type GrantState,
 } from './grants.js';
+
+export { createAskQueue, createAskQueues, createAskRenderers, type AskQueue, type AskQueues, type AskQueuesByKind } from './asks.js';
