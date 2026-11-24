@@ -1,4 +1,4 @@
-import { BehaviorSubject, map, of, Subject, Subscription, switchMap } from 'rxjs';
+import { BehaviorSubject, map, of, Subject, Subscription, switchMap, type Observable } from 'rxjs';
 import { EventStore } from 'applesauce-core';
 import { RelayPool } from 'applesauce-relay';
 import type { AccountManager, IAccount } from 'applesauce-accounts';
@@ -9,7 +9,6 @@ import type { AppletIdentity, AppletStopLimit, GuardFacade, Intents, Kernel, Ker
 import { createStorageSecrets } from './secrets/secrets.js';
 import { createKernlAccounts } from './applesauce/accounts.js';
 import { isReadOnlyAccount } from './applesauce/auth-hooks.js';
-import type { ProfileCard, Profiles } from './profiles/profiles.js';
 import { createKernlNetwork } from './kernl-network.js';
 import type { CacheLookup } from './cache-lookup.js';
 import type { Filter, NostrEvent } from 'applesauce-core/helpers';
@@ -32,6 +31,17 @@ import { checkModules, setupModules, type ComposedModules, type KernelContextPar
 import type { AnyKernlModule, ModuleApis } from './modules/module.js';
 import { supportsDomainBindings } from './applets/domain-bindings.js';
 
+/** What the kernel reads of a profile to label the session: whether one was found, and its name. */
+export interface SessionCard {
+  readonly found: boolean;
+  readonly name: string;
+}
+
+/** The profiles module's lookup, as far as the session label needs it. */
+interface SessionNames {
+  card$(pubkey: string): Observable<SessionCard>;
+}
+
 /**
  * Describe an account as a session the UI can show.
  *
@@ -42,7 +52,7 @@ import { supportsDomainBindings } from './applets/domain-bindings.js';
  * toSession(ReadonlyAccount.fromPubkey(pubkey)).readOnly; // true
  * ```
  */
-export function toSession(account: IAccount, card?: ProfileCard): Session {
+export function toSession(account: IAccount, card?: SessionCard): Session {
   const metadata = account.metadata as { name?: unknown } | undefined;
   const named = typeof metadata?.name === 'string' ? metadata.name : account.name;
   const label = named ?? (card?.found ? card.name : abbreviate(account.pubkey));
@@ -53,7 +63,7 @@ interface ShellState {
   readonly bridge: ShellBridge;
   readonly accounts: AccountManager;
   readonly session$: BehaviorSubject<Session | null>;
-  readonly profiles: Profiles | undefined;
+  readonly profiles: SessionNames | undefined;
 }
 
 /** Keep the session on the active account, labelled by its profile when the profiles module is loaded. */
@@ -261,7 +271,7 @@ export function createKernel<const M extends readonly AnyKernlModule[]>(options:
     if (ownsPool) pool.close();
   });
   modulesSetUp.composed = composed;
-  const profiles = composed.apis.profiles as Profiles | undefined;
+  const profiles = composed.apis.profiles as SessionNames | undefined;
   const bridges = composed.apis.bridges as BridgeRegistry | undefined;
   const services = servicesFor(options, { pool, tiers, eventStore, adapter: () => adapter, consent, bridges, handles, isFocused });
 
