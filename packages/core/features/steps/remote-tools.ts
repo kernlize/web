@@ -113,12 +113,16 @@ Given('a second loopback relay where the tool server also listens', async (world
   await listen(signer, relay, (state.server as ToolServer).callers, tool, answer);
 });
 
-function startService(world: CoreWorld, relays: () => readonly string[]): void {
+function startService(world: CoreWorld, relays: () => readonly string[], registered = true): void {
   const state = remote(world);
   state.service = createRemoteToolsService({ pool: state.pool, relays, identities: state.identities });
   // A runtime without kehto's approval authority, as kernl registers it today.
-  state.service.onRegistered?.({} as ServiceRuntimeContext);
+  if (registered) state.service.onRegistered?.({} as ServiceRuntimeContext);
 }
+
+Given('the remote tools service looks on the loopback relay before kehto registers it', (world: CoreWorld) => {
+  startService(world, () => [(remote(world).relays[0] as LoopbackRelay).url], false);
+});
 
 Given('the remote tools service looks on the loopback relay', (world: CoreWorld) => {
   startService(world, () => [(remote(world).relays[0] as LoopbackRelay).url]);
