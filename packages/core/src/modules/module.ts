@@ -5,6 +5,7 @@ import type { ServiceRegistry } from '@kehto/runtime';
 import type { PlannedExtensions } from '../applets/plan.js';
 import type { RelayPool } from 'applesauce-relay';
 import type { AddressPointerLoader } from 'applesauce-loaders/loaders';
+import type { SecretsProvider } from '../secrets/secrets.js';
 import type { ISigner } from 'applesauce-signers';
 import type { AppletSummary, ConsentSummary, KernlHost, RelayTiers, StorageLike } from '../types.js';
 
@@ -57,8 +58,10 @@ export interface KernelContext {
   isFocused(windowId: string): boolean;
   /** The applets running now, by window id. */
   applets(): ReadonlyMap<string, { readonly windowId: string; readonly summary: AppletSummary }>;
+  /** Where passwords and keys of services the shell signs in to for the person are kept (D-052). */
+  readonly secrets: SecretsProvider;
   /** The host's own callbacks a module may use until the host's questions become typed asks. */
-  readonly host: Pick<KernlHost, 'storage' | 'openApplet' | 'focusApplet' | 'chooseHandler' | 'notify' | 'now' | 'openLink'>;
+  readonly host: Pick<KernlHost, 'storage' | 'presentConsent' | 'openApplet' | 'focusApplet' | 'chooseHandler' | 'notify' | 'now' | 'openLink'>;
   /** Put a question to the person through the host's consent prompt; resolves with their answer. */
   ask(summary: ConsentSummary): Promise<boolean>;
   /** Load a replaceable event into the store from the cache and the lookup relays. Never rejects. */
@@ -84,6 +87,8 @@ export interface ModuleInstance<Api = void> {
    * download domains are; elsewhere the module's services for them are left out.
    */
   readonly extensions?: PlannedExtensions;
+  /** The host says its own prelude renders these extensions' bindings, so they are offered whatever `supportsDomainBindings` says. */
+  readonly rendersBindings?: boolean;
   /** What appears on the shell as `kernl[id]`. */
   readonly api?: Api;
   /** Called when the shell is destroyed, in the reverse of the order modules were loaded. */
