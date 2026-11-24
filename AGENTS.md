@@ -20,6 +20,7 @@ Finish interrupted work before starting new work. Never discard changes you did 
 | `packages/messaging` | `@kernlize/messaging` | Messaging provider contract, registry, composite NAP-DM adapter |
 | `packages/bridges` | `@kernlize/bridges` | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy |
 | `packages/core` | `@kernlize/core` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, persistence; the firewall's rules, questions and admission over kehto's `permissions` (`src/firewall/`, D-056); layouts and the window manager, also at `@kernlize/core/wm`; the event cache, also at `@kernlize/core/cache` |
+| `packages/ui-model` | `@kernlize/ui-model` | Framework-free view models for a shell's panels over the core: the grants list, and the ask queues and logs as they move from `apps/web` (#74). The core never imports it |
 | `apps/web` | `@kernlize/web` | Astro site: landing at `/`, long-form pages under `/about/`, shell at `/app/` |
 | `applets/messages` | `@kernlize/applet-messages` | The Messages applet the shell ships: a single-file napplet over the `dm` domain, built with the napplet toolchain (its own `AGENTS.md` applies inside it) |
 | `docs` | `@kernlize/docs` | VitePress site at `/docs/` |

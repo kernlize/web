@@ -8,6 +8,7 @@ import {
   findFrameworkDependencies,
   findKehtoImports,
   findNostrToolsImports,
+  findViewModelImports,
   importSpecifiers,
 } from './check-dependency-rules.mjs';
 
@@ -124,4 +125,22 @@ test('checkDependencyRules includes the web app when its source directory is giv
   expect(checkDependencyRules(join(root, 'packages'), join(root, 'apps/web/src'))).toEqual([
     'src/a.ts imports nostr-tools; the web app never imports nostr-tools (D-002)',
   ]);
+});
+
+test('findViewModelImports flags any other package importing the view models, and lets the view models import the core', () => {
+  const root = packages({
+    'core/package.json': manifest('@kernlize/core'),
+    'core/src/index.ts': "import { grantGroups } from '@kernlize/ui-model';\n",
+    'ui-model/package.json': manifest('@kernlize/ui-model'),
+    'ui-model/src/index.ts': "import { sealsApplet } from '@kernlize/core';\n",
+  });
+  expect(findViewModelImports(root)).toEqual(["core/src/index.ts imports @kernlize/ui-model; only a host's UI depends on the view models"]);
+});
+
+test('findKehtoImports keeps kehto out of the view models', () => {
+  const root = packages({
+    'ui-model/package.json': manifest('@kernlize/ui-model'),
+    'ui-model/src/index.ts': "import type { Runtime } from '@kehto/runtime';\n",
+  });
+  expect(findKehtoImports(root)).toEqual(['ui-model/src/index.ts imports @kehto/runtime; only @kernlize/core composes kehto (guard may import @kehto/rate-limit)']);
 });

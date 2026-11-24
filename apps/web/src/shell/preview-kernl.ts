@@ -45,7 +45,7 @@ import type {
   ShellKernl,
 } from './contract';
 import { abbreviate, shortId } from './contract';
-import { domainLabel } from './domains';
+import { domainLabel } from '@kernlize/ui-model';
 import { createPreviewPeople } from './preview-people';
 import { PREVIEW_CATALOG, PREVIEW_PUBLISHER, renderPreviewApplet, sampleSummary, sealPreviewDocument } from './preview-applet';
 import { createPreviewBuiltins } from './preview-builtin';

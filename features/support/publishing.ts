@@ -6,7 +6,7 @@ import { expect } from 'vitest';
 import ts from 'typescript';
 
 const root = resolve(import.meta.dirname, '../..');
-const slugs = ['bridges', 'core', 'guard', 'messaging'];
+const slugs = ['bridges', 'core', 'guard', 'messaging', 'ui-model'];
 const json = (path: string) => JSON.parse(readFileSync(path, 'utf8'));
 
 Given('the publishable workspace packages', () => {

@@ -22,3 +22,8 @@ Feature: What a host bundles
     When the host is bundled for the browser from the built packages
     Then the bundle holds code from "nostr-double-ratchet"
     And the bundle holds code from "@internet-privacy/marmot-ts"
+
+  Scenario: a host that draws the grants list from the view models bundles no third-party code
+    Given a host that draws the grants list from the view models
+    When the host is bundled for the browser from the built packages
+    Then the bundle holds no code from any installed package

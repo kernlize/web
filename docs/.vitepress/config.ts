@@ -100,6 +100,7 @@ export const sidebar = [
       { text: '@kernlize/messaging', link: '/packages/messaging' },
       { text: '@kernlize/bridges', link: '/packages/bridges' },
       { text: '@kernlize/core', link: '/packages/core' },
+      { text: '@kernlize/ui-model', link: '/packages/ui-model' },
     ],
   },
   {

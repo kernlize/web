@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ShellKernl } from './contract';
   import { shortId } from './contract';
-  import { formatBytes, grantGroups, startingChoices, type GrantInput } from './domains';
+  import { formatBytes, grantGroups, startingChoices, type GrantInput } from '@kernlize/ui-model';
   import GrantList from './GrantList.svelte';
   import type { GuardLog } from './guard-log.svelte';
   import Overlay from './Overlay.svelte';

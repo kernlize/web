@@ -11,9 +11,11 @@ const SCOPE = '@kernlize/';
  * @returns {string} File name such as `_kernlize_guard.html`.
  * @example
  * typedocModuleFile('@kernlize/guard'); // '_kernlize_guard.html'
+ * typedocModuleFile('@kernlize/ui-model'); // '_kernlize_ui-model.html'
  */
 export function typedocModuleFile(packageName) {
-  return `${packageName.replace(/[^\w]/g, '_')}.html`;
+  // TypeDoc keeps a hyphen in a package name and turns the scope's `@` and `/` into underscores.
+  return `${packageName.replace(/[^\w-]/g, '_')}.html`;
 }
 
 /**

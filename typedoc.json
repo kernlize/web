@@ -5,7 +5,8 @@
     "packages/guard",
     "packages/messaging",
     "packages/bridges",
-    "packages/core"
+    "packages/core",
+    "packages/ui-model"
   ],
   "out": "docs/api",
   "name": "kernl API",

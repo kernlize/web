@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { contractName, type GrantGroup, type GrantRow } from './domains';
+  import { contractName, type GrantGroup, type GrantRow } from '@kernlize/ui-model';
 
   interface Props {
     groups: readonly GrantGroup[];
