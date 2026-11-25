@@ -1,5 +1,13 @@
 # @kernlize/core
 
+## 0.29.2
+
+### Patch Changes
+
+- 7bf6b0b: Replay cached public tree events on approved Outbox subscriptions before opening the live relay read. One-shot Outbox queries merge cached events into the normal relay response. The cache module enables this without changes to applets or the Outbox API.
+- Updated dependencies [7bf6b0b]
+  - @kernlize/kernel@0.1.1
+
 ## 0.29.1
 
 ### Patch Changes
