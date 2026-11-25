@@ -25,6 +25,8 @@ Feature: Envelope classification
       | storage.keys           | control          |
       | keys.registerAction    | control          |
       | keys.unregisterAction  | control          |
+      | gamepad.subscribe      | control          |
+      | gamepad.unsubscribe    | control          |
       | keys.forward           | control          |
       | dm.send                | dm:send          |
       | dm.list                | control          |

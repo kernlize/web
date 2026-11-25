@@ -40,9 +40,9 @@ const placements = layout.arrange(
 
 ## The registry
 
-A window manager offers the layouts in a `LayoutRegistry`: `register(entry)`, `get(id)` and `list()`, in registration order. A `LayoutEntry` is an `id` that is stored as the person's choice, a `label` the shell shows, the `strategy`, and `freeform`, which is true when the person places the windows and the strategy hands their rectangles back.
+A window manager offers the layouts in a `LayoutRegistry`: `register(entry)`, `get(id)` and `list()`, in registration order. A `LayoutEntry` is an `id` that is stored as the person's choice, a `label` the shell shows, the `strategy`, and two optional flags: `freeform` lets the person place windows; `singleWindow` temporarily minimises every window behind the front one.
 
-`createDefaultLayouts(options?)` returns a registry holding kernl's four, floating first; `createLayoutRegistry(entries?)` starts from whatever it is given.
+`createDefaultLayouts(options?)` returns a registry holding kernl's five, floating first; `createLayoutRegistry(entries?)` starts from whatever it is given.
 
 | Id | Label | Strategy | Freeform |
 | --- | --- | --- | --- |
@@ -50,6 +50,7 @@ A window manager offers the layouts in a `LayoutRegistry`: `register(entry)`, `g
 | `dwindle` | tiled | `createDwindleLayout(options)` | no |
 | `columns` | columns | `createColumnsLayout(options)` | no |
 | `master-stack` | main and stack | `createMasterStackLayout(options)` | no |
+| `stacked` | stacked | The front window fills the whole area. | no |
 
 ```ts
 import { createDefaultLayouts, type LayoutStrategy } from '@kernlize/core/wm';
@@ -58,7 +59,7 @@ declare const spiralLayout: LayoutStrategy;
 
 const layouts = createDefaultLayouts({ gap: 8, margin: 0 });
 layouts.register({ id: 'spiral', label: 'spiral', strategy: spiralLayout });
-layouts.list().map((layout) => layout.id); // ['floating', 'dwindle', 'columns', 'master-stack', 'spiral']
+layouts.list().map((layout) => layout.id); // ['floating', 'dwindle', 'columns', 'master-stack', 'stacked', 'spiral']
 ```
 
 A second registration of the same id throws `invalid:duplicate-layout`. `packages/core/features/layout-registry.feature` specifies the registry.
@@ -70,11 +71,15 @@ A second registration of the same id throws `invalid:duplicate-layout`. `package
 What kernl's manager does:
 
 - **Opening.** A new window opens in front, focused, at the size in `windowSize` (720 × 660 by default), stepped down and right by 32 px from the one before; the cascade starts over after eight. A window never opens larger than the area.
-- **Arranging.** After every change it calls the current layout's strategy with every window, in opening order. A window the strategy leaves out, as the tiling strategies do for minimised ones, keeps its own rectangle. A stopped window is passed as minimised.
+- **Arranging.** After every change it calls the current layout's strategy with every window, in opening order. A window the strategy leaves out, as the tiling strategies do for minimised ones, keeps its own rectangle. Outside single-window layouts, a stopped window is passed to the strategy as minimised. Restoring it from the dock raises its shell controls without giving the stopped applet focus.
 - **The front-most window leads.** A strategy is told the front-most window is the focused one, even while the person is working in the shell's own panels and no window is. A layout that follows focus, such as master-stack, therefore does not reshuffle when a panel opens.
 - **Moving.** `move` applies only while the state is `freeform`. The window stays inside the area and no smaller than `minSize` (280 × 160 by default). Resizing the area pulls floating windows back inside it.
 - **Focus.** `focus` brings a window to the front and shows it if it was minimised. When the focused window is minimised, closed or stopped, focus goes to the front-most window that is left.
 - **Remembering.** `onLayout(id)` is called after every `setLayout`, and `layout` names the layout to start in. An id nobody registered is ignored and the first layout is used.
+
+### Stacked
+
+Stacked shows one window at a time, even on a wide desktop. Pick an open window from the minimise dock to bring it forward; the previous one goes into the dock. The applets stay mounted. Switching layouts shows the windows that were only hidden by Stacked, without restoring windows you explicitly minimised. An accepted request brings its handler forward by default. If the request specifies `focus: false`, the current window stays in front, even in Stacked. An already-connected handler can receive the request while it stays behind. A fresh hidden applet cannot connect until you show it; you may need to retry the request.
 
 ### Narrow desktops
 
@@ -82,9 +87,9 @@ At an area width of `compactWidth` or less, 720 by default, the state is `compac
 
 ### What the guard is told
 
-`attach(id, target)` hands the manager something with a `setVisibility` method, which an `AppletHandle` is. The manager reports to it at once, and again whenever focus, minimising, closing, stopping or the page's own visibility changes anything. `visibilityOf(id)` gives the same answer on demand, for `KernlHost.getVisibility`.
+`attach(id, target)` hands the manager something with a `setVisibility` method, which an `AppletHandle` is. The manager reports to it at once, and again when a window gains or loses focus, opens, closes, is minimised or stops; when the layout switches to or from single-window mode; or when the page itself is shown or hidden. `visibilityOf(id)` gives the same answer on demand, for `KernlHost.getVisibility`.
 
-kernl's manager counts a window as visible when the page is visible and the window is neither minimised nor stopped, and as focused when it is also the window the person is working in. It does not look for a window wholly covered by another, so the windows behind the front one on a compact desktop are reported visible ([Alpha status](../alpha-status.md#what-does-not-work-yet)).
+kernl's manager counts a window as visible when the page is visible and the window is neither minimised nor stopped, and as focused when it is also the window the person is working in. It does not look for a window wholly covered by another, so the windows behind the front one on a compact desktop are reported visible outside Stacked ([Alpha status](../alpha-status.md#what-does-not-work-yet)).
 
 This matters beyond layout. The guard holds a hidden window's requests until it is shown, counts its resource requests against the hidden-window allowance, and gives an unfocused window a smaller budget ([Guard](./guard.md)). Telling the guard the truth is the one thing every window manager must do; [Write your own window manager](../how-tos/write-a-window-manager.md#the-one-rule) states the rule.
 
@@ -94,7 +99,7 @@ This matters beyond layout. The guard holds a hidden window's requests until it 
 
 The shell app decides its window management in one file, `apps/web/src/shell/windows.ts`:
 
-- `createShellLayouts()` is kernl's four layouts with 8 px between windows and none at the desktop edge. The bar's layout control steps through them in order.
+- `createShellLayouts()` is kernl's five layouts with 8 px between windows and none at the desktop edge. The bar's layout control steps through them in order.
 - `createShellWindowManager(storage)` is `createWindowManager` with those layouts, starting in the layout stored under `kernl:layout:v1` and storing the next choice there ([Persistence](./persistence.md)).
 
 The rest of the shell knows the manager only through the `WindowManager` interface: `WindowStore` keeps which applet is in which window and passes the person's actions on, and the components draw what the manager publishes. To add or change a layout, see [Change the shell's layout](../how-tos/change-the-shells-layout.md); to replace the manager, see [Write your own window manager](../how-tos/write-a-window-manager.md).

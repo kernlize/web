@@ -130,7 +130,7 @@ Then('the preview cannot share defaults and has none published', async (world: I
 });
 
 When('{string} asks the preview to open a {word} for {string}', async (world: IntentsWorld, title: string, archetype: string, pubkey: string) => {
-  state(world).answer = await state(world).intents.invoke({ sender: idOf(title), archetype, action: 'open', payload: { pubkey } });
+  state(world).answer = await state(world).intents.invoke({ sender: idOf(title), focus: true, archetype, action: 'open', payload: { pubkey } });
 });
 
 Then('the preview answered {string} with {string}', (world: IntentsWorld, ok: string, text: string) => {

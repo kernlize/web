@@ -102,3 +102,70 @@ test('the store is a window like any other: inside the desktop, scrolled to its 
   await store.getByRole('button', { name: 'Close Applets' }).click();
   await expect(store).toHaveCount(0);
 });
+
+test('the stacks tab lists the stacks people published and opens only the applets marked to start', async ({ page }) => {
+  await page.goto(`${base}/app/?preview=1`);
+  await page.getByRole('button', { name: 'Try the preview' }).click();
+  await page.getByRole('button', { name: 'Open an applet' }).click();
+  await page.getByRole('tab', { name: 'Stacks' }).click();
+
+  const stacks = page.getByRole('list', { name: 'Stacks' }).getByRole('listitem');
+  await expect(stacks).toHaveCount(2);
+  await expect(stacks.first()).toContainText('Basics');
+  await expect(stacks.first()).toContainText('2 applets');
+
+  // The disclosure lists every applet with a tick; the publisher's entry point is ticked already.
+  await stacks.first().getByRole('button', { name: 'Show applets' }).click();
+  const listed = stacks.first().getByRole('list', { name: 'Applets in Basics' }).getByRole('listitem');
+  await expect(listed).toHaveCount(2);
+  await expect(listed.first().getByRole('checkbox')).toBeChecked();
+  await expect(listed.last().getByRole('checkbox')).not.toBeChecked();
+  await expect(stacks.first().getByRole('button', { name: 'Open 1 of the 2 in Basics, installing the rest' })).toBeVisible();
+
+  await stacks.first().getByRole('button', { name: 'Open 1 of the 2 in Basics, installing the rest' }).click();
+
+  // One table for the whole stack: a row per permission, each listing the applets that asked for it.
+  const review = page.getByRole('article');
+  await expect(review).toContainText('1 applet in Basics');
+  const relay = review.getByRole('group', { name: 'Required' }).getByRole('list', { name: 'Asked for by' }).first();
+  await expect(relay.getByRole('listitem')).toHaveText(['Notes needed']);
+  const notify = review.getByRole('group', { name: 'Optional' }).getByRole('list', { name: 'Asked for by' }).first();
+  await expect(notify.getByRole('listitem')).toHaveText(['Notes']);
+  await review.getByRole('button', { name: 'Open this applet' }).click();
+  await expect(page.getByRole('region', { name: 'Applets window' })).toHaveCount(0);
+  await expect(page.locator('iframe[data-window-id]')).toHaveCount(1);
+  await expect(page.frameLocator('iframe[data-window-id]').getByRole('heading', { name: 'Notes' })).toBeVisible();
+});
+
+test('a stack reuses an equivalent window and replaces it for widened or temporarily narrowed grants', async ({ page }) => {
+  await openStore(page);
+  const notes = page.frameLocator('iframe[data-window-id]').getByRole('button', { name: 'Send a notification' });
+  const frames = page.locator('iframe[data-window-id]');
+  const run = async (notify: boolean, remember: boolean): Promise<string> => {
+    await page.getByRole('tab', { name: 'Stacks' }).click();
+    await page.getByRole('button', { name: 'Open 1 of the 2 in Basics, installing the rest' }).click();
+    await page.getByRole('checkbox', { name: /notifications NOTIFY/i }).setChecked(notify);
+    await page.getByRole('checkbox', { name: 'Remember grants' }).setChecked(remember);
+    await page.getByRole('button', { name: 'Open this applet' }).click();
+    await expect(page.getByRole('region', { name: 'Applets window' })).toHaveCount(0);
+    await expect(frames).toHaveCount(1);
+    if (notify) await expect(notes).not.toHaveAttribute('data-missing', '1');
+    else await expect(notes).toHaveAttribute('data-missing', '1');
+    return (await frames.getAttribute('data-window-id'))!;
+  };
+  const launcher = page.getByRole('button', { name: 'Open an applet' });
+  const initial = await run(false, true);
+  await launcher.click();
+  expect(await run(false, true)).toBe(initial);
+  await launcher.click();
+  const widened = await run(true, true);
+  expect(widened).not.toBe(initial);
+  await launcher.click();
+  expect(await run(false, false)).not.toBe(widened);
+  await expect(page.getByRole('region', { name: 'Notes window' })).toHaveCount(1);
+  await page.getByRole('button', { name: 'Close Notes' }).click();
+  await launcher.click();
+  await page.getByRole('tab', { name: 'Stacks' }).click();
+  await page.getByRole('button', { name: 'Open 1 of the 2 in Basics, installing the rest' }).click();
+  await expect(page.getByRole('checkbox', { name: /notifications NOTIFY/i })).toBeChecked();
+});

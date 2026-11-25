@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { nip19 } from 'nostr-tools';
 import { expect, test } from './fixtures';
 import { fakeNetwork, generalRelays, installSignerExtension, signApplet } from './live-network';
 
@@ -87,6 +88,26 @@ test.describe('with one relay and one blob server down', () => {
     await lookUp(page, applet.address(['wss://catalogue.test']));
     await expect(page.getByRole('alert')).toHaveText('The applet was found, but its file could not be downloaded right now. Try again later.');
   });
+});
+
+test('reopening a named applet from Recent keeps an exact event pointer pinned', async ({ page }) => {
+  const applet = signApplet({ servers: ['https://blobs.test'] });
+  await fakeNetwork(page, applet, { 'catalogue.test': 'holds', ...generalRelays('empty') }, { 'blobs.test': 'has' });
+  await signInFresh(page);
+
+  const pinned = nip19.neventEncode({ id: applet.event.id, relays: ['wss://catalogue.test'] });
+  const entered = `nostr:${pinned}`;
+  await lookUp(page, entered);
+  const launcher = page.getByRole('region', { name: 'Applets window' });
+  await launcher.getByRole('button', { name: 'Run' }).click();
+  await expect(page.frameLocator('iframe[data-window-id]').getByRole('heading', { name: 'Feed applet' })).toBeVisible();
+  const recent = await page.evaluate(() => JSON.parse(localStorage.getItem('kernl:recent:v1') ?? '[]'));
+  expect(recent).toMatchObject([{ address: entered, title: 'Feed applet' }]);
+
+  await page.getByRole('button', { name: 'Open an applet' }).click();
+  await launcher.getByRole('tab', { name: 'Recent' }).click();
+  await launcher.getByRole('listitem').filter({ hasText: 'Feed applet' }).getByRole('button', { name: 'Open' }).click();
+  await expect(launcher.getByRole('heading', { name: 'Feed applet' })).toBeVisible();
 });
 
 test('an account held by a signing extension looks an applet up and runs it', async ({ page }) => {

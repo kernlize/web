@@ -1,13 +1,13 @@
 # @kernlize/modules
 
-kernl's modules over the kernel ([D-068](../decisions.md#d-068)). Each opinion is a module a host names: messaging and its providers, bridges, downloads, uploads, the applet catalog, intents, multiplayer, people, profiles, mailboxes, the relay directory, the event cache, the theme, settings, social actions, keys and the window manager. A module imports the kernel and other modules, never `@kernlize/core` or kernl's preset; `pnpm check:deps` enforces that.
+kernl's modules over the kernel ([D-068](../decisions.md#d-068)). Each opinion is a module a host names: messaging and its providers, bridges, downloads, uploads, the applet catalog, stacks, controller input, intents, multiplayer, people, profiles, mailboxes, the relay directory, the event cache, the theme, settings, social actions, keys and the window manager. A module imports the kernel and other modules, never `@kernlize/core` or kernl's preset; `pnpm check:deps` enforces that.
 
 | Field | Value |
 | --- | --- |
 | npm | `@kernlize/modules` |
 | JSR | `@kernl/modules` |
 | Version | `0.1.0` |
-| Entry | `./dist/index.js`, types `./dist/index.d.ts`; one entry per module (`./bridges`, `./cache`, `./catalog`, `./directory`, `./downloads`, `./intents`, `./keys`, `./mailboxes`, `./messaging`, `./messaging/groups`, `./messaging/ratchet`, `./multiplayer`, `./people`, `./profiles`, `./settings`, `./social`, `./theme`, `./uploads`, `./wm`) |
+| Entry | `./dist/index.js`, types `./dist/index.d.ts`; one entry per module (`./bridges`, `./cache`, `./catalog`, `./directory`, `./downloads`, `./gamepad`, `./intents`, `./keys`, `./mailboxes`, `./messaging`, `./messaging/groups`, `./messaging/ratchet`, `./multiplayer`, `./people`, `./profiles`, `./settings`, `./social`, `./stacks`, `./theme`, `./uploads`, `./wm`) |
 | Dependencies | `@kernlize/kernel` and the three leaf packages (`workspace:^`), `@kehto/*`, `applesauce-*`, `@internet-privacy/marmot-ts`, `nostr-double-ratchet`, `@sqlite.org/sqlite-wasm`, `blossom-client-sdk`, `rxjs` |
 | Peer dependencies | `@napplet/core`, `@napplet/nap`, `@napplet/shim`, `nostr-tools` |
 | Side effects | none |
@@ -38,5 +38,10 @@ Each module also has an entry of its own: `@kernlize/modules/theme`, `@kernlize/
 The ratchet and group providers are their own entries, `@kernlize/modules/messaging/ratchet` and `@kernlize/modules/messaging/groups`. Their libraries reach a bundle only when a host lists them; `features/bundling.feature` checks this. The window manager (`./wm`) and the event cache (`./cache`) also load on their own, without the network stack.
 
 `@kernlize/core` re-exports this package and its entries.
+
+## Stacks and controller input
+
+- [`@kernlize/modules/stacks`](../concepts/store-and-intents.md#stacks) provides `stacksModule()` and read-only `loadStacks` and `streamStacks` helpers. The module uses the kernel’s shared store and reads through the cache module when present.
+- `@kernlize/modules/gamepad` provides `gamepadModule(settings?)` and `createControllerService`. Only the granted, focused applet receives live controller readings; omit the module or set `offer: false` to disable it.
 
 [API reference](../api/modules/_kernlize_modules.html){target="_self"}

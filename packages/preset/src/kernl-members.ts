@@ -1,6 +1,6 @@
 import type { MessagingRegistry } from '@kernlize/messaging';
 import type { BridgeRegistry, TorrentBackend } from '@kernlize/bridges';
-import type { DownloadClients, Profiles, People, AccountMailboxes, AccountFileServers, RelayDirectory, EventCacheOpener, ShortcutSettings, AppletCatalog, KernlMultiplayer } from '@kernlize/modules';
+import type { DownloadClients, Profiles, People, AccountMailboxes, AccountFileServers, RelayDirectory, EventCacheOpener, ShortcutSettings, AppletCatalog, AppletStacks, ControllerSettings, KernlMultiplayer } from '@kernlize/modules';
 import type { AnyKernlModule, DirectConnectionsSettings, DownloadsOptions, Intents, Kernel, KernelBaseOptions, RemoteToolsSettings } from '@kernlize/kernel';
 
 /** The members of the shell that kernl's own modules provide, by module id (D-062). Each is present when its module is loaded. */
@@ -9,6 +9,8 @@ export interface KernlMembers {
   readonly messaging: MessagingRegistry;
   readonly bridges: BridgeRegistry;
   readonly catalog: AppletCatalog;
+  /** The applet stacks people publish, as NIP-51 app curation sets. */
+  readonly stacks: AppletStacks;
   /** People's names and pictures, loaded from their profiles on demand. */
   readonly profiles: Profiles;
   /** Finds a person from hex, `npub` or `nprofile`, asking the servers an `nprofile` names. */
@@ -56,6 +58,8 @@ export interface KernlModuleOptions {
   readonly downloads?: DownloadsOptions;
   /** The chords the shell keeps from applets' keyboard shortcuts, and where key presses are heard (D-054). Read only when `modules` is left out; otherwise pass them to `keysModule`. */
   readonly shortcuts?: ShortcutSettings;
+  /** Controller input in the default preset (D-074); for an explicit list, pass these settings to `gamepadModule`. */
+  readonly controllers?: ControllerSettings;
 }
 
 /** The options `createKernl` reads only to build kernl's own modules. */

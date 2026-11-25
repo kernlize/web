@@ -1,4 +1,4 @@
-import { BehaviorSubject, type Observable } from 'rxjs';
+import { BehaviorSubject, Subject, type Observable } from 'rxjs';
 import type { NappletMessageDecision } from '@kehto/shell';
 import {
   classifyEnvelope,
@@ -60,6 +60,8 @@ interface Pending {
 export interface GuardPipeline {
   readonly config: GuardConfig;
   readonly profile$: Observable<GuardProfile>;
+  /** A window whose reported focus changed, after the guard updated its answer. */
+  readonly focusChanges$: Observable<string>;
   /** Rebuild every layer for a profile. Held messages are dropped; counters restart. */
   setProfile(profile: GuardProfile): void;
   /**
@@ -219,6 +221,7 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
   let config = options.config;
   const profile$ = new BehaviorSubject<GuardProfile>(config.profile);
   const clock = options.now ?? Date.now;
+  const focusChanges$ = new Subject<string>();
   const known = new Map<string, WindowVisibility>();
   const heldByIngress = new Map<string, Pending[]>();
   const heldByGate = new Map<string, Pending[]>();
@@ -293,6 +296,7 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
       return config;
     },
     profile$,
+    focusChanges$: focusChanges$.asObservable(),
     setProfile(profile) {
       config = createGuardConfig(profile);
       layers = buildLayers();
@@ -322,8 +326,10 @@ export function createGuardPipeline(options: GuardPipelineOptions): GuardPipelin
       return judgePort(port, admit(windowId, napplet, envelope, { hold: false }), layers.rateLimiter, holdPort);
     },
     setVisibility(windowId, visibility) {
+      const previousFocus = known.get(windowId)?.focused;
       known.set(windowId, visibility);
       layers.gate.setVisibility(windowId, visibility);
+      if (previousFocus !== visibility.focused) focusChanges$.next(windowId);
       if (!visibility.visible) return;
       drainAll(windowId);
       // kehto hands on everything it holds for a window at once, so a held keymap keeps the rest until its wait is over.

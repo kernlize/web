@@ -15,6 +15,13 @@ Feature: Intents in the composed shell
     When the shell streams the store
     Then the store lists "Profiles,Chat"
 
+  Scenario: the shell lists the stacks over its own pool
+    Given the fake pool serves stacks "mesh,games"
+    When the shell lists the stacks
+    Then the shell stack list is "games,mesh"
+    When the shell streams the stacks
+    Then the shell stack list is "games,mesh"
+
   Scenario: planning installs an applet, and only verified applets can be installed
     When the shell resolves and plans "profiles"
     Then the shell's installed applets are "Profiles"
@@ -34,6 +41,30 @@ Feature: Intents in the composed shell
     And "profiles" received "profile/open" from "chat" with pubkey "abc"
     And the host brought "profiles" forward
 
+  Scenario: a connected hidden handler receives a no-focus request in Stacked
+    Given "profiles" is installed and running with "intent" granted
+    And "chat" is running with "intent" granted
+    And the host puts "chat" in front in Stacked
+    When "chat" invokes "napplet:profile/open?pubkey=abc" with a no-focus hint
+    Then "chat" was told the request was accepted by "profiles"
+    And "profiles" received "profile/open" from "chat" with pubkey "abc"
+    And only "chat" is shown and focused in the stack
+
+  Scenario: a fresh hidden handler stays behind and its handshake waits for visibility
+    Given "profiles" is installed with "intent" granted
+    And "chat" is running with "intent" granted
+    And the host puts "chat" in front in Stacked
+    When "chat" invokes "napplet:profile/open?pubkey=abc" with a no-focus hint
+    Then the host was asked to open "profiles"
+    And "chat" was told the request was accepted by "profiles"
+    And only "chat" is shown and focused in the stack
+    And the user was told "Profiles could not take the request" and asked to show it before retrying
+    And "profiles" received no intent
+    When the person brings "profiles" forward and returns to "chat"
+    And "chat" invokes "napplet:profile/open?pubkey=def" with a no-focus hint
+    Then "profiles" received "profile/open" from "chat" with pubkey "def"
+    And only "chat" is shown and focused in the stack
+
   Scenario: a request nothing installed can take goes to the user's chooser, naming the asking applet
     Given "chat" is running with "intent" granted
     When the user removes "Chat" while it runs
@@ -47,6 +78,45 @@ Feature: Intents in the composed shell
     When "chat" invokes "napplet:profile/open?pubkey=abc"
     Then the host was asked to open "profiles"
     And "profiles" received "profile/open" from "chat" with pubkey "abc"
+
+  Scenario: waking an installed handler is not a grant
+    When the shell installs "profiles" without opening it
+    Given "chat" is running with "intent" granted
+    When "chat" invokes "napplet:profile/open?pubkey=abc"
+    Then the host was asked to open "profiles"
+    And the user was told "Profiles could not take the request" because it needs the receiving grant
+
+  Scenario: a retry reaches the copy the user opened with the receiving grant
+    When the shell installs "profiles" without opening it
+    Given "chat" is running with "intent" granted
+    When "chat" invokes "napplet:profile/open?pubkey=abc"
+    Then the user was told "Profiles could not take the request" because it needs the receiving grant
+    When the user opens another copy of "profiles" with the receiving grant
+    And "chat" invokes "napplet:profile/open?pubkey=def"
+    Then "profiles" received "profile/open" from "chat" with pubkey "def"
+    And both copies of "profiles" are still open and only the latest received the request
+    And the host brought "profiles" forward
+    And the host was asked to open "profiles"
+
+  Scenario: the shell reuses the release that declares the requested convention
+    Given "profiles" is running with "intent" granted
+    When its publisher releases "profiles" taking "napplet:profile/edit"
+    And the user opens another copy of "profiles" with the receiving grant
+    Given "chat" is running with "intent" granted
+    When "chat" invokes "napplet:profile/edit?pubkey=abc"
+    Then "profiles" received "profile/edit" from "chat" with pubkey "abc"
+    And both copies of "profiles" are still open and only the latest received the request
+    And the host brought "profiles" forward
+
+  Scenario: a release opened on demand must still declare the requested convention
+    Given "profiles" is installed with "intent" granted
+    When its publisher releases "profiles" taking "napplet:profile/edit"
+    Given the user grants "intent" to the new release of "profiles"
+    And "chat" is running with "intent" granted
+    When "chat" invokes "napplet:profile/open?pubkey=abc"
+    Then the host was asked to open "profiles"
+    And the user was told "Profiles could not take the request" because that release does not take it
+    And "profiles" did not receive the request
 
   Scenario: a handler without the receiving grant is reported to the user
     Given "profiles" is installed and running without the receiving grant
@@ -68,6 +138,15 @@ Feature: Intents in the composed shell
     And "chat" is running with "intent" granted
     When "chat" invokes "napplet:profile/open?pubkey=abc"
     Then the user was told "Profiles could not take the request" because it could not be reached
+
+  Scenario: a handler closed before its session is ready does not receive a request
+    Given "profiles" is installed with "intent" granted
+    And a handler opened by the host closes before it can receive a request
+    And "chat" is running with "intent" granted
+    When "chat" invokes "napplet:profile/open?pubkey=abc"
+    Then the host was asked to open "profiles"
+    And the user was told "Profiles could not take the request"
+    And "profiles" did not receive the request
 
   Scenario: a handler removed before delivery is reported plainly
     Given "profiles" is installed with "intent" granted

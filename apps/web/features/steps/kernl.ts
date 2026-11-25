@@ -517,6 +517,11 @@ Then('the preview kernl user was offered no installed applet for {string} from {
   expect(preview(world).asked).toEqual([{ archetype, action, convention: `napplet:${request}`, source, options: [] }]);
 });
 
+Then('the preview kernl desktop opened nothing and brought no applet forward', (world: PreviewWorld) => {
+  expect(preview(world).opened).toEqual([]);
+  expect(preview(world).focused).toEqual([]);
+});
+
 Then('the preview kernl user was not asked to choose an applet', (world: PreviewWorld) => {
   expect(preview(world).asked).toEqual([]);
 });

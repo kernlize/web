@@ -58,6 +58,7 @@ export class WindowStore {
   #applets = $state.raw<readonly Applet[]>([]);
   #panels = $state.raw<readonly Panel[]>([]);
   readonly #handles = new Map<string, AppletHandle>();
+  readonly #mountFailures = new Map<string, (reason: unknown) => void>();
 
   /** Every window in opening order. The order never changes while a window lives: a reordered iframe node would reload its applet. */
   readonly windows: readonly ShellWindow[];
@@ -113,9 +114,26 @@ export class WindowStore {
     return this.manager.visibilityOf(id);
   }
 
-  open(plan: MountPlan): void {
+  open(plan: MountPlan, options?: { readonly focus?: boolean }): void {
     this.#applets = [...this.#applets, { id: plan.windowId, plan, status: 'mounting' }];
-    this.manager.open(plan.windowId);
+    this.manager.open(plan.windowId, options);
+  }
+
+  /** Open a window (or replace one) and wait for its frame to consume the plan. */
+  async openAndMount(plan: MountPlan, replace?: string): Promise<void> {
+    const { windowId } = plan;
+    let failure: { reason: unknown } | undefined;
+    this.#mountFailures.set(windowId, (reason) => (failure = { reason }));
+    try {
+      if (replace === undefined) this.open(plan);
+      else await this.reload(replace, plan);
+      // The iframe layer attaches the new frame in this update, not in open().
+      await tick();
+      if (failure) throw failure.reason;
+      if (!this.#handles.has(windowId)) throw new Error('invalid:frame-detached');
+    } finally {
+      this.#mountFailures.delete(windowId);
+    }
   }
 
   /** Open one of the shell's own surfaces as a window, or bring it forward when it is already open. */
@@ -130,7 +148,16 @@ export class WindowStore {
   attach(id: string, frame: FrameLike, mount: Mount): void {
     const applet = this.#applets.find((item) => item.id === id);
     if (!applet || this.#handles.has(id)) return;
-    const handle = mount(applet.plan, frame);
+    let handle: AppletHandle;
+    try {
+      handle = mount(applet.plan, frame);
+    } catch (reason) {
+      const failed = this.#mountFailures.get(id);
+      if (!failed) throw reason;
+      failed(reason);
+      this.close(id);
+      return;
+    }
     this.#handles.set(id, handle);
     handle.status$.subscribe((status) => this.#update(id, { status }));
     this.manager.attach(id, handle);

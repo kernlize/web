@@ -31,6 +31,7 @@ export {
   type GrantGroupId,
   type GrantInput,
   type GrantOp,
+  type GrantApplet,
   type GrantRow,
   type GrantState,
 } from './grants.js';

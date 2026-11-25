@@ -24,6 +24,8 @@ export default defineConfig({
       '@kernlize/modules/cache': pkg('modules', 'cache/index.ts'),
       '@kernlize/modules/bridges': pkg('modules', 'bridges/index.ts'),
       '@kernlize/modules/catalog': pkg('modules', 'catalog/index.ts'),
+      '@kernlize/modules/gamepad': pkg('modules', 'gamepad/index.ts'),
+      '@kernlize/modules/stacks': pkg('modules', 'stacks/index.ts'),
       '@kernlize/modules/directory': pkg('modules', 'directory/index.ts'),
       '@kernlize/modules/downloads': pkg('modules', 'downloads/index.ts'),
       '@kernlize/modules/uploads': pkg('modules', 'uploads/index.ts'),

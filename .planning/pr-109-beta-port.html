@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What PR #109 adds · kernl</title>
+<style>
+:root{color-scheme:dark;--bg:#10141b;--panel:#19212c;--ink:#eef3fa;--muted:#b8c5d4;--line:#364659;--accent:#b3effc;--amber:#ffdfab}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.58 system-ui,sans-serif}main{width:min(1060px,calc(100% - 2rem));margin:3.5rem auto}h1,h2,h3{line-height:1.15}h1{font-size:clamp(2.3rem,7vw,4.6rem);margin:.25rem 0 1rem}h2{margin-top:2.6rem}h3{margin:.25rem 0 .6rem}a{color:var(--accent)}p,li{color:var(--muted)}strong{color:var(--ink)}header p{max-width:68ch}nav{display:flex;flex-wrap:wrap;gap:.4rem 1.25rem}.eyebrow{font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:700}.notice,.tile,details{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:1rem 1.25rem}.notice{margin:1.5rem 0;border-left:4px solid var(--amber)}.notice p{margin:.4rem 0 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:.85rem}.tile ul{padding-left:1.2rem}.tile li+li{margin-top:.45rem}.flow{display:block;color:var(--accent);font-size:.9rem}.stats{font-variant-numeric:tabular-nums;margin-top:1.5rem}.stats .tile strong{display:block;font-size:1.4rem}code{font: .86em ui-monospace,monospace;overflow-wrap:anywhere}details{margin:.65rem 0}summary{cursor:pointer;font-weight:700}details ul{padding-left:1.2rem}details li{margin:.2rem 0}.tag{display:inline-block;min-width:2.4em;color:var(--accent);font-size:.76rem;text-transform:uppercase}footer{margin-top:3rem;border-top:1px solid var(--line);padding-top:1rem}a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+
+.demos{margin:3.5rem 0}.demos>p{margin:1.1rem .2rem 0;max-width:78ch}.demos h2{font-size:clamp(2rem,4.8vw,3rem);margin:.35rem 0 1.1rem}.demo{display:grid;grid-template-columns:minmax(0,.84fr) minmax(0,1.16fr);gap:clamp(1rem,4vw,3.3rem);padding:clamp(1rem,4vw,2.5rem);margin:.9rem 0;background:linear-gradient(125deg,#1b2638,#131c28);border:1px solid var(--line);border-radius:20px;align-items:center}.demo h3{font-size:clamp(1.5rem,3vw,2.35rem);max-width:16ch}.num{display:inline-block;background:#b3effc;color:#122133;border-radius:999px;font-weight:800;font-size:.78rem;padding:.25rem .7rem;margin-bottom:.75rem}.demo-hint{color:var(--accent);font-size:.9rem}.mock{background:#101722;border:1px solid #475a72;border-radius:13px;overflow:hidden;box-shadow:0 15px 28px #080c1255}.chrome{display:flex;gap:.35rem;align-items:center;padding:.55rem .8rem;background:#263447;font-size:.77rem;color:#d6e0ed}.chrome i{width:.52rem;height:.52rem;border-radius:50%;background:#8aa0ba}.chrome i:first-child{background:#f1a392}.chrome i:nth-child(2){background:#f1cd8e}.chrome i:nth-child(3){background:#9ce4bd}.chrome span{margin-left:.4rem}.mock-body{padding:clamp(.6rem,2vw,1rem);container-type:inline-size}.mock-title{font-weight:750;margin-bottom:.6rem}.mock small{display:block;color:var(--muted);font-size:.73rem;font-weight:400}.stack-rows{display:grid;gap:.4rem}.stack-rows label,.receiver{display:flex;align-items:center;gap:.65rem;background:#202d3e;border:1px solid #3b5068;border-radius:8px;padding:.36rem .55rem}.stack-rows label:has(input:checked){border-color:#9de1ec}.stack-rows input{margin-left:auto;accent-color:#b3effc;inline-size:1.1rem;block-size:1.1rem}.glyph{border-radius:7px;padding:.12rem .48rem;color:#142135}.g-violet{background:#d0baff}.g-green{background:#a5e9c9}.g-peach{background:#ffcb9f}.mock-result{display:flex;justify-content:space-between;gap:.4rem;background:#1c3a47;color:#d6f7fb;border-radius:8px;margin-top:.65rem;padding:.4rem .6rem;font-size:.78rem;min-height:2rem}.pad-controls{display:flex;flex-wrap:wrap;gap:.35rem}.mock button{font:inherit;font-size:.75rem;padding:.36rem .6rem;border-radius:7px;border:1px solid #526982;background:#253650;color:var(--ink);cursor:pointer}.mock button[aria-pressed=true]{background:#b3effc;color:#132335}.mock button:not([aria-pressed=true]):hover{border-color:#b3effc;text-decoration:underline}.mock button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.pad-flow{display:grid;grid-template-columns:auto 1fr minmax(80px,38%);align-items:center;gap:.4rem;margin:.8rem 0}.controller{display:flex;gap:.8rem;align-items:center;background:#344761;border:2px solid #7087a4;border-radius:24px;padding:.5rem .65rem;transform:rotate(-6deg)}.dpad{color:#d2dded;font-size:1.3rem}.mock .pad-a{background:#a8e9c4;color:#11291e;border-color:#a8e9c4;border-radius:50%;font-weight:800;padding:.24rem .46rem}.pad-line{color:#9de1ec;overflow:hidden}.receivers{display:grid;gap:.25rem}.receiver{display:block;font-size:.78rem}.receiver.live{border-color:#9de1ec}.receiver.live small{color:#b3effc}.mini-desk{position:relative;isolation:isolate;height:138px;margin:.6rem 0;background:repeating-linear-gradient(135deg,#1d3046,#1d3046 12px,#20364d 12px,#20364d 24px);border-radius:8px;overflow:hidden}.mini-window{position:absolute;top:12%;left:6%;width:66%;height:78%;border:1px solid #a38ed2;background:#31294b;border-radius:8px;overflow:hidden}.mini-window[data-window=profiles]{top:24%;left:34%;width:60%;height:65%;background:#21433e;border-color:#82bfb1}.mini-window strong{display:block;padding:.2rem .55rem;font-size:.76rem;background:#0003}.mini-window.front{z-index:1;border-width:2px}.stacked .mini-window{inset:5%;width:90%;height:90%}.stacked .mini-window:not(.front){visibility:hidden}.compact .mini-window{inset:4%;width:92%;height:92%}.compact:not(.stacked) .mini-window:not(.front){visibility:hidden}.mock-note{color:var(--muted);font-size:.76rem;margin:.5rem 0 0}@container (max-width:330px){.pad-flow{grid-template-columns:auto 1fr;row-gap:.5rem}.receivers{grid-column:1/-1}}.paper,.avatars{padding:.65rem;display:flex;gap:.4rem}.paper{flex-direction:column}.paper i{height:.3rem;width:75%;background:#c8b4f1;border-radius:4px}.paper i:nth-child(2){width:50%}.paper i:nth-child(3){width:65%}.avatars i{width:1.7rem;height:1.7rem;background:#99cbbb;border-radius:50%}.avatars i:nth-child(2){background:#c1adf5}.avatars i:nth-child(3){background:#ffc8ac}@media(max-width:650px){.demo{grid-template-columns:1fr}.demo h3{max-width:none}}
+</style>
+</head>
+<body><main>
+<header><div class="eyebrow">kernl · Pull request walkthrough</div><h1>What changes in PR #109?</h1><p><strong>Three additions from beta:</strong> install a whole stack without opening every applet, give controllers only to the applet in use, and switch to a single-window Stacked layout without closing the other windows.</p><nav aria-label="Page sections"><a href="#features">Features</a><a href="#correctness">Correctness fixes</a><a href="#verification">Verification</a><a href="#files">File inventory</a><a href="https://github.com/kernlize/web/pull/109/files">GitHub diff ↗</a></nav></header>
+<aside class="notice"><strong>Updated for the kernel package split.</strong><p>This walkthrough describes port revision <code>2bf7e4b</code> against <code>f712475</code>. The port now uses the upstream kernel, preset and UI-model packages. The upstream split itself is not part of this PR.</p></aside>
+<section class="grid stats" aria-label="Patch size"><div class="tile"><strong>98 files</strong>24 new · 74 modified</div><div class="tile"><strong>+4,031 / −238</strong>lines across source, tests and docs</div><div class="tile"><strong>6 changesets</strong>core, guard, kernel and UI-model</div></section>
+<section id="features" class="demos"><div class="eyebrow">Try the three changes · interactive mockups</div><h2>See the port in action</h2>
+<article class="demo" id="stack-demo">
+ <div class="demo-copy"><span class="num">01</span><h3>Open one. Install three.</h3><p>Pick which applets start. All verified members are installed; only the ones you open get a grant review.</p><p class="demo-hint">Try switching on another applet.</p></div>
+ <div class="mock"><div class="chrome"><i></i><i></i><i></i><span>Applets / Stacks</span></div><div class="mock-body"><div class="mock-title">Launch kit <small>Example stack</small></div>
+ <div class="stack-rows"><label><b class="glyph g-violet">N</b><span><strong>Notes</strong><small>Suggested entry point</small></span><input type="checkbox" checked aria-label="Open Notes"></label><label><b class="glyph g-green">P</b><span><strong>Profiles</strong><small>Available on request</small></span><input type="checkbox" aria-label="Open Profiles"></label><label><b class="glyph g-peach">S</b><span><strong>Sketch</strong><small>Available on request</small></span><input type="checkbox" aria-label="Open Sketch"></label></div>
+ <div class="mock-result"><span>✓ 3 to install</span><output id="stack-count" aria-live="polite">1 to open</output></div></div></div>
+</article>
+<article class="demo" id="pad-demo">
+ <div class="demo-copy"><span class="num">02</span><h3>One controller. One live window.</h3><p>Even when both applets have a grant, only the focused one gets live input. Open Grants and neither gets it.</p><p class="demo-hint">Change focus, then activate the controller’s A button.</p></div>
+ <div class="mock"><div class="chrome"><i></i><i></i><i></i><span>Controller / Input routing</span></div><div class="mock-body">
+ <div class="pad-controls"><button type="button" data-focus="0" aria-pressed="true">Focus Orbit</button><button type="button" data-focus="1" aria-pressed="false">Focus Racer</button><button type="button" data-focus="-1" aria-pressed="false">Open Grants</button></div>
+ <div class="pad-flow"><div class="controller" aria-label="Controller illustration"><span class="dpad" aria-hidden="true">✚</span><button class="pad-a" type="button" id="pad-a" aria-label="Simulate pressing A">A</button></div><div class="pad-line" aria-hidden="true">→</div><div class="receivers"><div class="receiver live"><strong>Orbit</strong><small>Live input</small></div><div class="receiver"><strong>Racer</strong><small>Neutral</small></div></div></div>
+ <output class="mock-result" id="pad-result" aria-live="polite">Orbit is focused.</output></div></div>
+</article>
+<article class="demo" id="window-demo">
+ <div class="demo-copy"><span class="num">03</span><h3>One window fills the desk. None close.</h3><p>Stacked hides the other windows without unloading them. An intent can either bring its handler forward or leave the current window in front; that choice works the same in Stacked and Floating.</p><p class="demo-hint">Try both send buttons in either layout.</p></div>
+ <div class="mock"><div class="chrome"><i></i><i></i><i></i><span>Desktop / 2 applets mounted</span></div><div class="mock-body">
+ <div class="pad-controls" id="layout-controls"><button type="button" data-layout="floating" aria-pressed="false">Floating</button><button type="button" data-layout="stacked" aria-pressed="true">Stacked</button></div>
+ <div class="mini-desk stacked" id="mini-desk"><div class="mini-window front" data-window="notes"><strong>Notes</strong><div class="paper" aria-hidden="true"><i></i><i></i><i></i></div></div><div class="mini-window" data-window="profiles"><strong>Profiles</strong><div class="avatars" aria-hidden="true"><i></i><i></i><i></i></div></div></div>
+ <div class="pad-controls" id="dock-controls"><button type="button" data-reveal="notes" aria-pressed="true">Notes</button><button type="button" data-reveal="profiles" aria-pressed="false">Profiles</button><button type="button" id="demo-intent">Send to Profiles</button><button type="button" id="demo-intent-background">Send without switching</button></div><output class="mock-result" id="desk-result" aria-live="polite">Notes in front · Profiles still mounted.</output><p class="mock-note" id="compact-note" hidden>On a narrow screen the shell gives every window the whole desk, so the front one is all you see.</p></div></div>
+</article>
+<p><strong>Background delivery:</strong> this example uses an already-connected handler. A fresh handler opened behind the current window may need to be shown before it can connect; if delivery times out, the shell asks you to show it and retry rather than switching automatically.</p>
+</section>
+<section id="correctness"><h2>What makes the port safe to use</h2><div class="grid">
+<article class="tile"><h3>Verified identity</h3><p>Lookups accept only manifests matching the requested event ID or applet coordinate. Recent preserves an exact-event link rather than converting it to a moving release address. Stack listings share the shell’s event store and use the optional cache for offline reads.</p></article>
+<article class="tile"><h3>Grants survive the right window</h3><p>A running window is reused only when the same verified artifact started with compatible permissions. If it needs replacing, temporary grant changes stay in force through the mount and are cleared when no window needs them.</p></article>
+<article class="tile"><h3>Mount and route reliably</h3><p>Each new member mounts before the next is admitted, so opening a large stack cannot evict its own waiting plans. Failures are counted without stopping the rest. Intent retries skip windows that lack the receiving domain or convention and keep the recipient checks.</p></article>
+</div><p><strong>Unchanged:</strong> the original <code>beta</code> branch, upstream’s theme broadcasting, and upstream’s typed consent questions are not replaced by this PR. There’s no new dependency or lockfile change in the submitted diff.</p></section>
+<section id="verification"><h2>What was verified</h2><ul><li><strong>3,592 tests passed</strong> with 100% coverage. The package smoke checks passed and slop scored 100.</li><li><strong>205 browser tests passed</strong> across Chromium and Firefox, including no-focus behavior in Stacked and Floating. Four public-network tests were skipped because they require opt-in.</li><li>The JSR dry run was not run locally. See the PR for GitHub CI results.</li></ul></section>
+<section id="files"><h2>Every changed file</h2><p>Expand a group to see the paths. The port’s decisions are D-069–D-074. The inventory compares <code>f712475</code> to <code>2bf7e4b</code> and excludes this walkthrough.</p>
+<details><summary>apps/web · 23 files</summary><ul>
+<li><span class="tag">Edit</span> <code>apps/web/features/preview-kernl.feature</code></li>
+<li><span class="tag">Edit</span> <code>apps/web/features/shell-host.feature</code></li>
+<li><span class="tag">New</span> <code>apps/web/features/shell-stacks.feature</code></li>
+<li><span class="tag">Edit</span> <code>apps/web/features/shell-windows.feature</code></li>
+<li><span class="tag">Edit</span> <code>apps/web/features/steps/index.ts</code></li>
+<li><span class="tag">Edit</span> <code>apps/web/features/steps/kernl.ts</code></li>
+<li><span class="tag">Edit</span> <code>apps/web/features/steps/preview-intents.ts</code></li>
+<li><span class="tag">Edit</span> <code>apps/web/features/steps/shell-host.ts</code></li>
+<li><span class="tag">New</span> <code>apps/web/features/steps/stacks.ts</code></li>
+<li><span class="tag">Edit</span> <code>apps/web/src/shell/Desktop.svelte</code></li>
+<li><span class="tag">Edit</span> <code>apps/web/src/shell/GrantList.svelte</code></li>
+<li><span class="tag">Edit</span> <code>apps/web/src/shell/Launcher.svelte</code></li>
+<li><span class="tag">New</span> <code>apps/web/src/shell/StackBrowser.svelte</code></li>
+<li><span class="tag">New</span> <code>apps/web/src/shell/StackReview.svelte</code></li>
+<li><span class="tag">Edit</span> <code>apps/web/src/shell/contract.ts</code></li>
+<li><span class="tag">Edit</span> <code>apps/web/src/shell/host.ts</code></li>
+<li><span class="tag">Edit</span> <code>apps/web/src/shell/preview-applet.ts</code></li>
+<li><span class="tag">Edit</span> <code>apps/web/src/shell/preview-intents.ts</code></li>
+<li><span class="tag">Edit</span> <code>apps/web/src/shell/preview-kernl.ts</code></li>
+<li><span class="tag">New</span> <code>apps/web/src/shell/stack-grants.ts</code></li>
+<li><span class="tag">New</span> <code>apps/web/src/shell/stack-opening.ts</code></li>
+<li><span class="tag">Edit</span> <code>apps/web/src/shell/window-store.svelte.ts</code></li>
+<li><span class="tag">Edit</span> <code>apps/web/src/shell/windows.ts</code></li>
+</ul></details>
+<details><summary>packages/core · 33 files</summary><ul>
+<li><span class="tag">Edit</span> <code>packages/core/features/floor-message-seal.feature</code></li>
+<li><span class="tag">New</span> <code>packages/core/features/gamepad.feature</code></li>
+<li><span class="tag">Edit</span> <code>packages/core/features/grants-for-now.feature</code></li>
+<li><span class="tag">Edit</span> <code>packages/core/features/kernl-intents.feature</code></li>
+<li><span class="tag">Edit</span> <code>packages/core/features/layout-registry.feature</code></li>
+<li><span class="tag">Edit</span> <code>packages/core/features/message-isolation.feature</code></li>
+<li><span class="tag">Edit</span> <code>packages/core/features/modules.feature</code></li>
+<li><span class="tag">Edit</span> <code>packages/core/features/resolve.feature</code></li>
+<li><span class="tag">New</span> <code>packages/core/features/stacks.feature</code></li>
+<li><span class="tag">Edit</span> <code>packages/core/features/steps/builtin.ts</code></li>
+<li><span class="tag">New</span> <code>packages/core/features/steps/gamepad.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/core/features/steps/grants-for-now.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/core/features/steps/index.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/core/features/steps/kernl-intents.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/core/features/steps/modules.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/core/features/steps/resolve.ts</code></li>
+<li><span class="tag">New</span> <code>packages/core/features/steps/stacks.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/core/features/steps/window-manager.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/core/features/window-manager.feature</code></li>
+<li><span class="tag">Edit</span> <code>packages/core/src/core-exports.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/core/src/create-kernl.ts</code></li>
+<li><span class="tag">New</span> <code>packages/core/src/gamepad/controllers.test.ts</code></li>
+<li><span class="tag">New</span> <code>packages/core/src/gamepad/controllers.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/core/src/intents/delivery.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/core/src/kernl-intents.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/core/src/kernl-members.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/core/src/modules/default.ts</code></li>
+<li><span class="tag">New</span> <code>packages/core/src/modules/gamepad.ts</code></li>
+<li><span class="tag">New</span> <code>packages/core/src/modules/stacks.ts</code></li>
+<li><span class="tag">New</span> <code>packages/core/src/stacks/fetch.ts</code></li>
+<li><span class="tag">New</span> <code>packages/core/src/stacks/stack.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/core/src/wm/layout-registry.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/core/src/wm/window-manager.ts</code></li>
+</ul></details>
+<details><summary>packages/guard · 3 files</summary><ul>
+<li><span class="tag">Edit</span> <code>packages/guard/features/classification.feature</code></li>
+<li><span class="tag">Edit</span> <code>packages/guard/src/classify.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/guard/src/mitigations.ts</code></li>
+</ul></details>
+<details><summary>packages/kernel · 12 files</summary><ul>
+<li><span class="tag">Edit</span> <code>packages/kernel/src/applets/mount.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/kernel/src/applets/resolve.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/kernel/src/grants/domain-capabilities.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/kernel/src/grants/message-isolation.ts</code></li>
+<li><span class="tag">New</span> <code>packages/kernel/src/grants/review.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/kernel/src/guard/pipeline.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/kernel/src/index.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/kernel/src/kernl-lifecycle.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/kernel/src/kernl.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/kernel/src/module-host/compose.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/kernel/src/module-host/module.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/kernel/src/types.ts</code></li>
+</ul></details>
+<details><summary>packages/preset · 2 files</summary><ul>
+<li><span class="tag">Edit</span> <code>packages/preset/features/preset.feature</code></li>
+<li><span class="tag">Edit</span> <code>packages/preset/src/index.ts</code></li>
+</ul></details>
+<details><summary>packages/ui-model · 2 files</summary><ul>
+<li><span class="tag">Edit</span> <code>packages/ui-model/src/grants.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/ui-model/src/index.ts</code></li>
+</ul></details>
+<details><summary>tests/e2e · 4 files</summary><ul>
+<li><span class="tag">New</span> <code>tests/e2e/shell-live-stacks.spec.ts</code></li>
+<li><span class="tag">Edit</span> <code>tests/e2e/shell-live.spec.ts</code></li>
+<li><span class="tag">Edit</span> <code>tests/e2e/shell-preview.spec.ts</code></li>
+<li><span class="tag">Edit</span> <code>tests/e2e/shell-store.spec.ts</code></li>
+</ul></details>
+<details><summary>docs · 12 files</summary><ul>
+<li><span class="tag">Edit</span> <code>docs/alpha-status.md</code></li>
+<li><span class="tag">Edit</span> <code>docs/concepts/guard.md</code></li>
+<li><span class="tag">Edit</span> <code>docs/concepts/layouts.md</code></li>
+<li><span class="tag">Edit</span> <code>docs/concepts/modules.md</code></li>
+<li><span class="tag">Edit</span> <code>docs/concepts/persistence.md</code></li>
+<li><span class="tag">Edit</span> <code>docs/concepts/store-and-intents.md</code></li>
+<li><span class="tag">Edit</span> <code>docs/how-tos/change-the-shells-layout.md</code></li>
+<li><span class="tag">Edit</span> <code>docs/how-tos/grant-and-revoke.md</code></li>
+<li><span class="tag">Edit</span> <code>docs/packages/core.md</code></li>
+<li><span class="tag">Edit</span> <code>docs/packages/kernel.md</code></li>
+<li><span class="tag">Edit</span> <code>docs/packages/ui-model.md</code></li>
+<li><span class="tag">Edit</span> <code>docs/policies/security-posture.md</code></li>
+</ul></details>
+<details><summary>Decisions and changesets · 7 files</summary><ul>
+<li><span class="tag">New</span> <code>.changeset/applet-stacks.md</code></li>
+<li><span class="tag">New</span> <code>.changeset/bind-manifest-pointer.md</code></li>
+<li><span class="tag">New</span> <code>.changeset/intent-handler-window.md</code></li>
+<li><span class="tag">New</span> <code>.changeset/nap-gamepad-controllers.md</code></li>
+<li><span class="tag">New</span> <code>.changeset/stack-grant-review.md</code></li>
+<li><span class="tag">New</span> <code>.changeset/stacked-windows.md</code></li>
+<li><span class="tag">Edit</span> <code>DECISIONS.md</code></li>
+</ul></details>
+</section><footer><a href="https://github.com/kernlize/web/pull/109">Open PR #109 on GitHub ↗</a></footer></main><script>
+const get = (id) => document.getElementById(id);
+const members = [...document.querySelectorAll('#stack-demo input')];
+for (const member of members) member.addEventListener('change', () => {
+  get('stack-count').textContent = `${members.filter(input => input.checked).length} to open`;
+});
+const focusButtons = [...document.querySelectorAll('[data-focus]')];
+const receivers = [...document.querySelectorAll('.receiver')];
+const names = ['Orbit', 'Racer'];
+let focused = 0;
+for (const button of focusButtons) button.addEventListener('click', () => {
+  focused = Number(button.dataset.focus);
+  for (const candidate of focusButtons) candidate.setAttribute('aria-pressed', String(candidate === button));
+  receivers.forEach((receiver, i) => {
+    receiver.classList.toggle('live', i === focused);
+    receiver.querySelector('small').textContent = i === focused ? 'Live input' : 'Neutral';
+  });
+  get('pad-result').textContent = focused < 0 ? 'Grants is open. Both applets are neutral.' : `${names[focused]} is focused.`;
+});
+get('pad-a').addEventListener('click', () => {
+  get('pad-result').textContent = focused < 0 ? 'A pressed → neither applet gets it.' : `A pressed → ${names[focused]} only.`;
+});
+const desk = get('mini-desk');
+const layoutButtons = [...document.querySelectorAll('[data-layout]')];
+const dockButtons = [...document.querySelectorAll('[data-reveal]')];
+let front = 'notes';
+let stacked = true;
+let intent = null;
+const title = (id) => (id === 'notes' ? 'Notes' : 'Profiles');
+const other = (id) => (id === 'notes' ? 'Profiles' : 'Notes');
+// The shell gives every window the whole desk at 720 px and below, whatever the layout.
+const narrow = matchMedia('(max-width: 720px)');
+const compact = () => narrow.matches;
+function describe() {
+  if (intent) return intent;
+  if (compact()) return `${title(front)} fills the desk · ${other(front)} still mounted.`;
+  return stacked ? `${title(front)} in front · ${other(front)} still mounted.` : 'Both applets visible.';
+}
+function showWindow(id, note) {
+  front = id;
+  intent = note ?? null;
+  for (const win of desk.querySelectorAll('[data-window]')) win.classList.toggle('front', win.dataset.window === id);
+  for (const button of dockButtons) button.setAttribute('aria-pressed', String(button.dataset.reveal === id));
+  get('desk-result').textContent = describe();
+}
+function fit() {
+  desk.classList.toggle('compact', compact());
+  get('compact-note').hidden = !compact();
+  get('desk-result').textContent = describe();
+}
+narrow.addEventListener('change', fit);
+fit();
+for (const button of dockButtons) button.addEventListener('click', () => showWindow(button.dataset.reveal));
+for (const button of layoutButtons) button.addEventListener('click', () => {
+  stacked = button.dataset.layout === 'stacked';
+  desk.classList.toggle('stacked', stacked);
+  for (const candidate of layoutButtons) candidate.setAttribute('aria-pressed', String(candidate === button));
+  showWindow(front);
+});
+get('demo-intent').addEventListener('click', () => {
+  showWindow('profiles', 'Profiles receives the request and comes forward.');
+});
+get('demo-intent-background').addEventListener('click', () => {
+  showWindow(front, 'Profiles receives the request. The front window stays where it is.');
+});
+</script></body></html>

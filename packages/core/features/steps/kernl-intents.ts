@@ -2,18 +2,26 @@ import { lastValueFrom } from 'rxjs';
 import { expect, vi } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import { decodeAddressPointer } from 'applesauce-core/helpers';
-import type { AppletSummary, CatalogEntry, HandlerPrompt, KernlHost } from '@kernlize/core';
+import { createWindowManager, type AppletSummary, type CatalogEntry, type HandlerPrompt, type KernlHost, type WindowManager } from '@kernlize/core';
 import { boot, k } from './kernl.js';
 import { attempt, createFakeFrame, scratch, signManifest, splitList, type CoreWorld, type ManifestVector } from './world.js';
 
 const WAIT = { timeout: 3000, interval: 10 };
 
-interface RunningApplet {
-  readonly vector: ManifestVector;
-  summary?: AppletSummary;
-  windowId?: string;
-  channel?: MessageChannel;
+interface IntentWindow {
+  readonly id: string;
+  readonly channel: MessageChannel;
   readonly received: Array<Record<string, unknown>>;
+}
+
+interface RunningApplet {
+  vector: ManifestVector;
+  summary?: AppletSummary;
+  readonly windows: IntentWindow[];
+}
+
+function latest(applet: RunningApplet): IntentWindow | undefined {
+  return applet.windows.at(-1);
 }
 
 interface IntentShell {
@@ -21,8 +29,10 @@ interface IntentShell {
   readonly opened: string[];
   readonly prompts: HandlerPrompt[];
   readonly focused: string[];
-  opening: 'open' | 'fail' | 'remove';
+  readonly blobs: Map<string, string>;
+  opening: 'open' | 'fail' | 'remove' | 'close';
   catalog?: readonly CatalogEntry[];
+  stack?: WindowManager;
 }
 
 function shell(world: CoreWorld): IntentShell {
@@ -54,21 +64,24 @@ function windowMessage(source: Window, data: unknown, ports: MessagePort[]): Mes
   return Object.assign(new Event('message'), { source, data, ports, origin: 'null' }) as MessageEvent;
 }
 
-async function run(world: CoreWorld, name: string, grant: boolean): Promise<string> {
+async function run(world: CoreWorld, name: string, grant: boolean, options?: { readonly focus?: boolean }): Promise<string> {
   const { kernl } = k(world);
   const summary = await resolve(world, name);
   if (grant) kernl.grants.allowDomain(summary.identity, 'intent');
   const plan = await kernl.plan(summary);
   const frame = createFakeFrame();
-  kernl.mount(plan, frame);
+  const handle = kernl.mount(plan, frame);
+  const manager = shell(world).stack;
+  manager?.open(plan.windowId, options);
+  manager?.attach(plan.windowId, handle);
   const entry = applet(world, name);
   const channel = new MessageChannel();
-  channel.port1.onmessage = (event) => void entry.received.push(event.data as Record<string, unknown>);
+  const received: IntentWindow['received'] = [];
+  channel.port1.onmessage = (event) => void received.push(event.data as Record<string, unknown>);
   kernl.handleWindowMessage(windowMessage(frame.contentWindow as Window, { type: 'napplet.hello' }, [channel.port2]));
   // The injected binding announces itself once its port is bound; that registers the session.
   channel.port1.postMessage({ type: 'shell.ready' });
-  entry.channel = channel;
-  entry.windowId = plan.windowId;
+  entry.windows.push({ id: plan.windowId, channel, received });
   return plan.windowId;
 }
 
@@ -91,22 +104,25 @@ async function setUp(world: CoreWorld, { canOpen, source, domain, handler, role 
     createdAt: 1_700_000_100,
   });
   const state: IntentShell = {
-    applets: new Map([[source, { vector: chat, received: [] }], [handler, { vector: profiles, received: [] }]]),
+    applets: new Map([[source, { vector: chat, windows: [] }], [handler, { vector: profiles, windows: [] }]]),
     opened: [],
     prompts: [],
     focused: [],
+    blobs: new Map([[chat.hash, chat.html], [profiles.hash, profiles.html]]),
     opening: 'open',
   };
   scratch(world).intentShell = state;
   scratch(world).pool.events = [chat.event, profiles.event];
-  const blobs = new Map([[chat.hash, chat.html], [profiles.hash, profiles.html]]);
   const host: Partial<KernlHost> = {
-    fetchBlob: async (sha256) => new TextEncoder().encode(blobs.get(sha256)),
+    fetchBlob: async (sha256) => new TextEncoder().encode(state.blobs.get(sha256)),
     chooseHandler: async (prompt) => void state.prompts.push(prompt),
-    focusApplet: (windowId) => void state.focused.push(windowId),
+    focusApplet(windowId) {
+      state.focused.push(windowId);
+      state.stack?.focus(windowId);
+    },
   };
   if (canOpen) {
-    host.openApplet = async (address) => {
+    host.openApplet = async (address, options) => {
       state.opened.push(address);
       const name = decodeAddressPointer(address)?.identifier ?? '';
       if (state.opening === 'fail') throw new Error('the desktop broke');
@@ -114,7 +130,9 @@ async function setUp(world: CoreWorld, { canOpen, source, domain, handler, role 
         k(world).kernl.intents.uninstall(catalogIdOf(world, name));
         return undefined;
       }
-      return run(world, name, false);
+      const windowId = await run(world, name, false, options);
+      if (state.opening === 'close') k(world).kernl.applets().find((handle) => handle.windowId === windowId)?.close();
+      return windowId;
     };
   }
   boot(world, { intentRetry: { intervalMs: 2, attempts: 25 } }, host);
@@ -186,16 +204,42 @@ Given('{string} is installed with {string} granted', async (world: CoreWorld, na
   k(world).kernl.install(summary);
 });
 
-function waitFor(world: CoreWorld, name: string, type: string): Promise<Record<string, unknown>> {
+When('the user opens another copy of {string} with the receiving grant', async (world: CoreWorld, name: string) => {
+  await run(world, name, true);
+});
+
+When('its publisher releases {string} taking {string}', async (world: CoreWorld, name: string, convention: string) => {
+  const entry = applet(world, name);
+  const previous = entry.vector;
+  const slug = convention.slice('napplet:'.length).split('/')[0] as string;
+  entry.vector = await signManifest({
+    dTag: name,
+    title: 'Profiles',
+    requires: [],
+    html: `<!doctype html><title>profiles: ${convention}</title>`,
+    extraTags: [['z', slug], ['i', convention, 'pubkey']],
+    createdAt: previous.event.created_at + 1,
+  });
+  shell(world).blobs.set(entry.vector.hash, entry.vector.html);
+  const pool = scratch(world).pool;
+  pool.events = pool.events.map((event) => (event.id === previous.event.id ? entry.vector.event : event));
+});
+
+Given('the user grants {string} to the new release of {string}', async (world: CoreWorld, domain: string, name: string) => {
+  const summary = await resolve(world, name);
+  k(world).kernl.grants.allowDomain(summary.identity, domain);
+});
+
+function waitFor(world: CoreWorld, name: string, type: string, id?: string): Promise<Record<string, unknown>> {
   return vi.waitFor(() => {
-    const found = applet(world, name).received.find((entry) => entry.type === type);
+    const found = latest(applet(world, name))?.received.findLast((entry) => entry.type === type && (id === undefined || entry.id === id));
     if (!found) throw new Error(`no ${type} yet`);
     return found;
   }, WAIT);
 }
 
 When('{string} asks who can take {string}', async (world: CoreWorld, name: string, archetype: string) => {
-  applet(world, name).channel?.port1.postMessage({ type: 'intent.available', id: 'a1', archetype });
+  latest(applet(world, name))?.channel.port1.postMessage({ type: 'intent.available', id: 'a1', archetype });
   await waitFor(world, name, 'intent.available.result');
 });
 
@@ -206,11 +250,33 @@ Then('{string} hears that {string} can {string}', async (world: CoreWorld, name:
   expect(availability.candidates.map((candidate) => [candidate.title, candidate.actions])).toEqual([[title, [action]]]);
 });
 
-When('{string} invokes {string}', async (world: CoreWorld, name: string, uri: string) => {
+Given('the host puts {string} in front in Stacked', (world: CoreWorld, front: string) => {
+  const manager = createWindowManager({ layout: 'stacked' });
+  for (const applet of shell(world).applets.values()) {
+    for (const { id } of applet.windows) {
+      manager.open(id);
+      manager.attach(id, k(world).kernl.applets().find((handle) => handle.windowId === id)!);
+    }
+  }
+  manager.focus(latest(applet(world, front))!.id);
+  shell(world).stack = manager;
+});
+
+Then('only {string} is shown and focused in the stack', (world: CoreWorld, name: string) => {
+  const state = shell(world).stack!.snapshot();
+  const id = latest(applet(world, name))!.id;
+  expect(state.windows.filter((window) => !window.minimised).map((window) => window.id)).toEqual([id]);
+  expect(state.focusedId).toBe(id);
+  expect(state.windows).toHaveLength(2);
+});
+
+When(/^"([^"]+)" invokes "([^"]+)"( with a no-focus hint)?$/, async (world: CoreWorld, name: string, uri: string, noFocus: string | undefined) => {
   const [, archetype = '', action = '', key = '', value = ''] = /^napplet:([^/]+)\/([^?]+)\?([^=]+)=(.*)$/.exec(uri) ?? [];
-  const request = { archetype, action, convention: `napplet:${archetype}/${action}`, payload: { [key]: value } };
-  applet(world, name).channel?.port1.postMessage({ type: 'intent.invoke', id: 'i1', request });
-  await waitFor(world, name, 'intent.invoke.result');
+  const request = { archetype, action, convention: `napplet:${archetype}/${action}`, payload: { [key]: value }, ...(noFocus ? { behavior: { focus: false } } : {}) };
+  const source = latest(applet(world, name))!;
+  const id = `invoke-${source.received.filter((entry) => entry.type === 'intent.invoke.result').length + 1}`;
+  source.channel.port1.postMessage({ type: 'intent.invoke', id, request });
+  await waitFor(world, name, 'intent.invoke.result', id);
 });
 
 const catalogIdOf = (world: CoreWorld, name: string): string => `nip5d:35129:${applet(world, name).vector.pubkey}:${name}`;
@@ -226,6 +292,29 @@ Then('{string} received {string} from {string} with pubkey {string}', async (wor
   expect(message.delivery).toEqual({ sender: catalogIdOf(world, sender), archetype, action, convention: `napplet:${request}`, payload: { pubkey } });
 });
 
+Then('{string} received no intent', (world: CoreWorld, name: string) => {
+  expect(latest(applet(world, name))!.received.filter((entry) => entry.type === 'intent.deliver')).toEqual([]);
+});
+
+When('the person brings {string} forward and returns to {string}', async (world: CoreWorld, handler: string, front: string) => {
+  const manager = shell(world).stack!;
+  manager.focus(latest(applet(world, handler))!.id);
+  await waitFor(world, handler, 'shell.init');
+  manager.focus(latest(applet(world, front))!.id);
+});
+
+Then('both copies of {string} are still open and only the latest received the request', (world: CoreWorld, name: string) => {
+  const windows = applet(world, name).windows;
+  expect(windows).toHaveLength(2);
+  const open = k(world).kernl.applets().map((handle) => handle.windowId);
+  expect(open).toEqual(expect.arrayContaining(windows.map(({ id }) => id)));
+  expect(windows.map(({ received }) => received.filter((entry) => entry.type === 'intent.deliver').length)).toEqual([0, 1]);
+});
+
+Then('{string} did not receive the request', (world: CoreWorld, name: string) => {
+  expect(latest(applet(world, name))?.received).not.toContainEqual(expect.objectContaining({ type: 'intent.deliver' }));
+});
+
 Then('the host was asked to open {string}', (world: CoreWorld, name: string) => {
   expect(shell(world).opened.map((address) => decodeAddressPointer(address)?.identifier)).toEqual([name]);
 });
@@ -234,9 +323,19 @@ async function expectNotice(world: CoreWorld, title: string, body: string): Prom
   await vi.waitFor(() => expect(k(world).record.notices).toContainEqual({ title, body, tone: 'warning' }), WAIT);
 }
 
+Then('the user was told {string}', async (world: CoreWorld, title: string) => {
+  await vi.waitFor(() => expect(k(world).record.notices).toContainEqual(expect.objectContaining({ title, tone: 'warning' })), WAIT);
+});
+
+Then('the user was told {string} and asked to show it before retrying', (world: CoreWorld, title: string) =>
+  expectNotice(world, title, 'Show the applet and try again. Check that it has the grant to receive requests.'),
+);
+
 Then('the user was told {string} because it needs the receiving grant', (world: CoreWorld, title: string) =>
   expectNotice(world, title, 'It needs "opening other applets" switched on in its grants to receive requests from other applets.'),
 );
+
+Then('the user was told {string} because that release does not take it', (world: CoreWorld, title: string) => expectNotice(world, title, 'This release does not take that request.'));
 
 Then('the user was told {string} because it could not be opened', (world: CoreWorld, title: string) => expectNotice(world, title, 'It could not be opened.'));
 
@@ -249,7 +348,7 @@ Then("the shell asked the public relays for the account's handler preferences", 
 });
 
 Then('the host brought {string} forward', (world: CoreWorld, name: string) => {
-  expect(shell(world).focused).toEqual([applet(world, name).windowId]);
+  expect(shell(world).focused).toEqual([latest(applet(world, name))?.id]);
 });
 
 When('the user removes {string} while it runs', (world: CoreWorld, title: string) => {
@@ -269,6 +368,10 @@ Then('{string} was told the request was refused with {string}', async (world: Co
 
 Given('the host fails when it opens an applet', (world: CoreWorld) => {
   shell(world).opening = 'fail';
+});
+
+Given('a handler opened by the host closes before it can receive a request', (world: CoreWorld) => {
+  shell(world).opening = 'close';
 });
 
 Given('the host removes {string} when it is asked to open it', (world: CoreWorld) => {

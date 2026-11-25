@@ -7,7 +7,7 @@ import {
   type NappletExperimentalOptions,
 } from '@kehto/shell';
 import { renderInsertionLockScript } from '@kernlize/guard';
-import type { AppletSummary, CatalogEntry } from './contract';
+import type { AppletStack, AppletSummary, CatalogEntry } from './contract';
 
 export const PREVIEW_PUBLISHER = '7f3a9c1e5b2d4a6f8e0c1b3d5f7a9c2e4b6d8f0a1c3e5b7d9f1a3c5e7b9d0f2c';
 const SERVERS = ['https://cdn.example.net'];
@@ -123,6 +123,34 @@ export const PREVIEW_CATALOG: readonly CatalogEntry[] = SPECS.map((spec) => ({
   conventions: spec.accepts,
   publishedAt: spec.publishedAt,
 }));
+
+/**
+ * Sample stacks, so the preview's Stacks tab has something to show without a network. The members
+ * name the same sample applets by their coordinates, as a published stack would.
+ */
+export const PREVIEW_STACKS: readonly AppletStack[] = [
+  {
+    id: `${PREVIEW_PUBLISHER}:basics`,
+    identifier: 'basics',
+    title: 'Basics',
+    description: 'Everything needed on a fresh identity.',
+    publisher: PREVIEW_PUBLISHER,
+    members: [
+      { ref: `35129:${PREVIEW_PUBLISHER}:notes`, catalogId: `nip5d:35129:${PREVIEW_PUBLISHER}:notes`, pubkey: PREVIEW_PUBLISHER, identifier: 'notes', eventKind: 35129, relays: [], start: true },
+      { ref: `35129:${PREVIEW_PUBLISHER}:profiles`, catalogId: `nip5d:35129:${PREVIEW_PUBLISHER}:profiles`, pubkey: PREVIEW_PUBLISHER, identifier: 'profiles', eventKind: 35129, relays: [], start: false },
+    ],
+    publishedAt: 1_793_000_400,
+  },
+  {
+    id: `${PREVIEW_PUBLISHER}:live`,
+    identifier: 'live',
+    title: 'Live',
+    description: 'Applets that read the network constantly.',
+    publisher: PREVIEW_PUBLISHER,
+    members: [{ ref: `35129:${PREVIEW_PUBLISHER}:pulse`, catalogId: `nip5d:35129:${PREVIEW_PUBLISHER}:pulse`, pubkey: PREVIEW_PUBLISHER, identifier: 'pulse', eventKind: 35129, relays: ['wss://relay.example'], start: true }],
+    publishedAt: 1_793_000_500,
+  },
+];
 
 /** The summary for a preview address, or undefined when the address is not a sample. */
 export function sampleSummary(address: string): AppletSummary | undefined {

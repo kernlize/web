@@ -23,6 +23,7 @@ type DeliveryMessage = Parameters<IntentDeliveryOptions['send']>[1] & { readonly
 /** A request one preview applet makes of another. */
 export interface PreviewIntentRequest {
   readonly sender: string;
+  readonly focus: boolean;
   readonly archetype: string;
   readonly action: string;
   readonly payload: Readonly<Record<string, string>>;
@@ -108,7 +109,7 @@ export function createPreviewIntents(deps: PreviewIntentDeps): PreviewIntents {
       const deliver = core.createIntentDelivery({
         installed,
         findWindow: deps.findWindow,
-        openApplet: async (address) => deps.host.openApplet?.(address),
+        openApplet: async (address, options) => deps.host.openApplet?.(address, options),
         ...(deps.host.focusApplet ? { focus: deps.host.focusApplet.bind(deps.host) } : {}),
         send: (windowId, message) => {
           const { delivery } = message as DeliveryMessage;
@@ -144,7 +145,7 @@ export function createPreviewIntents(deps: PreviewIntentDeps): PreviewIntents {
       const resolver = await load();
       const convention = `napplet:${request.archetype}/${request.action}`;
       const result = await resolver.invoke(
-        { archetype: request.archetype, action: request.action, convention, payload: request.payload },
+        { archetype: request.archetype, action: request.action, convention, payload: request.payload, behavior: { focus: request.focus } },
         { sender: request.sender },
       );
       return result.ok ? { ok: true, text: `${titleOf(result.handler)} is taking it.` } : { ok: false, text: `Nobody took it (${result.error}).` };

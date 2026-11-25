@@ -30,6 +30,11 @@ Given(
   },
 );
 
+Given('a kernl shell that ships an applet containing a nested frame', (world: CoreWorld) => {
+  const html = '<!doctype html><html><body><iframe></iframe></body></html>';
+  boot(world, { builtins: [shipped('nested', { load: async () => html, sha256: sha256(html) })] });
+});
+
 Given('a kernl shell that ships the bare applet {string}', (world: CoreWorld, id: string) => {
   boot(world, { builtins: [shipped(id)] }, blobFetcher(world));
 });

@@ -24,6 +24,8 @@ export type {
   AppletPointer,
   AppletStatus,
   AppletCatalog,
+  AppletStack,
+  AppletStacks,
   AppletSummary,
   BuiltinApplet,
   CatalogEntry,
@@ -52,6 +54,7 @@ export type {
   Session,
   SettingsPrompt,
   ShortcutKey,
+  StackMember,
   StorageLike,
 } from '@kernlize/core';
 

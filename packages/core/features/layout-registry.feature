@@ -1,8 +1,8 @@
 Feature: Layout registry
-  A window manager offers the layouts in a registry. kernl ships four; a
+  A window manager offers the layouts in a registry. kernl ships five; a
   developer's own layout is one registration, and it is listed like the rest.
 
-  Scenario: the default layouts are the four strategies, floating first
+  Scenario: the default layouts are the five strategies, floating first
     Given the default layouts
     Then the layouts are:
       | id           | label          | freeform |
@@ -10,6 +10,7 @@ Feature: Layout registry
       | dwindle      | tiled          | no       |
       | columns      | columns        | no       |
       | master-stack | main and stack | no       |
+      | stacked      | stacked        | no       |
 
   Scenario: the default layouts take the spacing they are given
     Given the default layouts with a gap of 8 and a margin of 0
@@ -28,6 +29,7 @@ Feature: Layout registry
       | dwindle      | tiled          | no       |
       | columns      | columns        | no       |
       | master-stack | main and stack | no       |
+      | stacked      | stacked        | no       |
       | rows         | rows           | no       |
     When the layout "rows" arranges 2 windows in 1000 by 600
     Then the layout placed them at:

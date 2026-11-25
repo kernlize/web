@@ -28,7 +28,17 @@ test('the preview shell signs in, runs a sample applet, shows the guard and open
   expect(await frame.getAttribute('srcdoc')).toContain('<!doctype html>');
   expect(await frame.getAttribute('src')).toBeNull();
   await expect(page.frameLocator('iframe[data-window-id]').getByRole('heading', { name: 'Notes' })).toBeVisible();
-  await expect(page.locator('section.window')).toHaveAttribute('data-status', 'running');
+  const notes = page.getByRole('region', { name: 'Notes window' });
+  await expect(notes).toHaveAttribute('data-status', 'running');
+
+  // Shell-owned panels take input focus away from the applet without unmounting it.
+  for (const name of ['Grants for Notes', 'Inspect Notes']) {
+    await page.getByRole('button', { name }).click();
+    await expect(page.getByRole('dialog', { name })).toBeVisible();
+    await expect(notes).not.toHaveClass(/\bfocused\b/);
+    await expect(frame).toBeVisible();
+    await page.keyboard.press('Escape');
+  }
 
   await page.getByRole('button', { name: /^Guard/ }).click();
   await expect(page.getByTestId('mitigations').getByRole('listitem')).toHaveCount(12);
@@ -200,11 +210,20 @@ test('the layout control steps through every layout, and the windows follow with
   expect(await windowRects(page)).toEqual({ Notes: { x: 0, y: 0, w: 716, h: height }, Pulse: { x: 724, y: 0, w: 716, h: height } });
 
   await control.click();
-  await expect(control).toHaveAccessibleName('Layout: main and stack. Switch to floating');
+  await expect(control).toHaveAccessibleName('Layout: main and stack. Switch to stacked');
   expect(await windowRects(page)).toEqual({ Pulse: { x: 0, y: 0, w: 859, h: height }, Notes: { x: 867, y: 0, w: 573, h: height } });
   // The window the person turns to becomes the main one.
   await page.getByRole('toolbar', { name: 'Notes window controls' }).click({ position: { x: 200, y: 10 } });
   await expect.poll(() => windowRects(page)).toEqual({ Notes: { x: 0, y: 0, w: 859, h: height }, Pulse: { x: 867, y: 0, w: 573, h: height } });
+
+  await control.click();
+  await expect(control).toHaveAccessibleName('Layout: stacked. Switch to floating');
+  expect(await windowRects(page)).toEqual({ Notes: { x: 0, y: 0, w: 1440, h: height } });
+  await expect(page.locator('iframe[title="Pulse applet"]')).toBeHidden();
+  await page.getByRole('list', { name: 'Minimised windows' }).getByRole('button', { name: 'Pulse' }).click();
+  await expect(page.locator('iframe[title="Pulse applet"]')).toBeVisible();
+  await expect(page.locator('iframe[title="Notes applet"]')).toBeHidden();
+  expect(await windowRects(page)).toEqual({ Pulse: { x: 0, y: 0, w: 1440, h: height } });
 
   await control.click();
   await expect(control).toHaveAccessibleName('Layout: floating. Switch to tiled');
@@ -224,6 +243,45 @@ test('a minimised window leaves the arrangement and comes back from the dock', a
   await expect(page.locator('iframe[title="Notes applet"]')).toBeVisible();
   await expect(page.locator('section.window.focused')).toHaveAccessibleName('Notes window');
 });
+
+for (const layout of ['stacked', 'floating']) {
+  for (const reuse of [true, false]) {
+    for (const focus of [false, true, undefined]) {
+      test(`intent focus ${focus ?? 'omitted'} with a ${reuse ? 'reused' : 'fresh'} handler in ${layout}`, async ({ page }) => {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await page.goto(`${base}/app/?preview=1`);
+        await page.evaluate((id) => localStorage.setItem('preview:kernl:layout:v1', id), layout);
+        await page.reload();
+        await page.getByRole('button', { name: 'Try the preview' }).click();
+        await openSample(page, 'Profiles');
+        const profiles = page.locator('iframe[title="Profiles applet"]');
+        const original = await profiles.getAttribute('data-window-id');
+        await page.getByRole('button', { name: reuse ? 'Minimise Profiles' : 'Close Profiles', exact: true }).click();
+        await openSample(page, 'Notes');
+        await expect(profiles).toBeHidden();
+
+        const notes = page.locator('iframe[title="Notes applet"]');
+        await notes.contentFrame().locator('body').evaluate((_, focus) => {
+          parent.postMessage({ kernlPreview: 'intent', text: 'decade00'.repeat(8), ...(focus === undefined ? {} : { focus }) }, '*');
+        }, focus);
+        await expect(profiles.contentFrame().getByText('Notes asked this applet to open a profile.')).toHaveCount(1);
+        const id = await profiles.getAttribute('data-window-id');
+        if (reuse) expect(id).toBe(original);
+        else expect(id).not.toBe(original);
+        const front = focus === false ? 'Notes' : 'Profiles';
+        await expect(page.getByRole('region', { name: `${front} window` })).toHaveClass(/\bfocused\b/);
+        if (focus === false && !reuse && layout === 'floating') {
+          const z = (title: string) => page.getByTitle(`${title} applet`, { exact: true }).evaluate((frame) => Number(getComputedStyle(frame).zIndex));
+          expect(await z('Profiles')).toBeLessThan(await z('Notes'));
+        }
+        if (focus === false && (reuse || layout === 'stacked')) await expect(profiles).toBeHidden();
+        else await expect(profiles).toBeVisible();
+        if (layout === 'stacked' && focus !== false) await expect(notes).toBeHidden();
+        else await expect(notes).toBeVisible();
+      });
+    }
+  }
+}
 
 test('the chosen layout is remembered, and a choice stored by an earlier build still reads', async ({ page }) => {
   await page.goto(`${base}/app/?preview=1`);

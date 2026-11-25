@@ -1155,3 +1155,91 @@ A subscription replays before opening its approved relays and suppresses duplica
 **Consequences.** Applets can keep using `outbox.subscribe` and `outbox.query` unchanged. A subscription can render before its relays respond; a view that waits for a one-shot query before subscribing still waits. The web shell uses tab-local session storage, or page memory when that is unavailable. A reload can reuse the cache in the same tab; independent tabs do not share updates. The cache is not an offline archive: stored observations expire and the relays are still asked on every read.
 
 **Reversal cost.** Low. Remove the optional Outbox cache wiring; the kehto router and the D-030 cache still work independently.
+
+## D-070 · Stacks are read as published lists, and opening one opens every applet it names
+
+**Context.** AppStore ships NIP-51 app curation sets: kind `30267`, one per `(pubkey, d)`, whose `a` tags name napplet manifests (`35129:<pubkey>:<d>` or `15129:<pubkey>:`). Its UI is the only way to read them today, and a stack is only useful if a shell can open it. The sets carry no artifact, no permission and no identity of their own — they are a list of references, like a bookmark list.
+
+**Decision.**
+
+- **Read-only and reference-only.** The optional `stacksModule()` provides `kernl.stacks`, which lists the sets whose `a` tags name napplet manifests. Nothing in a stack grants anything: every applet in one is resolved, verified and planned exactly as if it had been pasted into the launcher, and the firewall still asks per applet. The shell does not write a stack (D-056's consent gate would be the seam if it ever does).
+- **The applet relays, then the public relays.** Stacks are read from `stackRelays(tiers)` — the `apps` tier then `super`, as the catalogue does — because that is where the people who publish applets write. Following the reader's contact list instead would show nothing on a fresh identity.
+- **One stack per `(publisher, d)`, newest wins.** Sets are addressable, so relays hold every version. A set republished with no applet in it is how AppStore deletes a stack — napplet shells refuse NIP-09 deletions — so an empty set is not listed. The `d` is otherwise plain data: `napplets`, the identifier the Recommend button writes, has no special meaning here.
+- **A name is `title`, then `name`, then the `d`.** AppStore reads both tags; live sets use either, and an untitled one should still be nameable in a list. Both are trimmed, so a blank tag falls through.
+- **Relay hints travel, identity does not.** An `a` tag's third element becomes the pointer's relay hints when the applet is resolved, and nothing more; identity comes from the verified manifest.
+- **Opening a stack opens every applet in it.** One that is gone or unreachable is skipped and counted, so the others still open; the person is told how many were missed. An applet already running is brought forward rather than opened twice, so a stack naming it twice, or a second press of **Open all**, does not stack windows. Planning stays sequential: each applet's admission and any first-run question is answered before the next is planned. The permission question is asked once for the whole stack (D-071).
+
+**Consequences.** A stack from a stranger is listed like any other — the shell does not model follows yet — and its applets still have to pass verification, so a stack cannot smuggle in an applet someone else signed. The `apps` and `super` tiers are now read for a second kind. The stack's signature is checked before its title and list are shown under a publisher's name. That signature does not vouch for any member's bytes.
+
+**Reversal cost.** Low. `packages/modules/src/stacks` is two modules behind one `Kernl.stacks` member; dropping the launcher tab leaves them unused but harmless.
+
+
+## D-071 · A stack's permissions are asked for once, as one table of domains
+
+**Context.** The shell's per-applet review writes an applet's grants when the person presses **Run**: what it requires is switched on, what it may use is left off, and the firewall admits the applet afterwards. A stack opens several applets at once, so opening one applet-by-applet would mean a review screen per applet, each asking about the same domains in turn — and skipping the reviews, as D-070 first did, left every applet in a stack with no grants at all, because nothing had written them.
+
+**Decision.**
+
+- **One screen, one row per permission.** Opening a stack resolves and verifies its applets first, plans none of them, and then shows a single table: each row is a domain, and each row names every applet in the stack that asked for it, marking the ones that cannot start without it (`Notes (needed)`). Rows are grouped exactly as the per-applet list groups them — the unsafe combination first, then required, optional, and anything else the row list offers — by collecting each verified applet’s own `grantGroups` rows. An unsafe override is always a separate question from an ordinary grant.
+- **A switch is for the whole stack, and each applet keeps its own answer.** Turning a row on writes that domain only for the applets that asked for it, through each applet's own `grantsToApply`; a domain one applet needs is never written for another that never asked. Turning it off takes it back from the applets that hold it.
+- **What already stands stays.** A row with different answers starts mixed. Confirming it unchanged preserves each applet’s grants and seal overrides; explicitly switching it changes only the unlocked applets in that question (D-060). The messages seal is applied per applet, as before, so the unsafe group is the stack's applets' own.
+- **Then plan, sequentially, and open.** Grants are written before the first `plan`, because planning is where the firewall admits an applet to the domains it holds. Each applet is planned in turn, so its admission and any first-run question is settled before the next applet is planned.
+- **Same words everywhere.** The review is the launcher's `StackReview`, sharing `GrantList` with the per-applet screen, so a domain reads the same whether one applet or five are asking.
+
+**Consequences.** A stack cannot open applets with no permissions any more, which was a real defect: the first version wrote no grants, so every applet from a stack started with only the baseline domains. The combined table is also the only place a person can switch an optional domain on for several applets in one press — a deliberate widening of what the per-applet screen offers, one press at a time.
+
+**Reversal cost.** Low. `apps/web/src/shell/stack-grants.ts` is one module over `@kernlize/ui-model`; falling back to per-applet reviews means calling `AppletReview` in a loop in `Launcher.svelte`.
+
+
+## D-072 · Installing a stack installs every applet in it, and opens only the ones it marks
+
+**Context.** A stack such as Rocket Stack holds seven applets that work together: one entry point and six that answer when it asks. Opening all seven at once was the only thing the launcher could do, which is both wrong for the person's screen and useless — most of those applets exist to answer an intent, not to be looked at.
+
+**Decision.**
+
+- **Install and open are separate acts, and the stack does both differently.** Every applet a stack names is resolved, verified and **installed** — recorded in the installed set with its routing contracts, so another applet can hand it work — and only the ones the person ticked are **planned**, which is what opens a window.
+- **The publisher marks the entry points.** A `start` tag per coordinate (`['start', '35129:<pubkey>:<d>']`, `STACK_START_TAG`) names the applets a stack opens by default. AppStore, Hive and other NIP-51 readers ignore unknown tags, so the stack still reads as a plain list for them, and the `a` tags remain the only statement of what it holds: a `start` naming no member is ignored, never promoted. Markers are matched on `kind:pubkey:identifier`, so a member carrying a relay hint still matches.
+- **The launcher ticks the entry points and opens nothing else.** A stack with no `start` tag ticks every member, because its publisher said nothing; a stack with tags shows `Open 1` rather than `Open all`, and the person can tick more in the list.
+- **A person's ticks win over the publisher's.** The list is where the choice is made, per stack, and it lasts as long as the launcher is open; nothing is stored, because the answer is about this opening, not a setting.
+- **Grants are asked for what is opened, not for what is installed** (D-071 amended). The combined table covers the ticked applets only. An applet installed and never opened carries no grants until it runs.
+- **Each applet in the list can be opened on its own.** That path goes through the ordinary single-applet review, so its grants are its own question.
+
+**Consequences.** Opening a stack of seven now opens one window and installs six, and the six are reachable from **Yours** and by intent. Nothing runs in the background: NAP-INTENT addresses a window, so an installed applet is dormant until something asks it for work (and then it opens visibly, D-073). The `start` tag is kernl-read only — no other client will honour it, which is the cost of not overloading `a` order.
+
+**Reversal cost.** Low. Ignoring `start` tags puts the launcher back to ticking everything; the install/open split is two calls in one place.
+
+## D-073 · An applet woken by a request opens visibly, with its existing grants
+
+**Context.** Installing a stack records its support applets without running them. Another applet may later request a handler that has never been opened.
+
+**Decision.** Resolve and verify the handler, plan it with its existing grants and open a normal window. Neither installation nor another applet's request authorizes new grants. An updated artifact has its own identity and does not inherit the old artifact's grants.
+
+**Consequences.** A handler without the receiving grant cannot take a request. The shell reports that failure; the person can open the handler through the review to grant what it needs, then retry.
+
+**Reversal cost.** A different policy must still ask the person before writing grants for the verified handler.
+
+## D-074 · Controllers reach an applet through the shell, live only in the window being used
+
+**Context.** NAP-GAMEPAD ([napplet/naps PR #130](https://github.com/napplet/naps/pull/130)) defines `window.napplet.gamepad`: `getGamepads()`, `available`, `focused` and `onChange()`, backed by pushed `gamepad.state` snapshots. A controller is a device at the person's desk, not an applet's, and the native API is a shared one: read directly, every frame on the page sees the same presses, so two applets running side by side both react. The proposal's isolation guarantee only holds if the runtime denies the native API, which kernl has always done (security posture rule 4, `denyNappletControllerAccess`). kehto 0.35 ships both halves: `@kehto/services` exports `createGamepadService` and `browserGamepadOptions`, `@kehto/runtime` dispatches the `gamepad` domain, and the prelude builds `napplet.gamepad` from the environment it is handed. `@napplet/core` 0.41 publishes the wire types.
+
+**Decision.**
+
+- **The domain is served, the frame stays denied.** The default `gamepadModule` registers `createGamepadService` under `gamepad` (`createControllerService`), so the frame never gains the native API and the applet never needs it. The rule 4 policy is untouched; it is the precondition, not a competing choice.
+- **One focus source, shared with the rest of the shell.** The input owner is the window the guard pipeline reports as focused, which is where `getFocusContext` and the `keys` domain already read it (D-054), not whichever iframe the browser holds as `activeElement`. `browserGamepadOptions` supplies the reader, the frame pump and the focus, visibility and connection events; kernl replaces only `getFocusedWindow`.
+- **A grant admits the domain; the firewall authorizes the subscription.** The domain is advertised to an applet only when the person granted it, because `createEnvironmentResolver` narrows kehto's availability by the grants in force, and the prelude only builds what the environment names. It is not a baseline domain: a controller is a device, and a device is asked about. kehto's ACL has no capability for it, so `DOMAIN_CAPABILITIES.gamepad` is empty, like `webrtc` (D-042); `gamepad.subscribe` is a requirement kehto's approval coordinator sees, so the firewall's rules can ask about it or refuse it like any other request (D-056).
+- **Live values follow focus, and focus loss is immediate.** kehto's service pushes a complete slot list to every subscriber, marks `focused` only for the input owner, and neutralises every other subscriber's snapshot (zero axes, `timestamp` 0, no press), which is what the proposal requires and what stops one window's press from being replayed in another. A manager-reported focus change refreshes the service through `KernelContext.focusChanges$`, without waiting for a browser event or animation frame. A refresh also follows a page focus, visibility or connection event, so a window regaining focus gets the current sample, not a replay of presses it missed, and polling stops when nobody is subscribed.
+- **The domain is keyboard-shaped for the guard.** `gamepad.*` is classed `control` (`classifyEnvelope`), like `keys.*`: the envelopes are the person's own input, they carry nothing off the device, and an `unsubscribe` from a hidden window must reach the shell rather than wait to be released.
+- **`gamepad` is a companion domain.** Controller input cannot carry what an applet read to anywhere, so it stays in force for an applet that holds messages (`MESSAGE_COMPANION_DOMAINS`, D-046), as `keys` already does.
+- **The host can take it away.** Leaving out the module or passing `offer: false` to `gamepadModule` composes no service, and no service means `buildShellCapabilities` never lists the domain. Where the page has no `navigator.getGamepads`, the same is true without anyone asking.
+
+**Consequences.** Haptics, raw HID and remapping remain out of scope, as the proposal has them. The prelude subscribes as soon as it builds the API, so an applet that reads controllers holds a subscription for its lifetime; the shell stops the reader when the window ends. A pad that the browser reports under a non-standard mapping is passed through as the browser gives it, so a game should check `mapping` before assuming a layout. kehto's service still supports the older host-only delivery and warns `[FW-GAMEPAD-LEGACY-001]` when the runtime offers no approval step; kernl always configures `permissions`, so the warning is unreachable here. Firefox and Safari were not verified for the proposal, and this decision inherits that.
+
+**Reversal cost.** Low. The domain is one module (`gamepad/controllers.ts`), one line in the service registry, one entry in `DOMAIN_CAPABILITIES` and one in `MESSAGE_COMPANION_DOMAINS`. Removing the registration withdraws the domain; rule 4 keeps the frames denied either way.
+
+## D-075 · Stacked shows one window without closing the rest
+
+**Context.** Main and stack keeps several windows visible. Stacked is for working in one applet at a time without losing the others' state, including when an applet asks the shell to open something in an existing handler.
+
+**Decision.** Register `stacked` after `master-stack`. The layout fills the desktop with the front window; `singleWindow` tells the manager to report the rest as minimised to the shell and hidden to the guard. That visibility is derived, not written over the person's minimise choices. The dock and accepted intents both use the existing focus path, so bringing a handler forward hides the caller without unmounting either frame. An intent brings its handler forward by default or with `focus: true`. With `focus: false`, a reused handler stays where it is and a new handler opens behind the existing windows without taking focus. A connected handler can receive the request without becoming visible. A fresh hidden handler cannot finish its handshake until shown; delivery can expire while it waits. The chooser, guard and recipient checks are unchanged. A stopped applet's window can still be brought forward for its shell controls, but its applet never gets focus.
+
+**Reversal cost.** Remove the registry entry; a remembered `stacked` id falls back to the default layout.

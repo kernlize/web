@@ -23,6 +23,18 @@ The store shows only applets whose required domains this shell offers, and says 
 
 The [preview](../tutorials/run-the-shell.md) has no network. Its store lists its own three applets, shaped as store entries.
 
+## Stacks
+
+People group applets into **stacks**: NIP-51 app curation sets, kind `30267`, one event per `(publisher, d)`. They are how AppStore's "Add to stack" and Recommend hearts are stored, and any client can read them. The launcher's **Stacks** tab lists them and opens the members the person chooses ([D-070](../decisions.md#d-070)).
+
+`kernl.stacks.stream()` (`streamStacks`, `packages/modules/src/stacks/fetch.ts`) asks the same `apps` and `super` tiers for kind `30267` and emits the list as relays answer; `kernl.stacks.load()` resolves with the final one. A signed set becomes an `AppletStack`: an `id` of `<publisher>:<d>`, the `title` (then `name`, then the `d`), its `description`, and its `members`. A member is one `a` tag read as a manifest coordinate — `35129:<pubkey>:<d>` for a named applet, `15129:<pubkey>:` for a root one — with the same catalogue id the intents catalogue uses and any relay hint the tag carried. An `a` tag that names anything else, such as a zapstore app, is not a member.
+
+Sets are addressable, so `newestStacks` keeps the newest version of each and drops one that no longer holds an applet: republishing a set empty is how AppStore deletes it, because napplet shells refuse NIP-09 deletions.
+
+Every applet in a stack is **installed** — recorded so another applet can hand it work — and only the ticked ones are opened ([D-072](../decisions.md#d-072)). The publisher's `start` tags decide which are ticked; a stack without them ticks all of its members, and each applet in the list can also be opened on its own through the ordinary review. An applet that is installed and not open is dormant, and wakes the first time another applet asks it for something, with only its existing grants ([D-073](../decisions.md#d-073)).
+
+Opening a stack looks up every applet in it as if its address had been pasted — verified the same way, one at a time, so one that is gone or unreachable is skipped and counted — and then asks once for the permissions of the applets being opened ([D-071](../decisions.md#d-071)). The combined table groups ordinary grants by domain and asks separately about exceptions to the message seal, each row naming every applet in the stack that asked for it and marking the ones that cannot start without it; switching a row changes only those applets whose switches are available. A mixed row left alone preserves each applet’s previous answer. Only after that answer is anything planned, and each applet is admitted by the firewall in turn before the next is planned. Nothing in a stack is a grant by itself. A running window is brought forward only if it has the same verified artifact and already offers the reviewed domains. Otherwise the shell starts a replacement, keeping any grants or withdrawals made for now through the switch.
+
 ## Installing
 
 Running an applet installs it: `kernl.plan` records the verified applet in `kernl:installed:v1`. `kernl.install(summary)` installs one without opening it and refuses a summary the shell did not verify with `invalid:unresolved`. The installed set (`kernl.intents.installed()`) is what intents resolve against, so the requests an applet takes always come from a manifest the shell verified. **Applets → Yours** lists it; removing an applet there stops other applets handing it work. Grants are separate and stay with the applet's exact build ([Identity and grants](./identity-and-grants.md)).
@@ -41,11 +53,11 @@ The handler is chosen in this order:
 
 When nothing installed can take the request, the chooser opens on the store, narrowed to applets that accept the convention, with any recommendation offered first. The user reviews the applet's grants as for any first run and picks **Use this applet**; the shell installs it and the request goes to it. If the user cancels, the asking applet is told `no handler` (or `user cancelled` when it had handlers to choose from).
 
-Once the request is accepted, the asking applet is told yes and the shell owns delivery. A running handler is reused and brought forward unless the request asked otherwise; otherwise the shell opens it under the grants it already has. `createIntentDelivery` retries until the handler's session is up and holds the receiving grant, then sends `intent.deliver`. If that never happens, the user sees a notice such as "Profiles could not take the request" and why.
+Once the request is accepted, the asking applet is told yes and the shell owns delivery. It reuses a window only if it started with `intent` and its verified manifest declares the requested convention. It brings a reused or newly opened handler forward unless the request specifies `focus: false`. In that case a reused window stays where it is, and a new window opens behind the existing windows without taking focus, in any layout. A new handler opens under its existing grants, and the shell checks that the opened release still declares the convention. Delivery waits for kehto's recipient check to confirm that the target session is live and can receive `intent.deliver`. A fresh hidden window cannot finish its handshake until shown, so the user may need to show it and retry. If delivery expires, the user sees a notice such as "Profiles could not take the request" and why.
 
 ## Receiving is a grant
 
-A handler receives requests only while it holds the `intent` grant, shown as "opening other applets". The store's review offers that switch to every applet that takes requests, switched on at its first run, and to an applet that requires it to ask others. Turning it off in the window's grants stops deliveries to that applet.
+A handler receives requests only while it holds the `intent` grant, shown as "opening other applets". The store's review offers that switch to every applet that takes requests, switched on at its first run, and to an applet that requires it to ask others. Turning it off in the window's grants stops deliveries to that applet. Turning it on does not change a window that started without it: open the handler with the grant and try again.
 
 ## The user's preferred handlers
 
@@ -57,6 +69,5 @@ Preferences are the user's, never an applet's.
 
 ## Limits
 
-- kehto's ACL gives `intent.deliver` no recipient capability, so kehto's recipient-checked send refuses it. kernl delivers over the target's bound port behind its own `intent:read` check, as kehto's reference host does, until kehto maps the delivery ([D-026](../decisions.md#d-026)).
 - Private (encrypted) preference entries are carried over, not read. kehto's default-handler hook takes only the role, so a preference for one request ("edit a profile") ranks the chooser rather than selecting silently.
 - The store lists titles, descriptions and icons as publishers wrote them.

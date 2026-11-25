@@ -7,7 +7,7 @@ Feature: Floor: an applet that reads messages is sealed, whatever modules are lo
   Scenario: the allowlist is fixed
     Given a restrictive kehto ACL state in memory
     And kernl grants over empty storage offering "shell,inc,theme,identity,storage,config,notify,keys,intent,dm,relay,outbox,upload,webrtc,cvm,resource,link"
-    Then the domains that may go with messages are "shell,dm,identity,theme,storage,config,notify,keys,intent"
+    Then the domains that may go with messages are "shell,dm,identity,theme,storage,config,notify,keys,gamepad,intent"
 
   Scenario: a domain the shell has no words for yet is withheld
     Given a restrictive kehto ACL state in memory

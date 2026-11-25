@@ -1,6 +1,6 @@
 # Change the shell's layout
 
-Where the shell puts its windows is decided by a layout: a pure function from the open windows to one rectangle each. The shell offers four, the person steps through them from the bar, and the choice is remembered. This page changes that set: the spacing, which layouts are on offer, and a layout of your own. All of it is in one file, `apps/web/src/shell/windows.ts`.
+Where the shell puts its windows is decided by a layout: a pure function from the open windows to one rectangle each. The shell offers five, the person steps through them from the bar, and the choice is remembered. This page changes that set: the spacing, which layouts are on offer, and a layout of your own. All of it is in one file, `apps/web/src/shell/windows.ts`.
 
 To change more than the arrangement, such as how focus, stacking or minimising work, [write your own window manager](./write-a-window-manager.md) instead.
 
@@ -14,12 +14,13 @@ The bar's layout control shows the layout in use. Each click switches to the nex
 | `dwindle` | tiled | Each window after the first takes half of what is left, splitting into columns, then rows, in turn. |
 | `columns` | columns | Equal-width columns, in opening order. |
 | `master-stack` | main and stack | The front-most window takes six tenths of the width on the left; the rest stack on the right. |
+| `stacked` | stacked | One window fills the desktop. Pick another from the minimise dock to switch without closing or reloading either window. |
 
-The choice is kept under `kernl:layout:v1` as the layout's id ([Persistence](../concepts/persistence.md#keys-the-shell-app-writes)). At 720 px wide or less the layout does not apply: every window fills the desktop ([Layouts](../concepts/layouts.md#narrow-desktops)).
+The choice is kept under `kernl:layout:v1` as the layout's id ([Persistence](../concepts/persistence.md#keys-the-shell-app-writes)). At 720 px wide or less windows fill the desktop in every layout; Stacked still hides every window behind the front one ([Layouts](../concepts/layouts.md#narrow-desktops)).
 
 ## Change the spacing
 
-`createShellLayouts` builds the registry the shell uses. kernl's four layouts take one `LayoutOptions` between them: `gap` is the pixels between windows, and `margin` the pixels between the windows and the desktop edge, which defaults to `gap`. The shell asks for 8 and 0:
+`createShellLayouts` builds the registry the shell uses. kernl's three tiling layouts share `LayoutOptions`: `gap` is the pixels between windows, and `margin` the pixels between the windows and the desktop edge, which defaults to `gap`. The shell asks for 8 and 0:
 
 ```ts
 import { createDefaultLayouts, type LayoutRegistry } from '@kernlize/core/wm';

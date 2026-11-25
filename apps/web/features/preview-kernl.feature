@@ -8,6 +8,12 @@ Feature: The preview kernl
   Background:
     Given a preview kernl
 
+  Scenario: the preview offers sample stacks to open
+    When the preview kernl lists its stacks
+    Then the preview stacks are "basics,live"
+    When the preview kernl streams its stacks
+    Then the preview stacks are "basics,live"
+
   Scenario: a fresh preview is signed out behind a strict guard, with its bridges routed
     Then the preview kernl has no session
     And the preview kernl guard profile is "strict"
@@ -360,6 +366,18 @@ Feature: The preview kernl
     Then the preview kernl frame "n" is answered "yes" with "Profiles is taking it."
     And the preview kernl frame "p" was handed "Notes asked this applet to open a profile."
     And the preview kernl desktop opened nothing and brought the applet in frame "p" forward
+    And the preview kernl user was not asked to choose an applet
+
+  Scenario: a no-focus request reaches its running handler without bringing it forward
+    Given the preview kernl user granted "relay,identity,intent" to "notes"
+    And the preview kernl user granted "intent" to "profiles"
+    When the preview kernl mounts "profiles" in frame "p"
+    And the preview kernl frame "p" posts '{"kernlPreview":"hello"}'
+    And the preview kernl mounts "notes" in frame "n"
+    And the preview kernl frame "n" posts '{"kernlPreview":"intent","text":"abc","focus":false}'
+    Then the preview kernl frame "n" is answered "yes" with "Profiles is taking it."
+    And the preview kernl frame "p" was handed "Notes asked this applet to open a profile."
+    And the preview kernl desktop opened nothing and brought no applet forward
     And the preview kernl user was not asked to choose an applet
 
   Scenario: the user cancels the choice

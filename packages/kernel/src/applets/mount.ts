@@ -32,6 +32,8 @@ export interface MountDeps {
 
 /** An {@link AppletHandle} with the entry point the bridge's revocation hook calls. */
 export interface MountedApplet extends AppletHandle {
+  /** Fixed domains from the environment set at mount, not later grants. */
+  readonly domains: readonly string[];
   /** Mark the applet revoked and remove its frame. Idempotent with `close`. */
   revoked(reason: string, details?: AppletStopDetails): void;
 }
@@ -102,6 +104,7 @@ export function mountApplet(plan: MountPlan, frame: FrameLike, deps: MountDeps):
   return {
     windowId,
     summary: plan.summary,
+    domains: plan.environment.capabilities.domains,
     status$,
     get status() {
       return status$.value;

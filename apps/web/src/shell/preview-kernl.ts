@@ -24,7 +24,7 @@ import {
   type VisibilityGate,
   type WindowVisibility,
 } from '@kernlize/guard';
-import { createKernlMedia, describeAppletMessage, toAskChannel, domainsInForce, grantNarrowingReason, type AppletMessage, type AppletMessageDirection } from '@kernlize/core';
+import { createGrantReviews, createKernlMedia, describeAppletMessage, toAskChannel, domainsInForce, grantNarrowingReason, type AppletMessage, type AppletMessageDirection } from '@kernlize/core';
 import { BehaviorSubject, of, Subject, type Subscription } from 'rxjs';
 import type {
   AppletHandle,
@@ -47,7 +47,7 @@ import type {
 import { abbreviate, shortId } from './contract';
 import { domainLabel } from '@kernlize/ui-model';
 import { createPreviewPeople } from './preview-people';
-import { PREVIEW_CATALOG, PREVIEW_PUBLISHER, renderPreviewApplet, sampleSummary, sealPreviewDocument } from './preview-applet';
+import { PREVIEW_CATALOG, PREVIEW_PUBLISHER, PREVIEW_STACKS, renderPreviewApplet, sampleSummary, sealPreviewDocument } from './preview-applet';
 import { createPreviewBuiltins } from './preview-builtin';
 import { createPreviewConfig, type PreviewConfig } from './preview-config';
 import { PORT_DOMAINS, createPreviewPorts, type PortLike, type PreviewPorts } from './preview-port';
@@ -77,6 +77,7 @@ interface Mounted {
 
 interface PreviewMessage {
   readonly kernlPreview: string;
+  readonly focus?: boolean;
   readonly text?: string;
   readonly url?: string;
 }
@@ -281,7 +282,10 @@ function createActions({ host, bridges, pubkeyOf, intents, config }: ActionParts
         return;
       case 'intent':
         if (needs('intent')) {
-          const request = { sender: entry.plan.summary.manifest.catalogId, archetype: 'profile', action: 'open', payload: { pubkey: text } };
+          const request = {
+            sender: entry.plan.summary.manifest.catalogId, focus: message.focus !== false,
+            archetype: 'profile', action: 'open', payload: { pubkey: text },
+          };
           void intents.invoke(request).then((result) => reply(entry, result.ok, result.text));
         }
         return;
@@ -317,7 +321,7 @@ function previewEnvironment(record: GrantRecord | undefined, showsSettings: bool
  * plans its new window before the old one closes, and what was granted for now must outlive the gap
  * (D-060). As in the core, only the last 16 plans count.
  */
-function trackPlans(grants: Grants, mounted: ReadonlyMap<string, Mounted>): { planned(windowId: string, identity: AppletIdentity): void; mounted(plan: MountPlan): void; ended(plan: MountPlan): void } {
+function trackPlans(grants: Grants, mounted: ReadonlyMap<string, Mounted>): { planned(windowId: string, identity: AppletIdentity): void; mounted(plan: MountPlan): void; forgetIfIdle(identity: AppletIdentity): void } {
   const waiting = new Map<string, string>();
   const keyOf = (identity: AppletIdentity): string => `${identity.dTag}:${identity.hash}`;
   return {
@@ -326,10 +330,10 @@ function trackPlans(grants: Grants, mounted: ReadonlyMap<string, Mounted>): { pl
       for (const oldest of [...waiting.keys()].slice(0, Math.max(0, waiting.size - MAX_PLANNED))) waiting.delete(oldest);
     },
     mounted: (plan) => void waiting.delete(plan.windowId),
-    ended(plan) {
-      const key = keyOf(plan.summary.identity);
+    forgetIfIdle(identity) {
+      const key = keyOf(identity);
       const stillRuns = [...mounted.values()].some((entry) => keyOf(entry.plan.summary.identity) === key) || [...waiting.values()].includes(key);
-      if (!stillRuns) grants.forgetTemporary(plan.summary.identity);
+      if (!stillRuns) grants.forgetTemporary(identity);
     },
   };
 }
@@ -427,6 +431,15 @@ function previewDocument({ summary, shipped, profile, domains, baseline }: Previ
   });
 }
 
+function samplePlan(windowId: string, input: PreviewDocument): MountPlan {
+  const { summary, domains } = input;
+  return {
+    windowId, summary, srcdoc: previewDocument(input), sandbox: 'allow-scripts',
+    environment: { capabilities: { domains }, services: [] },
+    missingRequired: summary.requires.filter((domain) => !domains.includes(domain)),
+  };
+}
+
 /** Requests between the preview's applets, delivered only to a running applet that holds the grant, as the live runtime does. */
 function previewIntentsFor(host: KernlHost, mounted: ReadonlyMap<string, Mounted>, retry: PreviewIntentDeps['retry']): PreviewIntents {
   return createPreviewIntents({
@@ -475,7 +488,22 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
   const pubkey = (): string => session$.value?.pubkey ?? PREVIEW_OWNER;
   const { perform, firewall } = createActions({ host, bridges, pubkeyOf: pubkey, intents, config });
   const plans = trackPlans(grants, mounted);
-  const mountPlan = createMounter(host, guard, mounted, config, plans.ended);
+  const startupDomains = (summary: AppletSummary): readonly string[] => shipped.documentOf(summary) === undefined
+    ? environmentFor(summary) : environmentFor(summary).filter((domain) => PORT_DOMAINS.includes(domain));
+  async function plan(summary: AppletSummary): Promise<MountPlan> {
+    if (grants.get(summary.identity)?.blocked) throw new Error('denied:blocked');
+    intents.intents.record(summary);
+    const baseline = await loadBaselineDomains();
+    const document = shipped.documentOf(summary);
+    // A real applet is offered only what the preview can answer over its port, so nothing it calls hangs.
+    const domains = startupDomains(summary);
+    const result = samplePlan(`preview-${++windowCount}`, { summary, shipped: document, profile: guard.config.profile, domains, baseline });
+    plans.planned(result.windowId, summary.identity);
+    return result;
+  }
+  const reviews = createGrantReviews({ plan, current: (candidate) => mounted.get(candidate.windowId)?.plan === candidate,
+    domains: startupDomains, discardWaiting: plans.mounted, forgetIfIdle: plans.forgetIfIdle });
+  const mountPlan = createMounter(host, guard, mounted, config, (candidate) => reviews.ended(candidate.summary.identity));
   const mount = (plan: MountPlan, frame: FrameLike): AppletHandle => {
     plans.mounted(plan);
     return mountPlan(plan, frame);
@@ -496,6 +524,7 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
     messaging,
     bridges,
     catalog: { load: async () => PREVIEW_CATALOG, stream: () => of(PREVIEW_CATALOG) },
+    stacks: { load: async () => PREVIEW_STACKS, stream: () => of(PREVIEW_STACKS) },
     profiles,
     people: createPreviewPeople(),
     ...createPreviewAccountServices(host.storage),
@@ -539,24 +568,8 @@ export function createPreviewKernl(host: KernlHost, torrent?: TorrentBackend, op
       return summary;
     },
     install: (summary) => intents.intents.record(summary),
-    async plan(summary) {
-      if (grants.get(summary.identity)?.blocked) throw new Error('denied:blocked');
-      intents.intents.record(summary);
-      const baseline = await loadBaselineDomains();
-      const document = shipped.documentOf(summary);
-      // A real applet is offered only what the preview can answer over its port, so nothing it calls hangs.
-      const domains = document === undefined ? environmentFor(summary) : environmentFor(summary).filter((domain) => PORT_DOMAINS.includes(domain));
-      windowCount += 1;
-      plans.planned(`preview-${windowCount}`, summary.identity);
-      return {
-        windowId: `preview-${windowCount}`,
-        summary,
-        srcdoc: previewDocument({ summary, shipped: document, profile: guard.config.profile, domains, baseline }),
-        sandbox: 'allow-scripts',
-        environment: { capabilities: { domains }, services: [] },
-        missingRequired: summary.requires.filter((domain) => !domains.includes(domain)),
-      };
-    },
+    plan,
+    withGrantReview: reviews.withGrantReview,
     mount,
     applets: () => [...mounted.values()].map((entry) => entry.handle),
     handleWindowMessage(event) {

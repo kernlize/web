@@ -7,6 +7,7 @@ function modulesFrom(options: KernlOptions): readonly AnyKernlModule[] {
   return kernlModules({
     ...(isTheme(options.theme) ? { theme: options.theme } : {}),
     ...(options.eventCache ? { eventCache: options.eventCache } : {}),
+    ...(options.controllers ? { controllers: options.controllers } : {}),
     ...(options.shortcuts ? { shortcuts: options.shortcuts } : {}),
     ...(options.intentRetry ? { intentRetry: options.intentRetry } : {}),
     ...(options.bridges ? { bridges: options.bridges } : {}),
@@ -22,7 +23,7 @@ function modulesFrom(options: KernlOptions): readonly AnyKernlModule[] {
  * Compose the shell with kernl's opinions: {@link createKernel} over `kernlModules()` when the
  * host names no modules, built from the options it passes (D-061), or over the modules it names.
  * A host that names its own and wants nothing else bundled imports `createKernel` from
- * `@kernlize/core/kernel` instead.
+ * `@kernlize/kernel` instead.
  *
  * @param options - Host hooks, optional pre-built parts, and kernl's modules' options or the host's own modules.
  * @returns The shell.

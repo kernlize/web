@@ -1,7 +1,7 @@
 {
   "name": "@kernlize/modules",
   "version": "0.1.0",
-  "description": "kernl's modules over the kernel: messaging, bridges, downloads, uploads, the catalog, intents, multiplayer, people, profiles, mailboxes, the relay directory, the event cache, the theme, settings, social actions, keys and the window manager",
+  "description": "kernl's modules over the kernel: messaging, bridges, downloads, uploads, the catalog, stacks, gamepad, intents, multiplayer, people, profiles, mailboxes, the relay directory, the event cache, the theme, settings, social actions, keys and the window manager",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -30,6 +30,10 @@
     "./downloads": {
       "types": "./dist/downloads/index.d.ts",
       "import": "./dist/downloads/index.js"
+    },
+    "./gamepad": {
+      "types": "./dist/gamepad/index.d.ts",
+      "import": "./dist/gamepad/index.js"
     },
     "./intents": {
       "types": "./dist/intents/index.d.ts",
@@ -74,6 +78,10 @@
     "./social": {
       "types": "./dist/social/index.d.ts",
       "import": "./dist/social/index.js"
+    },
+    "./stacks": {
+      "types": "./dist/stacks/index.d.ts",
+      "import": "./dist/stacks/index.js"
     },
     "./theme": {
       "types": "./dist/theme/index.d.ts",
