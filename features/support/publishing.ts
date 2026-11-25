@@ -6,7 +6,7 @@ import { expect } from 'vitest';
 import ts from 'typescript';
 
 const root = resolve(import.meta.dirname, '../..');
-const slugs = ['bridges', 'core', 'guard', 'kernel', 'messaging', 'ui-model'];
+const slugs = ['bridges', 'core', 'guard', 'kernel', 'messaging', 'modules', 'ui-model'];
 const json = (path: string) => JSON.parse(readFileSync(path, 'utf8'));
 
 Given('the publishable workspace packages', () => {
@@ -39,9 +39,10 @@ Then('JSR internal dependencies use the matching workspace versions', () => {
     const internal = Object.keys(json(join(root, 'packages', slug, 'package.json')).dependencies ?? {}).filter((name) => name.startsWith('@kernlize/'));
     for (const name of internal) expect(deno.imports[name]).toBe(`jsr:@kernl/${name.replace('@kernlize/', '')}@^${versionOf(name)}`);
   }
-  expect(json(join(root, '.jsr/core/deno.json')).imports['@kernlize/guard']).toBeDefined();
+  expect(json(join(root, '.jsr/core/deno.json')).imports['@kernlize/kernel']).toBe(`jsr:@kernl/kernel@^${versionOf('@kernlize/kernel')}`);
+  expect(json(join(root, '.jsr/modules/deno.json')).imports['@kernlize/kernel']).toBe(`jsr:@kernl/kernel@^${versionOf('@kernlize/kernel')}`);
   expect(json(join(root, '.jsr/ui-model/deno.json')).imports['@kernlize/core']).toBe(`jsr:@kernl/core@^${versionOf('@kernlize/core')}`);
-  expect(json(join(root, '.jsr/core/deno.json')).imports['rxjs']).toBe('npm:rxjs@7.8.2');
+  expect(json(join(root, '.jsr/modules/deno.json')).imports['rxjs']).toBe('npm:rxjs@7.8.2');
 });
 Then('JSR sources exclude tests and resolve relative TypeScript imports', () => {
   const check = (dir: string) => {
