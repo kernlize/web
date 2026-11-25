@@ -140,12 +140,14 @@ test('findViewModelImports flags any other package importing the view models, an
   expect(findViewModelImports(root)).toEqual(["core/src/index.ts imports @kernlize/ui-model; only a host's UI depends on the view models"]);
 });
 
-test('findPresetImports flags any package importing the preset, and lets the preset import the core', () => {
+test('findPresetImports flags any package importing the preset, except deprecated core, which re-exports it', () => {
   const root = packages({
     'ui-model/package.json': manifest('@kernlize/ui-model'),
     'ui-model/src/index.ts': "import { kernlPreset } from '@kernlize/preset';\n",
-    'preset/package.json': manifest('@kernlize/preset', { private: true }),
-    'preset/src/index.ts': "import { kernlModules } from '@kernlize/core';\n",
+    'preset/package.json': manifest('@kernlize/preset'),
+    'preset/src/index.ts': "import { createKernel } from '@kernlize/kernel';\n",
+    'core/package.json': manifest('@kernlize/core'),
+    'core/src/index.ts': "export * from '@kernlize/preset';\n",
   });
   expect(findPresetImports(root)).toEqual(['ui-model/src/index.ts imports @kernlize/preset; nothing published imports the preset (D-068)']);
 });
