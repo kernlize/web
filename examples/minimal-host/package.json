@@ -1,0 +1,19 @@
+{
+  "name": "kernl-minimal-host",
+  "private": true,
+  "type": "module",
+  "description": "A page with its own UX on kernl's kernel and two of its modules, built from published packages only.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p . && vite build",
+    "serve": "vite preview --host 127.0.0.1 --strictPort"
+  },
+  "dependencies": {
+    "@kernlize/kernel": "0.1.1",
+    "@kernlize/modules": "0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vite": "6.4.2"
+  }
+}
