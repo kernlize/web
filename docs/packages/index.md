@@ -8,7 +8,7 @@ kernl has six packages. Each has two names: `@kernlize/*` on npm and `@kernl/*` 
 | [`@kernlize/messaging`](./messaging.md) | `0.4.1` | `@kernl/messaging` | Messaging provider contract, registry, composite direct-message adapter, in-memory backend. | none | `@napplet/core` (the `Dm*` wire types) |
 | [`@kernlize/bridges`](./bridges.md) | `0.3.0` | `@kernl/bridges` | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy. | none | none |
 | [`@kernlize/kernel`](./kernel.md) | `0.1.0` | `@kernl/kernel` | The floor: applet resolve, plan and mount, the guard pipeline, the firewall, grants, signing consent, secrets, the media player, the module host and the ask channel (D-068). | the three above, `@kehto/*`, `applesauce-*`, `rxjs` | `@napplet/core`, `@napplet/nap` |
-| [`@kernlize/core`](./core.md) | `0.29.0` | `@kernl/core` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts, persistence. | the three above, `@kehto/*`, `applesauce-*`, `rxjs` | `@napplet/core`, `@napplet/nap`, `@napplet/shim`, `nostr-tools` (required by kehto and applesauce; never imported) |
+| [`@kernlize/core`](./core.md) | `0.29.1` | `@kernl/core` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts, persistence. | the three above, `@kehto/*`, `applesauce-*`, `rxjs` | `@napplet/core`, `@napplet/nap`, `@napplet/shim`, `nostr-tools` (required by kehto and applesauce; never imported) |
 | [`@kernlize/ui-model`](./ui-model.md) | `0.2.2` | `@kernl/ui-model` | Framework-free view models for a shell's panels: the grants list today, the ask queues and logs next (#74). | `@kernlize/core` | none |
 
 ## Shared rules
