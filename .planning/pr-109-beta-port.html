@@ -12,8 +12,8 @@
 </head>
 <body><main>
 <header><div class="eyebrow">kernl · Pull request walkthrough</div><h1>What changes in PR #109?</h1><p><strong>Three additions from beta:</strong> install a whole stack without opening every applet, give controllers only to the applet in use, and switch to a single-window Stacked layout without closing the other windows.</p><nav aria-label="Page sections"><a href="#features">Features</a><a href="#correctness">Correctness fixes</a><a href="#verification">Verification</a><a href="#files">File inventory</a><a href="https://github.com/kernlize/web/pull/109/files">GitHub diff ↗</a></nav></header>
-<aside class="notice"><strong>Updated for the kernel package split.</strong><p>This walkthrough describes port revision <code>2bf7e4b</code> against <code>f712475</code>. The port now uses the upstream kernel, preset and UI-model packages. The upstream split itself is not part of this PR.</p></aside>
-<section class="grid stats" aria-label="Patch size"><div class="tile"><strong>98 files</strong>24 new · 74 modified</div><div class="tile"><strong>+4,031 / −238</strong>lines across source, tests and docs</div><div class="tile"><strong>6 changesets</strong>core, guard, kernel and UI-model</div></section>
+<aside class="notice"><strong>Rebased onto the public modules and preset.</strong><p>This walkthrough describes port revision <code>6ad75bd</code> against <code>35abeb0</code>. Stacks and gamepad are part of <code>@kernlize/modules</code> and ship through the public preset. The upstream package split itself is not part of this PR.</p></aside>
+<section class="grid stats" aria-label="Patch size"><div class="tile"><strong>105 files</strong>26 new · 79 modified</div><div class="tile"><strong>+4,067 / −244</strong>lines across source, tests and docs</div><div class="tile"><strong>6 changesets</strong>modules, preset, guard, kernel and UI-model</div></section>
 <section id="features" class="demos"><div class="eyebrow">Try the three changes · interactive mockups</div><h2>See the port in action</h2>
 <article class="demo" id="stack-demo">
  <div class="demo-copy"><span class="num">01</span><h3>Open one. Install three.</h3><p>Pick which applets start. All verified members are installed; only the ones you open get a grant review.</p><p class="demo-hint">Try switching on another applet.</p></div>
@@ -42,8 +42,8 @@
 <article class="tile"><h3>Grants survive the right window</h3><p>A running window is reused only when the same verified artifact started with compatible permissions. If it needs replacing, temporary grant changes stay in force through the mount and are cleared when no window needs them.</p></article>
 <article class="tile"><h3>Mount and route reliably</h3><p>Each new member mounts before the next is admitted, so opening a large stack cannot evict its own waiting plans. Failures are counted without stopping the rest. Intent retries skip windows that lack the receiving domain or convention and keep the recipient checks.</p></article>
 </div><p><strong>Unchanged:</strong> the original <code>beta</code> branch, upstream’s theme broadcasting, and upstream’s typed consent questions are not replaced by this PR. There’s no new dependency or lockfile change in the submitted diff.</p></section>
-<section id="verification"><h2>What was verified</h2><ul><li><strong>3,592 tests passed</strong> with 100% coverage. The package smoke checks passed and slop scored 100.</li><li><strong>205 browser tests passed</strong> across Chromium and Firefox, including no-focus behavior in Stacked and Floating. Four public-network tests were skipped because they require opt-in.</li><li>The JSR dry run was not run locally. See the PR for GitHub CI results.</li></ul></section>
-<section id="files"><h2>Every changed file</h2><p>Expand a group to see the paths. The port’s decisions are D-069–D-074. The inventory compares <code>f712475</code> to <code>2bf7e4b</code> and excludes this walkthrough.</p>
+<section id="verification"><h2>What was verified</h2><ul><li><strong>3,638 tests passed</strong> with 100% coverage. Package smoke checks covered eight tarballs and 40 entry points.</li><li><strong>66 targeted browser tests passed</strong> across Chromium and Firefox. The full browser suite and JSR dry run were not run locally.</li></ul></section>
+<section id="files"><h2>Every changed file</h2><p>Expand a group to see the paths. The port’s decisions are D-070–D-075. The inventory compares <code>35abeb0</code> to <code>6ad75bd</code> and excludes this walkthrough.</p>
 <details><summary>apps/web · 23 files</summary><ul>
 <li><span class="tag">Edit</span> <code>apps/web/features/preview-kernl.feature</code></li>
 <li><span class="tag">Edit</span> <code>apps/web/features/shell-host.feature</code></li>
@@ -69,7 +69,7 @@
 <li><span class="tag">Edit</span> <code>apps/web/src/shell/window-store.svelte.ts</code></li>
 <li><span class="tag">Edit</span> <code>apps/web/src/shell/windows.ts</code></li>
 </ul></details>
-<details><summary>packages/core · 33 files</summary><ul>
+<details><summary>packages/core · 19 files</summary><ul>
 <li><span class="tag">Edit</span> <code>packages/core/features/floor-message-seal.feature</code></li>
 <li><span class="tag">New</span> <code>packages/core/features/gamepad.feature</code></li>
 <li><span class="tag">Edit</span> <code>packages/core/features/grants-for-now.feature</code></li>
@@ -89,20 +89,6 @@
 <li><span class="tag">New</span> <code>packages/core/features/steps/stacks.ts</code></li>
 <li><span class="tag">Edit</span> <code>packages/core/features/steps/window-manager.ts</code></li>
 <li><span class="tag">Edit</span> <code>packages/core/features/window-manager.feature</code></li>
-<li><span class="tag">Edit</span> <code>packages/core/src/core-exports.ts</code></li>
-<li><span class="tag">Edit</span> <code>packages/core/src/create-kernl.ts</code></li>
-<li><span class="tag">New</span> <code>packages/core/src/gamepad/controllers.test.ts</code></li>
-<li><span class="tag">New</span> <code>packages/core/src/gamepad/controllers.ts</code></li>
-<li><span class="tag">Edit</span> <code>packages/core/src/intents/delivery.ts</code></li>
-<li><span class="tag">Edit</span> <code>packages/core/src/kernl-intents.ts</code></li>
-<li><span class="tag">Edit</span> <code>packages/core/src/kernl-members.ts</code></li>
-<li><span class="tag">Edit</span> <code>packages/core/src/modules/default.ts</code></li>
-<li><span class="tag">New</span> <code>packages/core/src/modules/gamepad.ts</code></li>
-<li><span class="tag">New</span> <code>packages/core/src/modules/stacks.ts</code></li>
-<li><span class="tag">New</span> <code>packages/core/src/stacks/fetch.ts</code></li>
-<li><span class="tag">New</span> <code>packages/core/src/stacks/stack.ts</code></li>
-<li><span class="tag">Edit</span> <code>packages/core/src/wm/layout-registry.ts</code></li>
-<li><span class="tag">Edit</span> <code>packages/core/src/wm/window-manager.ts</code></li>
 </ul></details>
 <details><summary>packages/guard · 3 files</summary><ul>
 <li><span class="tag">Edit</span> <code>packages/guard/features/classification.feature</code></li>
@@ -123,9 +109,29 @@
 <li><span class="tag">Edit</span> <code>packages/kernel/src/module-host/module.ts</code></li>
 <li><span class="tag">Edit</span> <code>packages/kernel/src/types.ts</code></li>
 </ul></details>
-<details><summary>packages/preset · 2 files</summary><ul>
+<details><summary>packages/modules · 15 files</summary><ul>
+<li><span class="tag">Edit</span> <code>packages/modules/package.json</code></li>
+<li><span class="tag">New</span> <code>packages/modules/src/gamepad/controllers.test.ts</code></li>
+<li><span class="tag">New</span> <code>packages/modules/src/gamepad/controllers.ts</code></li>
+<li><span class="tag">New</span> <code>packages/modules/src/gamepad/index.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/modules/src/index.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/modules/src/intents/delivery.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/modules/src/kernl-intents.ts</code></li>
+<li><span class="tag">New</span> <code>packages/modules/src/modules/gamepad.ts</code></li>
+<li><span class="tag">New</span> <code>packages/modules/src/modules/stacks.ts</code></li>
+<li><span class="tag">New</span> <code>packages/modules/src/stacks/fetch.ts</code></li>
+<li><span class="tag">New</span> <code>packages/modules/src/stacks/index.ts</code></li>
+<li><span class="tag">New</span> <code>packages/modules/src/stacks/stack.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/modules/src/wm/layout-registry.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/modules/src/wm/window-manager.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/modules/tsup.config.ts</code></li>
+</ul></details>
+<details><summary>packages/preset · 5 files</summary><ul>
 <li><span class="tag">Edit</span> <code>packages/preset/features/preset.feature</code></li>
+<li><span class="tag">Edit</span> <code>packages/preset/src/create-kernl.ts</code></li>
 <li><span class="tag">Edit</span> <code>packages/preset/src/index.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/preset/src/kernl-members.ts</code></li>
+<li><span class="tag">Edit</span> <code>packages/preset/src/modules/default.ts</code></li>
 </ul></details>
 <details><summary>packages/ui-model · 2 files</summary><ul>
 <li><span class="tag">Edit</span> <code>packages/ui-model/src/grants.ts</code></li>
@@ -137,7 +143,7 @@
 <li><span class="tag">Edit</span> <code>tests/e2e/shell-preview.spec.ts</code></li>
 <li><span class="tag">Edit</span> <code>tests/e2e/shell-store.spec.ts</code></li>
 </ul></details>
-<details><summary>docs · 12 files</summary><ul>
+<details><summary>docs · 14 files</summary><ul>
 <li><span class="tag">Edit</span> <code>docs/alpha-status.md</code></li>
 <li><span class="tag">Edit</span> <code>docs/concepts/guard.md</code></li>
 <li><span class="tag">Edit</span> <code>docs/concepts/layouts.md</code></li>
@@ -148,6 +154,8 @@
 <li><span class="tag">Edit</span> <code>docs/how-tos/grant-and-revoke.md</code></li>
 <li><span class="tag">Edit</span> <code>docs/packages/core.md</code></li>
 <li><span class="tag">Edit</span> <code>docs/packages/kernel.md</code></li>
+<li><span class="tag">Edit</span> <code>docs/packages/modules.md</code></li>
+<li><span class="tag">Edit</span> <code>docs/packages/preset.md</code></li>
 <li><span class="tag">Edit</span> <code>docs/packages/ui-model.md</code></li>
 <li><span class="tag">Edit</span> <code>docs/policies/security-posture.md</code></li>
 </ul></details>
@@ -159,6 +167,9 @@
 <li><span class="tag">New</span> <code>.changeset/stack-grant-review.md</code></li>
 <li><span class="tag">New</span> <code>.changeset/stacked-windows.md</code></li>
 <li><span class="tag">Edit</span> <code>DECISIONS.md</code></li>
+</ul></details>
+<details><summary>Build and test configuration · 1 files</summary><ul>
+<li><span class="tag">Edit</span> <code>vitest.config.ts</code></li>
 </ul></details>
 </section><footer><a href="https://github.com/kernlize/web/pull/109">Open PR #109 on GitHub ↗</a></footer></main><script>
 const get = (id) => document.getElementById(id);
