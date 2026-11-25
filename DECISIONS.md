@@ -456,7 +456,7 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 - A Web Lock guards the database. A second tab does not wait for it: `open` rejects `unavailable:locked` and that tab uses IndexedDB.
 - `attachEventCache(store, cache)` writes through `persistEventsToCache` and gives loaders a `cacheRequest` that marks what it returns as from the cache and resolves nothing when the cache fails. A cache is an accelerator, never identity: events read from it go through the store like any other.
 
-**Consequences.** `@kernlize/core` gains `@sqlite.org/sqlite-wasm` (pinned, since its versions are pre-release-shaped) and `applesauce-sqlite`, whose helpers import only `applesauce-core`. The worker is its own build entry, emitted beside the chunk that starts it by URL, and the build fails if it is not. Recovery discards the damaged cache's contents, which relays can serve again; nothing in the cache is the only copy of anything. Two tabs cache in two places. IndexedDB queries narrow by one index and filter the rest in memory, so a broad filter over a large IndexedDB cache reads more than sqlite would. Wiring the cache into `createKernl` is a separate change.
+**Consequences.** `@kernlize/core` gains `@sqlite.org/sqlite-wasm` (pinned, since its versions are pre-release-shaped) and `applesauce-sqlite`, whose helpers import only `applesauce-core`. The worker is its own build entry, emitted beside the chunk that starts it by URL, and the build fails if it is not. Recovery discards the damaged cache's contents, which relays can serve again; nothing in the cache is the only copy of anything. Two tabs cache in two places. IndexedDB queries narrow by one index and filter the rest in memory, so a broad filter over a large IndexedDB cache reads more than sqlite would. The cache module wires it into `createKernl`; the separate Outbox cache is described in D-069.
 
 **Reversal cost.** Low. The cache is additive behind one contract; dropping an adapter from `defaultWebCacheAdapters` changes the order, and not attaching a cache returns the shell to memory only.
 
@@ -1143,3 +1143,15 @@ This supersedes D-004's package list.
 **Consequences.** A host installs the floor and only the opinions it wants. kernl.run's preview and live shell share one implementation. Every module change names the package it touches.
 
 **Reversal cost.** High once published. Before the flip to public, moderate: the packages are internal.
+
+## D-069 · Approved Outbox reads can replay scoped public tree observations
+
+**Context.** The shell event cache (D-030) accelerates replaceable lookups and the catalogue. An Outbox read has a different authority: kehto plans the relays for an applet and runs the read only after approval (D-056). The event alone does not tell the shell which relay supplied it. kehto’s planned Outbox query attaches the plan’s relay URLs, not the relay that actually supplied each event. Replaying the shell’s event cache or persisting those query hints would erase that distinction.
+
+**Decision.** When the cache module has an opener, the Outbox service keeps a separate, bounded cache of verified tree events observed on a small allowlist of public relays. The observation belongs to the verified applet artifact and the shell’s current identity, and is only replayed after an approved read whose filters and plan still match. Replay never invents relay hints. Drafts and events from other relays do not enter this cache. A verified deletion observed on a live subscription invalidates matching cached tree events; the deletion itself is not replayed. A deletion that names its author’s allowlisted tree address may arrive before its target. An ID-only deletion with no retained target stays live-only.
+
+A subscription replays before opening its approved relays and suppresses duplicate deliveries unless a live event adds a relay hint. A one-shot query still waits for the relay result and preserves its status, but merges in matching cached events. It checks cached matches just before merging so a deletion observed while the query waited is not ignored. One-shot query results do not populate the cache. Closing or revoking a subscription also retires pending replay. There is no new applet capability or wire format.
+
+**Consequences.** Applets can keep using `outbox.subscribe` and `outbox.query` unchanged. A subscription can render before its relays respond; a view that waits for a one-shot query before subscribing still waits. The web shell uses tab-local session storage, or page memory when that is unavailable. A reload can reuse the cache in the same tab; independent tabs do not share updates. The cache is not an offline archive: stored observations expire and the relays are still asked on every read.
+
+**Reversal cost.** Low. Remove the optional Outbox cache wiring; the kehto router and the D-030 cache still work independently.
