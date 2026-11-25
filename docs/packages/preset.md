@@ -70,10 +70,10 @@ await kernl.catalog.load(); // the samples, from their publisher
 | Seeded events | Each sample's signed manifest, the publisher's profile and Ada's and Grace's profiles | Published events |
 | `fetchBlob` | Each sample's bytes, found by the hash its manifest names. The kernel verifies them, so tampered bytes are refused | Blob servers |
 | `artifactCache` | None | Cache Storage |
-| Messages | `private` and `legacy` over memory backends. Ada and Grace have already written, and each send is answered after 900 ms | The identity's relays |
+| Messages | `private` and `legacy` over memory backends. Ada and Grace have already written, and each send is answered after 900 ms. `ratchet` and `group` run their real backends over the page's relays | The identity's relays |
 | Downloads | A `fetch` that answers each program's check, version `preview`, and refuses everything else | The person's programs |
 | Bridges, tool search | Web pages, Blossom blobs and tool searches are refused as `unavailable:preview`. Magnet links go to the host's `openLink`, or to the `torrent` engine it passes | The web |
 
-The preview leaves out the keys module, so it offers no keyboard shortcuts ([D-054](../decisions.md#d-054)). It also offers no `upload` domain, since every file server is on the network. Messages need a signed-in identity that can encrypt, such as `createThrowawayIdentity()`.
+The preview leaves out the keys module, so it offers no keyboard shortcuts ([D-054](../decisions.md#d-054)). It also offers no `upload` domain, since every file server is on the network, and no `webrtc` domain, since a peer connection reaches STUN and TURN servers. Messages need a signed-in identity that can encrypt, such as `createThrowawayIdentity()`.
 
 [API reference](../api/modules/_kernlize_preset.html){target="_self"}

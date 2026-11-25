@@ -98,6 +98,26 @@ Feature: The preview runs the real kernel over parts that live in the page
   Scenario: The preview offers no uploads, since every file server is on the network
     Then the shell offers no "upload" domain
 
+  Scenario: The preview offers no direct connections, even where the page can make them
+    Given a page that can make peer connections
+    And a shell composed from that preview, signed in with a throwaway identity
+    Then the shell offers no "webrtc" domain
+    And the preview offers the "cvm" domain
+
+  Scenario: History keeps the host's clock
+    Given a preview whose clock reads 1800000000
+    And a shell composed from that preview, signed in with a throwaway identity
+    Then Ada's lines arrived at 1799999400 and 1799999460, and Grace's at 1799992800
+
+  Scenario Outline: A provider the person switches on runs over the page's relays
+    When the person switches on "<provider>" and reads its conversations
+    Then it has no conversations, and nothing reached the network
+
+    Examples:
+      | provider |
+      | ratchet  |
+      | group    |
+
   Scenario: A host passes the samples as the build ships them
     Given a preview built from a shipped samples listing with its publisher's profile
     And a shell composed from that preview, signed in with a throwaway identity

@@ -4,7 +4,7 @@ import type { NostrEvent } from 'applesauce-core/helpers';
 import type { BridgeRegistry, TorrentBackend } from '@kernlize/bridges';
 import type { KernelBaseOptions, KernlHost, KernlModule, SettingsPrompt } from '@kernlize/kernel';
 import { type AccountFileServers, type KernlMultiplayer, cacheModule, catalogModule, directoryModule, downloadsModule, intentsModule, mailboxesModule, messagingModule, peopleModule, profilesModule, settingsModule, socialModule, themeModule } from '@kernlize/modules';
-import { ratchet } from '@kernlize/modules/messaging/ratchet';
+import { createRatchetMessagesBackend, ratchet } from '@kernlize/modules/messaging/ratchet';
 import { groups } from '@kernlize/modules/messaging/groups';
 import { createMemoryRelays, type MemoryRelays } from '../memory-relays.js';
 import { CORRESPONDENT_PROFILES, correspondentProviders } from './correspondents.js';
@@ -82,6 +82,8 @@ export interface PreviewPreset {
 }
 
 const REPLY_DELAY_MS = 900;
+/** The page's relays answer at once, so the ratchet need not wait the library's 10 s for an identity's devices. */
+const RATCHET_DISCOVERY = Object.freeze({ fetchMs: 500, fastMs: 100 });
 const seconds = (): number => Math.floor(Date.now() / 1000);
 const hashOf = (manifest: NostrEvent): string | undefined => manifest.tags.find((tag) => tag[0] === 'x')?.[1];
 
@@ -102,7 +104,7 @@ function previewModules(options: PreviewPresetOptions): PreviewModules {
     profilesModule(),
     peopleModule(),
     socialModule(),
-    messagingModule({ providers: [...correspondentProviders(clock), ratchet(), groups()] }),
+    messagingModule({ providers: [...correspondentProviders(clock), { ...ratchet(), backend: (parts) => createRatchetMessagesBackend({ ...parts, discoveryTimeouts: RATCHET_DISCOVERY }) }, groups()] }),
     directoryModule(),
     mailboxesModule(),
     offlineFilesModule(),

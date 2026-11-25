@@ -76,10 +76,11 @@ export function offlineFilesModule(): KernlModule<'files', AccountFileServers> {
 }
 
 /**
- * Remote tools and direct connections over the page's relays, where a search for tool families,
- * which would fetch from the web, says it is offline.
+ * Remote tools over the page's relays, where a search for tool families, which would fetch from
+ * the web, says it is offline. Direct connections are left out: a peer connection reaches the
+ * person's STUN and TURN helpers whatever relays introduce it.
  *
- * @returns The `multiplayer` module.
+ * @returns The `multiplayer` module, offering `cvm` and not `webrtc`.
  */
 export function offlineMultiplayerModule(): KernlModule<'multiplayer', KernlMultiplayer> {
   const multiplayer = multiplayerModule();
@@ -87,7 +88,8 @@ export function offlineMultiplayerModule(): KernlModule<'multiplayer', KernlMult
     ...multiplayer,
     setup(context) {
       const instance = multiplayer.setup(context);
-      return { ...instance, api: { ...(instance.api as KernlMultiplayer), discover: () => Promise.reject(new Error(OFFLINE)) } };
+      const { webrtc: _direct, ...services } = instance.services as NonNullable<typeof instance.services>;
+      return { ...instance, services, api: { ...(instance.api as KernlMultiplayer), discover: () => Promise.reject(new Error(OFFLINE)) } };
     },
   };
 }

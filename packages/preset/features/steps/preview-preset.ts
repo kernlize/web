@@ -23,6 +23,7 @@ interface PreviewWorld {
   toolSearch?: string;
   sent: number;
   listing?: ShippedSamples;
+  clock?: number;
   opened: string[];
   engine: string[];
 }
@@ -55,7 +56,7 @@ async function prepare(world: PreviewWorld, served: (name: string, html: string)
   world.calls = { fetch: 0, webSocket: 0, caches: 0 };
   world.sent = 0;
   const samples = [...world.samples].map(([name, { manifest, html }]) => ({ manifest, bytes: served(name, html) }));
-  world.preview = previewPreset({ samples, seed: [await publisherProfile()], replyDelayMs: 900 });
+  world.preview = previewPreset({ samples, seed: [await publisherProfile()], replyDelayMs: 900, ...(world.clock === undefined ? {} : { now: () => world.clock as number }) });
 }
 
 Given('a preview with two signed samples, {string} and {string}', async (world: PreviewWorld) => {
@@ -306,6 +307,7 @@ Then('the preview\'s host was asked to open {string}', (world: PreviewWorld, url
 });
 
 Given('a preview with a torrent engine of the host\'s own', async (world: PreviewWorld) => {
+  world.kernl?.destroy();
   await prepare(world);
   world.engine = [];
   world.preview = previewPreset({ torrent: { add: async (infoHash) => (world.engine.push(infoHash), { id: 'job', name: 'sample' }) } });
@@ -317,6 +319,7 @@ Then('the host\'s engine took it and the host was asked to open nothing', (world
 });
 
 Given('a preview given nothing', async (world: PreviewWorld) => {
+  world.kernl?.destroy();
   await prepare(world);
   world.preview = previewPreset();
 });
@@ -328,4 +331,38 @@ Then('the store lists nothing', (world: PreviewWorld) => {
 Then('Ada and Grace have names', async (world: PreviewWorld) => {
   const names = await Promise.all([PREVIEW_CORRESPONDENTS.ada, PREVIEW_CORRESPONDENTS.grace].map(async (pubkey) => (await shell(world).profiles.settled(pubkey)).name));
   expect(names).toEqual(['Ada', 'Grace']);
+});
+
+Given('a page that can make peer connections', (world: PreviewWorld) => {
+  world.kernl?.destroy();
+  vi.stubGlobal('RTCPeerConnection', function RTCPeerConnection() {
+    throw new Error('the page made a peer connection');
+  });
+});
+
+Then('the preview offers the {string} domain', (world: PreviewWorld, domain: string) => {
+  expect(shell(world).grants.availableDomains()).toContain(domain);
+});
+
+Given('a preview whose clock reads {int}', async (world: PreviewWorld, now: number) => {
+  world.kernl?.destroy();
+  world.clock = now;
+  await prepare(world);
+});
+
+Then('Ada\'s lines arrived at {int} and {int}, and Grace\'s at {int}', async (world: PreviewWorld, first: number, second: number, grace: number) => {
+  expect((await historyOf(world, 'private')).map((line) => line.createdAt)).toEqual([first, second]);
+  expect((await historyOf(world, 'legacy')).map((line) => line.createdAt)).toEqual([grace]);
+});
+
+When('the person switches on {string} and reads its conversations', async (world: PreviewWorld, provider: string) => {
+  shell(world).messaging.enable(provider);
+  const { conversations } = await shell(world).messaging.composite().conversations({});
+  world.checked = String(conversations.filter((conversation) => conversation.id.startsWith(`${provider}:`)).length);
+  await settle(500);
+});
+
+Then('it has no conversations, and nothing reached the network', (world: PreviewWorld) => {
+  expect(world.checked).toBe('0');
+  expect(world.calls).toEqual({ fetch: 0, webSocket: 0, caches: 0 });
 });
