@@ -75,7 +75,7 @@ A domain no loaded module answers is never offered. An applet that requires it p
 | `settings` | `config` is not offered. |
 | `catalog` | There is no store; applets open from their addresses or as builtins. |
 | `intents` | Applets cannot hand each other work, and nothing is installed. |
-| `bridges` | The shell fetches nothing for applets through a bridge. |
+| `bridges` | `resource` is not offered: the shell fetches nothing for applets, though the kernel answers the domain when the module is loaded. |
 | `downloads` | Applets cannot work through the person's download programs. |
 | `multiplayer` | No remote tools, no direct connections. |
 | `cache` | Events are kept in memory only. |
