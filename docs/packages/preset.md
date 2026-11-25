@@ -35,4 +35,16 @@ kernl.messaging.list().map((entry) => entry.provider.id); // ['private', 'legacy
 
 `kernlPreset(options)` names kernl.run's sixteen modules in setup order and hands each one its options. `createKernl({ host })` with no `modules` composes the same list from the options it is given.
 
+## Relays that live in the page
+
+`createMemoryRelays()` gives the real `RelayPool` a WebSocket that never leaves memory, so kernl's preview can run the kernel with no network. The relays answer as NIP-01 relays do, from one store that every URL shares.
+
+```ts
+import { RelayPool } from 'applesauce-relay';
+import { createMemoryRelays } from '@kernlize/preset';
+
+const relays = createMemoryRelays({ refusing: ['wss://refuse.example'] });
+const pool = new RelayPool({ WebSocket: relays.WebSocket });
+```
+
 [API reference](../api/modules/_kernlize_preset.html){target="_self"}

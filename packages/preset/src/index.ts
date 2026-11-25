@@ -10,6 +10,8 @@ export { createKernl } from './create-kernl.js';
 export { kernlModules } from './modules/default.js';
 export type { Kernl, KernlMembers, KernlModuleOptionKeys, KernlModuleOptions, KernlOptions, ModuleMembers } from './kernl-members.js';
 
+export { createMemoryRelays, type MemoryRelays, type MemoryRelaysOptions, type RelaySocketConstructor } from './memory-relays.js';
+
 /** The options kernl's own modules take, as `kernlModules` reads them. */
 export type KernlPresetOptions = NonNullable<Parameters<typeof kernlModules>[0]>;
 
