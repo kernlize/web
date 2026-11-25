@@ -199,7 +199,7 @@ To build on kernl's manager instead of starting over, call `createWindowManager(
 
 ## Outside the shell
 
-`WindowManager` and `createWindowManager` are exported from `@kernlize/core/wm`, and need nothing from the shell app. A page that [embeds the core](./embed-kernl-core.md) and shows more than one applet can use kernl's manager for placement and reporting, and draw the windows its own way:
+`WindowManager` and `createWindowManager` are exported from `@kernlize/core/wm`, and need nothing from the shell app. A page [with its own UX](../tutorials/build-a-shell.md) and shows more than one applet can use kernl's manager for placement and reporting, and draw the windows its own way:
 
 ```ts
 import { createWindowManager, type Rect } from '@kernlize/core/wm';

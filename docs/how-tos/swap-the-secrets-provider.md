@@ -105,5 +105,5 @@ Stop the keeper and reload: the connection should be listed in `locked` and mark
 
 - [Secrets](../concepts/secrets.md)
 - [Connect a program](./connect-a-download-program.md)
-- [Embed kernl core](./embed-kernl-core.md)
+- [Build a shell with your own UX](../tutorials/build-a-shell.md)
 - [Error reasons](../reference/errors.md#download-programs)
