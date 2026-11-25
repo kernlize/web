@@ -199,6 +199,9 @@ importers:
       '@kernlize/modules':
         specifier: workspace:^
         version: link:../modules
+      '@kernlize/preset':
+        specifier: workspace:^
+        version: link:../preset
       '@napplet/core':
         specifier: '>=0.41.0 <0.42.0'
         version: 0.41.0
@@ -495,9 +498,21 @@ importers:
 
   packages/preset:
     dependencies:
-      '@kernlize/core':
+      '@kernlize/bridges':
         specifier: workspace:^
-        version: link:../core
+        version: link:../bridges
+      '@kernlize/kernel':
+        specifier: workspace:^
+        version: link:../kernel
+      '@kernlize/messaging':
+        specifier: workspace:^
+        version: link:../messaging
+      '@kernlize/modules':
+        specifier: workspace:^
+        version: link:../modules
+      '@napplet/nap':
+        specifier: '>=0.37.0 <0.41.0'
+        version: 0.40.0(typescript@5.9.3)
     devDependencies:
       quickpickle:
         specifier: ^1.11.2

@@ -60,7 +60,8 @@
     "@kernlize/bridges": "workspace:^",
     "@kernlize/kernel": "workspace:^",
     "@kernlize/messaging": "workspace:^",
-    "@kernlize/modules": "workspace:^"
+    "@kernlize/modules": "workspace:^",
+    "@kernlize/preset": "workspace:^"
   },
   "peerDependencies": {
     "@napplet/core": ">=0.41.0 <0.42.0",
