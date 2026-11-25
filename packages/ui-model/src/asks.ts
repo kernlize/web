@@ -1,5 +1,5 @@
 import { BehaviorSubject, distinctUntilChanged, map, type Observable } from 'rxjs';
-import { ASK_KINDS, ASK_REFUSALS, type Ask, type AskAnswer, type AskKind, type AskRenderer, type AskRenderers } from '@kernlize/core/asks';
+import { ASK_KINDS, ASK_REFUSALS, type Ask, type AskAnswer, type AskKind, type AskRenderer, type AskRenderers } from '@kernlize/kernel/asks';
 
 interface Waiting<K extends AskKind> {
   readonly ask: Ask<K>;

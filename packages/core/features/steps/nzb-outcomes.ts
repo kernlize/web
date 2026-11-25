@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { Then, type DataTable } from 'quickpickle';
-import { readNzbDocument } from '../../src/downloads/nzb-service.js';
+import { readNzbDocument } from '../../../modules/src/downloads/nzb-service.js';
 import { nzbDocument } from './nzb-documents.js';
 import { answered, everythingSent, jobId, jobOf, lastJobs, nzb, pause, setup, until, type Wire } from './nzb-world.js';
 import { scratch, type CoreWorld } from './world.js';

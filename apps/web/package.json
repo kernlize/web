@@ -18,6 +18,7 @@
     "@kernlize/guard": "workspace:^",
     "@kernlize/kernel": "workspace:^",
     "@kernlize/messaging": "workspace:^",
+    "@kernlize/modules": "workspace:^",
     "@kernlize/preset": "workspace:^",
     "@kernlize/ui-model": "workspace:^",
     "applesauce-accounts": "^7.1.0",

@@ -14,6 +14,15 @@ Feature: What a host bundles
     And the bundle holds no code from "nostr-double-ratchet"
     And the bundle holds no code from "@internet-privacy/marmot-ts"
 
+  Scenario: a host that lists one module from its own entry bundles no other module's library
+    Given a host that composes the kernel with the theme module from its entry
+    When the host is bundled for the browser from the built packages
+    Then the bundle holds no code from "nostr-double-ratchet"
+    And the bundle holds no code from "@internet-privacy/marmot-ts"
+    And the bundle holds no code from "@sqlite.org/sqlite-wasm"
+    And the bundle holds no code from "blossom-client-sdk"
+    And the bundler reads under 10 KB of the modules' built code
+
   Scenario: a host that lists only private messages bundles neither the ratchet nor the group library
     Given a host that composes the kernel with messages over "private"
     When the host is bundled for the browser from the built packages
