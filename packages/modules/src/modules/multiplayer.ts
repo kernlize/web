@@ -4,13 +4,12 @@ import { createWindowIdentities } from '../multiplayer/window-identities.js';
 import { createDirectConnectionsService } from '../multiplayer/direct-connections.js';
 import { createRemoteToolsService, mergeFamilies } from '../multiplayer/remote-tools.js';
 import type { KernlMultiplayer } from '../multiplayer/types.js';
-import type { KernlOptions } from '../kernl-members.js';
-import type { KernlModule } from '@kernlize/kernel';
+import type { DirectConnectionsSettings, KernlModule, RemoteToolsSettings } from '@kernlize/kernel';
 
 /** What the host sets for remote tools and direct connections. */
 export interface MultiplayerModuleOptions {
-  readonly remoteTools?: KernlOptions['remoteTools'];
-  readonly directConnections?: KernlOptions['directConnections'];
+  readonly remoteTools?: RemoteToolsSettings;
+  readonly directConnections?: DirectConnectionsSettings;
 }
 
 /**

@@ -27,7 +27,7 @@ const CORRUPTION = /SQLITE_CORRUPT|SQLITE_NOTADB|database disk image is malforme
  * @returns True for `SQLITE_CORRUPT`, `SQLITE_NOTADB` and their messages.
  * @example
  * ```ts
- * import { isCorruptionError } from '@kernlize/core/cache';
+ * import { isCorruptionError } from '@kernlize/modules/cache';
  *
  * isCorruptionError(new Error('SQLITE_CORRUPT: database disk image is malformed')); // true
  * isCorruptionError(new Error('SQLITE_BUSY: database is locked')); // false

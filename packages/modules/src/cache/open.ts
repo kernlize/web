@@ -12,7 +12,7 @@ import type { EventCache, EventCacheAdapter, OpenEventCacheOptions } from './typ
  * @returns The `memory` adapter.
  * @example
  * ```ts
- * import { createMemoryCacheAdapter } from '@kernlize/core/cache';
+ * import { createMemoryCacheAdapter } from '@kernlize/modules/cache';
  *
  * const cache = await createMemoryCacheAdapter().open();
  * cache.name; // 'memory'
@@ -34,7 +34,7 @@ const reasonOf = (error: unknown): string => (error instanceof Error ? error.mes
  * @returns The opened cache.
  * @example
  * ```ts
- * import { defaultWebCacheAdapters, openEventCache } from '@kernlize/core/cache';
+ * import { defaultWebCacheAdapters, openEventCache } from '@kernlize/modules/cache';
  *
  * const cache = await openEventCache(defaultWebCacheAdapters(), {
  *   onFallback: (name, reason) => console.info(`${name} cache skipped: ${reason}`),
@@ -58,7 +58,7 @@ export async function openEventCache(adapters: readonly EventCacheAdapter[], opt
  * @returns `[sqlite-opfs, indexeddb, memory]` with their default options.
  * @example
  * ```ts
- * import { defaultWebCacheAdapters, openEventCache } from '@kernlize/core/cache';
+ * import { defaultWebCacheAdapters, openEventCache } from '@kernlize/modules/cache';
  *
  * const cache = await openEventCache(defaultWebCacheAdapters());
  * ```

@@ -5,8 +5,9 @@
  * @packageDocumentation
  */
 export * from '@kernlize/kernel';
+export * from '@kernlize/modules';
 export * from './core-exports.js';
 export { createKernl } from './create-kernl.js';
 export { kernlModules } from './modules/default.js';
-export { ratchet, createRatchetMessagesBackend, type RatchetMessagingOptions } from './messaging/ratchet/index.js';
-export { groups, createGroupMessagesBackend, type GroupMessagingOptions } from './messaging/groups/index.js';
+export { ratchet, createRatchetMessagesBackend, type RatchetMessagingOptions } from '@kernlize/modules/messaging/ratchet';
+export { groups, createGroupMessagesBackend, type GroupMessagingOptions } from '@kernlize/modules/messaging/groups';

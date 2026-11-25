@@ -77,7 +77,7 @@ function isDeletedBy(event: NostrEvent, deletions: readonly NostrEvent[]): boole
  * @returns An {@link EventCache} over `records`.
  * @example
  * ```ts
- * import { createEventCache, type EventRecords } from '@kernlize/core/cache';
+ * import { createEventCache, type EventRecords } from '@kernlize/modules/cache';
  *
  * declare const records: EventRecords;
  * const cache = createEventCache('custom', records);

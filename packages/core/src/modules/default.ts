@@ -1,27 +1,9 @@
 import type { Theme } from '@napplet/nap/theme/types';
-import type { EventCacheOpener } from '../cache/connect.js';
-import { cacheModule } from './cache.js';
-import { directoryModule } from './directory.js';
-import { filesModule } from './files.js';
-import { catalogModule } from './catalog.js';
-import { keysModule } from './keys.js';
-import { intentsModule } from './intents.js';
-import { bridgesModule } from './bridges.js';
-import { downloadsModule } from './downloads.js';
-import { multiplayerModule, type MultiplayerModuleOptions } from './multiplayer.js';
-import { messagingModule, type MessagingModuleOptions } from './messaging.js';
-import { legacyDm, privateDm } from '../messaging/providers.js';
-import { ratchet } from '../messaging/ratchet/index.js';
-import { groups } from '../messaging/groups/index.js';
+import { cacheModule, directoryModule, filesModule, catalogModule, keysModule, intentsModule, bridgesModule, downloadsModule, multiplayerModule, messagingModule, legacyDm, privateDm, settingsModule, mailboxesModule, peopleModule, profilesModule, socialModule, themeModule, type EventCacheOpener, type MultiplayerModuleOptions, type MessagingModuleOptions, type ShortcutSettings } from '@kernlize/modules';
+import { ratchet } from '@kernlize/modules/messaging/ratchet';
+import { groups } from '@kernlize/modules/messaging/groups';
 import type { DownloadsOptions, SettingsPrompt } from '@kernlize/kernel';
 import type { BridgeRegistry, TorrentBackend } from '@kernlize/bridges';
-import type { ShortcutSettings } from '../keys/shortcuts.js';
-import { settingsModule } from './settings.js';
-import { mailboxesModule } from './mailboxes.js';
-import { peopleModule } from './people.js';
-import { profilesModule } from './profiles.js';
-import { socialModule } from './social.js';
-import { themeModule } from './theme.js';
 
 /**
  * kernl's own module list, which `createKernl` loads when a host names none (D-061). A host that

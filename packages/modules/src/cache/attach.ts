@@ -17,7 +17,7 @@ import type { AttachedEventCache, AttachEventCacheOptions, EventCache } from './
  * @example
  * ```ts
  * import { EventStore } from 'applesauce-core';
- * import { attachEventCache, createMemoryCacheAdapter } from '@kernlize/core/cache';
+ * import { attachEventCache, createMemoryCacheAdapter } from '@kernlize/modules/cache';
  *
  * const store = new EventStore();
  * const attached = attachEventCache(store, await createMemoryCacheAdapter().open());

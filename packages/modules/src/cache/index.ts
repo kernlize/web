@@ -1,7 +1,7 @@
 /**
- * The event cache, on its own: `@kernlize/core/cache` loads none of the network stack, and sqlite-wasm is
+ * The event cache, on its own: `@kernlize/modules/cache` loads none of the network stack, and sqlite-wasm is
  * loaded only inside the worker the sqlite adapter starts. Everything here is also exported from
- * `@kernlize/core`.
+ * `@kernlize/modules`.
  */
 export type {
   AttachedEventCache,

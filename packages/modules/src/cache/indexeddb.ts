@@ -78,7 +78,7 @@ function indexedDbRecords(db: IDBDatabase): EventRecords {
  * @returns The `indexeddb` adapter. Its `open` rejects `unavailable:indexeddb` when there is no factory or it refuses.
  * @example
  * ```ts
- * import { createIndexedDbCacheAdapter, openEventCache } from '@kernlize/core/cache';
+ * import { createIndexedDbCacheAdapter, openEventCache } from '@kernlize/modules/cache';
  *
  * const cache = await openEventCache([createIndexedDbCacheAdapter({ name: 'my-shell-events' })]);
  * ```

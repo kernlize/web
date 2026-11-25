@@ -14,7 +14,7 @@ import type { EventCache } from './types.js';
  * @example
  * ```ts
  * import { EventMemory } from 'applesauce-core/event-store';
- * import { fromEventDatabase } from '@kernlize/core/cache';
+ * import { fromEventDatabase } from '@kernlize/modules/cache';
  *
  * const cache = fromEventDatabase('memory', new EventMemory());
  * await cache.add([]);

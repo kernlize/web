@@ -1,6 +1,6 @@
 /**
- * Layouts and the window manager, on their own: `@kernlize/core/wm` loads none of the network stack, so a
- * shell can import it before the core itself. Everything here is also exported from `@kernlize/core`.
+ * Layouts and the window manager, on their own: `@kernlize/modules/wm` loads none of the network stack, so a
+ * shell can import it before the core itself. Everything here is also exported from `@kernlize/modules`.
  */
 export type { LayoutStrategy, Rect, WindowPlacement, WindowState } from '@kehto/wm';
 export { createColumnsLayout, createDwindleLayout, createMasterStackLayout, floatingLayout, type LayoutOptions, type MasterStackOptions } from './layouts.js';

@@ -146,7 +146,7 @@ async function openSqliteCache(session: Session, release: () => void) {
  *   `unavailable:corrupt` or `unavailable:sqlite (…)`.
  * @example
  * ```ts
- * import { createSqliteOpfsCacheAdapter, openEventCache } from '@kernlize/core/cache';
+ * import { createSqliteOpfsCacheAdapter, openEventCache } from '@kernlize/modules/cache';
  *
  * const cache = await openEventCache([
  *   createSqliteOpfsCacheAdapter({ onRecover: ({ action, reason }) => console.warn(`event cache ${action}: ${reason}`) }),

@@ -12,13 +12,13 @@ export { createRatchetMessagesBackend, type RatchetMessagingOptions } from '../r
 
 /**
  * Messages with forward secrecy for the messaging module. Its library is loaded only by a shell
- * that lists this provider, so it is imported from `@kernlize/core/messaging/ratchet`.
+ * that lists this provider, so it is imported from `@kernlize/modules/messaging/ratchet`.
  *
  * @param options - A backend to run instead of kernl's own.
  * @returns The `ratchet` provider.
  * @example
  * ```ts
- * import { ratchet } from '@kernlize/core/messaging/ratchet';
+ * import { ratchet } from '@kernlize/modules/messaging/ratchet';
  * messagingModule({ providers: [privateDm(), ratchet()] });
  * ```
  */
