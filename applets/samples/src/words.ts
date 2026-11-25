@@ -6,6 +6,7 @@ import { SECRET_SETTINGS } from './actions.js';
  */
 const LABELS: Readonly<Record<string, string>> = {
   relay: 'network',
+  outbox: 'posting to your network',
   identity: 'your identity',
   storage: 'its own storage',
   config: 'its settings',

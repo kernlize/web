@@ -13,13 +13,13 @@ export interface Action {
 }
 
 export const ACTIONS: readonly Action[] = [
-  { id: 'publish', label: 'Publish a note', hint: 'routine: goes out without a prompt', domain: 'relay' },
-  { id: 'profile', label: 'Update your profile', hint: 'asks you first: it replaces your profile', domain: 'relay' },
-  { id: 'delete', label: 'Delete a note', hint: 'asks you first: it cannot be undone', domain: 'relay' },
+  { id: 'publish', label: 'Publish a note', hint: 'routine: goes out without a prompt', domain: 'outbox' },
+  { id: 'profile', label: 'Update your profile', hint: 'asks you first: it replaces your profile', domain: 'outbox' },
+  { id: 'delete', label: 'Delete a note', hint: 'asks you first: it cannot be undone', domain: 'outbox' },
   { id: 'notify', label: 'Send a notification', hint: 'needs the notifications grant', domain: 'notify' },
   { id: 'settings', label: 'Open its settings', hint: 'the shell draws the form; only this applet reads it', domain: 'config' },
   { id: 'intent', label: 'Open a profile', hint: 'another applet shows it; the shell asks which', domain: 'intent' },
-  { id: 'flood', label: 'Flood the shell', hint: '40 network reads at once; watch the guard', domain: 'relay' },
+  { id: 'flood', label: 'Flood the shell', hint: '40 network reads at once; watch the guard', domain: 'outbox' },
   {
     id: 'download',
     label: 'Download a shared file',
@@ -30,14 +30,14 @@ export const ACTIONS: readonly Action[] = [
 ];
 
 export const EXTRA_ACTIONS: readonly Action[] = [
-  { id: 'contacts', label: 'Replace your contacts', hint: 'asks you first: it replaces who you follow', domain: 'relay' },
+  { id: 'contacts', label: 'Replace your contacts', hint: 'asks you first: it replaces who you follow', domain: 'outbox' },
   {
     id: 'servers',
     label: 'Change your inbox and outbox',
     hint: 'asks you first: it replaces your published inbox and outbox',
-    domain: 'relay',
+    domain: 'outbox',
   },
-  { id: 'vanish', label: 'Ask to erase your identity', hint: 'asks you first: it cannot be undone', domain: 'relay' },
+  { id: 'vanish', label: 'Ask to erase your identity', hint: 'asks you first: it cannot be undone', domain: 'outbox' },
 ];
 
 /** The shared buttons, less settings for a sample that never declares them. */

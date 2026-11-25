@@ -1,4 +1,4 @@
-import { config, intent, link, notify, relay, torrent, type IntentDelivery, type Subscription } from '@napplet/sdk';
+import { config, intent, link, notify, outbox, torrent, type IntentDelivery, type OutboxSubscription, type Subscription } from '@napplet/sdk';
 import { FLOOD_SIZE, SAMPLE_CONTACT, SAMPLE_LINK, SAMPLE_MAGNET, SETTINGS_SCHEMA, type Draft } from './actions.js';
 import * as words from './words.js';
 
@@ -11,11 +11,15 @@ import * as words from './words.js';
 
 const now = (): number => Math.floor(Date.now() / 1000);
 
-/** Publish one draft; the shell signs it, and asks first for a change that replaces or erases. */
+/**
+ * Publish one draft through OUTBOX: the shell signs it, picks the write relays,
+ * and asks first for a change that replaces or erases. A refusal resolves with
+ * `ok: false` and an `error`; only the binding's own timeout rejects.
+ */
 export async function publish(name: string, draft: Draft): Promise<string> {
   try {
-    await relay.publish({ ...draft, tags: draft.tags.map((tag) => [...tag]), created_at: now() });
-    return words.publishDone(name);
+    const result = await outbox.publish({ ...draft, tags: draft.tags.map((tag) => [...tag]), created_at: now() });
+    return result.ok ? words.publishDone(name) : words.publishFailed(name, new Error(result.error ?? 'refused'));
   } catch (error) {
     return words.publishFailed(name, error);
   }
@@ -71,12 +75,13 @@ export function onProfileRequest(write: (text: string) => void): Subscription {
   return intent.onDelivery((delivery: IntentDelivery) => write(words.deliveryWords(delivery)));
 }
 
-const flooded: Subscription[] = [];
+const flooded: OutboxSubscription[] = [];
 
 /**
- * Forty subscriptions in one burst, deliberately past the guard's budget. A
- * read counts as answered when its end-of-stored-events arrives; what the guard
- * dropped never answers. They stay open until the page goes away.
+ * Forty OUTBOX subscriptions in one burst, deliberately past the guard's
+ * budget. OUTBOX has no end-of-stored-events signal, so a read counts as
+ * answered when an event or a close arrives; what the guard dropped never
+ * answers. They stay open until the page goes away.
  */
 export function flood(write: (text: string) => void): void {
   let answered = 0;
@@ -87,7 +92,10 @@ export function flood(write: (text: string) => void): void {
       done = true;
       answered += 1;
     };
-    flooded.push(relay.subscribe({ kinds: [1], limit: 1 }, () => undefined, markAnswered));
+    const subscription = outbox.subscribe({ kinds: [1], limit: 1 });
+    subscription.on('event', markAnswered);
+    subscription.on('closed', markAnswered);
+    flooded.push(subscription);
   }
   write(words.floodSent(FLOOD_SIZE));
   window.setTimeout(() => write(words.floodAnswered(answered, FLOOD_SIZE)), 3000);
