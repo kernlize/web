@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { KernlHost } from './contract';
 import { MESSAGES_APPLET } from './messages-applet';
 
@@ -30,7 +30,14 @@ async function bootWith(core: Record<string, unknown> | (() => never)): Promise<
   return import('./boot');
 }
 
+// Node 25 and later define a global sessionStorage, which the live shell hands to Outbox replay; the tests
+// that do not name it start without one, so they hold on every Node the project runs.
+beforeEach(() => {
+  vi.stubGlobal('sessionStorage', undefined);
+});
+
 afterEach(() => {
+  vi.unstubAllGlobals();
   vi.doUnmock('./preview-kernl');
   vi.doUnmock('applesauce-signers');
   vi.doUnmock('@kernlize/core');
@@ -140,12 +147,8 @@ it('uses browser session storage only for live Outbox replay', async () => {
   const { boot } = await bootWith({ createKernl });
   const session = { getItem: () => null, setItem() {}, removeItem() {} };
   vi.stubGlobal('sessionStorage', session);
-  try {
-    await boot(host, new URLSearchParams());
-    expect(createKernl).toHaveBeenCalledWith(expect.objectContaining({ host: { ...host, outboxCacheStorage: session } }));
-  } finally {
-    vi.unstubAllGlobals();
-  }
+  await boot(host, new URLSearchParams());
+  expect(createKernl).toHaveBeenCalledWith(expect.objectContaining({ host: { ...host, outboxCacheStorage: session } }));
 });
 
 it('boots live when browser session storage is forbidden', async () => {
