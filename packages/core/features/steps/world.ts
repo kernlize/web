@@ -3,7 +3,7 @@ import { Observable, of } from 'rxjs';
 import { PasswordSigner, PrivateKeySigner } from 'applesauce-signers';
 import { PasswordAccount } from 'applesauce-accounts/accounts';
 import type { GroupReqMessage, PublishResponse } from 'applesauce-relay';
-import type { Filter } from 'applesauce-core/helpers';
+import { normalizeURL, type Filter } from 'applesauce-core/helpers';
 import type { NappletArtifactCache, WriteVerifiedResolutionInput } from '@kehto/nip/5d';
 import type { NostrEvent, NostrFilter } from '@napplet/core';
 import type { PermissionAdapter } from '@kehto/runtime';
@@ -103,7 +103,11 @@ export function createFakePool(): FakePool {
       const urls = relays as string[];
       pool.calls.push({ method: 'publish', relays: urls, event: event as NostrEvent });
       if (!pool.publishOk) throw new Error('publish failed');
-      return urls.map((from): PublishResponse => (pool.refusing.has(from) ? { ok: false, from, message: 'blocked: not allowed' } : { ok: true, from }));
+      // Like applesauce's pool, a response names the relay by its normalized address (`wss://host/`), not as it was asked for.
+      return urls.map((url): PublishResponse => {
+        const from = normalizeURL(url);
+        return pool.refusing.has(url) ? { ok: false, from, message: 'blocked: not allowed' } : { ok: true, from };
+      });
     },
   };
   return pool;
