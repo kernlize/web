@@ -8,3 +8,4 @@
 export * from '@kernlize/kernel';
 export * from '@kernlize/modules';
 export * from '../core-exports.js';
+export type { Kernl, KernlMembers, KernlModuleOptionKeys, KernlModuleOptions, KernlOptions, ModuleMembers } from '@kernlize/preset';

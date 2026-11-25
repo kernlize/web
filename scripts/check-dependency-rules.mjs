@@ -94,9 +94,9 @@ export function findKehtoImports(packagesDir) {
   return violations;
 }
 
-function findImportsOf(packagesDir, owner, target, reason) {
+function findImportsOf(packagesDir, allowed, target, reason) {
   const violations = [];
-  for (const slug of packageSlugs(packagesDir).filter((slug) => slug !== owner)) {
+  for (const slug of packageSlugs(packagesDir).filter((slug) => !allowed.includes(slug))) {
     for (const file of sourceFiles(join(packagesDir, slug, 'src'))) {
       const offending = importSpecifiers(readFileSync(file, 'utf8')).filter((spec) => packageOf(spec) === target);
       for (const spec of offending) violations.push(`${relative(packagesDir, file)} imports ${spec}; ${reason}`);
@@ -114,7 +114,7 @@ function findImportsOf(packagesDir, owner, target, reason) {
  * findViewModelImports('/repo/packages'); // []
  */
 export function findViewModelImports(packagesDir) {
-  return findImportsOf(packagesDir, 'ui-model', VIEW_MODEL_PACKAGE, "only a host's UI depends on the view models");
+  return findImportsOf(packagesDir, ['ui-model'], VIEW_MODEL_PACKAGE, "only a host's UI depends on the view models");
 }
 
 /**
@@ -126,7 +126,8 @@ export function findViewModelImports(packagesDir) {
  * findPresetImports('/repo/packages'); // []
  */
 export function findPresetImports(packagesDir) {
-  return findImportsOf(packagesDir, 'preset', PRESET_PACKAGE, 'nothing published imports the preset (D-068)');
+  // `@kernlize/core` re-exports the preset for the one minor it is deprecated (D-068).
+  return findImportsOf(packagesDir, ['preset', 'core'], PRESET_PACKAGE, 'nothing published imports the preset (D-068)');
 }
 
 /** What sits above the kernel: the packages that hold modules or kernl's own list (D-068). */
