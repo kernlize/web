@@ -38,6 +38,13 @@ async function sample(name, signer) {
   return { entry: { name, title: tagValue(template.tags, 'title'), manifest, file: `${name}.html` }, html };
 }
 
+/** The publisher's profile (kind 0), so a shell that seeds it names who published the samples. */
+function profile(signer) {
+  const unsigned = { kind: 0, tags: [], content: JSON.stringify({ name: 'kernl samples' }), pubkey: signer.pubkey, created_at: signer.createdAt };
+  const id = eventId(unsigned);
+  return { id, ...unsigned, sig: signer.sign(id) };
+}
+
 /** Sign every sample with one fresh key and write samples.json and the html files into `outDir`. */
 export async function ship(outDir = join(root, 'shipped')) {
   const secretKey = schnorr.utils.randomSecretKey();
@@ -48,10 +55,11 @@ export async function ship(outDir = join(root, 'shipped')) {
   };
   const built = [];
   for (const name of NAMES) built.push(await sample(name, signer));
+  const signedProfile = profile(signer);
   secretKey.fill(0);
   await mkdir(outDir, { recursive: true });
   for (const { entry, html } of built) await writeFile(join(outDir, entry.file), html);
-  const shipped = { publisher: signer.pubkey, samples: built.map(({ entry }) => entry) };
+  const shipped = { publisher: signer.pubkey, profile: signedProfile, samples: built.map(({ entry }) => entry) };
   await writeFile(join(outDir, 'samples.json'), `${JSON.stringify(shipped, null, 2)}\n`);
   return shipped;
 }

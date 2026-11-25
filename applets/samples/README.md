@@ -69,7 +69,8 @@ plugin's `.nip5a-manifest.json` template (kind 35129, `d`, `x`, `R`, `O`,
 1. generates a fresh secp256k1 key in memory;
 2. checks each `x` tag against the built bytes;
 3. adds `pubkey` and `created_at`, computes the NIP-01 id, and signs it (BIP-340);
-4. writes `shipped/samples.json`, `{ publisher, samples: [{ name, title, manifest, file }] }`,
+4. signs the publisher's profile (kind 0, named "kernl samples"), so a shell can say who published them;
+5. writes `shipped/samples.json`, `{ publisher, profile, samples: [{ name, title, manifest, file }] }`,
    and `shipped/<name>.html`, the exact bytes each `x` tag hashes.
 
 The key is never written or logged, so every build has its own publisher and

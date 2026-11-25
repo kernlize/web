@@ -44,6 +44,15 @@ test('every manifest id recomputes and its signature verifies against the publis
   }
 });
 
+test('the publisher\'s profile names the samples and verifies against the publisher', () => {
+  const { profile } = shipped;
+  assert.equal(profile.kind, 0);
+  assert.equal(profile.pubkey, shipped.publisher);
+  assert.deepEqual(JSON.parse(profile.content), { name: 'kernl samples' });
+  assert.equal(profile.id, recomputedId(profile));
+  assert.equal(schnorr.verify(Buffer.from(profile.sig, 'hex'), Buffer.from(profile.id, 'hex'), Buffer.from(shipped.publisher, 'hex')), true);
+});
+
 test('a tampered manifest no longer verifies', () => {
   const { manifest } = shipped.samples[0];
   const tampered = { ...manifest, content: `${manifest.content} ` };
