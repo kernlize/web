@@ -22,6 +22,15 @@ test('an unknown build mode falls back to Notes; Profiles accepts profile reques
   assert.deepEqual(archetypesOf(spec('notes')), []);
 });
 
+test('every publishing and flood button needs OUTBOX, never the relay escape hatch', () => {
+  const all = [...actionsFor(spec('pulse')), ...extrasFor(spec('pulse'))];
+  for (const id of ['publish', 'profile', 'delete', 'flood', 'contacts', 'servers', 'vanish']) {
+    assert.equal(all.find((action) => action.id === id).domain, 'outbox', id);
+  }
+  assert.ok(all.every((action) => action.domain !== 'relay'));
+  assert.equal(words.notGranted('outbox'), 'Refused: this applet has no grant for posting to your network.');
+});
+
 test('each publishing button signs the kind it says', () => {
   const kinds = Object.fromEntries(['publish', 'profile', 'delete', 'contacts', 'servers', 'vanish'].map((id) => [id, draftFor(id, '').draft.kind]));
   assert.deepEqual(kinds, { publish: 1, profile: 0, delete: 5, contacts: 3, servers: 10002, vanish: 62 });
@@ -47,7 +56,7 @@ test('settings are echoed with the secret only said to be set', () => {
 
 test('publish results keep the old texts', () => {
   assert.equal(words.publishDone('Note'), 'Note: done.');
-  assert.equal(words.publishFailed('Profile', new Error('relay:write denied')), 'Profile: you said no.');
+  assert.equal(words.publishFailed('Profile', new Error('denied: the user declined')), 'Profile: you said no.');
   assert.equal(words.publishFailed('Note', new Error('timeout')), 'Note: not sent (timeout).');
 });
 

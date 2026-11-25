@@ -12,41 +12,46 @@ conventions, extra buttons) live in `src/specs.ts`, ported from `SPECS` in
 
 | Sample | `d` | Requires | Optional | Accepts | Extra buttons |
 | --- | --- | --- | --- | --- | --- |
-| Notes | `notes` | relay, identity, intent | notify, storage, config | | |
-| Pulse | `pulse` | relay | notify, media, resource | | contacts, inbox and outbox, erase request |
-| Profiles | `profiles` | | notify | `napplet:profile/open` (archetype `profile`) | |
+| Notes | `notes` | outbox, identity, intent | notify, storage, config, link, torrent | | |
+| Pulse | `pulse` | outbox | notify, media, resource, link, torrent | | contacts, inbox and outbox, erase request |
+| Profiles | `profiles` | | notify, intent | `napplet:profile/open` (archetype `profile`) | |
+
+Two changes from the specs they were ported from, decided by the owner on
+#131: everything that publishes or reads goes through OUTBOX rather than the
+`relay` escape hatch, and the domains the buttons need are declared optional
+(`link` and `torrent` on Notes and Pulse, `intent` on Profiles).
 
 ## Buttons
 
 | Button | SDK call | Result line |
 | --- | --- | --- |
-| Publish a note | `relay.publish` kind 1 | `Note: done.` / `you said no.` |
-| Update your profile | `relay.publish` kind 0 | `Profile: …` |
-| Delete a note | `relay.publish` kind 5 | `Deletion: …` |
+| Publish a note | `outbox.publish` kind 1 | `Note: done.` / `you said no.` |
+| Update your profile | `outbox.publish` kind 0 | `Profile: …` |
+| Delete a note | `outbox.publish` kind 5 | `Deletion: …` |
 | Send a notification | `notify.send` | `Notification shown.` |
 | Open its settings (Notes) | `config.registerSchema` once, `config.subscribe`, `config.openSettings` | `Its settings: …`, secret only said to be set |
 | Open a profile | `intent.open('napplet:profile/open', { payload: { pubkey } })`, then `intent.available('profile')` for the taker's title | `Profiles is taking it.` / `Nobody took it (…).` |
-| Flood the shell | 40 × `relay.subscribe` at once | how many answered after 3 s |
+| Flood the shell | 40 × `outbox.subscribe` at once | how many answered (an event or a close) after 3 s |
 | Download a shared file | `torrent.add` with a magnet | `Added to your downloads.` |
 | Open a link | `link.open('https://kernl.run/docs/')` | `The link was opened.` / `You did not open the link.` |
-| Replace your contacts (Pulse) | `relay.publish` kind 3 | `Contacts: …` |
-| Change your inbox and outbox (Pulse) | `relay.publish` kind 10002 | `Inbox and outbox: …` |
-| Ask to erase your identity (Pulse) | `relay.publish` kind 62 | `Erase request: …` |
+| Replace your contacts (Pulse) | `outbox.publish` kind 3 | `Contacts: …` |
+| Change your inbox and outbox (Pulse) | `outbox.publish` kind 10002 | `Inbox and outbox: …` |
+| Ask to erase your identity (Pulse) | `outbox.publish` kind 62 | `Erase request: …` |
 
 Profiles listens with `intent.onDelivery` when the shell injected `intent`, and
 writes a line for each request handed to it.
 
 A button whose domain the shell did not inject is marked "(not granted)" and
 answers locally with "Refused: this applet has no grant for …". Settings are
-hidden on samples that do not declare `config`. No sample declares `link` or
-`torrent`, and Profiles does not declare `intent`, as in the specs they were
-ported from; those buttons work only where the shell grants the domain.
+hidden on samples that do not declare `config`. An `outbox.publish` refusal
+comes back as `ok: false` with a reason; the binding's own request timeout
+rejects, so a question the person leaves open past it reads "not sent".
 
 ## Pulse floods on purpose
 
 The template's rule is that every request goes through a pacer and nothing is
 sent in a burst (`applets/messages/AGENTS.md`). **Pulse breaks it
-deliberately**: "Flood the shell" sends 40 subscriptions at once so the guard
+deliberately**: "Flood the shell" sends 40 OUTBOX subscriptions at once so the guard
 has something to hold back. The other buttons send one request per click, so
 this package has no pacer. Do not copy the flood into a real applet.
 

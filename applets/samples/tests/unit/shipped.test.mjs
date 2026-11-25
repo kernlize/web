@@ -15,9 +15,9 @@ const shipped = JSON.parse(await readFile(join(shippedDir, 'samples.json'), 'utf
 
 // Written out here rather than imported, so a change to src/specs.ts has to be made twice.
 const EXPECTED = {
-  notes: { title: 'Notes', requires: ['identity', 'intent', 'relay'], optional: ['config', 'notify', 'storage'], conventions: [] },
-  pulse: { title: 'Pulse', requires: ['relay'], optional: ['media', 'notify', 'resource'], conventions: [] },
-  profiles: { title: 'Profiles', requires: [], optional: ['notify'], conventions: ['napplet:profile/open'] },
+  notes: { title: 'Notes', requires: ['identity', 'intent', 'outbox'], optional: ['config', 'link', 'notify', 'storage', 'torrent'], conventions: [] },
+  pulse: { title: 'Pulse', requires: ['outbox'], optional: ['link', 'media', 'notify', 'resource', 'torrent'], conventions: [] },
+  profiles: { title: 'Profiles', requires: [], optional: ['intent', 'notify'], conventions: ['napplet:profile/open'] },
 };
 
 const sha256Hex = (bytes) => createHash('sha256').update(bytes).digest('hex');
