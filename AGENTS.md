@@ -23,6 +23,7 @@ Finish interrupted work before starting new work. Never discard changes you did 
 | `packages/ui-model` | `@kernlize/ui-model` | Framework-free view models for a shell's panels over the core: the grants list, and the ask queues and logs as they move from `apps/web` (#74). The core never imports it |
 | `apps/web` | `@kernlize/web` | Astro site: landing at `/`, long-form pages under `/about/`, shell at `/app/` |
 | `applets/messages` | `@kernlize/applet-messages` | The Messages applet the shell ships: a single-file napplet over the `dm` domain, built with the napplet toolchain (its own `AGENTS.md` applies inside it) |
+| `applets/samples` | `@kernlize/applet-samples` | Notes, Pulse and Profiles: three sample napplets from one page, each button a real SDK call; the build signs their manifests with a throwaway key into `shipped/` |
 | `docs` | `@kernlize/docs` | VitePress site at `/docs/` |
 | `scripts` | | Build, audit and guard scripts |
 | `features` | | Cross-package behaviour specs |
