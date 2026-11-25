@@ -17,6 +17,7 @@ Feature: Floor: one store, one pool and one account manager, whatever modules ar
       | modules | theme          |
       | kernl's | offers         |
       | no      | does not offer |
+      | the example host's | does not offer |
 
   Scenario Outline: a shell without a supplied pool owns one and closes it when destroyed
     Given the shell loads <modules> modules
@@ -30,3 +31,4 @@ Feature: Floor: one store, one pool and one account manager, whatever modules ar
       | modules | theme          |
       | kernl's | offers         |
       | no      | does not offer |
+      | the example host's | does not offer |
