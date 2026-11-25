@@ -1,5 +1,5 @@
 import { NostrConnectSigner } from 'applesauce-signers';
-import type { Booted, KernlHost } from './contract';
+import type { Booted, KernlHost, StorageLike } from './contract';
 import { openShellEventCache } from './event-cache';
 import { canReachPeers, createShellDownloads, type ShellDownloads } from './downloads';
 import { createPreviewTorrentClient } from './preview-downloads';
@@ -19,6 +19,14 @@ function preview(host: KernlHost, theme: ShellTheme | undefined, fallbackReason?
   const kernl = createPreviewKernl(host, downloads.torrent, { builtins: [MESSAGES_APPLET], ...(theme ? { theme } : {}) });
   const base = { kernl, mode: 'preview' as const, downloads };
   return fallbackReason === undefined ? base : { ...base, fallbackReason };
+}
+
+function outboxCacheStorage(): StorageLike | undefined {
+  try {
+    return globalThis.sessionStorage;
+  } catch {
+    return undefined;
+  }
 }
 
 function reasonOf(error: unknown): string {
@@ -45,7 +53,8 @@ export async function boot(host: KernlHost, search: URLSearchParams, theme?: She
     // A shell that names them hands the theme, the event cache, its reserved shortcuts and its torrent engine to the modules; `createKernl` reads none of them (D-062).
     // The settings form is the host's `settings.present` renderer, which the settings module draws through (D-067).
     const modules = preset.kernlPreset({ eventCache: openShellEventCache, shortcuts: { reserved: SHELL_CHORDS }, torrent: downloads.torrent, ...(theme ? { theme } : {}) });
-    const kernl = core.createKernl({ host, builtins: [MESSAGES_APPLET], modules });
+    const sessionCache = outboxCacheStorage();
+    const kernl = core.createKernl({ host: sessionCache ? { ...host, outboxCacheStorage: sessionCache } : host, builtins: [MESSAGES_APPLET], modules });
     NostrConnectSigner.pool = kernl.pool;
     return { kernl, mode: 'live', downloads };
   } catch (error) {
