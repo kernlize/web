@@ -7,6 +7,8 @@
  */
 import { kernlModules } from '@kernlize/core';
 
+export { createMemoryRelays, type MemoryRelays, type MemoryRelaysOptions, type RelaySocketConstructor } from './memory-relays.js';
+
 /** The options kernl's own modules take, as `kernlModules` reads them. */
 export type KernlPresetOptions = NonNullable<Parameters<typeof kernlModules>[0]>;
 

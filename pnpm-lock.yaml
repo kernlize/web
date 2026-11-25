@@ -425,10 +425,22 @@ importers:
       '@kernlize/core':
         specifier: workspace:^
         version: link:../core
+      applesauce-core:
+        specifier: ^7.1.3
+        version: 7.1.3(typescript@5.9.3)
+      applesauce-relay:
+        specifier: ^7.1.1
+        version: 7.1.1(typescript@5.9.3)
     devDependencies:
+      applesauce-signers:
+        specifier: ^7.1.0
+        version: 7.1.0(@capacitor/core@8.6.0)(typescript@5.9.3)
       quickpickle:
         specifier: ^1.11.2
         version: 1.11.2(vitest@5.1.0)
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
       tsup:
         specifier: ^8.5.0
         version: 8.5.1(jiti@2.7.0)(postcss@8.5.32)(typescript@5.9.3)(yaml@2.9.1)
