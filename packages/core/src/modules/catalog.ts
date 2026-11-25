@@ -1,6 +1,6 @@
 import type { ConnectedEventCache } from '../cache/connect.js';
 import { loadCatalog, streamCatalog, type LoadCatalogOptions } from '../catalog/fetch.js';
-import type { AppletCatalog } from '../types.js';
+import type { AppletCatalog } from '../catalog/types.js';
 import type { KernlModule } from '../module-host/module.js';
 
 /**

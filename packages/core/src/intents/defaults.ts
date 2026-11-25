@@ -1,10 +1,13 @@
-import { lastValueFrom, Subject, takeUntil, timer, toArray, type Observable } from 'rxjs';
+import { lastValueFrom, Subject, takeUntil, timer, toArray } from 'rxjs';
 import { verifyEvent } from 'applesauce-core/helpers';
 import type { EventTemplate, NostrEvent } from '@napplet/core';
 import type { RelayTiers, StorageLike } from '../types.js';
 import { asFilters, type ApplesaucePool } from '../applesauce/relay-hooks.js';
 import { createNamespacedStore } from '../persistence/store.js';
-import { HANDLER_PREFERENCES_KIND, parseHandlerPreferences, preferenceTemplate, type HandlerPreferences } from './preferences.js';
+import { HANDLER_PREFERENCES_KIND, parseHandlerPreferences, preferenceTemplate } from './preferences.js';
+import type { HandlerDefaults } from '../intents-contract.js';
+
+export type { HandlerDefaults } from '../intents-contract.js';
 
 /** Signs the shell's own preference events. Present only while the active account can sign. */
 export type PreferenceSigner = (template: EventTemplate) => Promise<NostrEvent>;
@@ -21,28 +24,6 @@ export interface HandlerDefaultsOptions {
   readonly now?: () => number;
 }
 
-/** The user's handler choices: what this device remembers, and what their account published. */
-export interface HandlerDefaults {
-  /** This device's default for an archetype. */
-  get(archetype: string): string | undefined;
-  /** Every default this device remembers, by archetype. */
-  all(): Readonly<Record<string, string>>;
-  /**
-   * Remember a default, or forget it with `undefined`. With `sync` on and an
-   * account that can sign, the choice is also published as the user's
-   * handler preference for the archetype.
-   */
-  set(archetype: string, catalogId: string | undefined): Promise<void>;
-  /** The account's published preferences for an archetype, once loaded. */
-  synced(archetype: string): HandlerPreferences | undefined;
-  /** Read the signed-in account's published preferences from its relays. */
-  load(): Promise<void>;
-  /** Whether choices are published to the account. Off until the user turns it on. */
-  readonly sync: boolean;
-  setSync(on: boolean): void;
-  /** The archetype whose defaults or published preferences just changed. */
-  readonly changes$: Observable<string>;
-}
 
 const DEFAULTS_KEY = 'intent-defaults:v1';
 /** Published preferences that have not arrived after this long are read on the next sign-in. */

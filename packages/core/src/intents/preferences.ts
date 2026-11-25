@@ -1,4 +1,7 @@
 import type { EventTemplate, NostrEvent } from '@napplet/core';
+import type { HandlerPreferences } from '../intents-contract.js';
+
+export type { HandlerPreferences } from '../intents-contract.js';
 
 /**
  * The addressable kind that records a user's preferred handlers, one event
@@ -11,14 +14,6 @@ import type { EventTemplate, NostrEvent } from '@napplet/core';
  */
 export const HANDLER_PREFERENCES_KIND = 31129;
 
-/** The public entries of one kind-31129 event. Private entries in `content` are kept, not read. */
-export interface HandlerPreferences {
-  readonly archetype: string;
-  /** Archetype-wide `a` and `e` references, in tag order. */
-  readonly handlers: readonly string[];
-  /** Intent-specific `i` references by convention identity, in tag order. */
-  readonly intents: Readonly<Record<string, readonly string[]>>;
-}
 
 const HEX_64 = /^[0-9a-f]{64}$/;
 const NAMED = /^35129:([0-9a-f]{64}):(.+)$/s;

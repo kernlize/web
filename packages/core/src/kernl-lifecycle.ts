@@ -1,7 +1,7 @@
 import type { Subscription } from 'rxjs';
 import { originRegistry, type ShellAdapter, type ShellBridge, type ShellEnvironment } from '@kehto/shell';
 import type { NappletArtifactCache } from '@kehto/nip/5d';
-import type { AppletHandle, AppletIdentity, AppletPointer, AppletSummary, BuiltinApplet, FrameLike, GrantRecord, Intents, Kernl, KernlHost, MountPlan, RelayTiers } from './types.js';
+import type { AppletHandle, AppletIdentity, AppletPointer, AppletSummary, BuiltinApplet, FrameLike, GrantRecord, Intents, Kernel, KernlHost, MountPlan, RelayTiers } from './types.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { resolveBuiltin } from './applets/builtin.js';
 import { fetchManifestEvent, resolveApplet, type PublishedPointer, type ResolvedApplet } from './applets/resolve.js';
@@ -84,8 +84,8 @@ export function grantNarrowingReason(plan: MountPlan, record: GrantRecord, basel
   return plan.environment.capabilities.domains.some((domain) => !allowed.has(domain)) ? 'grant-narrowed' : undefined;
 }
 
-/** The applet half of {@link Kernl}. */
-export type AppletLifecycle = Pick<Kernl, 'resolve' | 'install' | 'plan' | 'mount' | 'applets' | 'handleWindowMessage'>;
+/** The applet half of {@link Kernel}. */
+export type AppletLifecycle = Pick<Kernel, 'resolve' | 'install' | 'plan' | 'mount' | 'applets' | 'handleWindowMessage'>;
 
 function keyOf(identity: AppletIdentity): string {
   return `${identity.dTag}:${identity.hash}`;

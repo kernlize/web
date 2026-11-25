@@ -29,6 +29,10 @@ export const PACKAGE_NAME = '@kernlize/core';
 export const KERNL_FRAME_POLICY_META: string = renderNappletFramePolicyMeta();
 
 export type * from '../types.js';
+export type { AppletCatalog } from '../catalog/types.js';
+export type { KernlMultiplayer } from '../multiplayer/types.js';
+export type { Kernl, KernlMembers, KernlModuleOptionKeys, KernlModuleOptions, KernlOptions, ModuleMembers } from '../kernl-members.js';
+export type { MessagingBackendFactories } from '../messaging/backend-factories.js';
 
 export { createNamespacedStore, type NamespacedStore } from '../persistence/store.js';
 export { DEFAULT_RELAY_TIERS, createRelayTiers } from '../relays/tiers.js';

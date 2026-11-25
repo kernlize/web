@@ -2,7 +2,8 @@ import { createKernel } from './kernl.js';
 import { isTheme } from './kernl-services.js';
 import { kernlModules } from './modules/default.js';
 import type { AnyKernlModule, ModuleApis } from './module-host/module.js';
-import type { Kernel, Kernl, KernlOptions } from './types.js';
+import type { Kernel } from './types.js';
+import type { Kernl, KernlOptions } from './kernl-members.js';
 
 /** kernl's own modules, built from the options a host that names none passes to `createKernl`. */
 function modulesFrom(options: KernlOptions): readonly AnyKernlModule[] {

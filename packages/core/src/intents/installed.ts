@@ -2,24 +2,11 @@ import { BehaviorSubject, type Observable } from 'rxjs';
 import { manifestToIntentCatalogEntry, type IntentCatalogEntry } from '@kehto/services';
 import type { AppletSummary, StorageLike } from '../types.js';
 import { createNamespacedStore } from '../persistence/store.js';
+import type { InstalledApplet } from '../intents-contract.js';
 
-/** One advertised convention, as the verified manifest's `z` and `i` tags declared it. */
-export interface InstalledContract {
-  readonly slug: string;
-  readonly convention: string;
-  readonly params: readonly string[];
-}
+export type { InstalledApplet, InstalledContract } from '../intents-contract.js';
 
-/** An applet the user has run, remembered so other applets can hand work to it. */
-export interface InstalledApplet {
-  readonly catalogId: string;
-  /** What the shell resolves to open it again. */
-  readonly address: string;
-  readonly title: string;
-  readonly publisher: string;
-  readonly contracts: readonly InstalledContract[];
-  readonly installedAt: number;
-}
+
 
 /** What installing reads from a verified applet's summary. */
 export type InstallableApplet = Pick<AppletSummary, 'address' | 'title' | 'publisher'> & {

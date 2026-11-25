@@ -3,7 +3,8 @@ import { discoverToolFamilies } from '../multiplayer/tool-discovery.js';
 import { createWindowIdentities } from '../multiplayer/window-identities.js';
 import { createDirectConnectionsService } from '../multiplayer/direct-connections.js';
 import { createRemoteToolsService, mergeFamilies } from '../multiplayer/remote-tools.js';
-import type { KernlMultiplayer, KernlOptions } from '../types.js';
+import type { KernlMultiplayer } from '../multiplayer/types.js';
+import type { KernlOptions } from '../kernl-members.js';
 import type { KernlModule } from '../module-host/module.js';
 
 /** What the host sets for remote tools and direct connections. */

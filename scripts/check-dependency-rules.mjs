@@ -130,14 +130,14 @@ export function findPresetImports(packagesDir) {
 }
 
 /** Directories and files of `packages/core/src` that are the kernel (D-068); the rest are modules or kernl's preset. */
-export const KERNEL_PARTS = ['applesauce', 'applets', 'asks', 'consent', 'crypto', 'firewall', 'grants', 'guard', 'media', 'module-host', 'persistence', 'relays', 'secrets', 'seal', 'kernl.ts', 'kernl-adapter.ts', 'kernl-firewall.ts', 'kernl-lifecycle.ts', 'kernl-network.ts', 'kernl-services.ts', 'cache-lookup.ts', 'shortcut-key.ts'];
+export const KERNEL_PARTS = ['applesauce', 'applets', 'asks', 'consent', 'crypto', 'firewall', 'grants', 'guard', 'media', 'module-host', 'persistence', 'relays', 'secrets', 'seal', 'kernl.ts', 'kernl-adapter.ts', 'kernl-firewall.ts', 'kernl-lifecycle.ts', 'kernl-network.ts', 'kernl-services.ts', 'cache-lookup.ts', 'shortcut-key.ts', 'intents-contract.ts', 'types.ts'];
 
 /** Module files that sit in a kernel directory until they move. */
 export const MODULES_IN_KERNEL_DIRS = ['relays/mailboxes.ts', 'relays/directory.ts'];
 
 /**
  * Find kernel files in `packages/core/src` that import module code, so the edges cut for the package
- * split (#75) stay cut. `types.ts`, still to split, and the re-export barrels are not kernel files here.
+ * split (#75) stay cut. The re-export barrels are not kernel files here.
  * @param {string} coreSrcDir Absolute path of `packages/core/src`.
  * @returns {string[]} One violation per offending import.
  * @example
@@ -148,12 +148,13 @@ export function findKernelModuleImports(coreSrcDir) {
   const top = (path) => path.split('/')[0];
   // The mailboxes and the directory are modules that still sit in the kernel's relays/ directory.
   const isKernel = (path) => KERNEL_PARTS.includes(top(path)) && !MODULES_IN_KERNEL_DIRS.includes(path);
-  for (const file of sourceFiles(coreSrcDir).filter((path) => !path.endsWith('.test.ts'))) {
+  // Tests count: they move with the kernel's files, so they may not reach module code either.
+  for (const file of sourceFiles(coreSrcDir)) {
     const local = relative(coreSrcDir, file);
     if (!isKernel(local)) continue;
     for (const spec of importSpecifiers(readFileSync(file, 'utf8')).filter((spec) => spec.startsWith('.'))) {
       const target = relative(coreSrcDir, join(file, '..', spec)).replace(/\.js$/, '.ts');
-      if (!isKernel(target) && target !== 'types.ts') violations.push(`packages/core/src/${local} imports ${spec}; the kernel imports no module (D-068)`);
+      if (!isKernel(target)) violations.push(`packages/core/src/${local} imports ${spec}; the kernel imports no module (D-068)`);
     }
   }
   return violations;

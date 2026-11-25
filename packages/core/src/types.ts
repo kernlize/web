@@ -15,15 +15,10 @@ import type { ClientFetch, PageScheme } from '@kernlize/bridges';
 import type { SecretsDescription, SecretsProvider } from './secrets/secrets.js';
 import type { KernlMedia } from './media/kernl-media.js';
 import type { SettingsPrompt } from './applets/applet-config.js';
-import type { HandlerDefaults } from './intents/defaults.js';
-import type { InstalledApplet } from './intents/installed.js';
+import type { HandlerDefaults, InstalledApplet } from './intents-contract.js';
 import type { ShortcutKey } from './shortcut-key.js';
 
 export type { ShortcutKey } from './shortcut-key.js';
-export type { AppletCatalog } from './catalog/types.js';
-export type { KernlMultiplayer } from './multiplayer/types.js';
-export type { Kernl, KernlMembers, KernlModuleOptionKeys, KernlModuleOptions, KernlOptions, ModuleMembers } from './kernl-members.js';
-export type { MessagingBackendFactories } from './messaging/backend-factories.js';
 import type { AnyKernlModule } from './module-host/module.js';
 import type { AskRenderers } from './asks/kinds.js';
 
