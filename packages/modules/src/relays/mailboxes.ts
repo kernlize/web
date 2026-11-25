@@ -4,7 +4,8 @@ import type { RelayPool } from 'applesauce-relay';
 import type { ISigner } from 'applesauce-signers';
 import { unixNow, type NostrEvent } from 'applesauce-core/helpers';
 import { subscribeWithEose, relayUrls, summarizePublish, toRelayUrl, type PublishAnswer, type PublishOutcome } from '@kernlize/kernel';
-import { DEFAULT_SUGGESTIONS, type RelayDirectory } from './directory.js';
+import type { RelayDirectory } from './directory.js';
+import { DEFAULT_SUGGESTIONS } from './suggestions.js';
 
 /** The NIP-65 relay list kind. */
 const RELAY_LIST_KIND = 10002;

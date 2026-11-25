@@ -8,7 +8,7 @@ import { messagingSigner } from '../messaging/availability.js';
 import { createProviderMessaging } from '../messaging/default-registry.js';
 import { labelConversations } from '../messaging/label-conversations.js';
 import type { MessagingProviderModule, ProviderParts } from '../messaging/provider-module.js';
-import { locateRecipients, locateSendRecipients } from '../people/locate-recipients.js';
+import { locateRecipients, locateSendRecipients } from '../messaging/locate-recipients.js';
 import type { People } from '../people/person.js';
 import type { Profiles } from '../profiles/profiles.js';
 

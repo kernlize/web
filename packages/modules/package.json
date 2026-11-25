@@ -11,21 +11,81 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./messaging/ratchet": {
-      "types": "./dist/messaging/ratchet/index.d.ts",
-      "import": "./dist/messaging/ratchet/index.js"
+    "./bridges": {
+      "types": "./dist/bridges/index.d.ts",
+      "import": "./dist/bridges/index.js"
+    },
+    "./cache": {
+      "types": "./dist/cache/index.d.ts",
+      "import": "./dist/cache/index.js"
+    },
+    "./catalog": {
+      "types": "./dist/catalog/index.d.ts",
+      "import": "./dist/catalog/index.js"
+    },
+    "./directory": {
+      "types": "./dist/directory/index.d.ts",
+      "import": "./dist/directory/index.js"
+    },
+    "./downloads": {
+      "types": "./dist/downloads/index.d.ts",
+      "import": "./dist/downloads/index.js"
+    },
+    "./intents": {
+      "types": "./dist/intents/index.d.ts",
+      "import": "./dist/intents/index.js"
+    },
+    "./keys": {
+      "types": "./dist/keys/index.d.ts",
+      "import": "./dist/keys/index.js"
+    },
+    "./mailboxes": {
+      "types": "./dist/mailboxes/index.d.ts",
+      "import": "./dist/mailboxes/index.js"
+    },
+    "./messaging": {
+      "types": "./dist/messaging/index.d.ts",
+      "import": "./dist/messaging/index.js"
     },
     "./messaging/groups": {
       "types": "./dist/messaging/groups/index.d.ts",
       "import": "./dist/messaging/groups/index.js"
     },
+    "./messaging/ratchet": {
+      "types": "./dist/messaging/ratchet/index.d.ts",
+      "import": "./dist/messaging/ratchet/index.js"
+    },
+    "./multiplayer": {
+      "types": "./dist/multiplayer/index.d.ts",
+      "import": "./dist/multiplayer/index.js"
+    },
+    "./people": {
+      "types": "./dist/people/index.d.ts",
+      "import": "./dist/people/index.js"
+    },
+    "./profiles": {
+      "types": "./dist/profiles/index.d.ts",
+      "import": "./dist/profiles/index.js"
+    },
+    "./settings": {
+      "types": "./dist/settings/index.d.ts",
+      "import": "./dist/settings/index.js"
+    },
+    "./social": {
+      "types": "./dist/social/index.d.ts",
+      "import": "./dist/social/index.js"
+    },
+    "./theme": {
+      "types": "./dist/theme/index.d.ts",
+      "import": "./dist/theme/index.js"
+    },
+    "./uploads": {
+      "types": "./dist/uploads/index.d.ts",
+      "import": "./dist/uploads/index.js"
+    },
     "./wm": {
       "types": "./dist/wm/index.d.ts",
       "import": "./dist/wm/index.js"
-    },
-    "./cache": {
-      "types": "./dist/cache/index.d.ts",
-      "import": "./dist/cache/index.js"
     }
   },
   "files": [

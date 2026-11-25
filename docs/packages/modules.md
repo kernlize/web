@@ -7,7 +7,7 @@ kernl's modules over the kernel ([D-068](../decisions.md#d-068)). Each opinion i
 | npm | `@kernlize/modules` |
 | JSR | `@kernl/modules` |
 | Version | `0.1.0` |
-| Entry | `./dist/index.js`, types `./dist/index.d.ts`; also `./messaging/ratchet`, `./messaging/groups`, `./wm` and `./cache` |
+| Entry | `./dist/index.js`, types `./dist/index.d.ts`; one entry per module (`./bridges`, `./cache`, `./catalog`, `./directory`, `./downloads`, `./intents`, `./keys`, `./mailboxes`, `./messaging`, `./messaging/groups`, `./messaging/ratchet`, `./multiplayer`, `./people`, `./profiles`, `./settings`, `./social`, `./theme`, `./uploads`, `./wm`) |
 | Dependencies | `@kernlize/kernel` and the three leaf packages (`workspace:^`), `@kehto/*`, `applesauce-*`, `@internet-privacy/marmot-ts`, `nostr-double-ratchet`, `@sqlite.org/sqlite-wasm`, `blossom-client-sdk`, `rxjs` |
 | Peer dependencies | `@napplet/core`, `@napplet/nap`, `@napplet/shim`, `nostr-tools` |
 | Side effects | none |
@@ -32,6 +32,8 @@ declare const host: KernlHost;
 const kernl = createKernel({ host, modules: [themeModule(), messagingModule({ providers: [privateDm()] })] });
 kernl.messaging.list().map((entry) => entry.provider.id); // ['private']
 ```
+
+Each module also has an entry of its own: `@kernlize/modules/theme`, `@kernlize/modules/messaging`, `@kernlize/modules/uploads` (the files module) and so on. A host that imports from the root ends up with the same bundle after tree shaking. Importing from a module's entry means the bundler reads only that module: for the theme module, 568 bytes of this package instead of 279 KB. `features/bundling.feature` checks this.
 
 The ratchet and group providers are their own entries, `@kernlize/modules/messaging/ratchet` and `@kernlize/modules/messaging/groups`. Their libraries reach a bundle only when a host lists them; `features/bundling.feature` checks this. The window manager (`./wm`) and the event cache (`./cache`) also load on their own, without the network stack.
 

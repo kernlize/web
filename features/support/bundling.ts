@@ -8,6 +8,8 @@ const root = resolve(import.meta.dirname, '../..');
 interface BundleWorld {
   host?: string;
   inputs?: readonly string[];
+  /** Bytes of `@kernlize/modules`' built files the bundler read, whether or not they reached the output. */
+  modulesBytesRead?: number;
 }
 
 /** Where each provider is imported from: the ratchet and group providers are their own entries. */
@@ -30,6 +32,10 @@ Given('a host that composes the kernel package with no modules', (world: BundleW
   world.host = "import { createKernel } from '@kernlize/kernel';\nexport const compose = (host) => createKernel({ host, modules: [] });";
 });
 
+Given('a host that composes the kernel with the theme module from its entry', (world: BundleWorld) => {
+  world.host = "import { createKernel } from '@kernlize/kernel';\nimport { themeModule } from '@kernlize/modules/theme';\nexport const compose = (host) => createKernel({ host, modules: [themeModule()] });";
+});
+
 Given('a host that composes kernl with its own modules', (world: BundleWorld) => {
   world.host = "import { createKernl } from '@kernlize/core';\nexport const compose = (host) => createKernl({ host });";
 });
@@ -50,7 +56,9 @@ When('the host is bundled for the browser from the built packages', async (world
     logLevel: 'silent',
   });
   // What reaches the output: esbuild parses files tree shaking then drops, so a parsed input alone is not bundled code.
-  world.inputs = Object.values((result.metafile as Metafile).outputs).flatMap((output) => Object.entries(output.inputs).filter(([, input]) => input.bytesInOutput > 0).map(([path]) => path));
+  const metafile = result.metafile as Metafile;
+  world.modulesBytesRead = Object.entries(metafile.inputs).filter(([path]) => path.includes('packages/modules/')).reduce((sum, [, input]) => sum + input.bytes, 0);
+  world.inputs = Object.values(metafile.outputs).flatMap((output) => Object.entries(output.inputs).filter(([, input]) => input.bytesInOutput > 0).map(([path]) => path));
 });
 
 const fromPackage = (inputs: readonly string[] | undefined, name: string): readonly string[] => (inputs ?? []).filter((path) => path.includes(`/node_modules/${name}/`));
@@ -71,6 +79,11 @@ Then('the bundle holds code from the workspace package {string}', (world: Bundle
 
 Then('the bundle holds no code from the workspace package {string}', (world: BundleWorld, slug: string) => {
   expect(fromWorkspace(world.inputs, slug)).toEqual([]);
+});
+
+// A module's own entry spares the bundler the whole list; from the root it reads every module before it shakes them out.
+Then("the bundler reads under {int} KB of the modules' built code", (world: BundleWorld, kb: number) => {
+  expect(world.modulesBytesRead ?? 0).toBeLessThan(kb * 1024);
 });
 
 Then('the bundle holds no code from any installed package', (world: BundleWorld) => {

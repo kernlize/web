@@ -12,6 +12,9 @@ import {
   getRelayDiscoveryURL,
 } from 'applesauce-common/helpers';
 import { relayUrls, toRelayUrl } from '@kernlize/kernel';
+import { DEFAULT_SUGGESTIONS } from './suggestions.js';
+
+export { DEFAULT_SUGGESTIONS } from './suggestions.js';
 
 /**
  * Servers that carry NIP-66 monitors' reports: the ones nostr.watch's own
@@ -31,22 +34,6 @@ export const DEFAULT_MONITOR_RELAYS: readonly string[] = Object.freeze([
 
 /** What a suggestion is for: where the account is reached, where it writes, or where accounts' lists are looked up. */
 export type SuggestPurpose = 'inbox' | 'outbox' | 'lookup';
-
-/**
- * What the directory suggests when it knows nothing, per purpose. General
- * servers for inbox and outbox; servers that index profiles and server lists
- * for lookup.
- *
- * @example
- * ```ts
- * DEFAULT_SUGGESTIONS.lookup; // ['wss://purplepag.es', 'wss://user.kindpag.es', 'wss://indexer.coracle.social']
- * ```
- */
-export const DEFAULT_SUGGESTIONS: Readonly<Record<SuggestPurpose, readonly string[]>> = Object.freeze({
-  inbox: Object.freeze(['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.primal.net']),
-  outbox: Object.freeze(['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.primal.net']),
-  lookup: Object.freeze(['wss://purplepag.es', 'wss://user.kindpag.es', 'wss://indexer.coracle.social']),
-});
 
 /** One server as the monitors that watch it describe it. */
 export interface RelayListing {
