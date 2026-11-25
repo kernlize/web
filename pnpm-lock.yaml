@@ -105,6 +105,9 @@ importers:
       '@kernlize/messaging':
         specifier: workspace:^
         version: link:../../packages/messaging
+      '@kernlize/modules':
+        specifier: workspace:^
+        version: link:../../packages/modules
       '@kernlize/preset':
         specifier: workspace:^
         version: link:../../packages/preset
