@@ -138,6 +138,8 @@ Published packages have zero framework dependencies, matching kehto's rule. The 
 
 **Reversal cost.** Low; the preview is one module behind the contract.
 
+**Superseded in part by D-070.** The preview is the real kernel over `previewPreset`, not `preview-kernl.ts`, and the live shell no longer falls back to it. It stays a product feature.
+
 ## D-012 · Guard enforcement is layered: the runtime firewall refuses, kernl's guard refuses through it, quarantine stops the triggering message
 
 **Context.** kehto's bridge owns the `MessagePort` an applet speaks over, and exposes applet traffic to the host only through `ShellAdapter.onNappletMessage`. kehto's `dispatchEnvelope` calls that hook synchronously for each envelope, before it resolves the window's session and dispatches the envelope to the runtime, and ignores the hook's answer. The runtime then evaluates its own firewall, in the same synchronous call, before handing the envelope to a service. kernl cannot sit between the port and the runtime (D-001).
@@ -390,6 +392,8 @@ NZB, Soulseek and mail stay hand-off. Running them inside kernl needs something 
 **Reversal cost.** Low. The store and router are additive; the delivery send is one function in `kernl-intents.ts`.
 
 **Superseded in part by D-037.** `@kehto/acl` 0.20.6 maps `intent.deliver` to `intent:read`, so delivery goes through the runtime's `sendToEligibleNapplet` instead of the bound port.
+
+**Superseded in part by D-070.** The preview's store lists the samples `@kernlize/applet-samples` signs at build time, read from relays that live in the page.
 
 ## D-027 · Messages are an applet; the user orders the providers, and the shell asks before a reply leaves another way
 
@@ -1155,3 +1159,20 @@ A subscription replays before opening its approved relays and suppresses duplica
 **Consequences.** Applets can keep using `outbox.subscribe` and `outbox.query` unchanged. A subscription can render before its relays respond; a view that waits for a one-shot query before subscribing still waits. The web shell uses tab-local session storage, or page memory when that is unavailable. A reload can reuse the cache in the same tab; independent tabs do not share updates. The cache is not an offline archive: stored observations expire and the relays are still asked on every read.
 
 **Reversal cost.** Low. Remove the optional Outbox cache wiring; the kehto router and the D-030 cache still work independently.
+
+## D-070 · The preview runs `previewPreset`, and the hand-written fake is gone
+
+**Context.** D-011 made the preview a product feature, built as `preview-kernl.ts`: a second implementation of the `Kernl` contract, with its own samples, messaging, mailboxes, intents and firewall. Every kernel or module change had to be made twice, and the preview drifted from the live shell: it had no runtime to refuse a request before dispatch, and it reported `ratchet` and `group` unavailable. D-068's fourth step replaces it with `previewPreset` (#136).
+
+**Decision.**
+
+- **`?preview=1` runs `createKernl` over `previewPreset`.** The real kernel and kernl's own modules run over applesauce's pool, dialling relays that live in the page. The samples are the ones `@kernlize/applet-samples` signs at build time, served by hash for the kernel to verify. Ada and Grace have already written through `private` and `legacy`, and answer each send after 900 ms. `ratchet` and `group` run their real backends over the page's relays. Download programs' checks are answered; web pages, blobs and tool searches are refused as `unavailable:preview`. Magnet links go to an in-page client that reaches nobody (`offline-torrent.ts`).
+- **What would leave the page is left out.** The preview offers no keyboard shortcuts (D-054), no `upload` and no `webrtc`.
+- **No fallback.** When the core cannot be loaded or composed, `boot` rejects and the page says "The shell could not start." with the reason; it no longer opens the preview in the live shell's place.
+- **The fake is deleted.** `apps/web/src/shell/preview-*.ts` goes, with its feature specs in `apps/web/features/`, the `preview:` address form and the `unavailable:preview-offline` reason. `preview-preset.feature` and `boot-preview.test.ts` cover the preview now.
+
+The preview keeps its storage under the `preview:` prefix, apart from the live shell's.
+
+**Consequences.** A kernel or module change reaches the preview with no second edit, and the preview cannot claim behaviour the live shell lacks. The preview loads the kernel, the preset and the samples on demand, as the live shell loads its own. A live shell that cannot start shows an error instead of a working preview. The preview's store and the walkthroughs that use it follow `applets/samples`.
+
+**Reversal cost.** Moderate. The fake and its specs are in history, but would have to catch up with every module change made since.
