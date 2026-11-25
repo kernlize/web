@@ -4,7 +4,7 @@ import { IDBFactory, IDBKeyRange } from 'fake-indexeddb';
 import { PrivateKeySigner } from 'applesauce-signers';
 import type { NostrEvent } from 'applesauce-core/helpers';
 import { createIndexedDbCacheAdapter, createSqliteOpfsCacheAdapter, type CacheRecoveryEvent, type EventCache, type EventCacheAdapter, type LockManagerLike, type SqliteFiles } from '@kernlize/core/cache';
-import { connectSqliteWorker } from '../../src/cache/sqlite-worker-client.js';
+import { connectSqliteWorker } from '../../../modules/src/cache/sqlite-worker-client.js';
 import { FakeSahPool, poolWorker, type InProcessWorker } from './event-cache-pool.js';
 import { MemoryStorage, type CoreWorld } from './world.js';
 

@@ -88,15 +88,15 @@ export function findKehtoImports(packagesDir) {
     const allowed = new Set(KEHTO_ALLOWANCES[slug] ?? []);
     for (const file of sourceFiles(join(packagesDir, slug, 'src'))) {
       const offending = importSpecifiers(readFileSync(file, 'utf8')).filter((spec) => spec.startsWith('@kehto/') && !allowed.has(packageOf(spec)));
-      for (const spec of offending) violations.push(`${relative(packagesDir, file)} imports ${spec}; only the kernel and @kernlize/core compose kehto (guard may import @kehto/rate-limit)`);
+      for (const spec of offending) violations.push(`${relative(packagesDir, file)} imports ${spec}; only the kernel, the modules and @kernlize/core compose kehto (guard may import @kehto/rate-limit)`);
     }
   }
   return violations;
 }
 
-function findImportsOf(packagesDir, owner, target, reason) {
+function findImportsOf(packagesDir, allowed, target, reason) {
   const violations = [];
-  for (const slug of packageSlugs(packagesDir).filter((slug) => slug !== owner)) {
+  for (const slug of packageSlugs(packagesDir).filter((slug) => !allowed.includes(slug))) {
     for (const file of sourceFiles(join(packagesDir, slug, 'src'))) {
       const offending = importSpecifiers(readFileSync(file, 'utf8')).filter((spec) => packageOf(spec) === target);
       for (const spec of offending) violations.push(`${relative(packagesDir, file)} imports ${spec}; ${reason}`);
@@ -114,7 +114,7 @@ function findImportsOf(packagesDir, owner, target, reason) {
  * findViewModelImports('/repo/packages'); // []
  */
 export function findViewModelImports(packagesDir) {
-  return findImportsOf(packagesDir, 'ui-model', VIEW_MODEL_PACKAGE, "only a host's UI depends on the view models");
+  return findImportsOf(packagesDir, ['ui-model'], VIEW_MODEL_PACKAGE, "only a host's UI depends on the view models");
 }
 
 /**
@@ -126,11 +126,25 @@ export function findViewModelImports(packagesDir) {
  * findPresetImports('/repo/packages'); // []
  */
 export function findPresetImports(packagesDir) {
-  return findImportsOf(packagesDir, 'preset', PRESET_PACKAGE, 'nothing published imports the preset (D-068)');
+  // `@kernlize/core` re-exports the preset for the one minor it is deprecated (D-068).
+  return findImportsOf(packagesDir, ['preset', 'core'], PRESET_PACKAGE, 'nothing published imports the preset (D-068)');
 }
 
 /** What sits above the kernel: the packages that hold modules or kernl's own list (D-068). */
 export const ABOVE_KERNEL = ['@kernlize/core', '@kernlize/modules', '@kernlize/preset'];
+/** What composes the modules: they import neither (D-068). */
+export const ABOVE_MODULES = ['@kernlize/core', '@kernlize/preset'];
+
+function findImportsAbove(packagesDir, slug, above, reason) {
+  const violations = [];
+  const srcDir = join(packagesDir, slug, 'src');
+  for (const file of sourceFiles(srcDir)) {
+    const outside = (spec) => spec.startsWith('.') && relative(srcDir, join(file, '..', spec)).startsWith('..');
+    const offending = importSpecifiers(readFileSync(file, 'utf8')).filter((spec) => above.includes(packageOf(spec)) || outside(spec));
+    for (const spec of offending) violations.push(`${relative(packagesDir, file)} imports ${spec}; ${reason}`);
+  }
+  return violations;
+}
 
 /**
  * Find kernel files, tests included, that import module code: a package above the kernel, or a
@@ -141,14 +155,19 @@ export const ABOVE_KERNEL = ['@kernlize/core', '@kernlize/modules', '@kernlize/p
  * findKernelModuleImports('/repo/packages'); // []
  */
 export function findKernelModuleImports(packagesDir) {
-  const violations = [];
-  const srcDir = join(packagesDir, 'kernel', 'src');
-  for (const file of sourceFiles(srcDir)) {
-    const outside = (spec) => spec.startsWith('.') && relative(srcDir, join(file, '..', spec)).startsWith('..');
-    const offending = importSpecifiers(readFileSync(file, 'utf8')).filter((spec) => ABOVE_KERNEL.includes(packageOf(spec)) || outside(spec));
-    for (const spec of offending) violations.push(`${relative(packagesDir, file)} imports ${spec}; the kernel imports no module (D-068)`);
-  }
-  return violations;
+  return findImportsAbove(packagesDir, 'kernel', ABOVE_KERNEL, 'the kernel imports no module (D-068)');
+}
+
+/**
+ * Find module files, tests included, that import what composes them: `@kernlize/core`, kernl's
+ * preset, or a relative path out of the modules' own sources (D-068).
+ * @param {string} packagesDir Absolute path of the packages directory.
+ * @returns {string[]} One violation per offending import.
+ * @example
+ * findModulesAboveImports('/repo/packages'); // []
+ */
+export function findModulesAboveImports(packagesDir) {
+  return findImportsAbove(packagesDir, 'modules', ABOVE_MODULES, 'a module imports only the kernel and other modules (D-068)');
 }
 
 /**
@@ -165,6 +184,71 @@ export function findFrameworkDependencies(packagesDir) {
     for (const field of DEPENDENCY_FIELDS) {
       const names = Object.keys(manifest[field] ?? {}).filter((name) => FRAMEWORKS.includes(name));
       for (const name of names) violations.push(`packages/${slug}/package.json lists ${name} in ${field}; published packages have zero framework dependencies (D-004)`);
+    }
+  }
+  return violations;
+}
+
+/** What each module owns in `packages/modules/src`, past its `modules/<id>.ts` factory (D-068). */
+export const MODULE_SOURCES = {
+  bridges: ['bridges/'],
+  cache: ['cache/'],
+  catalog: ['catalog/'],
+  directory: ['relays/directory.ts'],
+  downloads: ['downloads/', 'kernl-downloads.ts'],
+  files: ['files/'],
+  intents: ['intents/', 'kernl-intents.ts'],
+  keys: ['keys/'],
+  mailboxes: ['relays/mailboxes.ts'],
+  messaging: ['messaging/'],
+  multiplayer: ['multiplayer/'],
+  people: ['people/'],
+  profiles: ['profiles/'],
+  social: ['social/'],
+};
+
+function moduleOf(local) {
+  const factory = /^modules\/([a-z-]+)\.ts$/.exec(local)?.[1];
+  if (factory) return factory;
+  return Object.keys(MODULE_SOURCES).find((id) => MODULE_SOURCES[id].some((owned) => (owned.endsWith('/') ? local.startsWith(owned) : local === owned)));
+}
+
+/**
+ * The relative imports a source file takes values from: type-only imports are erased, so they put
+ * nothing of another module into a bundle.
+ * @param {string} source File contents.
+ * @returns {string[]} Specifiers, in order.
+ * @example
+ * valueImports("import type { A } from './a.js';\nimport { b, type C } from './b.js';"); // ['./b.js']
+ */
+export function valueImports(source) {
+  const pattern = /(?:\bimport|\bexport)\s+(type\s+)?(\{[^}]*\}|\*(?:\s+as\s+\w+)?|\w+(?:\s*,\s*\{[^}]*\})?)\s+from\s+['"](\.[^'"]+)['"]/g;
+  const typeOnly = (typed, names) => Boolean(typed) || (names.startsWith('{') && names.slice(1, -1).split(',').map((name) => name.trim()).filter(Boolean).every((name) => name.startsWith('type ')));
+  return [...source.matchAll(pattern)].filter(([, typed, names]) => !typeOnly(typed, names)).map(([, , , spec]) => spec);
+}
+
+/**
+ * Find module code that takes values from a module it does not `require`: a host that lists one
+ * module bundles only what that module needs (D-068). Type-only imports are free.
+ * @param {string} packagesDir Absolute path of the packages directory.
+ * @returns {string[]} One violation per offending import.
+ * @example
+ * findUnrequiredModuleImports('/repo/packages'); // []
+ */
+export function findUnrequiredModuleImports(packagesDir) {
+  const srcDir = join(packagesDir, 'modules', 'src');
+  const requiresOf = (id) => {
+    const factory = join(srcDir, 'modules', `${id}.ts`);
+    const list = existsSync(factory) ? /requires:\s*\[([^\]]*)\]/.exec(readFileSync(factory, 'utf8'))?.[1] : undefined;
+    return (list ?? '').split(',').map((name) => name.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
+  };
+  const violations = [];
+  for (const file of sourceFiles(srcDir).filter((path) => !path.endsWith('.test.ts'))) {
+    const owner = moduleOf(relative(srcDir, file));
+    if (!owner) continue;
+    for (const spec of valueImports(readFileSync(file, 'utf8'))) {
+      const target = moduleOf(relative(srcDir, join(file, '..', spec)).replace(/\.js$/, '.ts'));
+      if (target && target !== owner && !requiresOf(owner).includes(target)) violations.push(`${relative(packagesDir, file)} imports ${spec} from the ${target} module, which ${owner} does not require (D-068)`);
     }
   }
   return violations;
@@ -190,6 +274,8 @@ export function checkDependencyRules(packagesDir, appSrcDir) {
     ...findViewModelImports(packagesDir),
     ...findPresetImports(packagesDir),
     ...findKernelModuleImports(packagesDir),
+    ...findModulesAboveImports(packagesDir),
+    ...findUnrequiredModuleImports(packagesDir),
     ...findFrameworkDependencies(packagesDir),
     ...(appSrcDir ? findAppNostrToolsImports(appSrcDir) : []),
   ];
