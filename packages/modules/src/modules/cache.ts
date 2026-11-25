@@ -18,7 +18,7 @@ export function cacheModule(open?: EventCacheOpener): KernlModule<'cache', Conne
     id: 'cache',
     setup(context) {
       const cache = connectEventCache(context.eventStore, open);
-      return { api: cache, dispose: () => cache.close() };
+      return { api: Object.assign(cache, { cacheOutboxReads: open !== undefined }), dispose: () => cache.close() };
     },
   };
 }

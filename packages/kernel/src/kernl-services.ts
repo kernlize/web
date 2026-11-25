@@ -31,6 +31,8 @@ import { createKernlMedia, type KernlMedia } from './media/kernl-media.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { createAppletRelayService, createOutboxRelayPool } from './applesauce/relay-backend.js';
 import { createIdentityProviders, type IdentityProviders, type RelayPermissions } from './applesauce/identity-providers.js';
+import { createOutboxEventCache } from './outbox-event-cache.js';
+import { createCachedOutboxService } from './outbox-reads.js';
 import type { SigningConsent, SigningTemplate } from './consent/handler.js';
 
 /**
@@ -66,11 +68,13 @@ export interface KernlServiceDeps {
   readonly pool: ApplesaucePool;
   readonly tiers: RelayTiers;
   readonly eventStore: EventStore;
+  /** Opt into the separate public-tree Outbox observation cache. */
+  readonly cacheOutboxReads?: boolean;
   /** `getUserPubkey` lets the identity service name a read-only account, which has no signer. */
   readonly auth: Pick<AuthHooks, 'getSigner'> & Partial<Pick<AuthHooks, 'getUserPubkey'>>;
   /** Gates the outbox service's publishes, which kehto signs without naming the window. */
   readonly consent: SigningConsent;
-  readonly host: Pick<KernlHost, 'notify' | 'openLink' | 'storage'>;
+  readonly host: Pick<KernlHost, 'notify' | 'openLink' | 'storage' | 'outboxCacheStorage'>;
   /** The bridges module's registry; without it the `resource` domain is not offered and the shell plays only what applets play themselves. */
   readonly bridges?: BridgeRegistry;
   /** Applet settings (NAP-CONFIG); without them the `config` domain is not offered. */
@@ -285,7 +289,17 @@ function createOutbox(deps: KernlServiceDeps, identity: IdentityProviders) {
     },
     verifyEvent: (event) => verifyEvent(event),
   });
-  return createOutboxService({ router: acceptAnyRelay(router) });
+  const accepting = acceptAnyRelay(router) as typeof router;
+  if (!deps.cacheOutboxReads) return createOutboxService({ router: accepting });
+  return createCachedOutboxService({
+    router: accepting,
+    cache: createOutboxEventCache(deps.host.outboxCacheStorage),
+    scope(windowId) {
+      const applet = deps.resolveIdentity(windowId);
+      if (!applet) return undefined;
+      return JSON.stringify([applet.dTag, applet.aggregateHash, deps.auth.getUserPubkey?.() ?? null]);
+    },
+  });
 }
 
 /**
