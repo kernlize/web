@@ -112,6 +112,9 @@ importers:
       '@kernlize/applet-messages':
         specifier: workspace:^
         version: link:../../applets/messages
+      '@kernlize/applet-samples':
+        specifier: workspace:^
+        version: link:../../applets/samples
       '@kernlize/bridges':
         specifier: workspace:^
         version: link:../../packages/bridges

@@ -1,14 +1,13 @@
 /**
  * Plain words for every reason messaging can give. The unavailability keys are the codes
- * `MESSAGING_UNAVAILABLE_REASONS` in `@kernlize/core` holds (plus the preview's own); a browser
+ * `MESSAGING_UNAVAILABLE_REASONS` in `@kernlize/core` holds; a browser
  * test checks that every core code has an entry here, so a new code cannot reach a person raw.
- * The core is not imported at runtime: the shell loads it on demand, and the preview never does.
+ * The core is not imported at runtime: the shell loads it on demand.
  */
 export const UNAVAILABLE_WORDS: Readonly<Record<string, string>> = {
   'sign-in-required': 'Sign in to use this provider.',
   'signer-cannot-encrypt': 'This identity cannot lock messages this way.',
   'no-runtime': 'Not part of this build yet.',
-  'no-ratchet-runtime': 'Needs the live shell and a signed-in identity.',
 };
 
 /** Plain words for the reasons a send, an enable or a disable can be refused with. */
