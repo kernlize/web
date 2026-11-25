@@ -369,6 +369,8 @@ export interface HandlerChoice {
 /** Host hooks the core calls. Applets never reach these. */
 export interface KernlHost {
   readonly storage: StorageLike;
+  /** Optional Outbox cache backing for this browsing session only. Never share it across tabs. */
+  readonly outboxCacheStorage?: StorageLike;
   /**
    * How the host draws each question the kernel puts to the person, one renderer per kind (D-067).
    * A kind with no renderer, and no prompt callback below, is refused. Every ask carries its facts

@@ -134,3 +134,30 @@ describe('boot', () => {
     expect(booted.fallbackReason).toContain('The live shell could not start');
   });
 });
+
+it('uses browser session storage only for live Outbox replay', async () => {
+  const createKernl = vi.fn(() => ({ pool: {} }));
+  const { boot } = await bootWith({ createKernl });
+  const session = { getItem: () => null, setItem() {}, removeItem() {} };
+  vi.stubGlobal('sessionStorage', session);
+  try {
+    await boot(host, new URLSearchParams());
+    expect(createKernl).toHaveBeenCalledWith(expect.objectContaining({ host: { ...host, outboxCacheStorage: session } }));
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+it('boots live when browser session storage is forbidden', async () => {
+  const createKernl = vi.fn(() => ({ pool: {} }));
+  const { boot } = await bootWith({ createKernl });
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'sessionStorage');
+  Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, get() { throw new DOMException('forbidden', 'SecurityError'); } });
+  try {
+    await expect(boot(host, new URLSearchParams())).resolves.toMatchObject({ mode: 'live' });
+    expect(createKernl).toHaveBeenCalledWith(expect.objectContaining({ host }));
+  } finally {
+    if (original) Object.defineProperty(globalThis, 'sessionStorage', original);
+    else Reflect.deleteProperty(globalThis, 'sessionStorage');
+  }
+});

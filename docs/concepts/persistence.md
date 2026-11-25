@@ -52,6 +52,7 @@ On boot, `createKernlAccounts` restores the accounts and makes the stored id act
 | `kernl:settings:section:v1` | `settings/sections.ts`, through the host storage | The id of the Settings section the person was last in: `general`, `servers`, `messages`, `connections` or `downloads`. Anything else is ignored and Settings opens on General ([D-049](../decisions.md#d-049)). |
 | `kernl:layout:v1` | `windows.ts`, through the host storage | The id of the layout the person chose, as a plain string: `floating`, `dwindle`, `columns`, `master-stack`, or one a developer registered. An id nobody registered is ignored and the first layout is used; `tiled`, which earlier builds stored, reads as `dwindle`. See [Layouts](./layouts.md). |
 | `kernl:preview:grants:v1`, `kernl:preview:relays:v1`, `kernl:preview:messaging:v1`, `kernl:preview:installed:v1`, `kernl:preview:intent-defaults:v1` | the offline preview (`?preview=1`) | The preview's own grants, tiers, messaging preferences, installed applets and default applets, kept apart so that trying the preview never changes the live shell's state. The preview's firewall rules are kept apart the same way, under `preview:kernl:firewall-rules:v1`. |
+| `kernl:outbox-tree-events:v1` | The Outbox service with the cache module enabled | Tab-local `sessionStorage`: verified public tree observations, scoped to the applet artifact, identity and observed relay. See [Outbox replay](#outbox-replay). |
 
 The public website also remembers its colour scheme as `kernl-theme` (`light` or `dark`). That key belongs to the site pages, not to the shell.
 
@@ -64,6 +65,12 @@ Apart from the firewall's stored answers above, kernl passes no persistence hook
 Settings are small and live in `StorageLike`. Events are many and live in an event cache, `@kernlize/core/cache` ([D-030](../decisions.md#d-030)). One contract, `EventCacheAdapter`, has a backend per context, and `openEventCache` uses the first that opens here. In a browser that is sqlite over the origin-private file system, then IndexedDB, then memory; a server or a native host brings its own database through `fromEventDatabase` ([Add a cache backend](../how-tos/add-a-cache-backend.md)).
 
 The cache is an accelerator, never identity. Nothing in it is the only copy of anything: every event came from a relay and can be fetched again. A loader that asks the cache and gets an error is answered with nothing and asks the relays, and events read from the cache enter the event store marked as from the cache, so they are never written back.
+
+### Outbox replay
+
+The cache module with an opener also enables a separate Outbox cache ([D-069](../decisions.md#d-069)). The shell keeps up to 256 observations, no more than 256,000 characters in host storage, for up to 24 hours. The web shell uses tab-local `sessionStorage`: a reload in the same tab can reuse the cache, but tabs do not share updates. If session storage is unavailable, the cache lives in memory for the page. It stores verified tree records (kinds 31971, 31969, 31108 and 1111) received on live Outbox subscriptions from `nos.lol`, `relay.routstr.com` and `relay.redsh1ft.com`. Drafts and events from other relays stay out. Verified deletions that name an allowlisted address owned by their author are retained even if the target has not arrived. An ID-only deletion is kept only if it names a retained observation. Deletions themselves are never replayed.
+
+Every new read still goes through authorization. A cache hit must match the applet artifact, current identity, filters and an observed relay in the approved plan. Live subscriptions replay up to 128 matching events before opening their relays, and one-shot queries merge cached matches into their normal response. Neither path skips the network. If host storage cannot be used, the shell can still read from relays.
 
 ### What the cache keeps
 
