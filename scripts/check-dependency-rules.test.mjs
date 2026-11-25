@@ -72,8 +72,8 @@ test('findKehtoImports allows guard → @kehto/rate-limit and nothing else in le
     'core/src/index.ts': "import { createShellBridge } from '@kehto/shell';\n",
   });
   expect(findKehtoImports(root)).toEqual([
-    'guard/src/index.ts imports @kehto/acl; only @kernlize/core composes kehto (guard may import @kehto/rate-limit)',
-    'messaging/src/index.ts imports @kehto/services; only @kernlize/core composes kehto (guard may import @kehto/rate-limit)',
+    'guard/src/index.ts imports @kehto/acl; only the kernel and @kernlize/core compose kehto (guard may import @kehto/rate-limit)',
+    'messaging/src/index.ts imports @kehto/services; only the kernel and @kernlize/core compose kehto (guard may import @kehto/rate-limit)',
   ]);
 });
 
@@ -154,27 +154,19 @@ test('findKehtoImports keeps kehto out of the view models', () => {
     'ui-model/package.json': manifest('@kernlize/ui-model'),
     'ui-model/src/index.ts': "import type { Runtime } from '@kehto/runtime';\n",
   });
-  expect(findKehtoImports(root)).toEqual(['ui-model/src/index.ts imports @kehto/runtime; only @kernlize/core composes kehto (guard may import @kehto/rate-limit)']);
+  expect(findKehtoImports(root)).toEqual(['ui-model/src/index.ts imports @kehto/runtime; only the kernel and @kernlize/core compose kehto (guard may import @kehto/rate-limit)']);
 });
 
-test('findKernelModuleImports flags a kernel file or test importing a module, and lets it import the kernel and its types', () => {
+test('findKernelModuleImports flags a kernel file or test importing a module, and lets it import itself and the leaf packages', () => {
   const root = packages({
-    'src/applets/resolve.ts': "import { addressOf } from '../catalog/entry.js';\nimport { plan } from './plan.js';\nimport type { Kernl } from '../types.js';\n",
-    'src/kernl.ts': "import { createKernlServices } from './kernl-services.js';\n",
-    'src/kernl-services.ts': '',
-    'src/catalog/entry.ts': "import { resolve } from '../applets/resolve.js';\n",
-    'src/applets/resolve.test.ts': "import { x } from '../catalog/entry.js';\n",
+    'kernel/package.json': manifest('@kernlize/kernel'),
+    'kernel/src/applets/resolve.ts': "import { addressOf } from '@kernlize/core';\nimport { plan } from './plan.js';\nimport type { BridgeRegistry } from '@kernlize/bridges';\n",
+    'kernel/src/applets/plan.ts': '',
+    'kernel/src/applets/resolve.test.ts': "import { kernlPreset } from '@kernlize/preset';\nimport { x } from '../../../core/src/catalog/entry.js';\n",
   });
-  expect(findKernelModuleImports(join(root, 'src'))).toEqual([
-    'packages/core/src/applets/resolve.test.ts imports ../catalog/entry.js; the kernel imports no module (D-068)',
-    'packages/core/src/applets/resolve.ts imports ../catalog/entry.js; the kernel imports no module (D-068)',
+  expect(findKernelModuleImports(root)).toEqual([
+    'kernel/src/applets/resolve.test.ts imports @kernlize/preset; the kernel imports no module (D-068)',
+    'kernel/src/applets/resolve.test.ts imports ../../../core/src/catalog/entry.js; the kernel imports no module (D-068)',
+    'kernel/src/applets/resolve.ts imports @kernlize/core; the kernel imports no module (D-068)',
   ]);
-});
-
-test('findKernelModuleImports counts the mailboxes and the directory as modules, though they sit in relays/', () => {
-  const root = packages({
-    'src/relays/tiers.ts': "import { createMailboxes } from './mailboxes.js';\n",
-    'src/relays/mailboxes.ts': "import { createRelayTiers } from './tiers.js';\n",
-  });
-  expect(findKernelModuleImports(join(root, 'src'))).toEqual(['packages/core/src/relays/tiers.ts imports ./mailboxes.js; the kernel imports no module (D-068)']);
 });

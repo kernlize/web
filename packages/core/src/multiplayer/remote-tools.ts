@@ -2,8 +2,7 @@ import type { ServiceHandler, ServiceRuntimeContext } from '@kehto/runtime';
 import { createCvmService, type CvmRegistryFamily, type CvmService } from '@kehto/services';
 import { createNostrCvmTransport, type CvmRelayPool } from '@kehto/services/cvm-nostr-transport';
 import type { NostrEvent, NostrFilter } from '@napplet/core';
-import { publishAccepted } from '../applesauce/relay-backend.js';
-import { subscribeWithEose, type ApplesaucePool } from '../applesauce/relay-hooks.js';
+import { publishAccepted, subscribeWithEose, type ApplesaucePool } from '@kernlize/kernel';
 import type { WindowIdentities } from './window-identities.js';
 
 /** What the remote tools service needs from the shell. */

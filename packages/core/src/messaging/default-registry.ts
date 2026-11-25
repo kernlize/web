@@ -13,9 +13,8 @@ import {
   type SavedMessagingPreferences,
 } from '@kernlize/messaging';
 import type { ISigner } from 'applesauce-signers';
-import type { StorageLike } from '../types.js';
+import { type StorageLike, createNamespacedStore } from '@kernlize/kernel';
 import type { MessagingBackendFactories } from './backend-factories.js';
-import { createNamespacedStore } from '../persistence/store.js';
 import { MESSAGING_UNAVAILABLE_REASONS, signerAvailability, type MessagingEncryption } from './availability.js';
 
 const STORAGE_KEY = 'messaging:v1';

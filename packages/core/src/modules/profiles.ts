@@ -1,6 +1,5 @@
-import { lookupRelaysOf } from '../applesauce/identity-providers.js';
+import { lookupRelaysOf, type KernlModule } from '@kernlize/kernel';
 import { createProfiles, type Profiles, type ProfilesOptions } from '../profiles/profiles.js';
-import type { KernlModule } from '../module-host/module.js';
 
 /**
  * People's profiles, read from the shell's store and loaded on demand through the shell's loader:

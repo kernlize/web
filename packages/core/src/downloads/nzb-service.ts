@@ -1,5 +1,5 @@
 import type { NappletMessage } from '@napplet/core';
-import { createNamespacedStore } from '../persistence/store.js';
+import { createNamespacedStore } from '@kernlize/kernel';
 import { createNzbHandles } from './nzb-handles.js';
 import { addNzb, controlNzb } from './nzb-mutations.js';
 import { describeNzbDownloaders, listNzbJobs, nzbFiles, nzbStatus } from './nzb-queries.js';

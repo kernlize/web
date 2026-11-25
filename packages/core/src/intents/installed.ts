@@ -1,10 +1,8 @@
 import { BehaviorSubject, type Observable } from 'rxjs';
 import { manifestToIntentCatalogEntry, type IntentCatalogEntry } from '@kehto/services';
-import type { AppletSummary, StorageLike } from '../types.js';
-import { createNamespacedStore } from '../persistence/store.js';
-import type { InstalledApplet } from '../intents-contract.js';
+import { type AppletSummary, type StorageLike, createNamespacedStore, type InstalledApplet } from '@kernlize/kernel';
 
-export type { InstalledApplet, InstalledContract } from '../intents-contract.js';
+export type { InstalledApplet, InstalledContract } from '@kernlize/kernel';
 
 
 

@@ -1,7 +1,6 @@
 import { BehaviorSubject, type Observable } from 'rxjs';
 import type { CvmRegistryFamily } from '@kehto/services';
-import { createNamespacedStore } from '../persistence/store.js';
-import type { DirectIceServer, StorageLike } from '../types.js';
+import { createNamespacedStore, type DirectIceServer, type StorageLike } from '@kernlize/kernel';
 
 const STORAGE_KEY = 'multiplayer:v1';
 const HEX_KEY = /^[0-9a-f]{64}$/u;

@@ -68,6 +68,7 @@
     "@kehto/wm": "^0.0.2",
     "@kernlize/bridges": "workspace:^",
     "@kernlize/guard": "workspace:^",
+    "@kernlize/kernel": "workspace:^",
     "@kernlize/messaging": "workspace:^",
     "@noble/ciphers": "^2.4.0",
     "@noble/curves": "^2.4.0",

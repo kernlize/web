@@ -4,7 +4,7 @@ import { renderNappletNamespacePrelude, type ShellAdapter, type ShellEnvironment
 import type { GuardProfile, WindowVisibility } from '@kernlize/guard';
 import { AccountManager } from 'applesauce-accounts';
 import { createRelayTiers, createShellAdapter, mountApplet, planMount, resolveApplet, type AppletStatus, type AppletSummary, type MountDeps, type MountPlan, type MountedApplet } from '@kernlize/core';
-import { spliceOnce } from '../../src/applets/plan.js';
+import { spliceOnce } from '../../../kernel/src/applets/plan.js';
 import { allowAllSigning, attempt, createFakeFrame, quietPermissions, scratch, signManifest, splitList, type CoreWorld, type FakeFrame } from './world.js';
 
 interface MountRecord {

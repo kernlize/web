@@ -1,5 +1,5 @@
 import { connectEventCache, type ConnectedEventCache, type EventCacheOpener } from '../cache/connect.js';
-import type { KernlModule } from '../module-host/module.js';
+import type { KernlModule } from '@kernlize/kernel';
 
 /**
  * The event cache: events kept between visits, asked before any relay by the shell's replaceable

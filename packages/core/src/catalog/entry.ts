@@ -1,8 +1,8 @@
 import { parseNappletManifest, verifyManifestSignature, type NappletManifest } from '@kehto/nip/5d';
 import type { NostrEvent } from '@napplet/core';
-import { addressOf } from '../applets/address.js';
+import { addressOf } from '@kernlize/kernel';
 
-export { addressOf } from '../applets/address.js';
+export { addressOf } from '@kernlize/kernel';
 
 /** One applet as the store lists it. Read from a signed manifest; its bytes are verified only when it is opened. */
 export interface CatalogEntry {

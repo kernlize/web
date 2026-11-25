@@ -1,5 +1,5 @@
 import type { MessagingBackend } from '@kernlize/messaging';
-import type { StorageLike } from '../types.js';
+import type { StorageLike } from '@kernlize/kernel';
 import type { RegisteredProvider } from './default-registry.js';
 import type { SignerMessagingOptions } from './signer-backend.js';
 

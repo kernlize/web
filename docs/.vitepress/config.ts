@@ -99,6 +99,7 @@ export const sidebar = [
       { text: '@kernlize/guard', link: '/packages/guard' },
       { text: '@kernlize/messaging', link: '/packages/messaging' },
       { text: '@kernlize/bridges', link: '/packages/bridges' },
+      { text: '@kernlize/kernel', link: '/packages/kernel' },
       { text: '@kernlize/core', link: '/packages/core' },
       { text: '@kernlize/ui-model', link: '/packages/ui-model' },
     ],

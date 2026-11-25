@@ -1,11 +1,8 @@
 import { createCommonService } from '@kehto/services';
-import { publishAccepted } from '../applesauce/relay-backend.js';
-import { selectRelayTier } from '../applesauce/relay-hooks.js';
-import { shellRelayOrigins } from '../kernl-services.js';
+import { publishAccepted, selectRelayTier, shellRelayOrigins, type KernlModule } from '@kernlize/kernel';
 import type { People } from '../people/person.js';
 import type { Profiles } from '../profiles/profiles.js';
 import { createCommonActions } from '../social/common-actions.js';
-import type { KernlModule } from '../module-host/module.js';
 
 const FOLLOWS = 3;
 

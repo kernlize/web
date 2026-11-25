@@ -1,6 +1,6 @@
 import type { ISigner } from 'applesauce-signers';
 import type { StorageAdapter } from 'nostr-double-ratchet';
-import type { StorageLike } from '../types.js';
+import type { StorageLike } from '@kernlize/kernel';
 
 /** NIP-44 encrypts at most 65535 bytes; a UTF-16 code unit takes at most three UTF-8 bytes, so 16384 units always fit. */
 const CHUNK_UNITS = 16_384;

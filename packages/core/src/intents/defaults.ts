@@ -1,13 +1,10 @@
 import { lastValueFrom, Subject, takeUntil, timer, toArray } from 'rxjs';
 import { verifyEvent } from 'applesauce-core/helpers';
 import type { EventTemplate, NostrEvent } from '@napplet/core';
-import type { RelayTiers, StorageLike } from '../types.js';
-import { asFilters, type ApplesaucePool } from '../applesauce/relay-hooks.js';
-import { createNamespacedStore } from '../persistence/store.js';
+import { type RelayTiers, type StorageLike, asFilters, type ApplesaucePool, createNamespacedStore, type HandlerDefaults } from '@kernlize/kernel';
 import { HANDLER_PREFERENCES_KIND, parseHandlerPreferences, preferenceTemplate } from './preferences.js';
-import type { HandlerDefaults } from '../intents-contract.js';
 
-export type { HandlerDefaults } from '../intents-contract.js';
+export type { HandlerDefaults } from '@kernlize/kernel';
 
 /** Signs the shell's own preference events. Present only while the active account can sign. */
 export type PreferenceSigner = (template: EventTemplate) => Promise<NostrEvent>;

@@ -1,5 +1,5 @@
 import { createCatalogIntentResolver, type IntentCandidate, type IntentDispatchParams, type IntentRequest, type IntentResolver, type IntentResult } from '@kehto/services';
-import type { HandlerChoice, HandlerOption, HandlerPrompt } from '../types.js';
+import type { HandlerChoice, HandlerOption, HandlerPrompt } from '@kernlize/kernel';
 import type { HandlerDefaults } from './defaults.js';
 import type { InstalledApplet, InstalledApplets } from './installed.js';
 import { catalogIdForRef, preferredHandlers } from './preferences.js';

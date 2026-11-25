@@ -4,7 +4,8 @@
  *
  * @packageDocumentation
  */
-export * from './kernel/index.js';
+export * from '@kernlize/kernel';
+export * from './core-exports.js';
 export { createKernl } from './create-kernl.js';
 export { kernlModules } from './modules/default.js';
 export { ratchet, createRatchetMessagesBackend, type RatchetMessagingOptions } from './messaging/ratchet/index.js';

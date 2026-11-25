@@ -88,7 +88,7 @@ export function findKehtoImports(packagesDir) {
     const allowed = new Set(KEHTO_ALLOWANCES[slug] ?? []);
     for (const file of sourceFiles(join(packagesDir, slug, 'src'))) {
       const offending = importSpecifiers(readFileSync(file, 'utf8')).filter((spec) => spec.startsWith('@kehto/') && !allowed.has(packageOf(spec)));
-      for (const spec of offending) violations.push(`${relative(packagesDir, file)} imports ${spec}; only @kernlize/core composes kehto (guard may import @kehto/rate-limit)`);
+      for (const spec of offending) violations.push(`${relative(packagesDir, file)} imports ${spec}; only the kernel and @kernlize/core compose kehto (guard may import @kehto/rate-limit)`);
     }
   }
   return violations;
@@ -129,33 +129,24 @@ export function findPresetImports(packagesDir) {
   return findImportsOf(packagesDir, 'preset', PRESET_PACKAGE, 'nothing published imports the preset (D-068)');
 }
 
-/** Directories and files of `packages/core/src` that are the kernel (D-068); the rest are modules or kernl's preset. */
-export const KERNEL_PARTS = ['applesauce', 'applets', 'asks', 'consent', 'crypto', 'firewall', 'grants', 'guard', 'media', 'module-host', 'persistence', 'relays', 'secrets', 'seal', 'kernl.ts', 'kernl-adapter.ts', 'kernl-firewall.ts', 'kernl-lifecycle.ts', 'kernl-network.ts', 'kernl-services.ts', 'cache-lookup.ts', 'shortcut-key.ts', 'intents-contract.ts', 'types.ts'];
-
-/** Module files that sit in a kernel directory until they move. */
-export const MODULES_IN_KERNEL_DIRS = ['relays/mailboxes.ts', 'relays/directory.ts'];
+/** What sits above the kernel: the packages that hold modules or kernl's own list (D-068). */
+export const ABOVE_KERNEL = ['@kernlize/core', '@kernlize/modules', '@kernlize/preset'];
 
 /**
- * Find kernel files in `packages/core/src` that import module code, so the edges cut for the package
- * split (#75) stay cut. The re-export barrels are not kernel files here.
- * @param {string} coreSrcDir Absolute path of `packages/core/src`.
+ * Find kernel files, tests included, that import module code: a package above the kernel, or a
+ * relative path out of the kernel's own sources (D-068).
+ * @param {string} packagesDir Absolute path of the packages directory.
  * @returns {string[]} One violation per offending import.
  * @example
- * findKernelModuleImports('/repo/packages/core/src'); // []
+ * findKernelModuleImports('/repo/packages'); // []
  */
-export function findKernelModuleImports(coreSrcDir) {
+export function findKernelModuleImports(packagesDir) {
   const violations = [];
-  const top = (path) => path.split('/')[0];
-  // The mailboxes and the directory are modules that still sit in the kernel's relays/ directory.
-  const isKernel = (path) => KERNEL_PARTS.includes(top(path)) && !MODULES_IN_KERNEL_DIRS.includes(path);
-  // Tests count: they move with the kernel's files, so they may not reach module code either.
-  for (const file of sourceFiles(coreSrcDir)) {
-    const local = relative(coreSrcDir, file);
-    if (!isKernel(local)) continue;
-    for (const spec of importSpecifiers(readFileSync(file, 'utf8')).filter((spec) => spec.startsWith('.'))) {
-      const target = relative(coreSrcDir, join(file, '..', spec)).replace(/\.js$/, '.ts');
-      if (!isKernel(target)) violations.push(`packages/core/src/${local} imports ${spec}; the kernel imports no module (D-068)`);
-    }
+  const srcDir = join(packagesDir, 'kernel', 'src');
+  for (const file of sourceFiles(srcDir)) {
+    const outside = (spec) => spec.startsWith('.') && relative(srcDir, join(file, '..', spec)).startsWith('..');
+    const offending = importSpecifiers(readFileSync(file, 'utf8')).filter((spec) => ABOVE_KERNEL.includes(packageOf(spec)) || outside(spec));
+    for (const spec of offending) violations.push(`${relative(packagesDir, file)} imports ${spec}; the kernel imports no module (D-068)`);
   }
   return violations;
 }
@@ -198,7 +189,7 @@ export function checkDependencyRules(packagesDir, appSrcDir) {
     ...findKehtoImports(packagesDir),
     ...findViewModelImports(packagesDir),
     ...findPresetImports(packagesDir),
-    ...findKernelModuleImports(join(packagesDir, 'core', 'src')),
+    ...findKernelModuleImports(packagesDir),
     ...findFrameworkDependencies(packagesDir),
     ...(appSrcDir ? findAppNostrToolsImports(appSrcDir) : []),
   ];

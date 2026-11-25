@@ -2,7 +2,7 @@ import { lastValueFrom, toArray } from 'rxjs';
 import type { NostrEvent } from 'applesauce-core/helpers';
 import type { NostrNetworkInterface, PublishResponse } from '@internet-privacy/marmot-ts';
 import type { NostrFilter } from '@napplet/core';
-import { subscribeWithEose, type ApplesaucePool } from '../applesauce/relay-hooks.js';
+import { subscribeWithEose, type ApplesaucePool } from '@kernlize/kernel';
 import type { InboxRelays } from './inbox-relays.js';
 
 const asArray = <T>(value: T | T[]): T[] => (Array.isArray(value) ? value : [value]);

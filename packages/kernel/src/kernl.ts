@@ -214,8 +214,8 @@ function withApis<Apis>(shell: Kernel, composed: ComposedModules): Kernel & Apis
  * `EventStore`, one `RelayPool`, one `AccountManager`, the relay tiers, the guard pipeline, the
  * grants layer, kehto's services and `createShellBridge`, plus the applet lifecycle
  * `decodePointer` → `resolve` → `plan` → `mount`. Applets are offered only what the kernel and
- * those modules answer. `@kernlize/core/kernel` exports it without kernl's own module list, so a
- * host that lists its own loads only what it lists.
+ * those modules answer. `@kernlize/kernel` holds no module, so a host that lists its own loads
+ * only what it lists (D-068).
  *
  * Anything the host passes in `options` is used as is; anything missing is created with kernl's
  * defaults. The host wires `handleWindowMessage` to the window once and supplies the frames;
@@ -225,9 +225,10 @@ function withApis<Apis>(shell: Kernel, composed: ComposedModules): Kernel & Apis
  * @returns The shell with each module's api beside it.
  * @example
  * ```ts
- * import { createKernel, messagingModule, privateDm } from '@kernlize/core/kernel';
- * const kernl = createKernel({ host, modules: [messagingModule({ providers: [privateDm()] })] });
- * kernl.messaging.list().map((entry) => entry.provider.id); // ['private']
+ * import { createKernel, type KernlModule } from '@kernlize/kernel';
+ * const clock: KernlModule<'clock', { now(): number }> = { id: 'clock', setup: () => ({ api: { now: () => Date.now() } }) };
+ * const kernl = createKernel({ host, modules: [clock] });
+ * kernl.clock.now(); // milliseconds since the epoch
  * ```
  */
 export function createKernel<const M extends readonly AnyKernlModule[]>(options: KernelOptions<M>): Kernel & ModuleApis<M> {

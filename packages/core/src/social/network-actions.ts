@@ -1,10 +1,6 @@
 import type { CommonServiceOptions } from '@kehto/services';
 import type { ISigner } from 'applesauce-signers';
-import type { SigningConsent } from '../consent/handler.js';
-import type { KernlNetwork, KernlNetworkParts } from '../kernl-network.js';
-import { publishAccepted } from '../applesauce/relay-backend.js';
-import { selectRelayTier } from '../applesauce/relay-hooks.js';
-import { loadReplaceableQuietly } from '../applesauce/identity-providers.js';
+import { type SigningConsent, type KernlNetwork, type KernlNetworkParts, publishAccepted, selectRelayTier, loadReplaceableQuietly } from '@kernlize/kernel';
 import type { People } from '../people/person.js';
 import type { Profiles } from '../profiles/profiles.js';
 import { createCommonActions } from './common-actions.js';

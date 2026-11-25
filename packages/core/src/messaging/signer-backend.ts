@@ -5,9 +5,7 @@ import { getConversationParticipants } from 'applesauce-common/helpers/messages'
 import type { ISigner } from 'applesauce-signers';
 import type { DmMessage, DmSendRequest, DmStatus, NostrFilter } from '@napplet/core';
 import type { MessagingBackend } from '@kernlize/messaging';
-import type { RelayTiers } from '../types.js';
-import { subscribeWithEose, type ApplesaucePool, type EoseSubscription } from '../applesauce/relay-hooks.js';
-import { createReplaceableLoader } from '../applesauce/identity-providers.js';
+import { type RelayTiers, subscribeWithEose, type ApplesaucePool, type EoseSubscription, createReplaceableLoader } from '@kernlize/kernel';
 import { signerAvailability, type MessagingEncryption } from './availability.js';
 import { conversationIdOf, createConversationStore } from './conversation-store.js';
 import { createInboxRelays, type InboxRelays } from './inbox-relays.js';

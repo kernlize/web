@@ -2,11 +2,9 @@ import { Actions, computeBlobSha256, createUploadAuth, type BlobDescriptor, type
 import type { Uploader, UploadRequest, UploadResult } from '@kehto/services';
 import type { ISigner } from 'applesauce-signers';
 import type { NostrEvent } from '@napplet/core';
-import type { AppletIdentity, ConsentSummary } from '../types.js';
-import { toAskChannel, type AskChannel, type AskHost } from '../asks/channel.js';
-import type { UploadDetails } from '../asks/facts.js';
+import { type AppletIdentity, type ConsentSummary, toAskChannel, type AskChannel, type AskHost, type UploadDetails } from '@kernlize/kernel';
 
-export type { UploadDetails } from '../asks/facts.js';
+export type { UploadDetails } from '@kernlize/kernel';
 
 
 /** Uploads to several servers, the first first and the rest as mirrors; hzrd149's `multiServerUpload` fits. */

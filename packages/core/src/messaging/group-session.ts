@@ -10,8 +10,7 @@ import {
   type NostrNetworkInterface,
 } from '@internet-privacy/marmot-ts';
 import type { DmMessage } from '@napplet/core';
-import type { StorageLike, RelayTiers } from '../types.js';
-import { subscribeWithEose, type ApplesaucePool, type EoseSubscription } from '../applesauce/relay-hooks.js';
+import { type StorageLike, type RelayTiers, subscribeWithEose, type ApplesaucePool, type EoseSubscription } from '@kernlize/kernel';
 import { createSealedGroupStore, type SealedGroupStoreOptions } from './group-storage.js';
 import type { InboxRelays } from './inbox-relays.js';
 

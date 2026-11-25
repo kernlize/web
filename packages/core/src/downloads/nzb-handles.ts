@@ -1,4 +1,4 @@
-import type { NamespacedStore } from '../persistence/store.js';
+import type { NamespacedStore } from '@kernlize/kernel';
 
 const STORE_KEY = 'nzb-handles:v1';
 

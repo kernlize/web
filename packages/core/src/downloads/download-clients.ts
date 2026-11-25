@@ -14,9 +14,7 @@ import {
   type SoulseekClient,
   type TorrentClient,
 } from '@kernlize/bridges';
-import { createNamespacedStore } from '../persistence/store.js';
-import { createStorageSecrets, type SecretsProvider } from '../secrets/secrets.js';
-import type { StorageLike } from '../types.js';
+import { createNamespacedStore, createStorageSecrets, type SecretsProvider, type StorageLike } from '@kernlize/kernel';
 import type { ClientFor, ConnectionRouting, DownloadClients, DownloadClientsState, DownloadConnection, DownloadDomain, DownloadProgram, DownloadSignIn, RoutedClient } from './connections.js';
 import { defaultLabel, domainOf, isSignInText, labelFrom, nextRoutingKey, readStoredState, successor, withDefaults } from './download-records.js';
 

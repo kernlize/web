@@ -2,7 +2,7 @@ import { lastValueFrom, takeUntil, timer, toArray } from 'rxjs';
 import { decodeEventPointer, verifyEvent } from 'applesauce-core/helpers';
 import { computeCvmToolSchemaHash, type CvmRegistryFamily } from '@kehto/services';
 import type { NostrEvent, NostrFilter } from '@napplet/core';
-import { asFilters, type ApplesaucePool } from '../applesauce/relay-hooks.js';
+import { asFilters, type ApplesaucePool } from '@kernlize/kernel';
 
 const KIND_SERVER = 11_316;
 const KIND_TOOLS = 11_317;

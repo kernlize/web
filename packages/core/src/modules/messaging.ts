@@ -3,7 +3,7 @@ import { ReadonlyAccount } from 'applesauce-accounts/accounts';
 import type { ISigner } from 'applesauce-signers';
 import { createDmService, type DmService } from '@kehto/services';
 import type { MessagingRegistry, ReplyPrompt } from '@kernlize/messaging';
-import { shellRelayOrigins } from '../kernl-services.js';
+import { shellRelayOrigins, type KernelContext, type KernlModule } from '@kernlize/kernel';
 import { messagingSigner } from '../messaging/availability.js';
 import { createProviderMessaging } from '../messaging/default-registry.js';
 import { labelConversations } from '../messaging/label-conversations.js';
@@ -11,7 +11,6 @@ import type { MessagingProviderModule, ProviderParts } from '../messaging/provid
 import { locateRecipients, locateSendRecipients } from '../people/locate-recipients.js';
 import type { People } from '../people/person.js';
 import type { Profiles } from '../profiles/profiles.js';
-import type { KernelContext, KernlModule } from '../module-host/module.js';
 
 /** kernl's own words for the reply question. */
 const REPLY_TEXT = Object.freeze({ title: 'How should this reply travel?' });
