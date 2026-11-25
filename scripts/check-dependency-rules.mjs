@@ -88,7 +88,7 @@ export function findKehtoImports(packagesDir) {
     const allowed = new Set(KEHTO_ALLOWANCES[slug] ?? []);
     for (const file of sourceFiles(join(packagesDir, slug, 'src'))) {
       const offending = importSpecifiers(readFileSync(file, 'utf8')).filter((spec) => spec.startsWith('@kehto/') && !allowed.has(packageOf(spec)));
-      for (const spec of offending) violations.push(`${relative(packagesDir, file)} imports ${spec}; only the kernel and @kernlize/core compose kehto (guard may import @kehto/rate-limit)`);
+      for (const spec of offending) violations.push(`${relative(packagesDir, file)} imports ${spec}; only the kernel, the modules and @kernlize/core compose kehto (guard may import @kehto/rate-limit)`);
     }
   }
   return violations;
@@ -131,6 +131,19 @@ export function findPresetImports(packagesDir) {
 
 /** What sits above the kernel: the packages that hold modules or kernl's own list (D-068). */
 export const ABOVE_KERNEL = ['@kernlize/core', '@kernlize/modules', '@kernlize/preset'];
+/** What composes the modules: they import neither (D-068). */
+export const ABOVE_MODULES = ['@kernlize/core', '@kernlize/preset'];
+
+function findImportsAbove(packagesDir, slug, above, reason) {
+  const violations = [];
+  const srcDir = join(packagesDir, slug, 'src');
+  for (const file of sourceFiles(srcDir)) {
+    const outside = (spec) => spec.startsWith('.') && relative(srcDir, join(file, '..', spec)).startsWith('..');
+    const offending = importSpecifiers(readFileSync(file, 'utf8')).filter((spec) => above.includes(packageOf(spec)) || outside(spec));
+    for (const spec of offending) violations.push(`${relative(packagesDir, file)} imports ${spec}; ${reason}`);
+  }
+  return violations;
+}
 
 /**
  * Find kernel files, tests included, that import module code: a package above the kernel, or a
@@ -141,14 +154,19 @@ export const ABOVE_KERNEL = ['@kernlize/core', '@kernlize/modules', '@kernlize/p
  * findKernelModuleImports('/repo/packages'); // []
  */
 export function findKernelModuleImports(packagesDir) {
-  const violations = [];
-  const srcDir = join(packagesDir, 'kernel', 'src');
-  for (const file of sourceFiles(srcDir)) {
-    const outside = (spec) => spec.startsWith('.') && relative(srcDir, join(file, '..', spec)).startsWith('..');
-    const offending = importSpecifiers(readFileSync(file, 'utf8')).filter((spec) => ABOVE_KERNEL.includes(packageOf(spec)) || outside(spec));
-    for (const spec of offending) violations.push(`${relative(packagesDir, file)} imports ${spec}; the kernel imports no module (D-068)`);
-  }
-  return violations;
+  return findImportsAbove(packagesDir, 'kernel', ABOVE_KERNEL, 'the kernel imports no module (D-068)');
+}
+
+/**
+ * Find module files, tests included, that import what composes them: `@kernlize/core`, kernl's
+ * preset, or a relative path out of the modules' own sources (D-068).
+ * @param {string} packagesDir Absolute path of the packages directory.
+ * @returns {string[]} One violation per offending import.
+ * @example
+ * findModulesAboveImports('/repo/packages'); // []
+ */
+export function findModulesAboveImports(packagesDir) {
+  return findImportsAbove(packagesDir, 'modules', ABOVE_MODULES, 'a module imports only the kernel and other modules (D-068)');
 }
 
 /**
@@ -190,6 +208,7 @@ export function checkDependencyRules(packagesDir, appSrcDir) {
     ...findViewModelImports(packagesDir),
     ...findPresetImports(packagesDir),
     ...findKernelModuleImports(packagesDir),
+    ...findModulesAboveImports(packagesDir),
     ...findFrameworkDependencies(packagesDir),
     ...(appSrcDir ? findAppNostrToolsImports(appSrcDir) : []),
   ];
