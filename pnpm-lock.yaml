@@ -532,12 +532,12 @@ importers:
 
   packages/ui-model:
     dependencies:
-      '@kernlize/core':
-        specifier: workspace:^
-        version: link:../core
       '@kernlize/guard':
         specifier: workspace:^
         version: link:../guard
+      '@kernlize/kernel':
+        specifier: workspace:^
+        version: link:../kernel
       '@kernlize/messaging':
         specifier: workspace:^
         version: link:../messaging
