@@ -27,3 +27,4 @@ export { createSqliteOpfsCacheAdapter } from './sqlite-opfs.js';
 export { isCorruptionError } from './sqlite-records.js';
 export { attachEventCache } from './attach.js';
 export { connectEventCache, type ConnectedEventCache, type EventCacheOpener } from './connect.js';
+export { cacheModule } from '../modules/cache.js';
