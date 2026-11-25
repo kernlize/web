@@ -58,6 +58,9 @@ test('publish results keep the old texts', () => {
   assert.equal(words.publishDone('Note'), 'Note: done.');
   assert.equal(words.publishFailed('Profile', new Error('denied: the user declined')), 'Profile: you said no.');
   assert.equal(words.publishFailed('Note', new Error('timeout')), 'Note: not sent (timeout).');
+  assert.equal(words.publishFailed('Note', new Error('denied:consent')), 'Note: you said no.');
+  assert.equal(words.publishFailed('Note', new Error('publish denied')), 'Note: not sent (publish denied).');
+  assert.equal(words.publishFailed('Note', new Error('policy denied')), 'Note: not sent (policy denied).');
 });
 
 test('intent, link, download and grant lines', () => {
