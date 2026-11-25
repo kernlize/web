@@ -1,7 +1,6 @@
 /**
- * The three samples this package builds from one page. Ported from `SPECS` in
- * `apps/web/src/shell/preview-applet.ts`, which stays the source of truth until
- * the shell loads these builds instead (previewPreset, step 3).
+ * The three samples this package builds from one page, which kernl.run's preview
+ * loads through `previewPreset` (D-070).
  *
  * Owner's decisions on #131: publishes and the flood go through OUTBOX
  * instead of `relay`; `link` and `torrent` are optional on Notes and Pulse, and
