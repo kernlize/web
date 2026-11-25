@@ -1,6 +1,6 @@
 # Packages
 
-kernl has seven packages. Each has two names: `@kernlize/*` on npm and `@kernl/*` on JSR, for the same code at the same version. Neither registry has a release yet (see [Install](#install)). Three are pure contracts and engines with zero framework dependencies; the kernel composes them with kehto and applesauce; the modules are kernl's opinions over the kernel; core composes kernl's own list of them; and one holds framework-free view models for a shell's panels over it. The shell app at `apps/web` is not published.
+kernl has eight packages. Each has two names: `@kernlize/*` on npm and `@kernl/*` on JSR, for the same code at the same version. Neither registry has a release yet (see [Install](#install)). Three are pure contracts and engines with zero framework dependencies; the kernel composes them with kehto and applesauce; the modules are kernl's opinions over the kernel; the preset is kernl's own list of them; core, deprecated, re-exports those three; and one holds framework-free view models for a shell's panels over it. The shell app at `apps/web` is not published.
 
 | npm | Version | JSR | Role | Dependencies | Peer dependencies |
 | --- | --- | --- | --- | --- | --- |
@@ -9,7 +9,8 @@ kernl has seven packages. Each has two names: `@kernlize/*` on npm and `@kernl/*
 | [`@kernlize/bridges`](./bridges.md) | `0.3.0` | `@kernl/bridges` | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy. | none | none |
 | [`@kernlize/kernel`](./kernel.md) | `0.1.0` | `@kernl/kernel` | The floor: applet resolve, plan and mount, the guard pipeline, the firewall, grants, signing consent, secrets, the media player, the module host and the ask channel (D-068). | the three above, `@kehto/*`, `applesauce-*`, `rxjs` | `@napplet/core`, `@napplet/nap` |
 | [`@kernlize/modules`](./modules.md) | `0.1.0` | `@kernl/modules` | kernl's modules over the kernel: messaging, bridges, downloads, uploads, the catalog, intents, multiplayer, people, mailboxes, the relay directory, the event cache, the theme, settings, social, keys, the window manager (D-068). | `@kernlize/kernel`, the three leaf packages, `@kehto/*`, `applesauce-*`, `rxjs` | `@napplet/core`, `@napplet/nap`, `@napplet/shim`, `nostr-tools` |
-| [`@kernlize/core`](./core.md) | `0.29.0` | `@kernl/core` | `createKernl` and kernl's own module list, `kernlModules`, over the kernel and the modules, which it re-exports (D-068). | `@kernlize/kernel`, `@kernlize/modules`, `@kernlize/bridges`, `@kernlize/messaging` | `@napplet/core`, `@napplet/nap`, `@napplet/shim`, `nostr-tools` |
+| [`@kernlize/preset`](./preset.md) | `0.1.0` | `@kernl/preset` | `kernlPreset`, kernl.run's module list, and `createKernl` over the kernel and the modules (D-068). | `@kernlize/kernel`, `@kernlize/modules`, `@kernlize/bridges`, `@kernlize/messaging` | `@napplet/nap` |
+| [`@kernlize/core`](./core.md) | `0.29.0` | `@kernl/core` | **Deprecated.** Re-exports `@kernlize/kernel`, `@kernlize/modules` and `@kernlize/preset` for one minor, then goes (D-068). | `@kernlize/kernel`, `@kernlize/modules`, `@kernlize/preset`, `@kernlize/bridges`, `@kernlize/messaging` | `@napplet/core`, `@napplet/nap`, `@napplet/shim`, `nostr-tools` |
 | [`@kernlize/ui-model`](./ui-model.md) | `0.2.2` | `@kernl/ui-model` | Framework-free view models for a shell's panels: the grants list today, the ask queues and logs next (#74). | `@kernlize/core` | none |
 
 ## Shared rules
@@ -35,6 +36,7 @@ Every package has an npm name and a JSR name. The code, the exports and the vers
 | `packages/bridges` | `@kernlize/bridges` | `@kernl/bridges` |
 | `packages/kernel` | `@kernlize/kernel` | `@kernl/kernel` |
 | `packages/modules` | `@kernlize/modules` | `@kernl/modules` |
+| `packages/preset` | `@kernlize/preset` | `@kernl/preset` |
 | `packages/core` | `@kernlize/core` | `@kernl/core` |
 | `packages/ui-model` | `@kernlize/ui-model` | `@kernl/ui-model` |
 
