@@ -9,7 +9,7 @@
     "serve": "vite preview --host 127.0.0.1 --strictPort"
   },
   "dependencies": {
-    "@kernlize/kernel": "0.1.1",
+    "@kernlize/kernel": "0.1.2",
     "@kernlize/modules": "0.1.0"
   },
   "devDependencies": {
