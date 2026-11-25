@@ -11,6 +11,7 @@ import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { sampleFor } from '../src/specs.ts';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const NAMES = ['notes', 'pulse', 'profiles'];
@@ -31,8 +32,10 @@ async function sample(name, signer) {
   const hash = bytesToHex(sha256(html));
   if (tagValue(template.tags, 'x') !== hash) throw new Error(`${name}: the x tag does not hash dist/${name}/index.html`);
   if (tagValue(template.tags, 'd') !== name) throw new Error(`${name}: the d tag is ${tagValue(template.tags, 'd')}`);
+  // The manifest plugin has no topics option, so each spec's topics become `t` tags here, before signing; the store filters by them.
+  const tags = [...template.tags, ...sampleFor(name).topics.map((topic) => ['t', topic])];
   // Only the event's own fields: the template also carries the plugin's `artifactHash`.
-  const unsigned = { kind: template.kind, tags: template.tags, content: template.content, pubkey: signer.pubkey, created_at: signer.createdAt };
+  const unsigned = { kind: template.kind, tags, content: template.content, pubkey: signer.pubkey, created_at: signer.createdAt };
   const id = eventId(unsigned);
   const manifest = { id, ...unsigned, sig: signer.sign(id) };
   return { entry: { name, title: tagValue(template.tags, 'title'), manifest, file: `${name}.html` }, html };
