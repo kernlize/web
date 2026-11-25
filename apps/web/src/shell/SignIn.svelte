@@ -40,7 +40,7 @@
     const message = reason instanceof Error ? reason.message : String(reason);
     if (message === 'invalid:person') return 'That is not an identity. Paste one as it was shared with you, or as 64 letters and digits.';
     const network = /pool|subscription|publish|relay|connect|timeout/i.test(message);
-    if (network && mode === 'preview') return 'This needs the network. The preview runs offline.';
+    if (network && mode === 'preview') return 'This needs the network, which the preview never reaches.';
     if (network) return 'The signer did not answer. Check that it is open, then try again.';
     // Library errors can name the protocol; the user sees plain words (D-006).
     if (namesProtocol(message)) return 'That did not work. Check what you entered and try again.';
@@ -224,7 +224,7 @@
           </form>
           {#if pairingCode}
             <PairingCode code={pairingCode} />
-            <p class="shell-muted">{mode === 'preview' ? 'The preview runs offline, so no signer can answer here.' : 'Waiting for the signer to accept…'}</p>
+            <p class="shell-muted">{mode === 'preview' ? 'The preview never reaches the network, so no signer can answer here.' : 'Waiting for the signer to accept…'}</p>
           {/if}
         {:else if method === 'readonly'}
           <h3>Read-only</h3>

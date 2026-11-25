@@ -88,7 +88,7 @@
 
 <section class="shell-section" aria-labelledby="mailboxes-heading">
   <h3 id="mailboxes-heading">Inbox and outbox</h3>
-  <p class="shell-muted small">{mode === 'preview' ? 'The preview publishes nothing.' : 'Published with your identity. Other apps use this list too.'}</p>
+  <p class="shell-muted small">{mode === 'preview' ? 'The preview publishes it only inside this tab.' : 'Published with your identity. Other apps use this list too.'}</p>
 
   {#if !draft}
     <p class="shell-muted" role="status">Looking for your inbox and outbox…</p>
