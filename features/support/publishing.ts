@@ -41,7 +41,7 @@ Then('JSR internal dependencies use the matching workspace versions', () => {
   }
   expect(json(join(root, '.jsr/core/deno.json')).imports['@kernlize/kernel']).toBe(`jsr:@kernl/kernel@^${versionOf('@kernlize/kernel')}`);
   expect(json(join(root, '.jsr/modules/deno.json')).imports['@kernlize/kernel']).toBe(`jsr:@kernl/kernel@^${versionOf('@kernlize/kernel')}`);
-  expect(json(join(root, '.jsr/ui-model/deno.json')).imports['@kernlize/core']).toBe(`jsr:@kernl/core@^${versionOf('@kernlize/core')}`);
+  expect(json(join(root, '.jsr/ui-model/deno.json')).imports['@kernlize/kernel']).toBe(`jsr:@kernl/kernel@^${versionOf('@kernlize/kernel')}`);
   expect(json(join(root, '.jsr/modules/deno.json')).imports['rxjs']).toBe('npm:rxjs@7.8.2');
 });
 Then('JSR sources exclude tests and resolve relative TypeScript imports', () => {
