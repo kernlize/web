@@ -1,6 +1,6 @@
 {
   "name": "@kernlize/preset",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "kernl's preset: the module list kernl.run runs over the kernel, and createKernl",
   "type": "module",
   "main": "./dist/index.js",
