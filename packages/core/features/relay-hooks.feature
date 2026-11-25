@@ -153,3 +153,8 @@ Feature: Relay adapters over the one applesauce pool
     When the outbox relay pool publishes to "wss://out.example,wss://two.example"
     Then the outbox publish reported "wss://out.example,wss://two.example" as accepted
     And the outbox relay pool is available
+
+  Scenario: the outbox relay pool reports each relay by the address it was given
+    Given the fake pool gets no answer from "wss://two.example"
+    When the outbox relay pool publishes to "wss://out.example,wss://two.example"
+    Then the outbox publish reported "wss://out.example" as accepted and "wss://two.example" as not

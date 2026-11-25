@@ -19,7 +19,7 @@ const now = (): number => Math.floor(Date.now() / 1000);
 export async function publish(name: string, draft: Draft): Promise<string> {
   try {
     const result = await outbox.publish({ ...draft, tags: draft.tags.map((tag) => [...tag]), created_at: now() });
-    return result.ok ? words.publishDone(name) : words.publishFailed(name, new Error(result.error ?? 'refused'));
+    return result.ok ? words.publishDone(name) : words.publishFailed(name, new Error(result.error ?? 'no relay took it'));
   } catch (error) {
     return words.publishFailed(name, error);
   }

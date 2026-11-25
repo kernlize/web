@@ -1,4 +1,5 @@
 import { lastValueFrom, toArray } from 'rxjs';
+import { normalizeURL } from 'applesauce-core/helpers';
 import { createRelayPoolService, type DmRelayPool, type RelayPoolServiceOptions } from '@kehto/services';
 import type { RelayOperationPlan, RelayPlanningServiceHandler } from '@kehto/runtime';
 import type { NappletMessage, NostrEvent, NostrFilter } from '@napplet/core';
@@ -33,9 +34,17 @@ export async function publishAccepted(pool: ApplesaucePool, relays: string[], ev
   return accepted;
 }
 
+/**
+ * Publish, keyed by the addresses kehto asked for. applesauce's pool answers
+ * each relay by its normalized address (`wss://relay.damus.io/`), while kehto's
+ * outbox router looks the results up by the exact string it planned
+ * (`wss://relay.damus.io`); keyed by `from`, every relay read as refused and
+ * the publish came back failed although the relays had taken it.
+ */
 async function publishTo(pool: ApplesaucePool, relays: string[], event: NostrEvent): Promise<Record<string, boolean>> {
   const responses = await pool.publish(relays, event);
-  return Object.fromEntries(responses.map((response) => [response.from, response.ok]));
+  const accepted = new Map(responses.map((response) => [normalizeURL(response.from), response.ok]));
+  return Object.fromEntries(relays.map((url) => [url, accepted.get(normalizeURL(url)) ?? false]));
 }
 
 /**
