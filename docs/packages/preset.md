@@ -6,7 +6,7 @@ kernl's preset: the module list kernl.run runs over the kernel, `createKernl`, w
 | --- | --- |
 | npm | `@kernlize/preset` |
 | JSR | `@kernl/preset` |
-| Version | `0.1.0` |
+| Version | `0.2.0` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts` |
 | Dependencies | `@kernlize/kernel`, `@kernlize/modules`, `@kernlize/bridges`, `@kernlize/messaging` (`workspace:^`) |
 | Peer dependencies | `@napplet/nap` |
