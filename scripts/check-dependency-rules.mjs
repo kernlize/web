@@ -188,6 +188,71 @@ export function findFrameworkDependencies(packagesDir) {
   return violations;
 }
 
+/** What each module owns in `packages/modules/src`, past its `modules/<id>.ts` factory (D-068). */
+export const MODULE_SOURCES = {
+  bridges: ['bridges/'],
+  cache: ['cache/'],
+  catalog: ['catalog/'],
+  directory: ['relays/directory.ts'],
+  downloads: ['downloads/', 'kernl-downloads.ts'],
+  files: ['files/'],
+  intents: ['intents/', 'kernl-intents.ts'],
+  keys: ['keys/'],
+  mailboxes: ['relays/mailboxes.ts'],
+  messaging: ['messaging/'],
+  multiplayer: ['multiplayer/'],
+  people: ['people/'],
+  profiles: ['profiles/'],
+  social: ['social/'],
+};
+
+function moduleOf(local) {
+  const factory = /^modules\/([a-z-]+)\.ts$/.exec(local)?.[1];
+  if (factory) return factory;
+  return Object.keys(MODULE_SOURCES).find((id) => MODULE_SOURCES[id].some((owned) => (owned.endsWith('/') ? local.startsWith(owned) : local === owned)));
+}
+
+/**
+ * The relative imports a source file takes values from: type-only imports are erased, so they put
+ * nothing of another module into a bundle.
+ * @param {string} source File contents.
+ * @returns {string[]} Specifiers, in order.
+ * @example
+ * valueImports("import type { A } from './a.js';\nimport { b, type C } from './b.js';"); // ['./b.js']
+ */
+export function valueImports(source) {
+  const pattern = /(?:\bimport|\bexport)\s+(type\s+)?(\{[^}]*\}|\*(?:\s+as\s+\w+)?|\w+(?:\s*,\s*\{[^}]*\})?)\s+from\s+['"](\.[^'"]+)['"]/g;
+  const typeOnly = (typed, names) => Boolean(typed) || (names.startsWith('{') && names.slice(1, -1).split(',').map((name) => name.trim()).filter(Boolean).every((name) => name.startsWith('type ')));
+  return [...source.matchAll(pattern)].filter(([, typed, names]) => !typeOnly(typed, names)).map(([, , , spec]) => spec);
+}
+
+/**
+ * Find module code that takes values from a module it does not `require`: a host that lists one
+ * module bundles only what that module needs (D-068). Type-only imports are free.
+ * @param {string} packagesDir Absolute path of the packages directory.
+ * @returns {string[]} One violation per offending import.
+ * @example
+ * findUnrequiredModuleImports('/repo/packages'); // []
+ */
+export function findUnrequiredModuleImports(packagesDir) {
+  const srcDir = join(packagesDir, 'modules', 'src');
+  const requiresOf = (id) => {
+    const factory = join(srcDir, 'modules', `${id}.ts`);
+    const list = existsSync(factory) ? /requires:\s*\[([^\]]*)\]/.exec(readFileSync(factory, 'utf8'))?.[1] : undefined;
+    return (list ?? '').split(',').map((name) => name.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
+  };
+  const violations = [];
+  for (const file of sourceFiles(srcDir).filter((path) => !path.endsWith('.test.ts'))) {
+    const owner = moduleOf(relative(srcDir, file));
+    if (!owner) continue;
+    for (const spec of valueImports(readFileSync(file, 'utf8'))) {
+      const target = moduleOf(relative(srcDir, join(file, '..', spec)).replace(/\.js$/, '.ts'));
+      if (target && target !== owner && !requiresOf(owner).includes(target)) violations.push(`${relative(packagesDir, file)} imports ${spec} from the ${target} module, which ${owner} does not require (D-068)`);
+    }
+  }
+  return violations;
+}
+
 function packageSlugs(packagesDir) {
   if (!existsSync(packagesDir)) return [];
   return readdirSync(packagesDir).filter((slug) => existsSync(join(packagesDir, slug, 'package.json'))).sort();
@@ -209,6 +274,7 @@ export function checkDependencyRules(packagesDir, appSrcDir) {
     ...findPresetImports(packagesDir),
     ...findKernelModuleImports(packagesDir),
     ...findModulesAboveImports(packagesDir),
+    ...findUnrequiredModuleImports(packagesDir),
     ...findFrameworkDependencies(packagesDir),
     ...(appSrcDir ? findAppNostrToolsImports(appSrcDir) : []),
   ];

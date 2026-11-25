@@ -124,7 +124,7 @@ export { discoverToolFamilies, TOOL_DISCOVERY_TIMEOUT_MS, type ToolDiscoveryOpti
 export { createDirectConnectionsService, describeDirectConnection, directNamespace, type DirectConnectionsOptions } from './multiplayer/direct-connections.js';
 export { createDirectSignaling, DIRECT_MAX_PAYLOAD_BYTES, DIRECT_SIGNAL_KIND, DIRECT_SIGNALING_PROFILE, type DirectSignalingOptions, type SignalRelay, type SignalSigner } from './multiplayer/direct-signaling.js';
 export { PERSON_HINT_TIMEOUT_MS, createPeople, parsePerson, type People, type PeopleOptions, type PersonPointer } from './people/person.js';
-export { locateRecipients, locateSendRecipients } from './people/locate-recipients.js';
+export { locateRecipients, locateSendRecipients } from './messaging/locate-recipients.js';
 export { createProfiles, toProfileCard, type ProfileCard, type ProfileLoader, type ProfilePointer, type Profiles, type ProfilesOptions } from './profiles/profiles.js';
 export { addressOf, newestEntries, toCatalogEntry, type CatalogEntry } from './catalog/entry.js';
 export { CATALOG_EMIT_MS, CATALOG_LIMIT, CATALOG_SETTLE_MS, CATALOG_TIMEOUT_MS, catalogRelays, loadCatalog, streamCatalog, type LoadCatalogOptions } from './catalog/fetch.js';

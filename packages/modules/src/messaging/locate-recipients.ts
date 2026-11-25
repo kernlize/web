@@ -1,5 +1,5 @@
 import type { DmAdapter, DmService } from '@kehto/services';
-import type { People } from './person.js';
+import type { People } from '../people/person.js';
 
 /**
  * Let an applet name the people it writes to in any form of their identity.

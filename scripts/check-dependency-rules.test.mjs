@@ -9,10 +9,12 @@ import {
   findKehtoImports,
   findKernelModuleImports,
   findModulesAboveImports,
+  findUnrequiredModuleImports,
   findNostrToolsImports,
   findPresetImports,
   findViewModelImports,
   importSpecifiers,
+  valueImports,
 } from './check-dependency-rules.mjs';
 
 const roots = [];
@@ -183,4 +185,31 @@ test('findModulesAboveImports flags a module importing core or the preset, and l
     'modules/src/catalog/entry.test.ts imports @kernlize/preset; a module imports only the kernel and other modules (D-068)',
     'modules/src/modules/theme.ts imports @kernlize/core; a module imports only the kernel and other modules (D-068)',
   ]);
+});
+
+test('valueImports skips type-only imports and keeps any that carry a value', () => {
+  const source = [
+    "import type { A } from './a.js';",
+    "import { type B, type C } from './b.js';",
+    "import { d, type E } from './d.js';",
+    "export { f } from './f.js';",
+    "export type { G } from './g.js';",
+    "import * as h from './h.js';",
+    "import { x } from 'rxjs';",
+  ].join('\n');
+  expect(valueImports(source)).toEqual(['./d.js', './f.js', './h.js']);
+});
+
+test('findUnrequiredModuleImports flags a value taken from a module not required, and allows types and required modules', () => {
+  const root = packages({
+    'modules/package.json': manifest('@kernlize/modules'),
+    'modules/src/modules/messaging.ts': "import { locate } from '../people/locate.js';\nimport type { Profiles } from '../profiles/profiles.js';\n",
+    'modules/src/modules/social.ts': "export const socialModule = () => ({ id: 'social', requires: ['people'] });\nimport { find } from '../people/person.js';\n",
+    'modules/src/people/locate.ts': '',
+    'modules/src/people/person.ts': '',
+    'modules/src/profiles/profiles.ts': '',
+    'modules/src/relays/mailboxes.ts': "import { DEFAULT_SUGGESTIONS } from './suggestions.js';\n",
+    'modules/src/relays/suggestions.ts': '',
+  });
+  expect(findUnrequiredModuleImports(root)).toEqual(['modules/src/modules/messaging.ts imports ../people/locate.js from the people module, which messaging does not require (D-068)']);
 });
