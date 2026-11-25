@@ -29,8 +29,12 @@ export function grantedLine(domains: readonly string[]): string {
   return `Granted: ${words.length ? words.join(', ') : 'nothing beyond the baseline'}.`;
 }
 
-/** Whether a rejection reads as the person, or a rule they set, saying no. */
-const refused = (reason: string): boolean => /denied|declined|refused|rejected|cancel/i.test(reason);
+/**
+ * Whether the person said no at the prompt: the shell's `denied:consent`, or a
+ * decline. Any other failure (`publish denied`, `policy denied`, a relay
+ * error) is shown as the reason the SDK returned, never as their refusal.
+ */
+const refused = (reason: string): boolean => reason === 'denied:consent' || /declined/i.test(reason);
 
 const reasonOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
