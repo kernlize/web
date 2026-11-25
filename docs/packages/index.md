@@ -1,6 +1,6 @@
 # Packages
 
-kernl has eight packages. Each has two names: `@kernlize/*` on npm and `@kernl/*` on JSR, for the same code at the same version. Neither registry has a release yet (see [Install](#install)). Three are pure contracts and engines with zero framework dependencies; the kernel composes them with kehto and applesauce; the modules are kernl's opinions over the kernel; the preset is kernl's own list of them; core, deprecated, re-exports those three; and one holds framework-free view models for a shell's panels over it. The shell app at `apps/web` is not published.
+kernl has eight packages. Each has two names: `@kernlize/*` on npm and `@kernl/*` on JSR, for the same code at the same version. Three are pure contracts and engines with zero framework dependencies; the kernel composes them with kehto and applesauce; the modules are kernl's opinions over the kernel; the preset is kernl's own list of them; core, deprecated, re-exports those three; and one holds framework-free view models for a shell's panels over it. The shell app at `apps/web` is not published.
 
 | npm | Version | JSR | Role | Dependencies | Peer dependencies |
 | --- | --- | --- | --- | --- | --- |
@@ -40,32 +40,18 @@ Every package has an npm name and a JSR name. The code, the exports and the vers
 | `packages/core` | `@kernlize/core` | `@kernl/core` |
 | `packages/ui-model` | `@kernlize/ui-model` | `@kernl/ui-model` |
 
-After the first release, install from either registry:
+Install from either registry:
 
 ```sh
-npm install @kernlize/core
+npm install @kernlize/kernel @kernlize/modules
 # or, with Deno or any JSR client
-deno add jsr:@kernl/core
+deno add jsr:@kernl/kernel jsr:@kernl/modules
 ```
 
-Import by the name of the registry you installed from. The examples in these docs use the npm names; with JSR, write `@kernl/` where they write `@kernlize/`. That holds for subpaths too: `@kernlize/core/wm` on npm is `@kernl/core/wm` on JSR. npm ships JavaScript and declarations; JSR ships the TypeScript source. [Publish packages](../how-tos/publish-packages.md) covers release setup.
+Import by the name of the registry you installed from. The examples in these docs use the npm names; with JSR, write `@kernl/` where they write `@kernlize/`. That holds for subpaths too: `@kernlize/modules/messaging` on npm is `@kernl/modules/messaging` on JSR. npm ships JavaScript and declarations; JSR ships the TypeScript source. [Publish packages](../how-tos/publish-packages.md) covers release setup.
 
-Neither registry has a release yet: `npm install @kernlize/core` and `deno add jsr:@kernl/core` both fail with a not-found error. During the alpha the source repository is private, and the packages are used from a clone of it:
+A host on the kernel installs `@kernlize/kernel` and `@kernlize/modules` and imports the modules it wants from their own entries ([Build a shell with your own UX](../tutorials/build-a-shell.md)). A host that wants kernl.run's whole shell installs `@kernlize/preset` too and calls `createKernl`. `@kernlize/core` still re-exports all three for one minor; move to them.
 
-```bash
-# in a clone of the kernl source repository
-pnpm install && pnpm build
-```
+To work on the packages themselves, clone the repository and run `pnpm install && pnpm build`, which writes each package's `dist/`; a workspace package depends on them with `workspace:^`, as `apps/web` does.
 
-`pnpm build` writes each package's `dist/`, which is what `main`, `types` and `exports` point at. Then add your code as a workspace package (under `packages/` or `apps/`, the globs in `pnpm-workspace.yaml`) and depend on what you need with the workspace protocol, as `apps/web` does:
-
-```json
-{
-  "dependencies": {
-    "@kernlize/core": "workspace:^",
-    "@kernlize/guard": "workspace:^"
-  }
-}
-```
-
-Run `pnpm install` again after editing the manifest so pnpm links the workspace packages. `@kernlize/core` pulls the other three in. Install a leaf package alone when you want its contract without kehto and applesauce, for example `@kernlize/guard` to test an applet against the limits, or `@kernlize/messaging` to write a provider.
+Install a leaf package alone when you want its contract without kehto and applesauce, for example `@kernlize/guard` to test an applet against the limits, or `@kernlize/messaging` to write a provider.

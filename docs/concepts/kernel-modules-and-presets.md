@@ -114,6 +114,18 @@ kernl.files.current(); // the person's file servers
 
 So a host that imports `@kernlize/kernel` and two module entries bundles the kernel and those two modules, and nothing else of kernl's.
 
+## What each costs
+
+What a browser downloads for three hosts, each bundled for the browser and minified from the built packages, with every library they import. `node scripts/bundle-sizes.mjs` writes this table, and `pnpm docs:check` fails when it is out of date.
+
+<!-- bundle-sizes:start -->
+| Host | What it composes | Minified | Gzipped |
+| --- | --- | ---: | ---: |
+| The kernel alone | `createKernel` with no modules | 596.9 KB | 193.9 KB |
+| The example host | the kernel, messaging with `privateDm()`, and files, as `examples/minimal-host` composes them | 674.5 KB | 218.5 KB |
+| kernl's preset | `createKernl`, which loads all sixteen of kernl.run's modules | 1782.6 KB | 550.8 KB |
+<!-- bundle-sizes:end -->
+
 ## Related
 
 - [Build a shell with your own UX](../tutorials/build-a-shell.md)
