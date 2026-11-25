@@ -8,6 +8,7 @@ import {
   findFrameworkDependencies,
   findKehtoImports,
   findKernelModuleImports,
+  findModulesAboveImports,
   findNostrToolsImports,
   findPresetImports,
   findViewModelImports,
@@ -72,8 +73,8 @@ test('findKehtoImports allows guard → @kehto/rate-limit and nothing else in le
     'core/src/index.ts': "import { createShellBridge } from '@kehto/shell';\n",
   });
   expect(findKehtoImports(root)).toEqual([
-    'guard/src/index.ts imports @kehto/acl; only the kernel and @kernlize/core compose kehto (guard may import @kehto/rate-limit)',
-    'messaging/src/index.ts imports @kehto/services; only the kernel and @kernlize/core compose kehto (guard may import @kehto/rate-limit)',
+    'guard/src/index.ts imports @kehto/acl; only the kernel, the modules and @kernlize/core compose kehto (guard may import @kehto/rate-limit)',
+    'messaging/src/index.ts imports @kehto/services; only the kernel, the modules and @kernlize/core compose kehto (guard may import @kehto/rate-limit)',
   ]);
 });
 
@@ -154,7 +155,7 @@ test('findKehtoImports keeps kehto out of the view models', () => {
     'ui-model/package.json': manifest('@kernlize/ui-model'),
     'ui-model/src/index.ts': "import type { Runtime } from '@kehto/runtime';\n",
   });
-  expect(findKehtoImports(root)).toEqual(['ui-model/src/index.ts imports @kehto/runtime; only the kernel and @kernlize/core compose kehto (guard may import @kehto/rate-limit)']);
+  expect(findKehtoImports(root)).toEqual(['ui-model/src/index.ts imports @kehto/runtime; only the kernel, the modules and @kernlize/core compose kehto (guard may import @kehto/rate-limit)']);
 });
 
 test('findKernelModuleImports flags a kernel file or test importing a module, and lets it import itself and the leaf packages', () => {
@@ -168,5 +169,18 @@ test('findKernelModuleImports flags a kernel file or test importing a module, an
     'kernel/src/applets/resolve.test.ts imports @kernlize/preset; the kernel imports no module (D-068)',
     'kernel/src/applets/resolve.test.ts imports ../../../core/src/catalog/entry.js; the kernel imports no module (D-068)',
     'kernel/src/applets/resolve.ts imports @kernlize/core; the kernel imports no module (D-068)',
+  ]);
+});
+
+test('findModulesAboveImports flags a module importing core or the preset, and lets it import the kernel and other modules', () => {
+  const root = packages({
+    'modules/package.json': manifest('@kernlize/modules'),
+    'modules/src/modules/theme.ts': "import type { KernlModule } from '@kernlize/kernel';\nimport { x } from '../catalog/entry.js';\nimport { createKernl } from '@kernlize/core';\n",
+    'modules/src/catalog/entry.ts': '',
+    'modules/src/catalog/entry.test.ts': "import { kernlPreset } from '@kernlize/preset';\n",
+  });
+  expect(findModulesAboveImports(root)).toEqual([
+    'modules/src/catalog/entry.test.ts imports @kernlize/preset; a module imports only the kernel and other modules (D-068)',
+    'modules/src/modules/theme.ts imports @kernlize/core; a module imports only the kernel and other modules (D-068)',
   ]);
 });

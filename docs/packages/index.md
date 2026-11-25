@@ -1,6 +1,6 @@
 # Packages
 
-kernl has six packages. Each has two names: `@kernlize/*` on npm and `@kernl/*` on JSR, for the same code at the same version. Neither registry has a release yet (see [Install](#install)). Three are pure contracts and engines with zero framework dependencies; the kernel composes them with kehto and applesauce; core adds kernl's modules over the kernel; and one holds framework-free view models for a shell's panels over it. The shell app at `apps/web` is not published.
+kernl has seven packages. Each has two names: `@kernlize/*` on npm and `@kernl/*` on JSR, for the same code at the same version. Neither registry has a release yet (see [Install](#install)). Three are pure contracts and engines with zero framework dependencies; the kernel composes them with kehto and applesauce; the modules are kernl's opinions over the kernel; core composes kernl's own list of them; and one holds framework-free view models for a shell's panels over it. The shell app at `apps/web` is not published.
 
 | npm | Version | JSR | Role | Dependencies | Peer dependencies |
 | --- | --- | --- | --- | --- | --- |
@@ -8,7 +8,8 @@ kernl has six packages. Each has two names: `@kernlize/*` on npm and `@kernl/*` 
 | [`@kernlize/messaging`](./messaging.md) | `0.4.1` | `@kernl/messaging` | Messaging provider contract, registry, composite direct-message adapter, in-memory backend. | none | `@napplet/core` (the `Dm*` wire types) |
 | [`@kernlize/bridges`](./bridges.md) | `0.3.0` | `@kernl/bridges` | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy. | none | none |
 | [`@kernlize/kernel`](./kernel.md) | `0.1.1` | `@kernl/kernel` | The floor: applet resolve, plan and mount, the guard pipeline, the firewall, grants, signing consent, secrets, the media player, the module host and the ask channel (D-068). | the three above, `@kehto/*`, `applesauce-*`, `rxjs` | `@napplet/core`, `@napplet/nap` |
-| [`@kernlize/core`](./core.md) | `0.29.2` | `@kernl/core` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts, persistence. | the three above, `@kehto/*`, `applesauce-*`, `rxjs` | `@napplet/core`, `@napplet/nap`, `@napplet/shim`, `nostr-tools` (required by kehto and applesauce; never imported) |
+| [`@kernlize/modules`](./modules.md) | `0.1.0` | `@kernl/modules` | kernl's modules over the kernel: messaging, bridges, downloads, uploads, the catalog, intents, multiplayer, people, mailboxes, the relay directory, the event cache, the theme, settings, social, keys, the window manager (D-068). | `@kernlize/kernel`, the three leaf packages, `@kehto/*`, `applesauce-*`, `rxjs` | `@napplet/core`, `@napplet/nap`, `@napplet/shim`, `nostr-tools` |
+| [`@kernlize/core`](./core.md) | `0.29.2` | `@kernl/core` | `createKernl` and kernl's own module list, `kernlModules`, over the kernel and the modules, which it re-exports (D-068). | `@kernlize/kernel`, `@kernlize/modules`, `@kernlize/bridges`, `@kernlize/messaging` | `@napplet/core`, `@napplet/nap`, `@napplet/shim`, `nostr-tools` |
 | [`@kernlize/ui-model`](./ui-model.md) | `0.2.2` | `@kernl/ui-model` | Framework-free view models for a shell's panels: the grants list today, the ask queues and logs next (#74). | `@kernlize/core` | none |
 
 ## Shared rules
@@ -21,7 +22,7 @@ kernl has six packages. Each has two names: `@kernlize/*` on npm and `@kernl/*` 
 
 ## Versioning
 
-All packages are `0.x`. A breaking change is a `minor` bump; everything else is a `patch`. Releases are managed with changesets: one changeset per package whose shipped output changed. `@kernlize/kernel` depends on the three leaf packages and `@kernlize/core` on all four with `workspace:^`, so a release of a leaf package produces a patch of each above it.
+All packages are `0.x`. A breaking change is a `minor` bump; everything else is a `patch`. Releases are managed with changesets: one changeset per package whose shipped output changed. `@kernlize/kernel` depends on the three leaf packages, `@kernlize/modules` on those and the kernel, and `@kernlize/core` on the kernel and the modules, all with `workspace:^`, so a release of a package produces a patch of each above it.
 
 ## Install
 
@@ -33,6 +34,7 @@ Every package has an npm name and a JSR name. The code, the exports and the vers
 | `packages/messaging` | `@kernlize/messaging` | `@kernl/messaging` |
 | `packages/bridges` | `@kernlize/bridges` | `@kernl/bridges` |
 | `packages/kernel` | `@kernlize/kernel` | `@kernl/kernel` |
+| `packages/modules` | `@kernlize/modules` | `@kernl/modules` |
 | `packages/core` | `@kernlize/core` | `@kernl/core` |
 | `packages/ui-model` | `@kernlize/ui-model` | `@kernl/ui-model` |
 

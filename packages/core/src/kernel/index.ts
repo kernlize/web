@@ -6,4 +6,5 @@
  * @packageDocumentation
  */
 export * from '@kernlize/kernel';
+export * from '@kernlize/modules';
 export * from '../core-exports.js';

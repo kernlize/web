@@ -1,6 +1,6 @@
 import type { NappletMessage } from '@napplet/core';
-import { createNzbService } from '../../src/downloads/nzb-service.js';
-import type { DownloadQuestion, DownloadService } from '../../src/downloads/types.js';
+import { createNzbService } from '../../../modules/src/downloads/nzb-service.js';
+import type { DownloadQuestion, DownloadService } from '../../../modules/src/downloads/types.js';
 import { MemoryNzbClient } from './memory-nzb-client.js';
 import { nzbDocument } from './nzb-documents.js';
 import { MemoryStorage, scratch, type CoreWorld } from './world.js';

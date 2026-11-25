@@ -6,7 +6,7 @@ import type { KernlModule } from '@kernlize/kernel';
  * loader and the store's catalogue, with new events written back (D-030). Without it, or without
  * an opener, the shell keeps events in memory only.
  *
- * @param open - Opens the cache, such as `() => openEventCache(defaultWebCacheAdapters())` from `@kernlize/core/cache`.
+ * @param open - Opens the cache, such as `() => openEventCache(defaultWebCacheAdapters())` from `@kernlize/modules/cache`.
  * @returns The module; its api is the connected cache, closed when the shell is destroyed.
  * @example
  * ```ts
