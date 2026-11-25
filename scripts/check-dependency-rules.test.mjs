@@ -8,10 +8,13 @@ import {
   findFrameworkDependencies,
   findKehtoImports,
   findKernelModuleImports,
+  findModulesAboveImports,
+  findUnrequiredModuleImports,
   findNostrToolsImports,
   findPresetImports,
   findViewModelImports,
   importSpecifiers,
+  valueImports,
 } from './check-dependency-rules.mjs';
 
 const roots = [];
@@ -72,8 +75,8 @@ test('findKehtoImports allows guard → @kehto/rate-limit and nothing else in le
     'core/src/index.ts': "import { createShellBridge } from '@kehto/shell';\n",
   });
   expect(findKehtoImports(root)).toEqual([
-    'guard/src/index.ts imports @kehto/acl; only the kernel and @kernlize/core compose kehto (guard may import @kehto/rate-limit)',
-    'messaging/src/index.ts imports @kehto/services; only the kernel and @kernlize/core compose kehto (guard may import @kehto/rate-limit)',
+    'guard/src/index.ts imports @kehto/acl; only the kernel, the modules and @kernlize/core compose kehto (guard may import @kehto/rate-limit)',
+    'messaging/src/index.ts imports @kehto/services; only the kernel, the modules and @kernlize/core compose kehto (guard may import @kehto/rate-limit)',
   ]);
 });
 
@@ -139,12 +142,14 @@ test('findViewModelImports flags any other package importing the view models, an
   expect(findViewModelImports(root)).toEqual(["core/src/index.ts imports @kernlize/ui-model; only a host's UI depends on the view models"]);
 });
 
-test('findPresetImports flags any package importing the preset, and lets the preset import the core', () => {
+test('findPresetImports flags any package importing the preset, except deprecated core, which re-exports it', () => {
   const root = packages({
     'ui-model/package.json': manifest('@kernlize/ui-model'),
     'ui-model/src/index.ts': "import { kernlPreset } from '@kernlize/preset';\n",
-    'preset/package.json': manifest('@kernlize/preset', { private: true }),
-    'preset/src/index.ts': "import { kernlModules } from '@kernlize/core';\n",
+    'preset/package.json': manifest('@kernlize/preset'),
+    'preset/src/index.ts': "import { createKernel } from '@kernlize/kernel';\n",
+    'core/package.json': manifest('@kernlize/core'),
+    'core/src/index.ts': "export * from '@kernlize/preset';\n",
   });
   expect(findPresetImports(root)).toEqual(['ui-model/src/index.ts imports @kernlize/preset; nothing published imports the preset (D-068)']);
 });
@@ -154,7 +159,7 @@ test('findKehtoImports keeps kehto out of the view models', () => {
     'ui-model/package.json': manifest('@kernlize/ui-model'),
     'ui-model/src/index.ts': "import type { Runtime } from '@kehto/runtime';\n",
   });
-  expect(findKehtoImports(root)).toEqual(['ui-model/src/index.ts imports @kehto/runtime; only the kernel and @kernlize/core compose kehto (guard may import @kehto/rate-limit)']);
+  expect(findKehtoImports(root)).toEqual(['ui-model/src/index.ts imports @kehto/runtime; only the kernel, the modules and @kernlize/core compose kehto (guard may import @kehto/rate-limit)']);
 });
 
 test('findKernelModuleImports flags a kernel file or test importing a module, and lets it import itself and the leaf packages', () => {
@@ -169,4 +174,44 @@ test('findKernelModuleImports flags a kernel file or test importing a module, an
     'kernel/src/applets/resolve.test.ts imports ../../../core/src/catalog/entry.js; the kernel imports no module (D-068)',
     'kernel/src/applets/resolve.ts imports @kernlize/core; the kernel imports no module (D-068)',
   ]);
+});
+
+test('findModulesAboveImports flags a module importing core or the preset, and lets it import the kernel and other modules', () => {
+  const root = packages({
+    'modules/package.json': manifest('@kernlize/modules'),
+    'modules/src/modules/theme.ts': "import type { KernlModule } from '@kernlize/kernel';\nimport { x } from '../catalog/entry.js';\nimport { createKernl } from '@kernlize/core';\n",
+    'modules/src/catalog/entry.ts': '',
+    'modules/src/catalog/entry.test.ts': "import { kernlPreset } from '@kernlize/preset';\n",
+  });
+  expect(findModulesAboveImports(root)).toEqual([
+    'modules/src/catalog/entry.test.ts imports @kernlize/preset; a module imports only the kernel and other modules (D-068)',
+    'modules/src/modules/theme.ts imports @kernlize/core; a module imports only the kernel and other modules (D-068)',
+  ]);
+});
+
+test('valueImports skips type-only imports and keeps any that carry a value', () => {
+  const source = [
+    "import type { A } from './a.js';",
+    "import { type B, type C } from './b.js';",
+    "import { d, type E } from './d.js';",
+    "export { f } from './f.js';",
+    "export type { G } from './g.js';",
+    "import * as h from './h.js';",
+    "import { x } from 'rxjs';",
+  ].join('\n');
+  expect(valueImports(source)).toEqual(['./d.js', './f.js', './h.js']);
+});
+
+test('findUnrequiredModuleImports flags a value taken from a module not required, and allows types and required modules', () => {
+  const root = packages({
+    'modules/package.json': manifest('@kernlize/modules'),
+    'modules/src/modules/messaging.ts': "import { locate } from '../people/locate.js';\nimport type { Profiles } from '../profiles/profiles.js';\n",
+    'modules/src/modules/social.ts': "export const socialModule = () => ({ id: 'social', requires: ['people'] });\nimport { find } from '../people/person.js';\n",
+    'modules/src/people/locate.ts': '',
+    'modules/src/people/person.ts': '',
+    'modules/src/profiles/profiles.ts': '',
+    'modules/src/relays/mailboxes.ts': "import { DEFAULT_SUGGESTIONS } from './suggestions.js';\n",
+    'modules/src/relays/suggestions.ts': '',
+  });
+  expect(findUnrequiredModuleImports(root)).toEqual(['modules/src/modules/messaging.ts imports ../people/locate.js from the people module, which messaging does not require (D-068)']);
 });

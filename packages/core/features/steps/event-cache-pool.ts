@@ -1,7 +1,7 @@
 import init from '@sqlite.org/sqlite-wasm';
-import { attachSqliteWorker, type SahPool, type SahPoolSqlite, type WorkerDatabase, type WorkerScope } from '../../src/cache/sqlite-worker-handler.js';
-import type { WorkerLike } from '../../src/cache/sqlite-worker-client.js';
-import type { SqlValue } from '../../src/cache/types.js';
+import { attachSqliteWorker, type SahPool, type SahPoolSqlite, type WorkerDatabase, type WorkerScope } from '../../../modules/src/cache/sqlite-worker-handler.js';
+import type { WorkerLike } from '../../../modules/src/cache/sqlite-worker-client.js';
+import type { SqlValue } from '../../../modules/src/cache/types.js';
 
 // Real sqlite-wasm, in memory: the pool below keeps each file as the bytes of a serialised database, so damage is
 // sqlite's own `SQLITE_NOTADB` and `SQLITE_CORRUPT`, not a thrown string.

@@ -1,8 +1,8 @@
 import { expect, vi } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import { isCorruptionError, openEventCache, type SqliteFiles } from '@kernlize/core/cache';
-import { attachSqliteWorker } from '../../src/cache/sqlite-worker-handler.js';
-import type { WorkerResponse } from '../../src/cache/sqlite-worker-client.js';
+import { attachSqliteWorker } from '../../../modules/src/cache/sqlite-worker-handler.js';
+import type { WorkerResponse } from '../../../modules/src/cache/sqlite-worker-client.js';
 import { InProcessWorker, inconsistentDatabase, malformedDatabase, NOT_A_DATABASE, poolWorker, sqliteOver } from './event-cache-pool.js';
 import { cacheState, connectToPool, currentCache, indexedDbAdapter, poolOf, pubkeyOf, remember, sqliteAdapter, type CacheState } from './event-cache-world.js';
 import { splitList, type CoreWorld } from './world.js';
@@ -206,7 +206,7 @@ Given('the page has workers and OPFS running the real sqlite worker entry', (wor
     state,
     (worker) => {
       current = worker;
-      entry = import('../../src/cache/sqlite-worker.js');
+      entry = import('../../../modules/src/cache/sqlite-worker.js');
     },
     ready,
   );

@@ -6,7 +6,7 @@ kernl's floor: what every kernl shell runs, whatever modules it names. It holds 
 | --- | --- |
 | npm | `@kernlize/kernel` |
 | JSR | `@kernl/kernel` |
-| Version | `0.1.0` |
+| Version | `0.1.1` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts`; also `./crypto`, `./seal` and `./asks` |
 | Dependencies | `@kernlize/guard`, `@kernlize/messaging`, `@kernlize/bridges` (`workspace:^`), `@kehto/*`, `@noble/*`, `applesauce-*`, `rxjs` |
 | Peer dependencies | `@napplet/core`, `@napplet/nap` |
@@ -36,6 +36,10 @@ kernl.clock.now();
 ```
 
 kernl's own module list is `kernlPreset`, and `createKernl` from `@kernlize/core` composes it when a host names no modules.
+
+## Outbox reads
+
+With the cache module and an event cache opener, the kernel replays [scoped public tree observations](../concepts/persistence.md#outbox-replay) after an Outbox read is approved. `outbox.subscribe` delivers cached events before opening the approved relays. `outbox.query` returns cached matches together with the relay results at the normal completion time. No applet changes or additional grants are needed. Hosts can supply `KernlHost.outboxCacheStorage` to retain observations across reloads in the same tab. This storage must not be shared across tabs; if omitted, observations live only in page memory. Without an opener the Outbox service uses the relay router directly.
 
 ## Light entries
 

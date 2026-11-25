@@ -1,14 +1,16 @@
 # @kernlize/core
 
+> **Deprecated (D-068).** `@kernlize/core` re-exports `@kernlize/kernel`, `@kernlize/modules` and `@kernlize/preset` for one minor, then goes. Import from those packages: the kernel for the floor, the modules for what a host names, the preset for kernl.run's own list and `createKernl`.
+
 Opinionated shell composition over kehto and applesauce. Browser-agnostic: the DOM is reached only through the `KernlHost` hooks and the `FrameLike` shape, so the whole composition runs in vitest against fakes.
 
 | Field | Value |
 | --- | --- |
 | npm | `@kernlize/core` |
 | JSR | `@kernl/core` |
-| Version | `0.29.1` |
+| Version | `0.29.3` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts`; `@kernlize/core/wm` (`@kernl/core/wm` on JSR) is `./dist/wm/index.js`, the layouts and the window manager without the network stack; `@kernlize/core/crypto` (`@kernl/core/crypto` on JSR) is `./dist/crypto/index.js`, the Web Crypto fallback; `@kernlize/core/asks` is `./dist/asks/index.js`, the ask kinds, refusals and channel ([Asks](#asks)) without the network stack; `@kernlize/core/seal` is `./dist/seal/index.js`, the message seal (`MESSAGE_COMPANION_DOMAINS`, `sealsApplet`, `domainsInForce` and the domain capabilities) without the network stack, which `@kernlize/ui-model` reads; `@kernlize/core/kernel` is `./dist/kernel/index.js`, everything but `createKernl`, `kernlModules` and the ratchet and group providers, so a host that names its own modules bundles only what it lists; `@kernlize/core/messaging/ratchet` and `@kernlize/core/messaging/groups` are `ratchet()` and `groups()` with their backends and libraries |
-| Dependencies | `@internet-privacy/marmot-ts ^0.9.0`; `@kehto/acl ^0.20.6`; `@kehto/firewall ^0.10.0`; `@kehto/nip ^0.8.0`; `@kehto/rate-limit ^0.2.0`; `@kehto/runtime ^0.30.1`; `@kehto/services ^0.34.0`; `@kehto/shell ^0.35.0`; `@kehto/wm ^0.0.2`; `@kernlize/bridges workspace:^`; `@kernlize/guard workspace:^`; `@kernlize/kernel workspace:^`; `@kernlize/messaging workspace:^`; `@noble/ciphers ^2.4.0`; `@noble/curves ^2.4.0`; `@noble/hashes ^2.4.0`; `@sqlite.org/sqlite-wasm 3.54.1-build1`; `applesauce-accounts ^7.1.0`; `applesauce-common ^7.1.1`; `applesauce-core ^7.1.3`; `applesauce-loaders ^7.2.0`; `applesauce-relay ^7.1.1`; `applesauce-signers ^7.1.0`; `applesauce-sqlite ^7.1.0`; `blossom-client-sdk 5.1.0`; `nostr-double-ratchet ^0.0.187`; `rxjs ^7.8.2` |
+| Dependencies | `@kernlize/bridges workspace:^`; `@kernlize/kernel workspace:^`; `@kernlize/messaging workspace:^`; `@kernlize/modules workspace:^`; `@kernlize/preset workspace:^` |
 | Peer dependencies | `@napplet/core >=0.41.0 <0.42.0`; `@napplet/nap >=0.37.0 <0.41.0`; `@napplet/shim >=0.30.0`; `nostr-tools >=2.23.3 <=2.x` |
 | Side effects | none |
 

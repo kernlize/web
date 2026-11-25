@@ -161,6 +161,7 @@ interface ServiceParts {
   readonly adapter: () => ShellAdapter;
   readonly consent: KernlServiceDeps['consent'];
   readonly bridges: BridgeRegistry | undefined;
+  readonly cacheOutboxReads: boolean;
   readonly handles: ReadonlyMap<string, MountedApplet>;
   /** Whether a window is the focused one, as the guard sees it. */
   readonly isFocused: (windowId: string) => boolean;
@@ -175,6 +176,7 @@ function servicesFor(options: KernelOptions, parts: ServiceParts): ReturnType<ty
     pool: parts.pool,
     tiers: parts.tiers,
     eventStore: parts.eventStore,
+    cacheOutboxReads: parts.cacheOutboxReads,
     auth: { getSigner: () => parts.adapter().auth.getSigner(), getUserPubkey: () => parts.adapter().auth.getUserPubkey() },
     consent: parts.consent,
     host,
@@ -274,7 +276,8 @@ export function createKernel<const M extends readonly AnyKernlModule[]>(options:
   modulesSetUp.composed = composed;
   const profiles = composed.apis.profiles as SessionNames | undefined;
   const bridges = composed.apis.bridges as BridgeRegistry | undefined;
-  const services = servicesFor(options, { pool, tiers, eventStore, adapter: () => adapter, consent, bridges, handles, isFocused });
+  const cacheOutboxReads = (composed.apis.cache as CacheLookup | undefined)?.cacheOutboxReads === true;
+  const services = servicesFor(options, { pool, tiers, eventStore, adapter: () => adapter, consent, bridges, handles, isFocused, cacheOutboxReads });
 
   Object.assign(services.registry, composed.services);
   const { extensions } = composed;

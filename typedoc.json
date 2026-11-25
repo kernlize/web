@@ -6,6 +6,8 @@
     "packages/messaging",
     "packages/bridges",
     "packages/kernel",
+    "packages/modules",
+    "packages/preset",
     "packages/core",
     "packages/ui-model"
   ],

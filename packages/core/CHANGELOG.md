@@ -1,5 +1,19 @@
 # @kernlize/core
 
+## 0.29.3
+
+### Patch Changes
+
+- 8ddbc32: kernl's modules move into their own package, `@kernlize/modules` (D-068), and `@kernlize/core` re-exports it, so every name core exported is still there. `@kernlize/core/wm`, `@kernlize/core/cache`, `@kernlize/core/messaging/ratchet` and `@kernlize/core/messaging/groups` re-export the modules' entries of the same names.
+
+## 0.29.2
+
+### Patch Changes
+
+- 7bf6b0b: Replay cached public tree events on approved Outbox subscriptions before opening the live relay read. One-shot Outbox queries merge cached events into the normal relay response. The cache module enables this without changes to applets or the Outbox API.
+- Updated dependencies [7bf6b0b]
+  - @kernlize/kernel@0.1.1
+
 ## 0.29.1
 
 ### Patch Changes
