@@ -3,6 +3,10 @@
  * `apps/web/src/shell/preview-applet.ts`, which stays the source of truth until
  * the shell loads these builds instead (previewPreset, step 3).
  *
+ * Owner's decisions on #131: publishes and the flood go through OUTBOX
+ * instead of `relay`; `link` and `torrent` are optional on Notes and Pulse, and
+ * `intent` is optional on Profiles so it can receive profile requests.
+ *
  * Pure: `vite.config.ts` reads it for each build's manifest and the page reads
  * it for its buttons, so it imports nothing.
  */
@@ -28,8 +32,8 @@ export const SAMPLES: readonly SampleSpec[] = [
     description:
       'Write short notes and publish them to your network. Every publish and every deletion is shown to you before it happens.',
     blurb: 'Publishing, deleting and the consent dialog.',
-    requires: ['relay', 'identity', 'intent'],
-    optional: ['notify', 'storage', 'config'],
+    requires: ['outbox', 'identity', 'intent'],
+    optional: ['notify', 'storage', 'config', 'link', 'torrent'],
     topics: ['writing', 'social'],
     accepts: [],
     extras: [],
@@ -40,8 +44,8 @@ export const SAMPLES: readonly SampleSpec[] = [
     description:
       'A live view of what your connections are up to. Reads from the network constantly, which is exactly what the guard is for.',
     blurb: 'Flooding the shell and watching the guard respond.',
-    requires: ['relay'],
-    optional: ['notify', 'media', 'resource'],
+    requires: ['outbox'],
+    optional: ['notify', 'media', 'resource', 'link', 'torrent'],
     topics: ['social', 'guard'],
     accepts: [],
     extras: ['contacts', 'servers', 'vanish'],
@@ -53,7 +57,7 @@ export const SAMPLES: readonly SampleSpec[] = [
       "Shows a person's profile when another applet asks for one. When an applet you run wants a profile opened, the shell offers this one to take it.",
     blurb: 'Taking requests that other applets hand over.',
     requires: [],
-    optional: ['notify'],
+    optional: ['notify', 'intent'],
     topics: ['social', 'people'],
     accepts: ['napplet:profile/open'],
     extras: [],
