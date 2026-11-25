@@ -1,6 +1,6 @@
 {
   "name": "@kernlize/kernel",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "kernl's floor: applet resolve, plan and mount, the guard pipeline, the firewall, grants, signing consent, secrets, the media player, the module host and the ask channel",
   "type": "module",
   "main": "./dist/index.js",

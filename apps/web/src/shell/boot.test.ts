@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { KernlHost } from './contract';
 import { MESSAGES_APPLET } from './messages-applet';
 
@@ -30,7 +30,14 @@ async function bootWith(core: Record<string, unknown> | (() => never)): Promise<
   return import('./boot');
 }
 
+// Node 25 and later define a global sessionStorage, which the live shell hands to Outbox replay; the tests
+// that do not name it start without one, so they hold on every Node the project runs.
+beforeEach(() => {
+  vi.stubGlobal('sessionStorage', undefined);
+});
+
 afterEach(() => {
+  vi.unstubAllGlobals();
   vi.doUnmock('./preview-kernl');
   vi.doUnmock('applesauce-signers');
   vi.doUnmock('@kernlize/core');
@@ -133,4 +140,27 @@ describe('boot', () => {
     expect(booted.mode).toBe('preview');
     expect(booted.fallbackReason).toContain('The live shell could not start');
   });
+});
+
+it('uses browser session storage only for live Outbox replay', async () => {
+  const createKernl = vi.fn(() => ({ pool: {} }));
+  const { boot } = await bootWith({ createKernl });
+  const session = { getItem: () => null, setItem() {}, removeItem() {} };
+  vi.stubGlobal('sessionStorage', session);
+  await boot(host, new URLSearchParams());
+  expect(createKernl).toHaveBeenCalledWith(expect.objectContaining({ host: { ...host, outboxCacheStorage: session } }));
+});
+
+it('boots live when browser session storage is forbidden', async () => {
+  const createKernl = vi.fn(() => ({ pool: {} }));
+  const { boot } = await bootWith({ createKernl });
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'sessionStorage');
+  Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, get() { throw new DOMException('forbidden', 'SecurityError'); } });
+  try {
+    await expect(boot(host, new URLSearchParams())).resolves.toMatchObject({ mode: 'live' });
+    expect(createKernl).toHaveBeenCalledWith(expect.objectContaining({ host }));
+  } finally {
+    if (original) Object.defineProperty(globalThis, 'sessionStorage', original);
+    else Reflect.deleteProperty(globalThis, 'sessionStorage');
+  }
 });
