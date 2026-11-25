@@ -1167,12 +1167,12 @@ A subscription replays before opening its approved relays and suppresses duplica
 **Decision.**
 
 - **`?preview=1` runs `createKernl` over `previewPreset`.** The real kernel and kernl's own modules run over applesauce's pool, dialling relays that live in the page. The samples are the ones `@kernlize/applet-samples` signs at build time, served by hash for the kernel to verify. Ada and Grace have already written through `private` and `legacy`, and answer each send after 900 ms. `ratchet` and `group` run their real backends over the page's relays. Download programs' checks are answered; web pages, blobs and tool searches are refused as `unavailable:preview`. Magnet links go to an in-page client that reaches nobody (`offline-torrent.ts`).
-- **What would leave the page is left out.** The preview offers no keyboard shortcuts (D-054), no `upload` and no `webrtc`.
+- **What would leave the page is left out.** The preview offers no `upload`, since every file server is on the network, and no `webrtc`, since a peer connection reaches STUN and TURN servers. It also offers no keyboard shortcuts, which the preview has always hidden (D-054).
 - **No fallback.** When the core cannot be loaded or composed, `boot` rejects and the page says "The shell could not start." with the reason; it no longer opens the preview in the live shell's place.
 - **The fake is deleted.** `apps/web/src/shell/preview-*.ts` goes, with its feature specs in `apps/web/features/`, the `preview:` address form and the `unavailable:preview-offline` reason. `preview-preset.feature` and `boot-preview.test.ts` cover the preview now.
 
 The preview keeps its storage under the `preview:` prefix, apart from the live shell's.
 
-**Consequences.** A kernel or module change reaches the preview with no second edit, and the preview cannot claim behaviour the live shell lacks. The preview loads the kernel, the preset and the samples on demand, as the live shell loads its own. A live shell that cannot start shows an error instead of a working preview. The preview's store and the walkthroughs that use it follow `applets/samples`.
+**Consequences.** A kernel or module change reaches the preview with no second edit: consent, the guard and the firewall are the live shell's own code. What stands in for the network is still scripted: the correspondents, the download programs' checks and the in-page download client. The preview loads the kernel, the preset and the samples on demand, as the live shell loads its own. A live shell that cannot start shows an error instead of a working preview. The preview's store and the walkthroughs that use it follow `applets/samples`.
 
 **Reversal cost.** Moderate. The fake and its specs are in history, but would have to catch up with every module change made since.
