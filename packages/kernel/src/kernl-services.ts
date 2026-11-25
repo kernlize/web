@@ -294,11 +294,6 @@ function createOutbox(deps: KernlServiceDeps, identity: IdentityProviders) {
   return createCachedOutboxService({
     router: accepting,
     cache: createOutboxEventCache(deps.host.outboxCacheStorage),
-    scope(windowId) {
-      const applet = deps.resolveIdentity(windowId);
-      if (!applet) return undefined;
-      return JSON.stringify([applet.dTag, applet.aggregateHash, deps.auth.getUserPubkey?.() ?? null]);
-    },
   });
 }
 
