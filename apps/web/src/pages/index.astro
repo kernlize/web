@@ -31,7 +31,10 @@ const jsonLd = [
 const embedSample = `import { createKernel } from '@kernlize/kernel';
 import { filesModule } from '@kernlize/modules/uploads';
 
-const kernl = createKernel({ host, modules: [filesModule()] });
+const kernl = createKernel({
+  host,
+  modules: [filesModule()],
+});
 const pointer = kernl.decodePointer(address);
 const applet = await kernl.resolve(pointer);
 kernl.mount(await kernl.plan(applet), frame);`;
@@ -116,7 +119,7 @@ const tryHref = href('app/');
         ))}
       </div>
       <div class="adopt-notes reveal">
-        <p class="note">kernl is alpha software. The packages are not in a public registry yet and the source opens with the first public release, so today both paths start from a copy of the source. The tutorials and <a href={DECISIONS_URL}>the decisions</a> are public now.</p>
+        <p class="note">kernl is alpha software. The packages are on npm and JSR at 0.x, so expect changes between minors. Every choice behind them is in <a href={DECISIONS_URL}>the decisions</a>.</p>
         <p>Writing an applet instead? It needs no kernl code at all. <a href={href(`${ABOUT}developers/`)}>See what your applet gets.</a></p>
       </div>
     </div>
