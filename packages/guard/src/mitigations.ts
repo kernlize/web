@@ -109,7 +109,7 @@ export function describeMitigations(config: GuardConfig): readonly MitigationDes
       'device-denial',
       'kehto',
       'Applets cannot use your camera, microphone or other devices',
-      'Device and controller access is refused for every applet. There is no grant for it.',
+      'No applet reaches a device’s own API. Controllers are the exception you can see: the shell reads them, and hands an applet you granted controllers a snapshot that is only live while its window is the one you are using.',
     ),
     mitigation(
       'destructive-consent',

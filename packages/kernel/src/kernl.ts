@@ -264,7 +264,7 @@ export function createKernel<const M extends readonly AnyKernlModule[]>(options:
   const asks = createAskChannel({ host, isAsking: (windowId, ask) => handles.get(windowId)?.summary.identity.hash === ask.applet?.hash });
   const consent = createSigningConsent({ host: asks, lookupBefore, resolveApplet: identityOf, pubkey: () => accounts.active?.pubkey });
   const secrets = options.secrets ?? createStorageSecrets(host.storage);
-  const composed = composeOrClose(modules, { eventStore, pool, tiers, storage: host.storage, accounts, consent, replaceableLoader, appletOf: (windowId) => handles.get(windowId)?.summary, host, asks, isFocused, applets: () => handles, secrets, holds(windowId, domain) {
+  const composed = composeOrClose(modules, { eventStore, pool, tiers, storage: host.storage, accounts, consent, replaceableLoader, appletOf: (windowId) => handles.get(windowId)?.summary, host, asks, isFocused, focusChanges$: pipeline.focusChanges$, applets: () => handles, secrets, holds(windowId, domain) {
     const identity = handles.get(windowId)?.summary.identity;
     const record = identity && grants.get(identity);
     return !!record && !record.blocked && record.domains.includes(domain);

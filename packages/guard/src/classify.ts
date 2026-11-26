@@ -35,6 +35,9 @@ const PREFIXED: readonly (readonly [string, OpClass])[] = [
   ['dm.', 'control'],
   // Shortcuts are the person's own typing and an applet's keymap, registered whole as it starts; nothing leaves the shell.
   ['keys.', 'control'],
+  // The same for controller input: the pad is the person's device, the shell owns the only reader,
+  // and an unsubscribe must reach the shell even while the window is hidden (D-075).
+  ['gamepad.', 'control'],
 ];
 
 /**

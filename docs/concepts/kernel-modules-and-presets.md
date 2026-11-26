@@ -66,6 +66,7 @@ A domain no loaded module answers is never offered. An applet that requires it p
 | --- | --- |
 | `theme` | `theme` is not offered and leaves every applet's baseline. |
 | `keys` | `keys` is not offered and leaves the baseline. |
+| `gamepad` | `gamepad` is not offered. It is never in the baseline: the module offers it only on a page with a controller reader, and the person must grant it before an applet can subscribe. |
 | `profiles`, `people` | Conversations and recipients are shown by key, not by name. |
 | `social` | `common` is not offered. |
 | `messaging` | `dm` is not offered. |
@@ -74,6 +75,7 @@ A domain no loaded module answers is never offered. An applet that requires it p
 | `files` | `upload` is not offered. |
 | `settings` | `config` is not offered. |
 | `catalog` | There is no store; applets open from their addresses or as builtins. |
+| `stacks` | There is no `kernl.stacks`; the catalogue still works without it. |
 | `intents` | Applets cannot hand each other work, and nothing is installed. |
 | `bridges` | `resource` is not offered: the shell fetches nothing for applets, though the kernel answers the domain when the module is loaded. |
 | `downloads` | Applets cannot work through the person's download programs. |
@@ -86,7 +88,7 @@ Where a module has parts with heavy libraries, each part is its own import. The 
 
 ## Presets
 
-A preset is a module list with its options. `kernlPreset(options)` from `@kernlize/preset` is kernl.run's: theme, profiles, people, social, messaging, directory, mailboxes, files, settings, catalog, keys, intents, bridges, downloads, multiplayer and cache, in that order, typed so the shell gets each module's api. `createKernl({ host })` with no module list loads it, so a host that names none gets kernl.run's shell.
+A preset is a module list with its options. `kernlPreset(options)` from `@kernlize/preset` is kernl.run's: theme, profiles, people, social, messaging, directory, mailboxes, files, settings, catalog, stacks, keys, gamepad, intents, bridges, downloads, multiplayer and cache, in that order, typed so the shell gets each module's api. `createKernl({ host })` with no module list loads it, so a host that names none gets kernl.run's shell.
 
 `previewPreset` is the same kernel and modules over parts that live in the page: relays in memory, sample applets signed at build time, scripted correspondents. kernl.run's preview runs it, so the preview and the live shell are one implementation.
 
@@ -121,9 +123,9 @@ What a browser downloads for three hosts, each bundled for the browser and minif
 <!-- bundle-sizes:start -->
 | Host | What it composes | Minified | Gzipped |
 | --- | --- | ---: | ---: |
-| The kernel alone | `createKernel` with no modules | 596.9 KB | 193.9 KB |
-| The example host | the kernel, messaging with `privateDm()`, and files, as `examples/minimal-host` composes them | 674.5 KB | 218.5 KB |
-| kernl's preset | `createKernl`, which loads all sixteen of kernl.run's modules | 1782.6 KB | 550.8 KB |
+| The kernel alone | `createKernel` with no modules | 597.8 KB | 194.2 KB |
+| The example host | the kernel, messaging with `privateDm()`, and files, as `examples/minimal-host` composes them | 675.4 KB | 218.8 KB |
+| kernl's preset | `createKernl`, which loads all eighteen of kernl.run's modules | 1791.9 KB | 554.2 KB |
 <!-- bundle-sizes:end -->
 
 ## Related

@@ -332,6 +332,15 @@ Then('an applet cannot bind {string}', (_world: HostWorld, chord: string) => {
   expect(SHELL_CHORDS).toContain(chord);
 });
 
+Then('the shell host asks the desktop to open without focus', async (world: HostWorld) => {
+  const { host, opener } = hostOf(world);
+  opener.open = async (_address, options) => {
+    expect(options).toEqual({ focus: false });
+    return 'background-window';
+  };
+  expect(await host.openApplet?.('naddr1x', { focus: false })).toBe('background-window');
+});
+
 When('window {string} asks the shell host to sign a change, and so does window {string}', (world: HostWorld, first: string, second: string) => {
   const scratch = hostOf(world);
   for (const windowId of [first, second]) {

@@ -7,7 +7,7 @@ import { AccountManager } from 'applesauce-accounts';
 import { ReadonlyAccount } from 'applesauce-accounts/accounts';
 import { createMessagingRegistry } from '@kernlize/messaging';
 import type { ServiceHandler } from '@kehto/runtime';
-import { abbreviate, catalogModule, filesModule, messagingModule, privateDm, multiplayerModule, directoryModule, keysModule, kernlModules, mailboxesModule, peopleModule, profilesModule, searchCatalog, setupModules, socialModule, themeModule, toCatalogEntry, type AnyKernlModule, type CatalogEntry, type DomainBinding, type KernelContext, type KernlModule, type RelayTier, type ThemeApi } from '@kernlize/core';
+import { abbreviate, catalogModule, filesModule, stacksModule, messagingModule, privateDm, multiplayerModule, directoryModule, keysModule, kernlModules, mailboxesModule, peopleModule, profilesModule, searchCatalog, setupModules, socialModule, themeModule, toCatalogEntry, type AnyKernlModule, type CatalogEntry, type DomainBinding, type KernelContext, type KernlModule, type RelayTier, type ThemeApi } from '@kernlize/core';
 import { blobFetcher, boot, k, settle, vector } from './kernl.js';
 import { attempt, scratch, splitList, type CoreWorld } from './world.js';
 
@@ -33,6 +33,7 @@ function named(world: CoreWorld, name: string): readonly AnyKernlModule[] {
     directory: () => [directoryModule()],
     mailboxes: () => [mailboxesModule()],
     catalog: () => [catalogModule()],
+    stacks: () => [stacksModule()],
     multiplayer: () => [multiplayerModule()],
     keys: () => [keysModule()],
     clock: () => [{ id: 'clock', setup: () => ({ api: { now: () => 42 } }) } satisfies KernlModule<'clock', { now(): number }>],

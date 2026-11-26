@@ -4,7 +4,7 @@ Every module in kernl's preset can be left out or replaced by one of yours; the 
 
 ## 1. Start from kernl's list, or from none
 
-`kernlPreset(options)` from `@kernlize/preset` returns kernl.run's sixteen modules, in order. Keep the order when you change the list: a module comes after the ones it `requires`.
+`kernlPreset(options)` from `@kernlize/preset` returns kernl.run's eighteen modules, in order. Keep the order when you change the list: a module comes after the ones it `requires`.
 
 ```ts
 import { createKernel, type KernlHost, type KernlModule } from '@kernlize/kernel';

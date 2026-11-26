@@ -16,7 +16,8 @@ export const MESSAGES_DOMAIN = 'dm';
  * carry what the applet read to anywhere but the person's own screen and
  * this device: the handshake, messages themselves, which identity is signed
  * in, the theme, the applet's own storage and settings, notifications,
- * keyboard shortcuts, and being handed a request by another applet.
+ * keyboard shortcuts, controller input, and being handed a request by another
+ * applet.
  *
  * It is an allowlist, so a domain kehto adds later is withheld until it is
  * put here on purpose (D-046).
@@ -26,7 +27,7 @@ export const MESSAGES_DOMAIN = 'dm';
  * MESSAGE_COMPANION_DOMAINS.includes('upload'); // false
  * ```
  */
-export const MESSAGE_COMPANION_DOMAINS: readonly string[] = Object.freeze(['shell', MESSAGES_DOMAIN, 'identity', 'theme', 'storage', 'config', 'notify', 'keys', 'intent']);
+export const MESSAGE_COMPANION_DOMAINS: readonly string[] = Object.freeze(['shell', MESSAGES_DOMAIN, 'identity', 'theme', 'storage', 'config', 'notify', 'keys', 'gamepad', 'intent']);
 
 /**
  * Capabilities withheld even inside a companion domain: an applet that reads

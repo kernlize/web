@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Signs the three sample manifests with a throwaway key and writes them, with the exact bytes each
+// Signs the three sample manifests, and two stacks over them, with a throwaway key and writes them, with the exact bytes each
 // manifest's `x` tag hashes, into shipped/ (or the directory given as the first argument).
 //
 // The key is made fresh on every run and lives only in this process: it is never written, logged or
@@ -48,6 +48,33 @@ function profile(signer) {
   return { id, ...unsigned, sig: signer.sign(id) };
 }
 
+/**
+ * Two NIP-51 app curation sets (kind 30267) over the samples, so a shell's Stacks tab has
+ * something to list: Basics opens Notes and installs Profiles, and Live names Pulse with a relay
+ * hint. `start` marks the members a stack opens, as kernl reads them (D-073). Basics is a second
+ * newer, so a shell that lists stacks newest first shows it first.
+ */
+const STACKS = [
+  { d: 'basics', title: 'Basics', description: 'Everything needed on a fresh identity.', members: [['notes', true], ['profiles', false]] },
+  { d: 'live', title: 'Live', description: 'Applets that read the network constantly.', members: [['pulse', true, 'wss://relay.example']] },
+];
+
+function stacks(signer) {
+  return STACKS.map(({ d, title, description, members }, index) => {
+    const coordinate = (name) => `35129:${signer.pubkey}:${name}`;
+    const tags = [
+      ['d', d],
+      ['title', title],
+      ['description', description],
+      ...members.map(([name, , relay]) => (relay ? ['a', coordinate(name), relay] : ['a', coordinate(name)])),
+      ...members.filter(([, start]) => start).map(([name]) => ['start', coordinate(name)]),
+    ];
+    const unsigned = { kind: 30267, tags, content: '', pubkey: signer.pubkey, created_at: signer.createdAt + STACKS.length - 1 - index };
+    const id = eventId(unsigned);
+    return { id, ...unsigned, sig: signer.sign(id) };
+  });
+}
+
 /** Sign every sample with one fresh key and write samples.json and the html files into `outDir`. */
 export async function ship(outDir = join(root, 'shipped')) {
   const secretKey = schnorr.utils.randomSecretKey();
@@ -59,10 +86,11 @@ export async function ship(outDir = join(root, 'shipped')) {
   const built = [];
   for (const name of NAMES) built.push(await sample(name, signer));
   const signedProfile = profile(signer);
+  const signedStacks = stacks(signer);
   secretKey.fill(0);
   await mkdir(outDir, { recursive: true });
   for (const { entry, html } of built) await writeFile(join(outDir, entry.file), html);
-  const shipped = { publisher: signer.pubkey, profile: signedProfile, samples: built.map(({ entry }) => entry) };
+  const shipped = { publisher: signer.pubkey, profile: signedProfile, samples: built.map(({ entry }) => entry), stacks: signedStacks };
   await writeFile(join(outDir, 'samples.json'), `${JSON.stringify(shipped, null, 2)}\n`);
   return shipped;
 }

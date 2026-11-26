@@ -20,7 +20,7 @@ export type KernlPresetOptions = NonNullable<Parameters<typeof kernlModules>[0]>
 
 /**
  * The modules kernl.run composes: theme, profiles, people, social, messaging, directory,
- * mailboxes, files, settings, catalog, keys, intents, bridges, downloads, multiplayer and cache.
+ * mailboxes, files, settings, catalog, stacks, keys, gamepad, intents, bridges, downloads, multiplayer and cache.
  *
  * @param options - Each module's options.
  * @returns The module list, typed so the shell gets each module's api.

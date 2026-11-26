@@ -18,6 +18,7 @@ export interface ManagedWindow {
   readonly z: number;
   /** Whether the person is working in this window. */
   readonly focused: boolean;
+  /** Hidden by the person or by the current layout. */
   readonly minimised: boolean;
   /** Its applet was stopped. The window stays until it is closed, takes no focus and is never reported visible. */
   readonly stopped: boolean;
@@ -59,8 +60,8 @@ export interface WindowManager {
   snapshot(): WindowManagerState;
   /** The layouts the person can choose between. */
   layouts(): readonly LayoutChoice[];
-  /** Add a window in front, focused. Opening an id that is already open brings that window to the front. */
-  open(id: string): void;
+  /** Add a window in front, focused, unless focus is false. Opening an existing id only focuses it by default. */
+  open(id: string, options?: { readonly focus?: boolean }): void;
   /** Remove a window and stop reporting to it. */
   close(id: string): void;
   /** Bring a window to the front and give it the person's attention. Shows it if it was minimised. */
@@ -164,6 +165,16 @@ function startingLayout(layouts: LayoutRegistry, wanted: string | undefined): La
   return layout;
 }
 
+function addWindow(desk: Desk, id: string, size: WindowSize, min: WindowSize, focus: boolean): void {
+  const own = cascade(desk.entries.length, desk.area, size, min);
+  if (!focus) {
+    // Make room at the back without changing which window leads or holds focus.
+    for (const entry of desk.entries) entry.z += 1;
+    desk.nextZ += 1;
+  }
+  desk.entries.push({ id, own, z: 0, minimised: false, stopped: false, focusGainedAt: 0, target: undefined });
+}
+
 const sameRect = (a: Rect, b: Rect): boolean => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
 
 const find = (desk: Desk, id: string): Entry | undefined => desk.entries.find((entry) => entry.id === id);
@@ -171,15 +182,18 @@ const find = (desk: Desk, id: string): Entry | undefined => desk.entries.find((e
 /** The front-most window the person can see. */
 function front(desk: Desk): Entry | undefined {
   return desk.entries
-    .filter((entry) => !entry.minimised && !entry.stopped)
+    .filter((entry) => !entry.minimised && (desk.layout.singleWindow || !entry.stopped))
     .reduce<Entry | undefined>((best, entry) => (best && best.z > entry.z ? best : entry), undefined);
 }
 
-function visibility(desk: Desk, id: string, now: () => number): WindowVisibility {
-  const entry = find(desk, id);
+function minimised(desk: Desk, entry: Entry, leader: Entry | undefined): boolean {
+  return entry.minimised || (desk.layout.singleWindow === true && entry !== leader);
+}
+
+function visibility(desk: Desk, entry: Entry | undefined, leader: Entry | undefined, now: () => number): WindowVisibility {
   if (!entry) return { visible: false, focused: false };
-  const visible = desk.pageVisible && !entry.minimised && !entry.stopped;
-  const focused = visible && desk.focusedId === id;
+  const visible = desk.pageVisible && !entry.stopped && !minimised(desk, entry, leader);
+  const focused = visible && desk.focusedId === entry.id;
   return focused ? { visible, focused, msSinceFocusGain: now() - entry.focusGainedAt } : { visible, focused };
 }
 
@@ -187,18 +201,23 @@ function visibility(desk: Desk, id: string, now: () => number): WindowVisibility
  * Run the layout. A strategy is told the front-most window is the focused one, so an arrangement that
  * follows focus does not reshuffle when the person turns to the shell's own panels and no window is focused.
  */
-function arrange(desk: Desk, compact: boolean): Map<string, Rect> {
+function arrange(desk: Desk, compact: boolean, leader: Entry | undefined): Map<string, Rect> {
   const placed = new Map<string, Rect>();
   if (compact) return placed;
-  const leader = front(desk);
-  const states = desk.entries.map((entry) => ({ id: entry.id, focused: entry === leader, minimized: entry.minimised || entry.stopped, rect: { ...entry.own } }));
+  const states = desk.entries.map((entry) => ({
+    id: entry.id,
+    focused: entry === leader,
+    minimized: minimised(desk, entry, leader) || (entry.stopped && !desk.layout.singleWindow),
+    rect: { ...entry.own },
+  }));
   for (const placement of desk.layout.strategy.arrange(states, { ...desk.area })) placed.set(placement.id, placement.rect);
   return placed;
 }
 
 function describe(desk: Desk, compactWidth: number): WindowManagerState {
   const compact = desk.area.w <= compactWidth;
-  const placed = arrange(desk, compact);
+  const leader = front(desk);
+  const placed = arrange(desk, compact, leader);
   const rectOf = (entry: Entry): Rect => ({ ...(compact ? desk.area : (placed.get(entry.id) ?? entry.own)) });
   return {
     windows: desk.entries.map((entry) => ({
@@ -206,7 +225,7 @@ function describe(desk: Desk, compactWidth: number): WindowManagerState {
       rect: rectOf(entry),
       z: entry.z,
       focused: desk.focusedId === entry.id,
-      minimised: entry.minimised,
+      minimised: minimised(desk, entry, leader),
       stopped: entry.stopped,
     })),
     focusedId: desk.focusedId,
@@ -248,7 +267,8 @@ export function createWindowManager(options: WindowManagerOptions = {}): WindowM
   const state = new BehaviorSubject(describe(desk, compactWidth));
 
   const report = (): void => {
-    for (const entry of desk.entries) entry.target?.setVisibility(visibility(desk, entry.id, now));
+    const leader = front(desk);
+    for (const entry of desk.entries) entry.target?.setVisibility(visibility(desk, entry, leader, now));
   };
   const publish = (): void => state.next(describe(desk, compactWidth));
   /** Focus moved or a window was shown or hidden: tell the applets first, then redraw. */
@@ -261,19 +281,22 @@ export function createWindowManager(options: WindowManagerOptions = {}): WindowM
     if (entry) entry.focusGainedAt = now();
   };
   const leave = (id: string): void => {
-    if (desk.focusedId === id) focusOn(front(desk));
+    if (desk.focusedId !== id) return;
+    const leader = front(desk);
+    focusOn(leader?.stopped ? undefined : leader);
   };
 
   const manager: WindowManager = {
     state$: state.asObservable(),
     snapshot: () => state.value,
     layouts: () => layouts.list().map(({ id, label }) => ({ id, label })),
-    open(id) {
+    open(id, options) {
+      const focus = options?.focus !== false;
       if (!find(desk, id)) {
-        const own = cascade(desk.entries.length, desk.area, size, min);
-        desk.entries.push({ id, own, z: 0, minimised: false, stopped: false, focusGainedAt: 0, target: undefined });
+        addWindow(desk, id, size, min, focus);
+        if (!focus) return changed();
       }
-      manager.focus(id);
+      if (focus) manager.focus(id);
     },
     close(id) {
       const index = desk.entries.findIndex((entry) => entry.id === id);
@@ -284,9 +307,9 @@ export function createWindowManager(options: WindowManagerOptions = {}): WindowM
     },
     focus(id) {
       const entry = find(desk, id);
-      if (!entry || entry.stopped) return;
+      if (!entry || (entry.stopped && !entry.minimised && !desk.layout.singleWindow)) return;
       entry.minimised = false;
-      if (desk.focusedId !== id) focusOn(entry);
+      if (desk.focusedId !== id) focusOn(entry.stopped ? undefined : entry);
       entry.z = desk.nextZ++;
       changed();
     },
@@ -327,9 +350,9 @@ export function createWindowManager(options: WindowManagerOptions = {}): WindowM
       const entry = find(desk, id);
       if (!entry || entry.target) return;
       entry.target = target;
-      target.setVisibility(visibility(desk, id, now));
+      target.setVisibility(visibility(desk, entry, front(desk), now));
     },
-    visibilityOf: (id) => visibility(desk, id, now),
+    visibilityOf: (id) => visibility(desk, find(desk, id), front(desk), now),
     setArea(area) {
       if (sameRect(area, desk.area)) return;
       desk.area = { ...area };
@@ -339,9 +362,15 @@ export function createWindowManager(options: WindowManagerOptions = {}): WindowM
     setLayout(id) {
       const layout = layouts.get(id);
       if (!layout) throw new Error('invalid:unknown-layout');
+      const visibilityChanged = Boolean(desk.layout.singleWindow) !== Boolean(layout.singleWindow);
       desk.layout = layout;
+      if (layout.singleWindow && desk.focusedId !== null) {
+        const focused = find(desk, desk.focusedId) as Entry;
+        focused.z = desk.nextZ++;
+      }
       options.onLayout?.(id);
-      publish();
+      if (visibilityChanged) changed();
+      else publish();
     },
     setPageVisible(visible) {
       if (visible === desk.pageVisible) return;

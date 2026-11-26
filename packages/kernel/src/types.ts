@@ -160,6 +160,14 @@ export interface GrantChoice {
   readonly remember?: boolean;
 }
 
+/** Startup decisions for the one verified applet whose grants are under review. */
+export interface ReviewedStart {
+  /** Whether a mounted instance already runs with the reviewed startup domains. */
+  canReuse(plan: MountPlan): boolean;
+  /** Plan under the grants now in force. Await the mount before leaving the review. */
+  plan(): Promise<MountPlan>;
+}
+
 /** User-facing grant operations. Everything here is per applet identity and reversible. */
 export interface Grants {
   list(): readonly GrantRecord[];
@@ -411,8 +419,8 @@ export interface KernlHost {
    * @deprecated
    */
   chooseHandler?(prompt: HandlerPrompt): Promise<HandlerChoice | undefined>;
-  /** Open the applet at an address, under its existing grants; resolve its window id, or undefined when it did not open. */
-  openApplet?(address: string): Promise<string | undefined>;
+  /** Open the applet under its existing grants, preserving the foreground when focus is false; resolve its window id, or undefined when it did not open. */
+  openApplet?(address: string, options?: { readonly focus?: boolean }): Promise<string | undefined>;
   /** Bring a running applet's window to the front. */
   focusApplet?(windowId: string): void;
   /**
@@ -555,6 +563,8 @@ export interface Kernel {
   resolve(pointer: AppletPointer): Promise<AppletSummary>;
   /** Remember a verified applet so other applets can hand it work, without opening it. Throws `invalid:unresolved` for a summary this shell did not verify. */
   install(summary: AppletSummary): InstalledApplet;
+  /** Keep temporary grants for one reviewed artifact from the first grant edit through the awaited mount. */
+  withGrantReview(summary: AppletSummary, open: (start: ReviewedStart) => Promise<void>): Promise<void>;
   /** Build the mount plan for a verified applet under the user's current grants. */
   plan(summary: AppletSummary): Promise<MountPlan>;
   /** Put the applet in the frame. Performs the mount order and tracks the handle. */
@@ -564,4 +574,3 @@ export interface Kernel {
   handleWindowMessage(event: MessageEvent): void;
   destroy(): void;
 }
-

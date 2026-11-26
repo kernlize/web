@@ -85,6 +85,7 @@ export {
 export { MAX_UNMOUNTED_PLANS, createAppletAdmissions, type AdmissionRuntime, type AppletAdmissions } from './firewall/admission.js';
 export { createFirewall, type FirewallOptions, type KernlFirewall } from './firewall/firewall.js';
 export { BASELINE_DOMAINS, DOMAIN_CAPABILITIES, capabilitiesForDomain, capabilitiesForDomains } from './grants/domain-capabilities.js';
+export { createGrantReviews, type GrantReviewHost } from './grants/review.js';
 export { createEnvironmentResolver, createGrants, type GrantsOptions, type KernlGrants } from './grants/grants.js';
 export { abbreviate, describeChange, isDestructiveKind } from './consent/describe-change.js';
 export {

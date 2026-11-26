@@ -16,13 +16,13 @@ export const DELIVERY_RETRY = Object.freeze({ intervalMs: 100, attempts: 150 });
 /** What {@link createIntentDelivery} needs from the shell. */
 export interface IntentDeliveryOptions {
   readonly installed: InstalledApplets;
-  /** A window already running this catalogue id, for reuse. */
-  readonly findWindow: (catalogId: string) => string | undefined;
-  /** Ask the host to open the applet at this address; resolves to its window id, or undefined when it did not open. */
-  readonly openApplet: (address: string) => Promise<string | undefined>;
+  /** A window already running this catalogue id and able to receive this convention, for reuse. */
+  readonly findWindow: (catalogId: string, convention: string) => string | undefined;
+  /** Ask the host to open this address, behind existing windows when focus is false. Resolves to the window id or undefined. */
+  readonly openApplet: (address: string, options?: { readonly focus?: boolean }) => Promise<string | undefined>;
   readonly focus?: (windowId: string) => void;
   /** The runtime's recipient-checked send; false while the target is not eligible yet. */
-  readonly send: (windowId: string, message: NappletMessage) => boolean;
+  readonly send: (windowId: string, message: NappletMessage, target: Pick<IntentDispatchParams, 'handler' | 'convention'>) => boolean;
   readonly retry?: { readonly intervalMs: number; readonly attempts: number };
 }
 
@@ -31,12 +31,13 @@ const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 /**
  * Deliver an accepted intent to its target.
  *
- * A running window of the handler is reused unless the request said
- * `reuse: false`, and focused unless it said `focus: false`; otherwise the
- * host opens the applet. The delivery is retried until the target's session
- * is live and holds the `intent` domain, because the runtime delivers only to
+ * A compatible running window of the handler is reused unless the request said
+ * `reuse: false`, and focused unless it said `focus: false`. When opening a
+ * new window, the host receives the same focus choice.
+ * The delivery is retried until the target's session is live and holds the
+ * `intent` domain, because the runtime delivers only to
  * an eligible recipient (NAP-INTENT: "deliver only after the target is
- * ready"). The source window plays no part after acceptance.
+ * ready").
  *
  * @param options - Installed set, window lookup, opener, focus and the runtime send.
  * @returns The target controller's delivery function.
@@ -52,9 +53,12 @@ export function createIntentDelivery(options: IntentDeliveryOptions): (params: I
   return async (params) => {
     const applet = options.installed.get(params.handler);
     if (!applet) throw new Error('unavailable:handler');
-    const running = params.behavior?.reuse === false ? undefined : options.findWindow(params.handler);
-    if (running && params.behavior?.focus !== false) options.focus?.(running);
-    const windowId = running ?? (await options.openApplet(applet.address));
+    const running = params.behavior?.reuse === false ? undefined : options.findWindow(params.handler, params.convention);
+    const focus = params.behavior?.focus !== false;
+    if (running && focus) {
+      options.focus?.(running);
+    }
+    const windowId = running ?? (await options.openApplet(applet.address, { focus }));
     if (!windowId) throw new Error('unavailable:window');
     const delivery: IntentDelivery = {
       sender: params.sender,
@@ -64,7 +68,7 @@ export function createIntentDelivery(options: IntentDeliveryOptions): (params: I
       ...(params.payload === undefined ? {} : { payload: params.payload }),
     };
     for (let attempt = 0; attempt < retry.attempts; attempt += 1) {
-      if (options.send(windowId, { type: 'intent.deliver', delivery } as NappletMessage)) return;
+      if (options.send(windowId, { type: 'intent.deliver', delivery } as NappletMessage, params)) return;
       await pause(retry.intervalMs);
     }
     throw new Error('unavailable:delivery');

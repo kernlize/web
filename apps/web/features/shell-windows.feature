@@ -13,11 +13,12 @@ The shell hands its windows to kernl's window manager, with its own spacing
       | 504 | 0   | 496 | 296 |
       | 504 | 304 | 496 | 296 |
 
-  Scenario: the shell offers kernl's four layouts and steps through them in order
-    Then the shell layouts read "floating, tiled, columns, main and stack"
+  Scenario: the shell offers kernl's five layouts and steps through them in order
+    Then the shell layouts read "floating, tiled, columns, main and stack, stacked"
     And after the shell layout "floating" comes "dwindle"
     And after the shell layout "dwindle" comes "columns"
-    And after the shell layout "master-stack" comes "floating"
+    And after the shell layout "master-stack" comes "stacked"
+    And after the shell layout "stacked" comes "floating"
     And after a shell layout nobody registered comes "floating"
     And with no shell layouts on offer nothing comes next
 
@@ -30,6 +31,7 @@ The shell hands its windows to kernl's window manager, with its own spacing
       | stored   | layout   |
       | columns  | columns  |
       | floating | floating |
+      | stacked  | stacked  |
       | tiled    | dwindle  |
       | spiral   | floating |
 

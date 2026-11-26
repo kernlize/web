@@ -21,7 +21,7 @@ it('bounds deduplication state and ignores a callback that arrives after close',
     },
   } satisfies Pick<StreamingOutboxRouter, 'planRead' | 'subscribeWithPlan'>;
   const cache = createOutboxEventCache({ getItem: () => null, setItem() {}, removeItem() {} });
-  const service = createCachedOutboxService({ router: router as StreamingOutboxRouter, cache, scope: () => 'tree' });
+  const service = createCachedOutboxService({ router: router as StreamingOutboxRouter, cache });
   const signal = new AbortController().signal;
   service.onRegistered?.({ authorizeOperation: async (_window, _operation, _requirements, execute) => ({ status: 'executed', value: await execute(signal) }) } as ServiceRuntimeContext);
   service.handleMessage('w', { type: 'outbox.subscribe', subId: 'tree', filters: [{ kinds: [31971] }] } as NappletMessage, send);
@@ -34,4 +34,21 @@ it('bounds deduplication state and ignores a callback that arrives after close',
   expect(close).toHaveBeenCalledOnce();
   expect(send).toHaveBeenCalledTimes(514);
   service.onUnregistered?.();
+});
+
+it.each(['unsupported limited filter', 'empty cache', 'policy denied'] as const)('preserves the relay response for %s', async (reason) => {
+  const plan: OutboxRelayPlan = { relays: ['wss://nos.lol'], source: 'policy' };
+  const tree = { kinds: [31971] };
+  const cache = createOutboxEventCache();
+  const cached = finalizeEvent({ kind: 31971, content: '', tags: [], created_at: 1 }, new Uint8Array(32).fill(1));
+  if (reason !== 'empty cache') cache.open([tree], plan, undefined)!.observe(createRelayEventResultWithHints(cached, plan.relays));
+  const reply = reason === 'policy denied' ? { events: [], error: 'policy denied' as const } : { events: [], incomplete: true };
+  const router = { async planRead() { return plan; }, async queryWithPlan() { return reply; } };
+  const service = createCachedOutboxService({ router: router as StreamingOutboxRouter, cache });
+  const signal = new AbortController().signal;
+  service.onRegistered?.({ authorizeOperation: async (_win, _op, _req, execute) => ({ status: 'executed', value: await execute(signal) }) } as ServiceRuntimeContext);
+  const send = vi.fn();
+  const filters = reason === 'unsupported limited filter' ? [{ ...tree, limit: 1 }, { search: 'tree' }] : [tree];
+  service.handleMessage('w', { type: 'outbox.query', id: 'q', filters } as NappletMessage, send);
+  await vi.waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'outbox.query.result', id: 'q', ...reply }));
 });

@@ -18,7 +18,7 @@ function store(raw: string | null = null) {
 }
 
 function open(cache: ReturnType<typeof createOutboxEventCache>, filters = [FILTER], plan = PLAN, authors?: string[]) {
-  return cache.open('scope', filters, plan, authors)!;
+  return cache.open(filters, plan, authors)!;
 }
 
 describe('the public Outbox observation cache', () => {
@@ -36,7 +36,7 @@ describe('the public Outbox observation cache', () => {
     cache.persist();
   });
 
-  it('ignores ambiguous provenance, oversized events and non-authoritative deletions', () => {
+  it('ignores ambiguous provenance, oversized events and deletion-only subscriptions', () => {
     const { cache } = store();
     const observation = open(cache);
     const event = sign();
@@ -45,8 +45,7 @@ describe('the public Outbox observation cache', () => {
     observation.observe(result(sign(31971, 'x'.repeat(18_000)), [RELAY]));
     expect(observation.replay()).toEqual([]);
     observation.observe(result(event, [RELAY]));
-    const deletions = open(cache, [{ kinds: [5] }]);
-    deletions.observe(result(sign(5, '', [['e', event.id]], Uint8Array.from(KEY, () => 2)), [RELAY]));
+    expect(open(cache, [{ kinds: [5] }])).toBeUndefined();
     expect(observation.replay().map((entry) => entry.event.id)).toEqual([event.id]);
     cache.persist();
   });
@@ -65,7 +64,7 @@ describe('the public Outbox observation cache', () => {
 
   it('ignores invalid or expired persisted data and verifies signatures after storage', () => {
     const signed = sign();
-    const row = { scope: 'scope', relay: RELAY, observed: Date.now(), event: signed };
+    const row = { relay: RELAY, observed: Date.now(), event: signed };
     const candidates = [null, { ...row, relay: 'wss://private.test' }, { ...row, observed: 0 }, { ...row, event: { ...signed, content: 'changed' } }, row];
     const { cache } = store(JSON.stringify(candidates));
     expect(open(cache).replay().map((entry) => entry.event.id)).toEqual([signed.id]);

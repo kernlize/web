@@ -1,4 +1,5 @@
 import type { Observable } from 'rxjs';
+import type { MountedApplet } from '../applets/mount.js';
 import type { EventStore } from 'applesauce-core';
 import type { EventTemplate, NostrEvent } from '@napplet/core';
 import type { ServiceRegistry } from '@kehto/runtime';
@@ -57,10 +58,12 @@ export interface KernelContext {
   appletOf(windowId: string): AppletSummary | undefined;
   /** Whether a window is the focused one, as the guard sees it. */
   isFocused(windowId: string): boolean;
+  /** A window whose focus the guard just recorded; read `isFocused` for its current state. */
+  readonly focusChanges$: Observable<string>;
   /** Whether a window's applet holds a domain the person granted, and is not blocked. Read-only: only the person grants. */
   holds(windowId: string, domain: string): boolean;
-  /** The applets running now, by window id. */
-  applets(): ReadonlyMap<string, { readonly windowId: string; readonly summary: AppletSummary }>;
+  /** The applets running now, by window id, with the domains each window started with. */
+  applets(): ReadonlyMap<string, Pick<MountedApplet, 'windowId' | 'summary' | 'domains'>>;
   /** Where passwords and keys of services the shell signs in to for the person are kept (D-052). */
   readonly secrets: SecretsProvider;
   /** The host's effects a module may use. Questions go through {@link KernelContext.ask}. */

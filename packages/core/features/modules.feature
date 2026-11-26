@@ -123,6 +123,22 @@ Feature: Modules
       Given a kernl shell over that host and pool with modules "catalog"
       Then the shell lists its store as "Chat"
 
+    Scenario: stacks are optional, independently of the catalogue
+      Given a kernl shell over that host and pool with modules "catalog"
+      Then the shell has no "stacks" member
+
+    Scenario: stacks read the relays and populate the shared store without a cache module
+      Given a kernl shell over that host and pool with modules "stacks"
+      And the fake pool serves stacks "mesh"
+      When the shell lists the stacks
+      Then the shell stack list is "mesh"
+      And the shared store holds the stack "mesh"
+
+    Scenario: without relay matches the stacks module reads the cache loaded after it
+      Given a shell with a cached stack "mesh" and no published stacks
+      When the shell streams the stacks
+      Then the shell stack list is "mesh"
+
     Scenario: without the intents module, applets cannot hand each other work and nothing is installed
       Given a kernl shell over that host and pool with modules "theme"
       Then the shell does not offer "intent"
