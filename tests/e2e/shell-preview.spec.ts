@@ -249,6 +249,8 @@ for (const layout of ['stacked', 'floating']) {
   for (const reuse of [true, false]) {
     for (const focus of [false, true, undefined]) {
       test(`intent focus ${focus ?? 'omitted'} with a ${reuse ? 'reused' : 'fresh'} handler in ${layout}`, async ({ page }) => {
+        // The hidden fresh handler is retried for 15 s before the shell gives up, which slow runners add to the rest.
+        if (focus === false && !reuse && layout === 'stacked') test.setTimeout(60_000);
         await page.setViewportSize({ width: 1440, height: 900 });
         await page.goto(`${base}/app/?preview=1`);
         await page.evaluate((id) => localStorage.setItem('preview:kernl:layout:v1', id), layout);
