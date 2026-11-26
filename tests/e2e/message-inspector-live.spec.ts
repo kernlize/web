@@ -134,4 +134,11 @@ test('a failed reply is an error and a held-back burst is a warning, counted on 
   await log.getByLabel('Problems only').check();
   await expect(log.locator('li[data-mark="none"]')).toHaveCount(0);
   await proof(page, '03-problems-only');
+
+  // A burst of the same message becomes one row with a count, not a page of the same line.
+  await log.getByLabel('Problems only').uncheck();
+  const counted = log.locator('li .repeats');
+  await expect.poll(() => counted.count()).toBeGreaterThan(0);
+  await expect(counted.first()).toContainText(/×\d+/);
+  await proof(page, '05-repeats');
 });

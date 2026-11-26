@@ -2,20 +2,22 @@ import { untrack } from 'svelte';
 import type { GuardEvent } from '@kernlize/guard';
 import type { AppletMessage } from './contract';
 import { guardEventWords } from './guard-log.svelte';
-import { entryOfGuardEvent, entryOfMessage, type TrafficEntry, type TrafficMarks } from './traffic-words';
+import { entryOfGuardEvent, entryOfMessage, foldRepeat, type TrafficEntry, type TrafficMarks } from './traffic-words';
 import { createTrafficLog } from '@kernlize/ui-model';
 import { map } from 'rxjs';
 import { observe } from './observe.svelte';
 
-/** Rows kept per window. Older ones go; the counts stay. */
+/** Rows kept per window, one per run of the same message. Older ones go; the counts stay. */
 const KEEP = 200;
 
 /**
- * What each applet sent and received this page, newest first, with the guard's say on it. Payloads
- * can hold private messages and signed events, so nothing here is ever written to storage.
+ * What each applet sent and received this page, newest first, with the guard's say on it. A message
+ * that repeats the one before it is folded into that row with a count, so a gamepad's stream or an
+ * applet's burst cannot push the failure the person is looking for out of the log. Payloads can hold
+ * private messages and signed events, so nothing here is ever written to storage.
  */
 export class TrafficLog {
-  readonly model = createTrafficLog<TrafficEntry>(KEEP);
+  readonly model = createTrafficLog<TrafficEntry>(KEEP, foldRepeat);
   // Bumped on every change, so a reader of a window's rows hears when they change.
   readonly #version = observe(this.model.changes$.pipe(map((_, index) => index)), 0);
   #next = 0;
@@ -32,6 +34,11 @@ export class TrafficLog {
   forWindow(windowId: string): readonly TrafficEntry[] {
     void this.#version.value;
     return this.model.forWindow(windowId);
+  }
+
+  total(windowId: string): number {
+    void this.#version.value;
+    return this.model.total(windowId);
   }
 
   marks(windowId: string): TrafficMarks {

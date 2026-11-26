@@ -1,7 +1,7 @@
 <script lang="ts">
   import Overlay from './Overlay.svelte';
   import type { TrafficLog } from './traffic-log.svelte';
-  import { describeMarks, directionLabel, formatPayload } from './traffic-words';
+  import { describeMarks, directionLabel, formatPayload, repeatWords } from './traffic-words';
   import type { ShellWindow } from './window-store.svelte';
 
   interface Props {
@@ -22,17 +22,21 @@
   };
   const rows = $derived(traffic.forWindow(win.id));
   const shown = $derived(problemsOnly ? rows.filter((row) => row.mark) : rows);
-  const marks = $derived(describeMarks(traffic.marks(win.id)));
+  const total = $derived(traffic.total(win.id));
+  const counted = $derived(traffic.marks(win.id));
+  const marks = $derived(describeMarks(counted));
+  // The counts cover the whole time the window has been open, the rows only the newest ones kept.
+  const agedOut = $derived(problemsOnly && shown.length === 0 && counted.errors + counted.warnings > 0);
   const timeOf = (at: number): string => new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 </script>
 
 <Overlay title="Inspect {win.plan.summary.title}" {onclose} wide>
   <div class="bar">
-    <p class="shell-muted" data-testid="traffic-summary">{rows.length} {rows.length === 1 ? 'message' : 'messages'}{marks ? ` · ${marks}` : ''}</p>
+    <p class="shell-muted" data-testid="traffic-summary">{total} {total === 1 ? 'message' : 'messages'}{marks ? ` · ${marks}` : ''}</p>
     <label class="filter"><input type="checkbox" bind:checked={problemsOnly} /> Problems only</label>
   </div>
   {#if shown.length === 0}
-    <p class="shell-muted">{problemsOnly ? 'No problems.' : 'Nothing yet.'}</p>
+    <p class="shell-muted">{agedOut ? 'No problems among the messages kept.' : problemsOnly ? 'No problems.' : 'Nothing yet.'}</p>
   {:else}
     <ol class="log" aria-label="Messages, newest first">
       {#each shown as row (row.id)}
@@ -42,6 +46,7 @@
               <time datetime={new Date(row.at).toISOString()}>{timeOf(row.at)}</time>
               <span class="direction">{directionLabel(row)}</span>
               <code class="type">{row.type}</code>
+              {#if row.repeat}<span class="shell-badge repeats" title={repeatWords(row.repeat, timeOf)}>×{row.repeat.repeats}</span>{/if}
               {#if row.mark}<span class="shell-badge mark {row.mark}">{row.mark}</span>{/if}
               {#if row.note}<span class="row-note">{row.note}</span>{/if}
             </summary>
@@ -120,6 +125,11 @@
 
   .mark.error {
     color: #e07a5f;
+  }
+
+  .repeats {
+    color: var(--ink-muted);
+    font-family: var(--font-mono);
   }
 
   .mark.warning {

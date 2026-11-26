@@ -31,6 +31,23 @@ Feature: An applet's messages, as the inspector shows them
   Scenario: a message the guard let through is not a row
     Then the inspector shows nothing for a guard "pass"
 
+  Scenario: a burst of one message becomes one row with a count, not a page of the same line
+    When the inspector folds a "gamepad.state" message at 1 into a row, and then 42 more of them
+    Then the inspector row stands for 43 messages, the first at 1
+    And the inspector says "43 times, first at 00:00:00"
+
+  Scenario Outline: only the same thing said twice is a repeat
+    When the inspector folds a message whose "<field>" differs from the row before it
+    Then the inspector folds nothing
+
+    Examples:
+      | field     |
+      | direction |
+      | type      |
+      | channel   |
+      | mark      |
+      | note      |
+
   Scenario: errors and warnings are counted, and say so in a few words
     When the inspector counts marks "error,warning,,warning,error,error"
     Then the inspector counts read "3 errors · 2 warnings"
