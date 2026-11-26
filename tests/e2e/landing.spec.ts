@@ -76,7 +76,7 @@ test.describe('landing site', () => {
     await expect(page.locator('#adopt h2')).toBeInViewport();
     const paths = page.locator('#adopt article');
     await expect(paths).toHaveCount(2);
-    for (const [index, who, tutorial] of [[0, 'You have an application', 'Embed kernl in a page'], [1, 'You are starting a shell', 'Run the shell']] as const) {
+    for (const [index, who, tutorial] of [[0, 'You have an application', 'Build a shell with your own UX'], [1, 'You are starting a shell', 'Run the shell']] as const) {
       const path = paths.nth(index);
       await expect(path).toContainText(who);
       await expect(path.locator('ol > li')).toHaveCount(3);
