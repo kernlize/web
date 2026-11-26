@@ -32,7 +32,7 @@ export interface ControllerDeps extends ControllerSettings {
 }
 
 /**
- * The `gamepad` domain (D-074): NAP-GAMEPAD, served by kehto's reference service.
+ * The `gamepad` domain (D-075): NAP-GAMEPAD, served by kehto's reference service.
  *
  * Controllers are the person's devices, so the shell owns the only native reader and
  * every mounted frame stays denied (`CONTROLLER_FEATURES`, security posture rule 4).

@@ -3,7 +3,7 @@ import { loadStacks, streamStacks, type AppletStacks, type LoadStacksOptions } f
 import type { KernlModule } from '@kernlize/kernel';
 
 /**
- * Published applet stacks over the shell's shared relay pool and event store (D-070).
+ * Published applet stacks over the shell's shared relay pool and event store (D-071).
  * The optional cache module supplies stacks from an earlier visit.
  *
  * @returns The module; its api is the `AppletStacks`.

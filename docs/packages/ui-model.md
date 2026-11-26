@@ -49,7 +49,7 @@ const ops = grantsToApply(input, choices, state);
   - A baseline domain is always on.
 - **`grantsToApply(input, choices, state)`:** what confirming comes to, as `allow` and `revoke` operations. An allowed unsafe domain is kept beside messages. Nothing is applied for what already stands, for a baseline domain, for one the shell cannot offer, or for one messages withhold.
 
-A stack review can annotate a `GrantRow` with `applets` (the titles and whether each applet requires the domain) and `mixed` (the applets start with different answers). These are display fields; the stack launcher still applies each applet’s own grants ([D-071](../decisions.md#d-071)).
+A stack review can annotate a `GrantRow` with `applets` (the titles and whether each applet requires the domain) and `mixed` (the applets start with different answers). These are display fields; the stack launcher still applies each applet’s own grants ([D-072](../decisions.md#d-072)).
 
 ## Ask queues
 

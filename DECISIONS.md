@@ -1156,7 +1156,7 @@ A subscription replays before opening its approved relays and suppresses duplica
 
 **Reversal cost.** Low. Remove the optional Outbox cache wiring; the kehto router and the D-030 cache still work independently.
 
-## D-070 · Stacks are read as published lists, and opening one opens every applet it names
+## D-071 · Stacks are read as published lists, and opening one opens every applet it names
 
 **Context.** AppStore ships NIP-51 app curation sets: kind `30267`, one per `(pubkey, d)`, whose `a` tags name napplet manifests (`35129:<pubkey>:<d>` or `15129:<pubkey>:`). Its UI is the only way to read them today, and a stack is only useful if a shell can open it. The sets carry no artifact, no permission and no identity of their own — they are a list of references, like a bookmark list.
 
@@ -1167,16 +1167,16 @@ A subscription replays before opening its approved relays and suppresses duplica
 - **One stack per `(publisher, d)`, newest wins.** Sets are addressable, so relays hold every version. A set republished with no applet in it is how AppStore deletes a stack — napplet shells refuse NIP-09 deletions — so an empty set is not listed. The `d` is otherwise plain data: `napplets`, the identifier the Recommend button writes, has no special meaning here.
 - **A name is `title`, then `name`, then the `d`.** AppStore reads both tags; live sets use either, and an untitled one should still be nameable in a list. Both are trimmed, so a blank tag falls through.
 - **Relay hints travel, identity does not.** An `a` tag's third element becomes the pointer's relay hints when the applet is resolved, and nothing more; identity comes from the verified manifest.
-- **Opening a stack opens every applet in it.** One that is gone or unreachable is skipped and counted, so the others still open; the person is told how many were missed. An applet already running is brought forward rather than opened twice, so a stack naming it twice, or a second press of **Open all**, does not stack windows. Planning stays sequential: each applet's admission and any first-run question is answered before the next is planned. The permission question is asked once for the whole stack (D-071).
+- **Opening a stack opens every applet in it.** One that is gone or unreachable is skipped and counted, so the others still open; the person is told how many were missed. An applet already running is brought forward rather than opened twice, so a stack naming it twice, or a second press of **Open all**, does not stack windows. Planning stays sequential: each applet's admission and any first-run question is answered before the next is planned. The permission question is asked once for the whole stack (D-072).
 
 **Consequences.** A stack from a stranger is listed like any other — the shell does not model follows yet — and its applets still have to pass verification, so a stack cannot smuggle in an applet someone else signed. The `apps` and `super` tiers are now read for a second kind. The stack's signature is checked before its title and list are shown under a publisher's name. That signature does not vouch for any member's bytes.
 
 **Reversal cost.** Low. `packages/modules/src/stacks` is two modules behind one `Kernl.stacks` member; dropping the launcher tab leaves them unused but harmless.
 
 
-## D-071 · A stack's permissions are asked for once, as one table of domains
+## D-072 · A stack's permissions are asked for once, as one table of domains
 
-**Context.** The shell's per-applet review writes an applet's grants when the person presses **Run**: what it requires is switched on, what it may use is left off, and the firewall admits the applet afterwards. A stack opens several applets at once, so opening one applet-by-applet would mean a review screen per applet, each asking about the same domains in turn — and skipping the reviews, as D-070 first did, left every applet in a stack with no grants at all, because nothing had written them.
+**Context.** The shell's per-applet review writes an applet's grants when the person presses **Run**: what it requires is switched on, what it may use is left off, and the firewall admits the applet afterwards. A stack opens several applets at once, so opening one applet-by-applet would mean a review screen per applet, each asking about the same domains in turn — and skipping the reviews, as D-071 first did, left every applet in a stack with no grants at all, because nothing had written them.
 
 **Decision.**
 
@@ -1191,7 +1191,7 @@ A subscription replays before opening its approved relays and suppresses duplica
 **Reversal cost.** Low. `apps/web/src/shell/stack-grants.ts` is one module over `@kernlize/ui-model`; falling back to per-applet reviews means calling `AppletReview` in a loop in `Launcher.svelte`.
 
 
-## D-072 · Installing a stack installs every applet in it, and opens only the ones it marks
+## D-073 · Installing a stack installs every applet in it, and opens only the ones it marks
 
 **Context.** A stack such as Rocket Stack holds seven applets that work together: one entry point and six that answer when it asks. Opening all seven at once was the only thing the launcher could do, which is both wrong for the person's screen and useless — most of those applets exist to answer an intent, not to be looked at.
 
@@ -1201,14 +1201,14 @@ A subscription replays before opening its approved relays and suppresses duplica
 - **The publisher marks the entry points.** A `start` tag per coordinate (`['start', '35129:<pubkey>:<d>']`, `STACK_START_TAG`) names the applets a stack opens by default. AppStore, Hive and other NIP-51 readers ignore unknown tags, so the stack still reads as a plain list for them, and the `a` tags remain the only statement of what it holds: a `start` naming no member is ignored, never promoted. Markers are matched on `kind:pubkey:identifier`, so a member carrying a relay hint still matches.
 - **The launcher ticks the entry points and opens nothing else.** A stack with no `start` tag ticks every member, because its publisher said nothing; a stack with tags shows `Open 1` rather than `Open all`, and the person can tick more in the list.
 - **A person's ticks win over the publisher's.** The list is where the choice is made, per stack, and it lasts as long as the launcher is open; nothing is stored, because the answer is about this opening, not a setting.
-- **Grants are asked for what is opened, not for what is installed** (D-071 amended). The combined table covers the ticked applets only. An applet installed and never opened carries no grants until it runs.
+- **Grants are asked for what is opened, not for what is installed** (D-072 amended). The combined table covers the ticked applets only. An applet installed and never opened carries no grants until it runs.
 - **Each applet in the list can be opened on its own.** That path goes through the ordinary single-applet review, so its grants are its own question.
 
-**Consequences.** Opening a stack of seven now opens one window and installs six, and the six are reachable from **Yours** and by intent. Nothing runs in the background: NAP-INTENT addresses a window, so an installed applet is dormant until something asks it for work (and then it opens visibly, D-073). The `start` tag is kernl-read only — no other client will honour it, which is the cost of not overloading `a` order.
+**Consequences.** Opening a stack of seven now opens one window and installs six, and the six are reachable from **Yours** and by intent. Nothing runs in the background: NAP-INTENT addresses a window, so an installed applet is dormant until something asks it for work (and then it opens visibly, D-074). The `start` tag is kernl-read only — no other client will honour it, which is the cost of not overloading `a` order.
 
 **Reversal cost.** Low. Ignoring `start` tags puts the launcher back to ticking everything; the install/open split is two calls in one place.
 
-## D-073 · An applet woken by a request opens visibly, with its existing grants
+## D-074 · An applet woken by a request opens visibly, with its existing grants
 
 **Context.** Installing a stack records its support applets without running them. Another applet may later request a handler that has never been opened.
 
@@ -1218,7 +1218,7 @@ A subscription replays before opening its approved relays and suppresses duplica
 
 **Reversal cost.** A different policy must still ask the person before writing grants for the verified handler.
 
-## D-074 · Controllers reach an applet through the shell, live only in the window being used
+## D-075 · Controllers reach an applet through the shell, live only in the window being used
 
 **Context.** NAP-GAMEPAD ([napplet/naps PR #130](https://github.com/napplet/naps/pull/130)) defines `window.napplet.gamepad`: `getGamepads()`, `available`, `focused` and `onChange()`, backed by pushed `gamepad.state` snapshots. A controller is a device at the person's desk, not an applet's, and the native API is a shared one: read directly, every frame on the page sees the same presses, so two applets running side by side both react. The proposal's isolation guarantee only holds if the runtime denies the native API, which kernl has always done (security posture rule 4, `denyNappletControllerAccess`). kehto 0.35 ships both halves: `@kehto/services` exports `createGamepadService` and `browserGamepadOptions`, `@kehto/runtime` dispatches the `gamepad` domain, and the prelude builds `napplet.gamepad` from the environment it is handed. `@napplet/core` 0.41 publishes the wire types.
 
@@ -1236,7 +1236,7 @@ A subscription replays before opening its approved relays and suppresses duplica
 
 **Reversal cost.** Low. The domain is one module (`gamepad/controllers.ts`), one line in the service registry, one entry in `DOMAIN_CAPABILITIES` and one in `MESSAGE_COMPANION_DOMAINS`. Removing the registration withdraws the domain; rule 4 keeps the frames denied either way.
 
-## D-075 · Stacked shows one window without closing the rest
+## D-076 · Stacked shows one window without closing the rest
 
 **Context.** Main and stack keeps several windows visible. Stacked is for working in one applet at a time without losing the others' state, including when an applet asks the shell to open something in an existing handler.
 

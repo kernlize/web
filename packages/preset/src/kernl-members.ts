@@ -58,7 +58,7 @@ export interface KernlModuleOptions {
   readonly downloads?: DownloadsOptions;
   /** The chords the shell keeps from applets' keyboard shortcuts, and where key presses are heard (D-054). Read only when `modules` is left out; otherwise pass them to `keysModule`. */
   readonly shortcuts?: ShortcutSettings;
-  /** Controller input in the default preset (D-074); for an explicit list, pass these settings to `gamepadModule`. */
+  /** Controller input in the default preset (D-075); for an explicit list, pass these settings to `gamepadModule`. */
   readonly controllers?: ControllerSettings;
 }
 

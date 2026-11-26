@@ -1,7 +1,7 @@
 Feature: Controllers an applet reads through the shell
   Every mounted frame is denied the native controller API, so an applet that
   navigates with a pad reads it through the `gamepad` domain, and the shell owns
-  the only native reader (D-074). A subscribed applet receives a complete
+  the only native reader (D-075). A subscribed applet receives a complete
   snapshot, but live values only while its window is the one the person is
   working in; every other subscriber gets the neutral snapshot the proposal
   requires, so a press in one window cannot be replayed in another. A window

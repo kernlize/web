@@ -2,7 +2,7 @@ import { createControllerService, type ControllerSettings } from '../gamepad/con
 import type { KernlModule } from '@kernlize/kernel';
 
 /**
- * Offer controller input through the shell, with live readings only for its focused applet (D-074).
+ * Offer controller input through the shell, with live readings only for its focused applet (D-075).
  * Without a native reader, or when the host disables it, this module offers no domain.
  *
  * @param settings - The page holding the controller reader and whether to offer it.
