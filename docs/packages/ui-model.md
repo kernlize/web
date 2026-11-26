@@ -6,7 +6,7 @@ Framework-free view models for a kernl shell's panels. A host's UI binds to them
 | --- | --- |
 | npm | `@kernlize/ui-model` |
 | JSR | `@kernl/ui-model` |
-| Version | `0.2.4` |
+| Version | `0.3.0` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts` |
 | Dependencies | `@kernlize/guard`, `@kernlize/kernel`, `@kernlize/messaging` (`workspace:^`), `rxjs ^7.8.2` |
 | Peer dependencies | none |
