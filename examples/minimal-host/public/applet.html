@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Note to a friend</title>
+<style>
+  body { font: 15px/1.4 system-ui, sans-serif; margin: 1rem; }
+  label { display: block; margin: 0 0 .5rem; }
+  input { width: 100%; box-sizing: border-box; }
+</style>
+</head>
+<body>
+<h1>Note to a friend</h1>
+<label>To, as a hex key <input id="to" autocomplete="off"></label>
+<label>Note <input id="note" autocomplete="off"></label>
+<button id="send" type="button">Send</button>
+<button id="upload" type="button">Upload it as a file</button>
+<p id="out" role="status">ready</p>
+<script>
+  const out = document.getElementById('out');
+  const value = (id) => document.getElementById(id).value.trim();
+  const say = (text) => { out.textContent = text; };
+
+  document.getElementById('send').addEventListener('click', async () => {
+    try {
+      const result = await window.napplet.dm.send({ recipients: [value('to')], content: value('note') });
+      say(result.ok ? 'sent' : 'not sent');
+    } catch (error) {
+      say('not sent: ' + error.message);
+    }
+  });
+
+  document.getElementById('upload').addEventListener('click', async () => {
+    if (!window.napplet.upload) return say('uploads are not offered');
+    try {
+      const data = new Blob([value('note')], { type: 'text/plain' });
+      const result = await window.napplet.upload.upload({ data, mimeType: 'text/plain', filename: 'note.txt' });
+      say(result.ok ? 'uploaded ' + result.url : 'not uploaded: ' + (result.error ?? result.status));
+    } catch (error) {
+      say('not uploaded: ' + error.message);
+    }
+  });
+</script>
+</body>
+</html>
