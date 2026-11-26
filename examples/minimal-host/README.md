@@ -6,7 +6,8 @@
 
 [![@kernlize/kernel on npm](https://img.shields.io/npm/v/@kernlize/kernel?style=for-the-badge&label=%40kernlize%2Fkernel&color=0b0b0b)](https://www.npmjs.com/package/@kernlize/kernel)
 [![@kernlize/modules on npm](https://img.shields.io/npm/v/@kernlize/modules?style=for-the-badge&label=%40kernlize%2Fmodules&color=0b0b0b)](https://www.npmjs.com/package/@kernlize/modules)
-[![license: MIT](https://img.shields.io/badge/license-MIT-0b0b0b?style=for-the-badge)](../../LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/kernlize/web/ci.yml?branch=main&style=for-the-badge&label=CI)](https://github.com/kernlize/web/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/kernlize/web?style=for-the-badge&color=0b0b0b)](https://github.com/kernlize/web/blob/main/LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/kernlize/web?style=for-the-badge&color=0b0b0b)](https://github.com/kernlize/web/stargazers)
 
 </div>
@@ -123,7 +124,7 @@ This example lives in [kernlize/web](https://github.com/kernlize/web), and chang
 
 ## License
 
-MIT, as the rest of the repository. See [`LICENSE`](../../LICENSE).
+MIT, like the rest of the repository. See [`LICENSE`](../../LICENSE).
 
 ---
 
