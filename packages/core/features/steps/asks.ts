@@ -3,7 +3,7 @@ import { expect, vi } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import { createAskChannel, type Ask, type AskChannel, type AskHost, type AskKind, type AskRenderers, type KernelContext, type KernlHost, type KernlModule } from '@kernlize/core';
 import { startFakeTransmission } from '../../../bridges/features/steps/fake-transmission.ts';
-import { blobFetcher, boot, k, settle } from './kernl.js';
+import { DRAWS_NOTHING, blobFetcher, boot, k, settle } from './kernl.js';
 import { attempt, scratch, splitList, type CoreWorld } from './world.js';
 
 interface AsksScratch {
@@ -26,7 +26,7 @@ const APPLET = { dTag: 'chat', hash: 'ab'.repeat(32) };
 /** An ask of a kind, with stand-in facts: the channel reads only the kind, the window and the applet. */
 const askOf = (kind: AskKind, windowId?: string): Ask => ({ kind, applet: APPLET, ...(windowId === undefined ? {} : { windowId }), facts: {} as never, defaultText: { title: kind } as never });
 
-const NO_PROMPTS: Partial<KernlHost> = { presentConsent: undefined, presentApproval: undefined, chooseHandler: undefined, chooseReply: undefined, presentSettings: undefined };
+const NO_PROMPTS: Partial<KernlHost> = { asks: DRAWS_NOTHING };
 
 function channelOver(world: CoreWorld, host: AskHost, isAsking?: (windowId: string) => boolean): void {
   asks(world).channel = createAskChannel({ host, ...(isAsking ? { isAsking } : {}) });
@@ -134,10 +134,6 @@ When('the host answers the ask with {string}', async (world: CoreWorld, answer: 
 
 Then('the applet was answered once the record it would replace was looked for', async (world: CoreWorld) => {
   await vi.waitFor(() => expect(k(world).received.map((entry) => entry.type)).toContain('relay.publish.result'), { timeout: 2000 });
-});
-
-Then("the host's consent prompt was not used", (world: CoreWorld) => {
-  expect(k(world).record.prompts).toEqual([]);
 });
 
 /** A module that declares one kind and lets a scenario ask through its context. */

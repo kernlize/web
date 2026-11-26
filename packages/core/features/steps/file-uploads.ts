@@ -21,6 +21,7 @@ import {
   type UploadDetails,
 } from '@kernlize/core';
 import { attempt, scratch, splitList, type CoreWorld } from './world.js';
+import { consentAsks } from './prompt-asks.js';
 
 interface UploadScratch {
   files?: AccountFileServers;
@@ -248,7 +249,7 @@ Then('the person was asked about {string}, {string} going to {string}', (world: 
 
 function askedSummary(details: UploadDetails) {
   let presented: ConsentPrompt | undefined;
-  void askUploadConsent({ presentConsent: (prompt) => void (presented = prompt) }, IDENTITY, details);
+  void askUploadConsent({ asks: consentAsks((prompt) => void (presented = prompt)) }, IDENTITY, details);
   return (presented as ConsentPrompt).summary;
 }
 
@@ -283,7 +284,7 @@ Then('{int} bytes read {string}', (_world: CoreWorld, bytes: number, words: stri
 Then('asking the host about an upload from a known applet presents {string} marked {string}', async (_world: CoreWorld, title: string, severity: string) => {
   const details: UploadDetails = { mimeType: 'image/png', size: 1, sha256: 'cd'.repeat(32), servers: ['https://one.test/'] };
   let presented: ConsentPrompt | undefined;
-  const answer = askUploadConsent({ presentConsent: (prompt) => void (presented = prompt) }, IDENTITY, details);
+  const answer = askUploadConsent({ asks: consentAsks((prompt) => void (presented = prompt)) }, IDENTITY, details);
   expect(presented?.summary).toMatchObject({ title, severity, applet: IDENTITY, event: { kind: 24242, tags: [['t', 'upload'], ['x', 'cd'.repeat(32)]] } });
   presented?.resolve(true);
   expect(await answer).toBe(true);
@@ -292,7 +293,7 @@ Then('asking the host about an upload from a known applet presents {string} mark
 Then('asking the host about an upload from an unknown applet answers no without asking', async () => {
   let asked = false;
   const details: UploadDetails = { mimeType: 'image/png', size: 1, sha256: 'cd'.repeat(32), servers: [] };
-  expect(await askUploadConsent({ presentConsent: () => void (asked = true) }, undefined, details)).toBe(false);
+  expect(await askUploadConsent({ asks: consentAsks(() => void (asked = true)) }, undefined, details)).toBe(false);
   expect(asked).toBe(false);
 });
 

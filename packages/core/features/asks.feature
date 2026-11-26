@@ -1,9 +1,8 @@
 Feature: Asks: the host draws each question the kernel puts to the person
   A host registers one renderer per kind of question in `KernlHost.asks`. Each
-  ask carries its facts and kernl's own words, which the host may reword. The
-  prompt callbacks a host had before still draw the kinds they used to, for one
-  minor; a renderer wins over the callback it replaces. A module asks only the
-  kinds it declared (D-067).
+  ask carries its facts and kernl's own words, which the host may reword. A kind
+  the host has no renderer for is refused. A module asks only the kinds it
+  declared (D-067).
 
   Background:
     Given a kernl host over empty storage
@@ -21,21 +20,6 @@ Feature: Asks: the host draws each question the kernel puts to the person
       When the host answers the ask no
       Then the applet's publish failed with "denied:consent"
       And the fake pool published nothing
-
-    Scenario: a renderer wins over the prompt callback it replaces
-      Given a kernl shell over that host and pool whose host draws "sign.replace" and answers later
-      And the shell is signed in
-      And a mounted applet granted "relay" that has said hello
-      When the applet publishes a kind 0 event with content '{"name":"bob"}' over its port
-      Then the host drew a "sign.replace" ask for the mounted window
-      And the host's consent prompt was not used
-
-    Scenario: the prompt callback still draws its kinds while it lasts
-      Given a kernl shell over that host and pool
-      And the shell is signed in
-      And a mounted applet granted "relay" that has said hello
-      When the applet publishes a kind 0 event with content '{"name":"bob"}' over its port
-      Then the host was asked "Update your profile" marked "destructive" for applet "chat"
 
     Scenario: the firewall renderer draws a link question with its facts and kernl's words
       Given a kernl shell over that host and pool whose host draws "firewall.approve" and answers later

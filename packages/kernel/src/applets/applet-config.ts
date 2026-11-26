@@ -34,7 +34,7 @@ const STORAGE_KEY = 'applet-config:v1';
  * @returns Options for `createConfigService`.
  * @example
  * ```ts
- * registry.config = createConfigService(createAppletConfig({ storage, appletOf, present: host.presentSettings })).handler;
+ * registry.config = createConfigService(createAppletConfig({ storage, appletOf, present: drawSettingsForm })).handler;
  * ```
  */
 export function createAppletConfig(options: AppletConfigOptions): ConfigServiceOptions {

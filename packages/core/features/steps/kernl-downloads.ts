@@ -7,6 +7,7 @@ import { startFakeSlskd, type FakeSlskd } from '../../../bridges/features/steps/
 import { startFakeTransmission, type FakeTransmission } from '../../../bridges/features/steps/fake-transmission.ts';
 import { blobFetcher, boot, k, settle } from './kernl.js';
 import { MemoryStorage, scratch, type CoreWorld } from './world.js';
+import { consentAsks } from './prompt-asks.js';
 
 interface DownloadsScratch {
   transmission?: FakeTransmission;
@@ -82,7 +83,7 @@ Given('download services over a sharing daemon, for a window that stops being an
   let live = true;
   const storage = new MemoryStorage();
   state.services = createKernlDownloads({
-    host: { storage, presentConsent: (prompt) => void state.prompts.push(prompt), now: () => 1_793_361_600_000 },
+    host: { storage, asks: consentAsks((prompt) => void state.prompts.push(prompt)), now: () => 1_793_361_600_000 },
     options: {
       offer: true,
       pageScheme: () => 'http',
