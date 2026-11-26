@@ -7,6 +7,7 @@
 [![@kernlize/kernel on npm](https://img.shields.io/npm/v/@kernlize/kernel?style=for-the-badge&label=%40kernlize%2Fkernel&color=0b0b0b)](https://www.npmjs.com/package/@kernlize/kernel)
 [![@kernlize/modules on npm](https://img.shields.io/npm/v/@kernlize/modules?style=for-the-badge&label=%40kernlize%2Fmodules&color=0b0b0b)](https://www.npmjs.com/package/@kernlize/modules)
 [![license: MIT](https://img.shields.io/badge/license-MIT-0b0b0b?style=for-the-badge)](../../LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/kernlize/web?style=for-the-badge&color=0b0b0b)](https://github.com/kernlize/web/stargazers)
 
 </div>
 
@@ -14,13 +15,13 @@
   <img src="../../.github/assets/minimal-host/open.png" alt="The minimal host after signing in: a card for the Note to a friend applet, pinned to a sha256 hash, under the host's own dialog asking Open Note to a friend?. The dialog says it can read and send your private messages, and offers a ticked checkbox: Let it upload files too. It can read your messages, so a file could carry them out." width="640" />
 </p>
 
-## What it is
+## What is this?
 
 This host uses `@kernlize/kernel` and two modules from `@kernlize/modules`. It has no Svelte, no store and no window manager. It opens one applet, pinned by hash, and asks the person everything in its own dialog.
 
 This example is the finished page from the [Build a shell](https://kernl.run/docs/tutorials/build-a-shell) tutorial. If a step there does not do what it says, compare with this.
 
-## Run it
+## Quick start
 
 It is not part of the pnpm workspace, so it installs from npm like anyone else's app:
 
@@ -111,3 +112,23 @@ Playwright also starts the server for the built site in `.pages/`, so `pnpm site
 | [Render an ask](https://kernl.run/docs/how-tos/render-an-ask) | Drawing the kernel's questions in your own UI |
 | [`@kernlize/kernel`](https://kernl.run/docs/packages/kernel) | What the kernel holds and what a host supplies |
 | [Decisions](https://kernl.run/docs/decisions) | Why D-046 seals messaging applets and D-060 lets the person unseal them |
+
+## Contributing
+
+This example lives in [kernlize/web](https://github.com/kernlize/web), and changes to it follow that repository's rules in [`AGENTS.md`](../../AGENTS.md). Code and docs change in the same pull request.
+
+<a href="https://github.com/kernlize/web/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=kernlize/web" alt="Contributors to kernlize/web" />
+</a>
+
+## License
+
+MIT, as the rest of the repository. See [`LICENSE`](../../LICENSE).
+
+---
+
+<div align="center">
+
+[![Star history of kernlize/web](https://api.star-history.com/svg?repos=kernlize/web&type=Date)](https://star-history.com/#kernlize/web&Date)
+
+</div>
