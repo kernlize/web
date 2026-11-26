@@ -39,7 +39,7 @@ kernl's own module list is `kernlPreset`, and `createKernl` from `@kernlize/core
 
 ## Outbox reads
 
-With the cache module and an event cache opener, the kernel replays [scoped public tree observations](../concepts/persistence.md#outbox-replay) after an Outbox read is approved. `outbox.subscribe` delivers cached events before opening the approved relays. `outbox.query` returns cached matches together with the relay results at the normal completion time. No applet changes or additional grants are needed. Hosts can supply `KernlHost.outboxCacheStorage` to retain observations across reloads in the same tab. This storage must not be shared across tabs; if omitted, observations live only in page memory. Without an opener the Outbox service uses the relay router directly.
+With the cache module and an event cache opener, the kernel replays [shared public tree observations](../concepts/persistence.md#outbox-replay) after an Outbox read is approved. `outbox.subscribe` delivers cached events before opening the approved relays. `outbox.query` returns cached matches together with the relay results at the normal completion time. No applet changes or additional grants are needed. Hosts can supply `KernlHost.outboxCacheStorage` to retain observations across reloads in the same tab. This storage must not be shared across tabs; if omitted, observations live only in page memory. Without an opener the Outbox service uses the relay router directly.
 
 ## Reviewed grants and intent focus
 
