@@ -1,5 +1,14 @@
 # @kernlize/core
 
+## 0.30.4
+
+### Patch Changes
+
+- Updated dependencies [d02cd45]
+  - @kernlize/kernel@0.3.0
+  - @kernlize/modules@0.3.1
+  - @kernlize/preset@0.3.1
+
 ## 0.30.3
 
 ### Patch Changes

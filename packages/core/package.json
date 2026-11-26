@@ -1,6 +1,6 @@
 {
   "name": "@kernlize/core",
-  "version": "0.30.3",
+  "version": "0.30.4",
   "description": "Opinionated shell composition over kehto and applesauce",
   "type": "module",
   "main": "./dist/index.js",
