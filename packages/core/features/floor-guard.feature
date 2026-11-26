@@ -17,6 +17,7 @@ Feature: Floor: the guard sees every message first, whatever modules are loaded
       | modules | theme          |
       | kernl's | offers         |
       | no      | does not offer |
+      | the example host's | does not offer |
 
   Scenario Outline: the message that crosses the limit is never answered
     Given the shell loads <modules> modules
@@ -34,6 +35,7 @@ Feature: Floor: the guard sees every message first, whatever modules are loaded
       | modules | theme          |
       | kernl's | offers         |
       | no      | does not offer |
+      | the example host's | does not offer |
 
   Scenario Outline: a hidden applet's requests are held until it is visible
     Given the shell loads <modules> modules
@@ -50,3 +52,4 @@ Feature: Floor: the guard sees every message first, whatever modules are loaded
       | modules | theme          |
       | kernl's | offers         |
       | no      | does not offer |
+      | the example host's | does not offer |

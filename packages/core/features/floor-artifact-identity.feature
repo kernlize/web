@@ -39,3 +39,4 @@ Feature: Floor: grants belong to the exact code, whatever modules are loaded
       | modules | theme          |
       | kernl's | offers         |
       | no      | does not offer |
+      | the example host's | does not offer |

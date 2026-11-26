@@ -15,7 +15,7 @@ A stricter rule applies to applets that are already running. An applet that star
 
 When a rule says to ask, the question names the applet and what it wants. For a link it shows the link and where it leads, with **Open link** and **Don't open**. For anything else it offers **Allow once**, **Allow while open**, **Always allow** and **Don't allow**, as far as each applies. Closing the question allows nothing and keeps nothing.
 
-The offline preview (`?preview=1`) has the same panel over its own stored rules, and its sample applets' links follow them. Nothing runs for real there, so it has no answers to list.
+The preview (`?preview=1`) has the same panel over its own stored rules, kept apart from the live shell's.
 
 ## In code
 

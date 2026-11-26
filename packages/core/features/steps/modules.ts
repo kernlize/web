@@ -7,7 +7,7 @@ import { AccountManager } from 'applesauce-accounts';
 import { ReadonlyAccount } from 'applesauce-accounts/accounts';
 import { createMessagingRegistry } from '@kernlize/messaging';
 import type { ServiceHandler } from '@kehto/runtime';
-import { abbreviate, catalogModule, messagingModule, privateDm, multiplayerModule, directoryModule, keysModule, kernlModules, mailboxesModule, peopleModule, profilesModule, searchCatalog, setupModules, socialModule, themeModule, toCatalogEntry, type AnyKernlModule, type CatalogEntry, type DomainBinding, type KernelContext, type KernlModule, type RelayTier, type ThemeApi } from '@kernlize/core';
+import { abbreviate, catalogModule, filesModule, messagingModule, privateDm, multiplayerModule, directoryModule, keysModule, kernlModules, mailboxesModule, peopleModule, profilesModule, searchCatalog, setupModules, socialModule, themeModule, toCatalogEntry, type AnyKernlModule, type CatalogEntry, type DomainBinding, type KernelContext, type KernlModule, type RelayTier, type ThemeApi } from '@kernlize/core';
 import { blobFetcher, boot, k, settle, vector } from './kernl.js';
 import { attempt, scratch, splitList, type CoreWorld } from './world.js';
 
@@ -77,8 +77,10 @@ function probe(world: CoreWorld): KernelContext {
   return Reflect.get(k(world).kernl, 'probe') as KernelContext;
 }
 
-Given(/^the shell loads (kernl's|no) modules$/, (world: CoreWorld, which: string) => {
-  scratch(world).modules = which === 'no' ? [] : undefined;
+Given(/^the shell loads (kernl's|no|the example host's) modules$/, (world: CoreWorld, which: string) => {
+  // The example host's list is examples/minimal-host's: private messages and uploads, nothing else (#76).
+  const lists: Record<string, readonly AnyKernlModule[] | undefined> = { "kernl's": undefined, no: [], "the example host's": [messagingModule({ providers: [privateDm()] }), filesModule()] };
+  scratch(world).modules = lists[which];
 });
 
 Given('the shell loads only the messaging module', (world: CoreWorld) => {

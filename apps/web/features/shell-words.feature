@@ -88,7 +88,6 @@ Feature: Shell words
     And the shell explains the unavailable reason "mystery" as "Not available yet."
     And the shell explains the messaging refusal "invalid:no-recipients" as "Add someone to write to."
     And the shell explains the messaging refusal "unavailable:offline after 3 tries" as "The message could not be sent right now."
-    And the shell explains the messaging refusal "unavailable:no-ratchet-runtime" as "Needs the live shell and a signed-in identity."
     And the shell explains the messaging refusal "unavailable:no-runtime" as "Not part of this build yet."
     And the shell explains the messaging refusal "unavailable:mystery" as "Not available yet."
     And the shell explains the messaging refusal "invalid:recipient" as "That is not an identity. Paste one as it was shared with you."
@@ -184,6 +183,12 @@ Feature: Shell words
   Scenario: someone the shell has no name for is called by a short account id
     Given a reply question about the account "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d" who wrote through "Legacy messages" while the order picks "Private messages"
     Then the reply question can be kept "For this message only | Every time I write to 3bf0c63f…459d | Every time, for everyone"
+
+  Scenario: someone their provider did not label is called by the name they published
+    Given a reply question about the account "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d" who wrote through "Legacy messages" while the order picks "Private messages"
+    When the shell finds that they published the name "Grace"
+    Then the reply question reads "Grace last wrote to you through Legacy messages. Your order would send this through Private messages, and Grace may not see it there."
+    And the reply question can be kept "For this message only | Every time I write to Grace | Every time, for everyone"
 
   Scenario Outline: keeping an answer for everyone says what rule it becomes
     Then keeping "<use>" for everyone means "<words>"

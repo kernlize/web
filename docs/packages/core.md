@@ -8,7 +8,7 @@ Opinionated shell composition over kehto and applesauce. Browser-agnostic: the D
 | --- | --- |
 | npm | `@kernlize/core` |
 | JSR | `@kernl/core` |
-| Version | `0.30.1` |
+| Version | `0.30.2` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts`; `@kernlize/core/wm` (`@kernl/core/wm` on JSR) is `./dist/wm/index.js`, the layouts and the window manager without the network stack; `@kernlize/core/crypto` (`@kernl/core/crypto` on JSR) is `./dist/crypto/index.js`, the Web Crypto fallback; `@kernlize/core/asks` is `./dist/asks/index.js`, the ask kinds, refusals and channel ([Asks](#asks)) without the network stack; `@kernlize/core/seal` is `./dist/seal/index.js`, the message seal (`MESSAGE_COMPANION_DOMAINS`, `sealsApplet`, `domainsInForce` and the domain capabilities) without the network stack, which `@kernlize/ui-model` reads; `@kernlize/core/kernel` is `./dist/kernel/index.js`, everything but `createKernl`, `kernlModules` and the ratchet and group providers, so a host that names its own modules bundles only what it lists; `@kernlize/core/messaging/ratchet` and `@kernlize/core/messaging/groups` are `ratchet()` and `groups()` with their backends and libraries |
 | Dependencies | `@kernlize/bridges workspace:^`; `@kernlize/kernel workspace:^`; `@kernlize/messaging workspace:^`; `@kernlize/modules workspace:^`; `@kernlize/preset workspace:^` |
 | Peer dependencies | `@napplet/core >=0.41.0 <0.42.0`; `@napplet/nap >=0.37.0 <0.41.0`; `@napplet/shim >=0.30.0`; `nostr-tools >=2.23.3 <=2.x` |
@@ -656,7 +656,7 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `mountApplet` | `(plan: MountPlan, frame: FrameLike, deps: MountDeps) => MountedApplet` | The NIP-5D mount order; throws `invalid:frame-detached`. Calls `frame.setAttribute('sandbox', 'allow-scripts')`. |
 | `CONTROLLER_DENY_POLICY` | `string` | `gamepad 'none'; hid 'none'; usb 'none'`. |
 | `appletMessageFailure` | `(message: unknown) => string \| undefined` | What an envelope says failed: a non-empty `error` string, or for a `*.error` type its `message`, its `reason` or the type. |
-| `describeAppletMessage` | `(windowId: string, direction: AppletMessageDirection, via: 'window' \| 'port', message: unknown) => AppletMessage` | One `traffic$` entry, timestamped now. A host that serves applets itself, like the shell's offline preview, uses it to report the same shape. |
+| `describeAppletMessage` | `(windowId: string, direction: AppletMessageDirection, via: 'window' \| 'port', message: unknown) => AppletMessage` | One `traffic$` entry, timestamped now. A host that serves applets itself uses it to report the same shape. |
 | `createAppletTraffic` | `(owns: (windowId: string) => boolean) => AppletTraffic` | What `createKernl` feeds `traffic$` from: `fromApplet(windowId, via, message)` for kehto's `onNappletMessage` and window-level messages, and every reply kehto sends through `originRegistry.postToNapplet`, for windows `owns` accepts. `close()` stops it. |
 | `AppletMessage`, `AppletMessageDirection`, `AppletTraffic` | types | See `traffic$` above. |
 | `BLOB_TIMEOUT_MS` | `20_000` | |

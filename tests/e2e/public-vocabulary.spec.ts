@@ -48,9 +48,9 @@ test('every shell surface names no protocol', async ({ page }) => {
   await expectClean(page, 'launcher');
   await page.getByRole('listitem').filter({ hasText: 'Pulse' }).getByRole('button', { name: 'Open' }).click();
   await expectClean(page, 'applet summary');
-  await page.getByRole('checkbox', { name: /network/ }).check();
+  await page.getByRole('checkbox', { name: /opening links/ }).check();
   await page.getByRole('button', { name: 'Run' }).click();
-  await page.frameLocator('iframe[data-window-id]').getByRole('heading', { name: 'Pulse' }).waitFor();
+  await expect(page.frameLocator('iframe[data-window-id]').locator('#granted')).toHaveText(/^Granted:/);
   await expectClean(page, 'desktop with applet');
 
   const applet = page.frameLocator('iframe[data-window-id]');
@@ -144,7 +144,7 @@ test('every consent the preview can ask for, and its exact record, names no prot
   await page.getByRole('checkbox', { name: /network/ }).check();
   await page.getByRole('button', { name: 'Run' }).click();
   const applet = page.frameLocator('iframe[data-window-id]');
-  await applet.getByRole('heading', { name: 'Pulse' }).waitFor();
+  await expect(applet.locator('#granted')).toHaveText(/^Granted:/);
   await applet.locator('details').evaluateAll((all) => all.forEach((d) => d.setAttribute('open', '')));
 
   const cases = [

@@ -1,15 +1,21 @@
 <script lang="ts">
   import type { ReplyAnswer, ReplyPrompt } from '@kernlize/messaging';
+  import type { ShellKernl } from './contract';
+  import { observe } from './observe.svelte';
   import Overlay from './Overlay.svelte';
   import { alwaysMeans, peerName, rememberChoices, replyQuestion } from './reply-words';
 
   interface Props {
+    kernl: Pick<ShellKernl, 'profiles'>;
     prompt: ReplyPrompt;
     onanswer: (answer: ReplyAnswer | undefined) => void;
   }
 
-  const { prompt, onanswer }: Props = $props();
-  const name = $derived(peerName(prompt.peer));
+  const { kernl, prompt, onanswer }: Props = $props();
+  // The person is named by their published profile, as everywhere else in the shell.
+  const card = $derived(observe(kernl.profiles.card$(prompt.peer.pubkey), kernl.profiles.card(prompt.peer.pubkey)));
+  $effect(() => card.stop);
+  const name = $derived(peerName(prompt.peer, card.value.found ? card.value.name : undefined));
   // Theirs is the suggestion: it is the one the other person is known to read.
   let use = $state<ReplyAnswer['use']>('theirs');
   let remember = $state<ReplyAnswer['remember']>('once');
@@ -22,7 +28,7 @@
 
 <Overlay title="How should this reply travel?" onclose={() => onanswer(undefined)}>
   <form class="reply" onsubmit={(event) => (event.preventDefault(), onanswer({ use, remember }))}>
-    <p class="question">{replyQuestion(prompt)}</p>
+    <p class="question">{replyQuestion(prompt, name)}</p>
     <fieldset class="group">
       <legend class="shell-muted">Send it through</legend>
       {#each options as option (option.id)}
@@ -36,7 +42,7 @@
     </fieldset>
     <fieldset class="group">
       <legend class="shell-muted">Do this</legend>
-      {#each rememberChoices(prompt) as choice (choice.id)}
+      {#each rememberChoices(prompt, name) as choice (choice.id)}
         <label class="keep">
           <input type="radio" name="reply-remember" value={choice.id} bind:group={remember} />
           <span>{choice.label}</span>

@@ -9,7 +9,7 @@ import { namesProtocol, withoutAddresses } from '../../src/shell/vocabulary.ts';
 import { messagingError, unavailableWhy } from '../../src/shell/messaging-reasons.ts';
 import { eventDetails, type EventDetail } from '../../src/shell/event-details.ts';
 import { bridgeName, bridgeRows } from '../../src/shell/bridge-names.ts';
-import { REPLY_RULES, alwaysMeans, moved, rememberChoices, replyQuestion, settledWords } from '../../src/shell/reply-words.ts';
+import { REPLY_RULES, alwaysMeans, moved, peerName, rememberChoices, replyQuestion, settledWords } from '../../src/shell/reply-words.ts';
 import type { ReplyPrompt } from '@kernlize/messaging';
 import { followShellTheme, shellTheme, type ThemeSignal } from '../../src/shell/shell-theme.ts';
 import './shell-windows.ts';
@@ -176,6 +176,7 @@ Then('the shell describes the bridge as:', (world: WordsWorld, table: DataTable)
 
 interface ReplyWordsWorld {
   replyPrompt?: ReplyPrompt;
+  published?: string;
 }
 
 const providerNamed = (name: string): ReplyPrompt['theirs'] => ({ name }) as ReplyPrompt['theirs'];
@@ -188,12 +189,22 @@ Given('a reply question about the account {string} who wrote through {string} wh
   world.replyPrompt = { peer: { pubkey }, theirs: providerNamed(theirs), mine: providerNamed(mine) };
 });
 
+When('the shell finds that they published the name {string}', (world: ReplyWordsWorld, name: string) => {
+  world.published = name;
+});
+
+/** The name the chooser found, when a step gave one; otherwise the words name the person themselves. */
+const namedIn = (world: ReplyWordsWorld): [ReplyPrompt] | [ReplyPrompt, string] => {
+  const prompt = world.replyPrompt as ReplyPrompt;
+  return world.published === undefined ? [prompt] : [prompt, peerName(prompt.peer, world.published)];
+};
+
 Then('the reply question reads {string}', (world: ReplyWordsWorld, text: string) => {
-  expect(replyQuestion(world.replyPrompt as ReplyPrompt)).toBe(text);
+  expect(replyQuestion(...namedIn(world))).toBe(text);
 });
 
 Then('the reply question can be kept {string}', (world: ReplyWordsWorld, labels: string) => {
-  const choices = rememberChoices(world.replyPrompt as ReplyPrompt);
+  const choices = rememberChoices(...namedIn(world));
   expect(choices.map((choice) => choice.label)).toEqual(labels.split(' | '));
   expect(choices.map((choice) => choice.id)).toEqual(['once', 'conversation', 'always']);
 });

@@ -1,5 +1,12 @@
 # @kernlize/preset
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies [5fc68c0]
+  - @kernlize/modules@0.2.0
+
 ## 0.2.0
 
 ### Minor Changes
