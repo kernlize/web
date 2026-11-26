@@ -15,7 +15,6 @@ interface PendingRead {
 interface OutboxReads {
   readonly router: StreamingOutboxRouter;
   readonly cache: OutboxEventCache;
-  readonly scope: (windowId: string) => string | undefined;
 }
 
 function stop(read: PendingRead): void {
@@ -24,12 +23,12 @@ function stop(read: PendingRead): void {
   delete read.active;
 }
 
-function replayedSubscription(options: OutboxReads, pending: PendingRead, observation: () => ReturnType<OutboxEventCache['open']>, args: Parameters<PlannedSubscribe>): Subscription {
+function replayedSubscription(options: OutboxReads, pending: PendingRead, observation: ReturnType<OutboxEventCache['open']>, args: Parameters<PlannedSubscribe>): Subscription {
   const [filters, plan, sink] = args;
   const isCurrent = () => !pending.closed;
   const seen = new Map<string, ReadonlySet<string>>();
   if (!isCurrent()) throw new Error('outbox subscription closed');
-  for (const result of observation()?.replay() ?? []) {
+  for (const result of observation?.replay() ?? []) {
     seen.set(result.event.id, new Set(result.sidecar?.relayHints));
     sink.event(result);
     if (!isCurrent()) throw new Error('outbox subscription closed');
@@ -39,9 +38,8 @@ function replayedSubscription(options: OutboxReads, pending: PendingRead, observ
     ...sink,
     event(result) {
       if (!isCurrent()) return;
-      const activeCache = observation();
-      activeCache?.observe(result);
-      if (!activeCache) {
+      observation?.observe(result);
+      if (!observation) {
         sink.event(result);
         return;
       }
@@ -60,9 +58,8 @@ function replayedSubscription(options: OutboxReads, pending: PendingRead, observ
   });
 }
 
-function subscriptionRouter(options: OutboxReads, windowId: string, pending: PendingRead): StreamingOutboxRouter {
+function subscriptionRouter(options: OutboxReads, pending: PendingRead): StreamingOutboxRouter {
   const { router, cache } = options;
-  const scope = options.scope(windowId);
   let authors: readonly string[] | undefined;
   // Planning is per request. Author hints guide routing; don't replay anything beyond them.
   return {
@@ -72,8 +69,8 @@ function subscriptionRouter(options: OutboxReads, windowId: string, pending: Pen
       return router.planRead!(filters, readOptions);
     },
     subscribeWithPlan(filters, plan, sink) {
-      const observation = scope === undefined ? undefined : cache.open(scope, filters, plan, authors);
-      pending.active = replayedSubscription(options, pending, () => scope === options.scope(windowId) ? observation : undefined, [filters, plan, sink]);
+      const observation = cache.open(filters, plan, authors);
+      pending.active = replayedSubscription(options, pending, observation, [filters, plan, sink]);
       return { close: () => stop(pending) };
     },
   };
@@ -83,18 +80,16 @@ function newestFirst(a: RelayEventResult, b: RelayEventResult): number {
   return b.event.created_at - a.event.created_at || a.event.id.localeCompare(b.event.id);
 }
 
-function queryRouter(options: OutboxReads, windowId: string): StreamingOutboxRouter {
+function queryRouter(options: OutboxReads): StreamingOutboxRouter {
   const { router, cache } = options;
-  const scope = options.scope(windowId);
   return {
     ...router,
     async queryWithPlan(filters, readOptions, plan, signal) {
-      const observation = scope !== undefined && !signal?.aborted && scope === options.scope(windowId)
-        ? cache.open(scope, filters, plan, readOptions?.authors) : undefined;
       const live = await router.queryWithPlan!(filters, readOptions, plan, signal);
-      if (!observation || signal?.aborted || scope !== options.scope(windowId) || live.error === 'policy denied') return live;
+      if (signal?.aborted || live.error === 'policy denied') return live;
+      const observation = cache.open(filters, plan, readOptions?.authors);
+      if (!observation?.canMergeQuery) return live;
       const cached = observation.replay();
-      if (cached.length === 0) return live;
       const merged = new Map(live.events.map((result) => [result.event.id, result]));
       for (const result of cached) {
         // The installed kehto planned query puts the whole plan in each sidecar, not the actual source.
@@ -102,7 +97,8 @@ function queryRouter(options: OutboxReads, windowId: string): StreamingOutboxRou
         merged.set(result.event.id, current ? createRelayEventResult(current.event, { ...current.sidecar, ...result.sidecar }) : result);
       }
       const events = [...merged.values()];
-      return { ...live, events: readOptions?.limit === undefined ? events : events.sort(newestFirst).slice(0, readOptions.limit) };
+      if (readOptions?.limit !== undefined || filters.some((filter) => filter.limit !== undefined)) events.sort(newestFirst);
+      return { ...live, events: observation.limitQuery(events).slice(0, readOptions?.limit) };
     },
   };
 }
@@ -118,8 +114,8 @@ export function createCachedOutboxService(options: OutboxReads): ServiceHandler 
 
   const service = createOutboxService({
     router: options.router,
-    getReadRouter: (windowId) => dispatching ? subscriptionRouter(options, windowId, dispatching) : options.router,
-    getQueryRouter: (windowId) => queryRouter(options, windowId),
+    getReadRouter: () => dispatching ? subscriptionRouter(options, dispatching) : options.router,
+    getQueryRouter: () => queryRouter(options),
   });
   return {
     ...service,

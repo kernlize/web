@@ -1,6 +1,6 @@
 Feature: Approved Outbox reads reuse public tree events
-  The shell may replay verified observations for the same applet and identity
-  from a public relay in the new approved read plan. The relay read still runs.
+  The shell shares verified public tree observations across applets and identities.
+  Every replay still matches the filter and an observed relay in the approved plan.
 
   Scenario: A reopened subscription replays once before its relay opens
     Given a previously observed Outbox tree event on "wss://nos.lol"
@@ -9,15 +9,13 @@ Feature: Approved Outbox reads reuse public tree events
     And a live copy from the same relay does not repeat the event
     And a live copy from another approved relay adds its observed hint
 
-  Scenario Outline: Cache replay cannot cross a scope boundary
+  Scenario Outline: Cache replay requires a matching approved read
     Given a previously observed Outbox tree event on "wss://nos.lol"
     When an Outbox read changes its <boundary>
     Then no cached Outbox event is sent
 
     Examples:
       | boundary          |
-      | applet artifact   |
-      | shell identity    |
       | relay plan        |
       | filter author     |
       | routed author     |
@@ -27,18 +25,11 @@ Feature: Approved Outbox reads reuse public tree events
       | window teardown   |
       | permission revocation |
       | capability revocation |
-      | signed-out account    |
 
   Scenario: A query still waits for the approved relays and merges cached matches
     Given a previously observed Outbox tree event on "wss://nos.lol"
     When its applet queries the tree on "wss://nos.lol, wss://relay.routstr.com"
     Then the one-shot query waits for the relay deadline and returns the cached event with its observed hint
-
-  Scenario: A verified deletion stops replay of the target, not the network read
-    Given a previously observed Outbox tree event on "wss://nos.lol"
-    When that author deletes it on the same Outbox relay
-    And its applet subscribes to the tree on "wss://nos.lol"
-    Then no cached Outbox event is sent
 
   Scenario Outline: An event outside the cache policy stays live only
     Given an Outbox relay sent <event>
@@ -62,33 +53,10 @@ Feature: Approved Outbox reads reuse public tree events
     When its applet subscribes with a matching event on a public relay
     Then live Outbox still sends the event
 
-  Scenario: A deletion also stops replay from a second public relay
-    Given a previously observed Outbox tree event on "wss://nos.lol"
-    When that author deletes it on a different approved Outbox relay
-    And its applet subscribes to the tree on "wss://nos.lol"
-    Then no cached Outbox event is sent
-
   Scenario: Query limit applies to the merged result
     Given a previously observed Outbox tree event on "wss://nos.lol"
     When its applet queries with a limit of one and a newer event online
     Then only the newer event is returned at the query deadline
-
-  Scenario: The old identity's cache is not delivered when the identity changes mid-query
-    Given a previously observed Outbox tree event on "wss://nos.lol"
-    When its applet queries and the shell changes identity before the deadline
-    Then the query completes without the old identity's cache
-
-  Scenario: A live copy received again after deletion does not re-enter cache
-    Given a previously observed Outbox tree event on "wss://nos.lol"
-    When that author deletes it on the same Outbox relay
-    And its applet subscribes with a matching event on a public relay
-    And its applet subscribes to the tree on "wss://nos.lol" with no relay events
-    Then no cached Outbox event is sent
-
-  Scenario: The cached branch is skipped when no verified applet identity is available
-    Given a previously observed Outbox tree event on "wss://nos.lol"
-    When the same reads arrive without a verified applet identity
-    Then neither read receives cached events
 
   Scenario: Closing a subscription by its id leaves other subscriptions active
     Given a previously observed Outbox tree event on "wss://nos.lol"
@@ -105,11 +73,6 @@ Feature: Approved Outbox reads reuse public tree events
     When the first subscription is approved and a second subscription is denied
     Then the cache is sent only to the approved subscription
 
-  Scenario: An account switch during approval skips the previous identity's cache
-    Given a previously observed Outbox tree event on "wss://nos.lol"
-    When its applet subscribes and the shell changes identity before approval
-    Then no cached Outbox event is sent
-
   Scenario: Equal-timestamp query events are ordered by id when applying a limit
     Given a previously observed Outbox tree event on "wss://nos.lol"
     When its applet queries with a limit of one and another event at the same time
@@ -120,13 +83,22 @@ Feature: Approved Outbox reads reuse public tree events
     When its applet looks up the event by id
     Then that id lookup contacts the relay normally
 
-  Scenario: A deletion observed during a pending query prevents cached replay
+  Scenario: Another applet can reuse observations after the shell changes identity
     Given a previously observed Outbox tree event on "wss://nos.lol"
-    When the applet queries and then observes a deletion before the query finishes
-    Then the query completes without the deleted cached event
+    When a different applet subscribes after the shell changes identity
+    Then it receives the cached tree event before its relay opens
 
-  Scenario: An address deletion observed before its target prevents later caching
-    Given an Outbox subscription observes a public tree address deletion before its target
-    When its applet subscribes with a matching event on a public relay
-    And its applet subscribes to the tree on "wss://nos.lol" with no relay events
-    Then no cached Outbox event is sent
+  Scenario: Deletions are delivered live and do not change cached tree observations
+    Given a previously observed Outbox tree event on "wss://nos.lol"
+    When its applet explicitly subscribes to the author's deletion
+    Then the deletion is delivered live but not cached and the tree event still replays
+
+  Scenario: A filter limit applies once to the merged query
+    Given a previously observed Outbox tree event on "wss://nos.lol"
+    When its applet queries with a filter limit of one and a newer event online
+    Then only the newer event is returned at the query deadline
+
+  Scenario: Query filter limits are independent before applying the overall limit
+    Given a previously observed Outbox tree event on "wss://nos.lol"
+    When its applet queries with independently limited filters and an overall limit
+    Then the query returns the newest match from each limited filter

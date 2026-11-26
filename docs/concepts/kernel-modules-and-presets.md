@@ -121,9 +121,9 @@ What a browser downloads for three hosts, each bundled for the browser and minif
 <!-- bundle-sizes:start -->
 | Host | What it composes | Minified | Gzipped |
 | --- | --- | ---: | ---: |
-| The kernel alone | `createKernel` with no modules | 596.9 KB | 193.9 KB |
-| The example host | the kernel, messaging with `privateDm()`, and files, as `examples/minimal-host` composes them | 674.5 KB | 218.5 KB |
-| kernl's preset | `createKernl`, which loads all sixteen of kernl.run's modules | 1782.6 KB | 550.8 KB |
+| The kernel alone | `createKernel` with no modules | 596.3 KB | 193.7 KB |
+| The example host | the kernel, messaging with `privateDm()`, and files, as `examples/minimal-host` composes them | 673.9 KB | 218.3 KB |
+| kernl's preset | `createKernl`, which loads all sixteen of kernl.run's modules | 1782.0 KB | 550.5 KB |
 <!-- bundle-sizes:end -->
 
 ## Related
