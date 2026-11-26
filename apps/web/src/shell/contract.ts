@@ -4,11 +4,11 @@ import type { ShellTheme } from './shell-theme';
 
 /**
  * The part of the composed shell the UI touches. The event store, the pool and
- * the kehto bridge stay inside the core; the preview implements only this.
+ * the kehto bridge stay inside the core.
  *
- * `theme` is the theme module's api, which every mode offers: the live shell's
- * `themeModule`, and the preview's own ports. The window manager tells it the
- * page's colours changed, so the applets that are open follow them (D-064).
+ * `theme` is the theme module's api, which both modes load. The window manager
+ * tells it the page's colours changed, so the applets that are open follow
+ * them (D-064).
  */
 export type ShellKernl = Omit<Kernl, 'bridge' | 'eventStore' | 'pool'> & { readonly theme: { publish(theme: ShellTheme): void } };
 
@@ -63,8 +63,6 @@ export interface Booted {
   readonly mode: BootMode;
   /** Downloads from peers: the in-page engine and the user's choice of where links go. */
   readonly downloads: ShellDownloads;
-  /** Why the live shell was not used, when it was not. */
-  readonly fallbackReason?: string;
 }
 
 /** Fits most applets without clipping; the window manager clamps it to the desktop. */

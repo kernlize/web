@@ -43,7 +43,7 @@ test('at 390px the shell fits the screen and every panel is reachable', async ({
   await page.getByRole('listitem').filter({ hasText: 'Pulse' }).getByRole('button', { name: 'Open' }).click();
   await page.getByRole('checkbox', { name: /network/ }).check();
   await page.getByRole('button', { name: 'Run' }).click();
-  await expect(page.frameLocator('iframe[data-window-id]').getByRole('heading', { name: 'Pulse' })).toBeVisible();
+  await expect(page.frameLocator('iframe[data-window-id]').locator('#granted')).toHaveText(/^Granted:/);
   const frame = await page.locator('iframe[data-window-id]').boundingBox();
   expect(frame?.x).toBe(0);
   expect(frame?.width).toBe(390);

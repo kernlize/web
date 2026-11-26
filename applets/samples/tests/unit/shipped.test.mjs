@@ -15,9 +15,9 @@ const shipped = JSON.parse(await readFile(join(shippedDir, 'samples.json'), 'utf
 
 // Written out here rather than imported, so a change to src/specs.ts has to be made twice.
 const EXPECTED = {
-  notes: { title: 'Notes', requires: ['identity', 'intent', 'outbox'], optional: ['config', 'link', 'notify', 'storage', 'torrent'], conventions: [] },
-  pulse: { title: 'Pulse', requires: ['outbox'], optional: ['link', 'media', 'notify', 'resource', 'torrent'], conventions: [] },
-  profiles: { title: 'Profiles', requires: [], optional: ['intent', 'notify'], conventions: ['napplet:profile/open'] },
+  notes: { title: 'Notes', requires: ['identity', 'intent', 'outbox'], optional: ['config', 'link', 'notify', 'storage', 'torrent'], conventions: [], topics: ['writing', 'social'] },
+  pulse: { title: 'Pulse', requires: ['outbox'], optional: ['link', 'media', 'notify', 'resource', 'torrent'], conventions: [], topics: ['social', 'guard'] },
+  profiles: { title: 'Profiles', requires: [], optional: ['intent', 'notify'], conventions: ['napplet:profile/open'], topics: ['social', 'people'] },
 };
 
 const sha256Hex = (bytes) => createHash('sha256').update(bytes).digest('hex');
@@ -68,7 +68,7 @@ test('every x tag is the sha256 of the shipped html', async () => {
   }
 });
 
-test('d tags, titles, requires, optional and conventions match the specs', () => {
+test('d tags, titles, requires, optional, conventions and topics match the specs', () => {
   for (const { name, title, manifest } of shipped.samples) {
     const expected = EXPECTED[name];
     assert.deepEqual(values(manifest.tags, 'd'), [name]);
@@ -77,6 +77,7 @@ test('d tags, titles, requires, optional and conventions match the specs', () =>
     assert.deepEqual(values(manifest.tags, 'R').sort(), expected.requires, name);
     assert.deepEqual(values(manifest.tags, 'O').sort(), expected.optional, name);
     assert.deepEqual(values(manifest.tags, 'i'), expected.conventions, name);
+    assert.deepEqual(values(manifest.tags, 't'), expected.topics, name);
   }
   const profiles = shipped.samples.find((sample) => sample.name === 'profiles').manifest;
   assert.deepEqual(values(profiles.tags, 'z'), ['profile']);

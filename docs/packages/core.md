@@ -656,7 +656,7 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `mountApplet` | `(plan: MountPlan, frame: FrameLike, deps: MountDeps) => MountedApplet` | The NIP-5D mount order; throws `invalid:frame-detached`. Calls `frame.setAttribute('sandbox', 'allow-scripts')`. |
 | `CONTROLLER_DENY_POLICY` | `string` | `gamepad 'none'; hid 'none'; usb 'none'`. |
 | `appletMessageFailure` | `(message: unknown) => string \| undefined` | What an envelope says failed: a non-empty `error` string, or for a `*.error` type its `message`, its `reason` or the type. |
-| `describeAppletMessage` | `(windowId: string, direction: AppletMessageDirection, via: 'window' \| 'port', message: unknown) => AppletMessage` | One `traffic$` entry, timestamped now. A host that serves applets itself, like the shell's offline preview, uses it to report the same shape. |
+| `describeAppletMessage` | `(windowId: string, direction: AppletMessageDirection, via: 'window' \| 'port', message: unknown) => AppletMessage` | One `traffic$` entry, timestamped now. A host that serves applets itself uses it to report the same shape. |
 | `createAppletTraffic` | `(owns: (windowId: string) => boolean) => AppletTraffic` | What `createKernl` feeds `traffic$` from: `fromApplet(windowId, via, message)` for kehto's `onNappletMessage` and window-level messages, and every reply kehto sends through `originRegistry.postToNapplet`, for windows `owns` accepts. `close()` stops it. |
 | `AppletMessage`, `AppletMessageDirection`, `AppletTraffic` | types | See `traffic$` above. |
 | `BLOB_TIMEOUT_MS` | `20_000` | |

@@ -1,9 +1,6 @@
 import type { SampleSpec } from './specs.js';
 
-/**
- * The buttons, ported from `ACTIONS` and `EXTRA_ACTIONS` in
- * `apps/web/src/shell/preview-applet.ts`, and what each one asks for. Pure.
- */
+/** The buttons, and what each one asks for. Pure. */
 export interface Action {
   readonly id: string;
   readonly label: string;

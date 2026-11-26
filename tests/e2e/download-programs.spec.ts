@@ -95,7 +95,7 @@ test('two Transmissions and a uTorrent are three rows, and kernl sends new downl
   await expect(row(section, 'Transmission 2').getByText('On this device, so nothing leaves it.')).toBeVisible();
   await add(section, 'peers', { program: 'uTorrent', url: 'http://localhost:8080' });
   await expect(rows(section, 'peers')).toHaveCount(3);
-  await expect(row(section, 'uTorrent').locator('summary')).toContainText('Connected · preview');
+  await expect(row(section, 'uTorrent').locator('summary')).toContainText('Connected · 0');
 
   const stored = await page.evaluate(() => Object.entries({ ...localStorage }));
   const settings = stored.find(([key]) => key.endsWith('kernl:download-programs:v1'));

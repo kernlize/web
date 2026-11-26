@@ -3,12 +3,10 @@
 Three small NIP-5D napplets, **Notes**, **Pulse** and **Profiles**, built from
 one page. Each button makes one real `@napplet/sdk` call, so a shell can show
 its consent dialogs, its guard and its firewall against real applet traffic.
-They replace the hand-written preview applet in `apps/web` once the shell loads
-them (previewPreset, step 3); nothing loads them yet.
+kernl.run's preview loads them through `previewPreset` (D-070).
 
 The specs (title, description, `requires`, `optional`, topics, accepted
-conventions, extra buttons) live in `src/specs.ts`, ported from `SPECS` in
-`apps/web/src/shell/preview-applet.ts`.
+conventions, extra buttons) live in `src/specs.ts`.
 
 | Sample | `d` | Requires | Optional | Accepts | Extra buttons |
 | --- | --- | --- | --- | --- | --- |

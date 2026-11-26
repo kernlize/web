@@ -56,7 +56,7 @@ The Settings window's Servers section ends with "Relays the shell asks" (`apps/w
 
 The section calls a relay a relay and shows each by its own host, never a nickname and never the protocol scheme ([D-051](../decisions.md#d-051), [Public vocabulary](../policies/public-vocabulary.md)). A change takes effect for the next request; subscriptions already open keep the relays they were opened with.
 
-The offline preview keeps its own tier state at `kernl:preview:relays:v1`, so editing tiers in the preview never changes the live shell's.
+The preview keeps its own tier state at `preview:kernl:relays:v1`, so editing tiers in the preview never changes the live shell's.
 
 ## Scoped relays
 
