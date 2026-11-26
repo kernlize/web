@@ -1,5 +1,6 @@
 import { createKernel, createThrowawayIdentity, type AppletHandle, type AppletSummary, type BuiltinApplet, type KernlHost } from '@kernlize/kernel';
-import { filesModule, messagingModule, privateDm } from '@kernlize/modules';
+import { messagingModule, privateDm } from '@kernlize/modules/messaging';
+import { filesModule } from '@kernlize/modules/uploads';
 import { ask, linesOf } from './ask';
 
 /**

@@ -10,7 +10,5 @@ const appletSha256 = createHash('sha256').update(applet).digest('hex');
 export default defineConfig({
   base: './',
   define: { __APPLET_SHA256__: JSON.stringify(appletSha256) },
-  // The cache module's sqlite worker is an ES module; it is bundled only when the root entry is imported.
-  worker: { format: 'es' },
   preview: { port: Number(process.env.MINIMAL_HOST_PORT ?? 4180) },
 });
