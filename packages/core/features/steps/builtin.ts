@@ -5,6 +5,7 @@ import { createMemoryBackend, type MemoryBackend, type ReplyPrompt } from '@kern
 import { BUILTIN_PUBLISHER, builtinAddress, groups, kernlModules, legacyDm, privateDm, ratchet, type AppletPointer, type BuiltinApplet, type MessagingProviderModule } from '@kernlize/core';
 import { blobFetcher, boot, k } from './kernl.js';
 import { attempt, scratch, splitList, type CoreWorld } from './world.js';
+import { replyAsks } from './prompt-asks.js';
 
 
 const HTML = '<!doctype html><html><head><title>Shipped</title></head><body><p>shipped</p></body></html>';
@@ -112,10 +113,10 @@ Given(
       { modules: kernlModules({ messaging: { providers: [first, second].map((id) => providerFor(id, () => state.backends[id] as MemoryBackend)) } }) },
       {
         ...blobFetcher(world),
-        async chooseReply(prompt) {
+        asks: replyAsks(async (prompt) => {
           state.prompts.push(prompt);
           return { use: use as 'theirs' | 'mine', remember: 'once' };
-        },
+        }),
       },
     );
   },

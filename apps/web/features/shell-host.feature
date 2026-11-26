@@ -57,9 +57,9 @@ Feature: The shell host
     Given the shell host with window "w1" titled "Notes"
     Then the shell host puts a firewall question in the firewall queue
 
-  Scenario: the shell host draws every question the kernel asks as an ask, not through the old callbacks
+  Scenario: the shell host draws every question the kernel asks as an ask
     Given the shell host with window "w1" titled "Notes"
-    Then the shell host draws every kind of question the kernel asks, through no prompt callback
+    Then the shell host draws every kind of question the kernel asks
     And an upload, a download and a direct session wait in the consent queue with kernl's words
 
   Scenario Outline: a stopped applet is explained in one plain line, never by its code

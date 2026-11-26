@@ -21,6 +21,7 @@ import {
 import { createGuardConfig } from '@kernlize/guard';
 import { blobFetcher, boot, hello, k, mountFrame, settle, vector } from './kernl.js';
 import { attempt, scratch, splitList, type CoreWorld } from './world.js';
+import { approvalAsks } from './prompt-asks.js';
 
 interface FirewallScratch {
   questions: FirewallPrompt[];
@@ -53,7 +54,7 @@ Given('a kernl shell whose host answers firewall questions', (world: CoreWorld) 
   const state = fw(world);
   boot(world, {}, {
     ...blobFetcher(world),
-    presentApproval: (prompt) => void state.questions.push(prompt),
+    asks: approvalAsks((prompt) => void state.questions.push(prompt)),
     openLink: (url, options) => void state.opened.push({ url, approved: options?.approved === true }),
   });
   k(world).kernl.firewall.decisions$.subscribe((list) => state.told.push(list));
@@ -294,7 +295,7 @@ Then('the answer for {string} is {string}', (world: CoreWorld, choice: string, a
 When('kehto\'s firewall adapter is asked about an applet nobody planned', async (world: CoreWorld) => {
   const { storage } = scratch(world);
   const permissions = createFirewallPermissions({
-    host: { storage, notify: () => undefined, presentApproval: (prompt) => void fw(world).questions.push(prompt) },
+    host: { storage, notify: () => undefined, asks: approvalAsks((prompt) => void fw(world).questions.push(prompt)) },
     rules: createFirewallRules(storage),
     appletOf: () => undefined,
     rateLimiter: createRuntimeRateLimiter(() => createGuardConfig('strict')),

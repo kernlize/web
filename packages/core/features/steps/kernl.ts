@@ -21,9 +21,11 @@ import {
   type MountPlan,
   type Session,
   type AppletStopDetails,
+  type AskRenderers,
 } from '@kernlize/core';
 import type { DmSendRequest } from '@napplet/core';
 import { attempt, author, createFakeArtifactCache, createFakeFrame, createFakePool, passwordAccount, passwordSigner, scratch, signManifest, splitList, type CoreWorld, type FakeFrame, type ManifestVector } from './world.js';
+import { consentAsks } from './prompt-asks.js';
 
 interface HostRecord {
   prompts: ConsentPrompt[];
@@ -70,10 +72,14 @@ export async function settle(): Promise<void> {
   for (let i = 0; i < 8; i += 1) await new Promise((resolve) => setTimeout(resolve, 5));
 }
 
+/** Pass as a host's `asks` for one that draws nothing at all, not even the consent kinds every other test host draws. */
+export const DRAWS_NOTHING: AskRenderers = Object.freeze({});
+
+/** A test host. It records consent prompts; renderers in `extra.asks` win for their kinds. */
 function makeHost(world: CoreWorld, record: HostRecord, extra: Partial<KernlHost> = {}): KernlHost {
+  const { asks, ...rest } = extra;
   return {
     storage: scratch(world).storage,
-    presentConsent: (prompt) => void record.prompts.push(prompt),
     notify: (notice) => void record.notices.push(notice),
     openLink: (url) => void record.links.push(url),
     getVisibility: () => ({ visible: true, focused: true }),
@@ -81,7 +87,8 @@ function makeHost(world: CoreWorld, record: HostRecord, extra: Partial<KernlHost
       record.revoked.push({ windowId, reason });
       record.stops.push(details);
     },
-    ...extra,
+    ...rest,
+    asks: asks === DRAWS_NOTHING ? asks : { ...consentAsks((prompt) => void record.prompts.push(prompt)), ...asks },
   };
 }
 

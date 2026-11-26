@@ -4,7 +4,6 @@ import { MESSAGES_APPLET } from './messages-applet';
 
 const host: KernlHost = {
   storage: { getItem: () => null, setItem: () => undefined, removeItem: () => undefined },
-  presentConsent: () => undefined,
   notify: () => undefined,
   openLink: () => undefined,
   getVisibility: () => ({ visible: true, focused: true }),

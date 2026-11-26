@@ -4,6 +4,7 @@ import type { ConfigServiceOptions, ConfigSettingsContext } from '@kehto/service
 import { createAppletConfig, settingsModule, themeModule, type SettingsPrompt } from '@kernlize/core';
 import { blobFetcher, boot, k } from './kernl.js';
 import { scratch, splitList, type CoreWorld } from './world.js';
+import { settingsAsks } from './prompt-asks.js';
 
 interface ConfigScratch {
   config: ConfigServiceOptions;
@@ -54,7 +55,7 @@ Then('the shell showed {int} settings forms', (world: CoreWorld, count: number) 
 Given('a kernl shell over that host and pool whose host shows settings', (world: CoreWorld) => {
   const shown: SettingsPrompt[] = [];
   scratch(world).settingsShown = shown;
-  boot(world, {}, { ...blobFetcher(world), presentSettings: (prompt) => void shown.push(prompt) });
+  boot(world, {}, { ...blobFetcher(world), asks: settingsAsks((prompt) => void shown.push(prompt)) });
 });
 
 Given('a kernl shell over that host and pool whose host shows settings, with modules {string}', (world: CoreWorld, names: string) => {
@@ -62,7 +63,7 @@ Given('a kernl shell over that host and pool whose host shows settings, with mod
   scratch(world).settingsShown = shown;
   const present = (prompt: SettingsPrompt): void => void shown.push(prompt);
   const modules = splitList(names).map((name) => (name === 'settings' ? settingsModule(present) : name === 'settings-from-the-host' ? settingsModule() : themeModule()));
-  boot(world, { modules }, { ...blobFetcher(world), presentSettings: present });
+  boot(world, { modules }, { ...blobFetcher(world), asks: settingsAsks(present) });
 });
 
 Given('a kernl shell over that host and pool whose host draws no settings, with modules {string}', (world: CoreWorld, names: string) => {
