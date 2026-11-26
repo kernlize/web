@@ -82,7 +82,7 @@ export function createExampleBackend(deps: ExampleDeps): MessagingBackend {
 
 Rules the backend must keep:
 
-- Use the shell's shared `EventStore` and `RelayPool` (`kernl.eventStore`, `kernl.pool`); do not open a second relay connection. The shell does not inject anything into your backend: `@kernlize/core` calls only the factory you register, so you build `ExampleDeps` yourself from those instances, as `exampleDeps(resolve)` below does.
+- Use the shell's shared `EventStore` and `RelayPool` (`kernl.eventStore`, `kernl.pool`); do not open a second relay connection. The shell does not inject anything into your backend: the kernel calls only the factory you register, so you build `ExampleDeps` yourself from those instances, as `exampleDeps(resolve)` below does.
 - Sign only through the active account's signer (`kernl.accounts.active?.signer`), wrapped in a function you put in `ExampleDeps` such as `publish`. Never touch key bytes.
 - Reject with stable reasons: `denied:`, `invalid:`, `unavailable:`.
 - `subscribe` returns `{ subscriptionId }`; `unsubscribe` of an unknown id returns `{ ok: false }`; `close` drops every subscription. Every method except `send` may be synchronous.
@@ -119,17 +119,18 @@ The `reason` is a bare word. The registry prefixes it: `enable('example')` throw
 
 The three built-ins (`createPrivateMessagesProvider`, `createLegacyMessagesProvider`, `createRatchetMessagesProvider`) are exactly this shape: a fixed definition in the package, `ProviderDeps` from the shell. If your provider ships in `@kernlize/messaging`, add `createExampleMessagesProvider(deps: ProviderDeps)` next to them in `packages/messaging/src/providers/` and export it from `providers/index.ts`.
 
-## 4. Register it
+## 4. Hand it to the messaging module
 
-The built-in providers are the messaging module's: `messagingModule({ providers })` in `packages/core/src/modules/messaging.ts` registers the ones a host lists, and `kernlModules()` lists all four. You do not edit `createKernl`. A host has three paths:
+Providers belong to the messaging module: `messagingModule({ providers })` from `@kernlize/modules/messaging` registers the ones a host lists, in their first-run order, and `kernlPreset()` lists all four of kernl's. A host has three paths:
 
 - **A backend for a built-in provider.** Pass it to the provider: `privateDm({ backend })`, `legacyDm({ backend })`, `ratchet({ backend })` or `groups({ backend })`, each `backend` a `() => MessagingBackend`. It replaces kernl's backend for that provider; availability still follows the active identity's signer.
 - **A new provider beside kernl's.** A host that composes its own module list adds a `MessagingProviderModule` beside the built-ins: an `id`, the provider factory as `describe`, the `encryption` its signer must offer, and its `backend` over the shell's parts.
-- **A registry you built.** Register yours on it and pass it as `messagingModule({ registry })`, or as `KernlOptions.messaging` when you name no modules. The shell uses it as is and leaves it open.
+- **A registry you built.** Register yours on it and pass it as `messagingModule({ registry })`, or as `kernlPreset({ messaging: { registry } })` for kernl.run's modules. The shell uses it as is and leaves it open.
 
 <!-- sample:continues -->
 ```ts
-import { createKernel, createDefaultMessaging, legacyDm, messagingModule, privateDm, type KernlHost, type MessagingProviderModule } from '@kernlize/core/kernel';
+import { createKernel, type KernlHost } from '@kernlize/kernel';
+import { createDefaultMessaging, legacyDm, messagingModule, privateDm, type MessagingProviderModule } from '@kernlize/modules/messaging';
 
 declare const host: KernlHost;
 declare const exampleSession: ExampleDeps;
@@ -142,7 +143,7 @@ const messaging = createDefaultMessaging({ storage: host.storage });
 messaging.register(provider);
 ```
 
-A registry built by `createDefaultMessaging` has all four built-ins and takes their backends as `createDefaultMessaging({ storage, backends })`. To ship a provider inside kernl itself, give it a file in `packages/core/src/messaging/`, as `privateDm()` has, and list it in `kernlModules()`; a provider with a heavy library gets its own entry, as `ratchet()` has, so a shell that does not list it does not bundle the library.
+A registry built by `createDefaultMessaging` has all four built-ins and takes their backends as `createDefaultMessaging({ storage, backends })`. To ship a provider inside kernl itself, give it a file in `packages/modules/src/messaging/`, as `privateDm()` has, and list it in `kernlModules()` in `@kernlize/preset`; a provider with a heavy library gets its own entry, as `ratchet()` has, so a shell that does not list it does not bundle the library.
 
 Registration does not enable, unless the user's saved preferences already list `example`; then it starts on registration if `available()` agrees, and otherwise waits until it does. A new provider joins the end of the user's order. The user switches it on, and moves it, under Settings, Messages, which calls `registry.enable('example')` and `registry.setOrder([...])`. Registering the same id twice throws `invalid:duplicate-provider`. See `registry.feature`, scenarios "a registered provider starts disabled", "saved preferences enable providers as they register" and "a waiting provider starts as soon as it can run".
 
@@ -151,6 +152,6 @@ Registration does not enable, unless the user's saved preferences already list `
 - Add the provider to the `Scenario Outline` in `packages/messaging/features/providers.feature` ("the built-in providers carry fixed copy and properties") with its name, description, six properties and specification, and a scenario that `describeProvider` rows name no protocol. Step definitions live in `packages/messaging/features/steps/`.
 - If the backend lives in a package, give it a feature file modelled on `memory-backend.feature`: sends create conversations, delivered messages are unread, subscriptions filter by conversation, cursors resume.
 - Add a row to the providers table in [Messaging](../concepts/messaging.md#the-three-providers) and a line to the providers table on the [package page](../packages/messaging.md#providers).
-- Add a changeset for `@kernlize/messaging` (and `@kernlize/core` if you touched `createDefaultMessaging`).
+- Add a changeset for `@kernlize/messaging` (and `@kernlize/modules` if you touched `createDefaultMessaging`).
 
 `pnpm test` must stay at 100% coverage over `packages/*/src`, and `pnpm docs:check` must pass. A provider without the feature rows or the docs rows is not shipped.
