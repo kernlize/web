@@ -31,7 +31,7 @@ export const HOSTS = [
   },
   {
     name: "kernl's preset",
-    what: '`createKernl`, which loads all sixteen of kernl.run\'s modules',
+    what: '`createKernl`, which loads all eighteen of kernl.run\'s modules',
     source: "import { createKernl } from '@kernlize/preset';\nexport const compose = (host) => createKernl({ host });",
   },
 ];

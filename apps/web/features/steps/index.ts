@@ -2,6 +2,7 @@ import './basics.ts';
 import './shell-host.ts';
 import './downloads.ts';
 import './store.ts';
+import './stacks.ts';
 import './site-motion.ts';
 import './messages.ts';
 import './mailboxes.ts';

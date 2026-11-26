@@ -4,6 +4,7 @@ import type { NostrEvent } from 'applesauce-core/helpers';
 import type { BridgeRegistry, TorrentBackend } from '@kernlize/bridges';
 import type { KernelBaseOptions, KernlHost, KernlModule, SettingsPrompt } from '@kernlize/kernel';
 import { type AccountFileServers, type KernlMultiplayer, cacheModule, catalogModule, directoryModule, downloadsModule, intentsModule, mailboxesModule, messagingModule, peopleModule, profilesModule, settingsModule, socialModule, themeModule } from '@kernlize/modules';
+import { stacksModule } from '@kernlize/modules/stacks';
 import { createRatchetMessagesBackend, ratchet } from '@kernlize/modules/messaging/ratchet';
 import { groups } from '@kernlize/modules/messaging/groups';
 import { createMemoryRelays, type MemoryRelays } from '../memory-relays.js';
@@ -24,6 +25,8 @@ export interface ShippedSamples {
   /** The publisher's signed profile, so the store names who published the samples. */
   readonly profile?: NostrEvent;
   readonly samples: readonly { readonly name: string; readonly title?: string; readonly manifest: NostrEvent; readonly file: string }[];
+  /** Signed stacks (kind 30267) over the samples, so the store's Stacks tab lists something. */
+  readonly stacks?: readonly NostrEvent[];
 }
 
 /** What {@link previewPreset} takes. */
@@ -56,6 +59,7 @@ export type PreviewModules = readonly [
   KernlModule<'files', AccountFileServers>,
   ReturnType<typeof settingsModule>,
   ReturnType<typeof catalogModule>,
+  ReturnType<typeof stacksModule>,
   ReturnType<typeof intentsModule>,
   KernlModule<'bridges', BridgeRegistry>,
   ReturnType<typeof downloadsModule>,
@@ -110,6 +114,7 @@ function previewModules(options: PreviewPresetOptions): PreviewModules {
     offlineFilesModule(),
     settingsModule(options.presentSettings),
     catalogModule(),
+    stacksModule(),
     intentsModule(),
     offlineBridgesModule(options.torrent),
     downloadsModule({ fetch: offlineDownloadsFetch }),
@@ -152,7 +157,7 @@ export function previewPreset(options: PreviewPresetOptions = {}): PreviewPreset
 }
 
 /**
- * The samples as `@kernlize/applet-samples` ships them, with the publisher's profile to seed.
+ * The samples as `@kernlize/applet-samples` ships them, with the publisher's profile and stacks to seed.
  *
  * @param shipped - The parsed `samples.json`.
  * @param load - Reads a shipped file, such as `notes.html`, when the kernel first asks for it.
@@ -165,6 +170,6 @@ export function previewPreset(options: PreviewPresetOptions = {}): PreviewPreset
 export function shippedSamples(shipped: ShippedSamples, load: (file: string) => Promise<Uint8Array | string>): Required<Pick<PreviewPresetOptions, 'samples' | 'seed'>> {
   return {
     samples: shipped.samples.map((sample) => ({ manifest: sample.manifest, bytes: () => load(sample.file) })),
-    seed: shipped.profile ? [shipped.profile] : [],
+    seed: [...(shipped.profile ? [shipped.profile] : []), ...(shipped.stacks ?? [])],
   };
 }

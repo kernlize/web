@@ -48,9 +48,9 @@ On boot, `createKernlAccounts` restores the accounts and makes the stored id act
 
 | Key | Written by | Holds |
 | --- | --- | --- |
-| `kernl:recent:v1` | `recent.ts`, through the host storage | The recently opened applets: up to eight `{ address, title, publisher, openedAt }`, newest first. Opening an applet moves it to the front; the launcher can forget one. |
+| `kernl:recent:v1` | `recent.ts`, through the host storage | The recently opened applets: up to eight `{ address, title, publisher, openedAt }`, newest first. Opening an applet moves it to the front; an exact event address stays pinned to that version. The launcher can forget an entry. |
 | `kernl:settings:section:v1` | `settings/sections.ts`, through the host storage | The id of the Settings section the person was last in: `general`, `servers`, `messages`, `connections` or `downloads`. Anything else is ignored and Settings opens on General ([D-049](../decisions.md#d-049)). |
-| `kernl:layout:v1` | `windows.ts`, through the host storage | The id of the layout the person chose, as a plain string: `floating`, `dwindle`, `columns`, `master-stack`, or one a developer registered. An id nobody registered is ignored and the first layout is used; `tiled`, which earlier builds stored, reads as `dwindle`. See [Layouts](./layouts.md). |
+| `kernl:layout:v1` | `windows.ts`, through the host storage | The id of the layout the person chose, as a plain string: `floating`, `dwindle`, `columns`, `master-stack`, `stacked`, or one a developer registered. An id nobody registered is ignored and the first layout is used; `tiled`, which earlier builds stored, reads as `dwindle`. See [Layouts](./layouts.md). |
 | `preview:` before any key the shell or the kernel writes through the host's storage, such as `preview:kernl:grants:v1` | the preview (`?preview=1`), through `scopedStorage` in `host.ts` | The preview's own state, kept apart so that trying the preview never changes the live shell's, and the live shell's applets never show up in the preview. |
 | `kernl:outbox-tree-events:v1` | The Outbox service with the cache module enabled | Tab-local `sessionStorage`: verified public tree observations, scoped to the applet artifact, identity and observed relay. See [Outbox replay](#outbox-replay). |
 

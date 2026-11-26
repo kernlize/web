@@ -4,5 +4,4 @@ Feature: kernl's preset
 
   Scenario: The preset names kernl.run's modules in the order they set up
     When a host asks for kernl's preset
-    Then the preset names the modules "theme, profiles, people, social, messaging, directory, mailboxes, files, settings, catalog, keys, intents, bridges, downloads, multiplayer, cache"
-
+    Then the preset names the modules "theme, profiles, people, social, messaging, directory, mailboxes, files, settings, catalog, stacks, keys, gamepad, intents, bridges, downloads, multiplayer, cache"

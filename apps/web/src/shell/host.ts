@@ -28,7 +28,7 @@ interface HostDeps {
  * fills `open` once it is on screen; until then nothing opens and the request is reported as failed.
  */
 export interface AppletOpener {
-  open?: (address: string) => Promise<string | undefined>;
+  open?: NonNullable<KernlHost['openApplet']>;
 }
 
 /** `localStorage` when the browser allows it, otherwise a page-lifetime map. */
@@ -91,7 +91,7 @@ export function createHost(deps: HostDeps): KernlHost {
       window.open(url, '_blank', 'noopener,noreferrer');
     },
     getVisibility: (windowId) => deps.windows.visibilityOf(windowId),
-    openApplet: async (address) => deps.opener.open?.(address),
+    openApplet: async (address, options) => deps.opener.open?.(address, options),
     focusApplet: (windowId) => deps.windows.focus(windowId),
     onShortcut: (key) => deps.shortcuts.run?.(key),
     onRevoked(windowId, reason, details) {

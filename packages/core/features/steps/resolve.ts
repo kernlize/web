@@ -1,4 +1,5 @@
 import { expect } from 'vitest';
+import { PrivateKeySigner } from 'applesauce-signers';
 import { Given, Then, When } from 'quickpickle';
 import { fetchBlob as kehtoFetchBlob, type NappletArtifactCache, type NappletManifest, type ResolvedNapplet } from '@kehto/nip/5d';
 import type { NostrEvent, NostrFilter } from '@napplet/core';
@@ -73,6 +74,41 @@ Given('the fake pool serves the manifest before an older manifest', async (world
   scratch(world).pool.events = [vector(world).event, older.event];
 });
 
+async function otherCoordinates(): Promise<NostrEvent[]> {
+  const newer = { createdAt: 1_700_000_001 };
+  const named = await signManifest({ ...newer, dTag: 'notes' });
+  const root = await signManifest({ ...newer, kind: 15129 });
+  const chat = await signManifest(newer);
+  const { kind, tags, content, created_at } = chat.event;
+  const otherPublisher = await new PrivateKeySigner().signEvent({ kind, tags, content, created_at });
+  return [named.event, root.event, otherPublisher];
+}
+
+Given('the fake pool serves the manifest and a newer manifest', async (world: CoreWorld) => {
+  const newer = await signManifest({ createdAt: 1_700_000_001 });
+  scratch(world).pool.events = [vector(world).event, newer.event];
+});
+
+Given('the fake pool serves only a newer manifest', async (world: CoreWorld) => {
+  const newer = await signManifest({ createdAt: 1_700_000_001 });
+  scratch(world).pool.events = [newer.event];
+});
+
+Given('the fake pool serves the manifest alongside newer manifests for other coordinates', async (world: CoreWorld) => {
+  scratch(world).pool.events = [vector(world).event, ...await otherCoordinates()];
+});
+
+Given('the fake pool serves only newer manifests for other coordinates', async (world: CoreWorld) => {
+  scratch(world).pool.events = await otherCoordinates();
+});
+
+Given('the fake pool serves the signed root manifest and a newer named manifest', async (world: CoreWorld) => {
+  const named = await signManifest({ createdAt: 1_700_000_001 });
+  const root = await signManifest({ kind: 15129 });
+  scratch(world).manifest = root;
+  scratch(world).pool.events = [root.event, named.event];
+});
+
 When('the shell resolves the manifest with kehto\'s blob fetcher over a server that is down', async (world: CoreWorld) => {
   await resolveWith(world, (sha256, list) => kehtoFetchBlob(list, sha256, async () => {
     throw new Error('down');
@@ -87,7 +123,9 @@ When('the shell fetches the manifest for the address pointer with relays {string
 
 When('the shell fetches the manifest for the event pointer', async (world: CoreWorld) => {
   const pointer: AppletPointer = { kind: 'event', id: vector(world).event.id, relays: [] };
-  scratch(world).fetched = await fetchManifestEvent(scratch(world).pool, scratch(world).tiers as RelayTiers, pointer);
+  await attempt(world, async () => {
+    scratch(world).fetched = await fetchManifestEvent(scratch(world).pool, scratch(world).tiers as RelayTiers, pointer);
+  });
 });
 
 When('the shell fetches the manifest for a root address pointer', async (world: CoreWorld) => {

@@ -19,6 +19,7 @@ const LABELS: Readonly<Record<string, string>> = {
   upload: 'uploads',
   intent: 'opening other applets',
   keys: 'keyboard shortcuts',
+  gamepad: 'controllers',
   fs: 'your files',
   llm: 'language models',
   cvm: 'remote tools',
@@ -113,6 +114,13 @@ export const GROUP_LABELS: Readonly<Record<GrantGroupId, string>> = {
   other: 'Not requested',
 };
 
+/** One applet a row speaks for, on a screen that covers several applets at once. */
+export interface GrantApplet {
+  readonly title: string;
+  /** This applet cannot start without the domain. */
+  readonly required: boolean;
+}
+
 /** One switch in the grants list. */
 export interface GrantRow {
   readonly domain: string;
@@ -121,12 +129,15 @@ export interface GrantRow {
   readonly on: boolean;
   /** Whether the switch cannot be changed now. */
   readonly locked: boolean;
+  readonly mixed?: boolean;
   /** One short line under the label, or empty when the group says it all. */
   readonly note: string;
   /** False when this shell has nothing behind the domain, so it can be shown but never switched on. */
   readonly available: boolean;
   readonly baseline: boolean;
   readonly required: boolean;
+  /** The applets that asked for this row, when one screen covers a whole stack. */
+  readonly applets?: readonly GrantApplet[];
 }
 
 /** A captioned run of grant rows. */

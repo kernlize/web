@@ -33,7 +33,7 @@ const kernl = createKernl({ host, modules: kernlPreset() });
 kernl.messaging.list().map((entry) => entry.provider.id); // ['private', 'legacy', 'ratchet', 'group']
 ```
 
-`kernlPreset(options)` names kernl.run's sixteen modules in setup order and hands each one its options. `createKernl({ host })` with no `modules` composes the same list from the options it is given.
+`kernlPreset(options)` names kernl.run's eighteen modules (including stacks and controller input) in setup order and hands each one its options. `createKernl({ host })` with no `modules` composes the same list from the options it is given.
 
 ## Relays that live in the page
 

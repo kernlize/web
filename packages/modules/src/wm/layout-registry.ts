@@ -18,6 +18,8 @@ export interface LayoutEntry extends LayoutChoice {
    * A window manager lets windows be moved and resized only in a freeform layout.
    */
   readonly freeform?: boolean;
+  /** Show just the front window and temporarily minimise the rest. */
+  readonly singleWindow?: boolean;
 }
 
 /** The layouts a window manager offers, in the order the shell lists them. */
@@ -59,12 +61,16 @@ export function createLayoutRegistry(entries: readonly LayoutEntry[] = []): Layo
   return registry;
 }
 
+const stackedLayout: LayoutStrategy = {
+  arrange: (windows, area) => windows.filter(({ minimized }) => !minimized).map(({ id }) => ({ id, rect: { ...area } })),
+};
+
 /**
  * The layouts kernl ships, floating first: `floating`, `dwindle` (shown as "tiled"), `columns` and
- * `master-stack` (shown as "main and stack"). The spacing applies to the three that arrange windows.
+ * `master-stack` (shown as "main and stack"), followed by `stacked`. Spacing applies to the tiling layouts.
  *
  * @param options - Gap between windows and margin at the container edge, for the tiling layouts.
- * @returns A `LayoutRegistry` holding the four layouts; register your own on top.
+ * @returns A `LayoutRegistry` holding the five layouts; register your own on top.
  * @example
  * ```ts
  * const layouts = createDefaultLayouts({ gap: 8, margin: 0 });
@@ -77,5 +83,6 @@ export function createDefaultLayouts(options: LayoutOptions = {}): LayoutRegistr
     { id: 'dwindle', label: 'tiled', strategy: createDwindleLayout(options) },
     { id: 'columns', label: 'columns', strategy: createColumnsLayout(options) },
     { id: 'master-stack', label: 'main and stack', strategy: createMasterStackLayout(options) },
+    { id: 'stacked', label: 'stacked', strategy: stackedLayout, singleWindow: true },
   ]);
 }

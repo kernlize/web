@@ -9,7 +9,7 @@ Feature: An applet that reads messages is sealed
     And kernl grants over empty storage offering "shell,inc,theme,identity,storage,config,notify,keys,intent,dm,relay,outbox,upload,webrtc,cvm,resource,link,llm,fs,cache,media"
 
   Scenario: only what cannot carry a message away may go with messages
-    Then the domains that may go with messages are "shell,dm,identity,theme,storage,config,notify,keys,intent"
+    Then the domains that may go with messages are "shell,dm,identity,theme,storage,config,notify,keys,gamepad,intent"
 
   Scenario Outline: a domain that could send a message on is withheld from an applet that holds messages
     When the shell allows "dm" for "chat"

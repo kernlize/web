@@ -10,6 +10,7 @@ import { mountApplet, type MountedApplet } from './applets/mount.js';
 import type { WindowVisibility } from '@kernlize/guard';
 import type { GuardPipeline, WindowResolution } from './guard/pipeline.js';
 import type { AppletAdmissions } from './firewall/admission.js';
+import { createGrantReviews } from './grants/review.js';
 import { createEnvironmentResolver, type KernlGrants } from './grants/grants.js';
 
 /** What the applet lifecycle needs from the composed shell. */
@@ -85,7 +86,7 @@ export function grantNarrowingReason(plan: MountPlan, record: GrantRecord, basel
 }
 
 /** The applet half of {@link Kernel}. */
-export type AppletLifecycle = Pick<Kernel, 'resolve' | 'install' | 'plan' | 'mount' | 'applets' | 'handleWindowMessage'>;
+export type AppletLifecycle = Pick<Kernel, 'resolve' | 'install' | 'withGrantReview' | 'plan' | 'mount' | 'applets' | 'handleWindowMessage'>;
 
 function keyOf(identity: AppletIdentity): string {
   return `${identity.dTag}:${identity.hash}`;
@@ -171,6 +172,41 @@ export function createAppletLifecycle(context: LifecycleContext): AppletLifecycl
     return resolveApplet(cache ? { event, fetchBlob, cache, relays } : { event, fetchBlob, relays });
   };
 
+  async function plan(summary: AppletSummary): Promise<MountPlan> {
+    const indexHtml = verified.get(keyOf(summary.identity));
+    if (indexHtml === undefined) throw new Error('invalid:unresolved');
+    if (context.grants.get(summary.identity)?.blocked) throw new Error('denied:blocked');
+    context.grants.ensure(summary.identity);
+    context.intents()?.record(summary);
+    windowCounter += 1;
+    const windowId = `applet-${windowCounter}`;
+    context.remember(summary);
+    const extensions = heldExtensions(context, summary.identity);
+    // The firewall admits the applet before a plan exists, so no code runs with a domain it refused (D-056).
+    const domains = await admissions.admit(windowId, summary, withExtensions(resolveAppletEnvironment(context.adapter, summary), extensions));
+    const admitted = extensions && { ...extensions, domains: extensions.domains.filter((domain) => domains.includes(domain)) };
+    try {
+      const result = planMount({ summary, indexHtml, adapter: context.adapter, guardProfile: pipeline.config.profile, windowId, domains, ...(admitted ? { extensions: admitted } : {}) });
+      planned.set(windowId, keyOf(summary.identity));
+      return result;
+    } catch (reason) {
+      admissions.discard(windowId);
+      throw reason;
+    }
+  }
+  const reviews = createGrantReviews({
+    plan,
+    current: (candidate) => handles.has(candidate.windowId) && admissions.isCurrent(candidate.windowId),
+    domains: (summary) => withExtensions(resolveAppletEnvironment(context.adapter, summary), heldExtensions(context, summary.identity)).capabilities.domains,
+    discardWaiting(candidate) {
+      if (admissions.isWaiting(candidate.windowId)) admissions.discard(candidate.windowId);
+      planned.delete(candidate.windowId);
+    },
+    forgetIfIdle(identity) {
+      if (!stillRuns(keyOf(identity))) context.grants.forgetTemporary(identity);
+    },
+  });
+
   return {
     async resolve(pointer: AppletPointer): Promise<AppletSummary> {
       const resolved = pointer.kind === 'builtin' ? await resolveShipped(context, pointer.id) : await lookUp(pointer);
@@ -184,22 +220,8 @@ export function createAppletLifecycle(context: LifecycleContext): AppletLifecycl
       context.grants.ensure(summary.identity);
       return intents.record(summary);
     },
-    async plan(summary: AppletSummary): Promise<MountPlan> {
-      const indexHtml = verified.get(keyOf(summary.identity));
-      if (indexHtml === undefined) throw new Error('invalid:unresolved');
-      if (context.grants.get(summary.identity)?.blocked) throw new Error('denied:blocked');
-      context.grants.ensure(summary.identity);
-      context.intents()?.record(summary);
-      windowCounter += 1;
-      const windowId = `applet-${windowCounter}`;
-      planned.set(windowId, keyOf(summary.identity));
-      context.remember(summary);
-      const extensions = heldExtensions(context, summary.identity);
-      // The firewall admits the applet before a plan exists, so no code runs with a domain it refused (D-056).
-      const domains = await admissions.admit(windowId, summary, withExtensions(resolveAppletEnvironment(context.adapter, summary), extensions));
-      const admitted = extensions && { ...extensions, domains: extensions.domains.filter((domain) => domains.includes(domain)) };
-      return planMount({ summary, indexHtml, adapter: context.adapter, guardProfile: pipeline.config.profile, windowId, domains, ...(admitted ? { extensions: admitted } : {}) });
-    },
+    plan,
+    withGrantReview: reviews.withGrantReview,
     mount(plan: MountPlan, frame: FrameLike): AppletHandle {
       if (!admissions.isCurrent(plan.windowId)) throw new Error('denied:admission-expired');
       admissions.mounted(plan.windowId);
@@ -232,7 +254,7 @@ export function createAppletLifecycle(context: LifecycleContext): AppletLifecycl
         // A window closed before it said hello has only the session admission opened for it.
         admissions.discard(plan.windowId);
         // What was granted for now goes with the applet's last window (D-060).
-        if (!stillRuns(keyOf(plan.summary.identity))) context.grants.forgetTemporary(plan.summary.identity);
+        reviews.ended(plan.summary.identity);
       }));
       return handle;
     },

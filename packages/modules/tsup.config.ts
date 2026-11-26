@@ -32,6 +32,8 @@ export default defineConfig({
     'directory/index': 'src/directory/index.ts',
     'downloads/index': 'src/downloads/index.ts',
     'uploads/index': 'src/uploads/index.ts',
+    'gamepad/index': 'src/gamepad/index.ts',
+    'stacks/index': 'src/stacks/index.ts',
     'intents/index': 'src/intents/index.ts',
     'keys/index': 'src/keys/index.ts',
     'mailboxes/index': 'src/mailboxes/index.ts',

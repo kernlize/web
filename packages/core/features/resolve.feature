@@ -19,12 +19,32 @@ Feature: Resolving an applet
     When the shell fetches the manifest for the address pointer with relays ""
     Then the fetched manifest is the signed one
 
-  Scenario: an event pointer asks by id and a root address omits the identifier
-    Given the fake pool serves the manifest and an older manifest
+  Scenario: an exact event pointer selects that version, not a later release
+    Given the fake pool serves the manifest and a newer manifest
     When the shell fetches the manifest for the event pointer
     Then the manifest request filter was by ids
+    And the fetched manifest is the signed one
+
+  Scenario: a newer release is not a substitute for an exact event
+    Given the fake pool serves only a newer manifest
+    When the shell fetches the manifest for the event pointer
+    Then the shell refused with "unavailable:manifest"
+
+  Scenario: a named address selects by publisher, kind and identifier before date
+    Given the fake pool serves the manifest alongside newer manifests for other coordinates
+    When the shell fetches the manifest for the address pointer with relays ""
+    Then the fetched manifest is the signed one
+
+  Scenario: an answer without a matching coordinate is a missing manifest
+    Given the fake pool serves only newer manifests for other coordinates
+    When the shell fetches the manifest for the address pointer with relays ""
+    Then the shell refused with "unavailable:manifest"
+
+  Scenario: a root address asks by kind and publisher without an identifier
+    Given the fake pool serves the signed root manifest and a newer named manifest
     When the shell fetches the manifest for a root address pointer
     Then the manifest request filter had no identifier
+    And the fetched manifest is the signed one
 
   Scenario: no manifest anywhere is unavailable
     When the shell fetches the manifest for the address pointer with relays ""

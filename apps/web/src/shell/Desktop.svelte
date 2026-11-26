@@ -1,5 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { openReviewedMember, type StackGrantMember } from './stack-grants';
+  import type { GrantChoices } from '@kernlize/ui-model';
   import type { Booted, MountPlan, Session, StorageLike } from './contract';
   import FirewallPanel from './FirewallPanel.svelte';
   import GrantsPanel from './GrantsPanel.svelte';
@@ -138,9 +140,9 @@
     return true;
   }
 
-  function open(kind: Exclude<Overlay, { kind: 'grants' }>['kind']): void {
+  function openOverlay(next: Overlay): void {
     windows.blur();
-    overlay = { kind };
+    overlay = next;
   }
 
   function openPlan(plan: MountPlan): void {
@@ -149,13 +151,35 @@
     windows.open(plan);
   }
 
+  async function openStackMember(member: StackGrantMember, choices: GrantChoices, remember: boolean): Promise<void> {
+    const { summary } = member;
+    // A narrowing grant can stop these windows synchronously, before planning their replacement.
+    const existing = windows.windows.filter((win) => (win.status === 'running' || win.status === 'mounting') && win.plan.summary.manifest.catalogId === summary.manifest.catalogId && win.plan.summary.identity.hash === summary.identity.hash);
+    await openReviewedMember(kernl, member, choices, remember, async (start) => {
+      const reusable = existing.find((win) => start.canReuse(win.plan));
+      if (reusable) {
+        windows.focus(reusable.id);
+        return;
+      }
+      const plan = await start.plan();
+      await windows.openAndMount(plan, existing[0]?.id);
+      windows.focus(plan.windowId);
+    });
+  }
+
+  function finishStack(problem: string | null): void {
+    overlay = null;
+    windows.close(panelWindowId(LAUNCHER));
+    if (problem) onproblem('Some applets could not be opened', problem);
+  }
+
   /** A window that is showing messages: the applet takes the role, whoever made it. */
   const showsMessages = (win: (typeof windows.windows)[number]): boolean => win.status !== 'revoked' && win.plan.summary.archetypes.includes('dm');
   const reading = $derived(windows.windows.some((win) => win.focused && showsMessages(win)));
 
   function panel(kind: 'guard' | 'firewall' | 'messages' | 'settings' | 'downloads'): void {
     if (kind === 'settings') return openSettings();
-    if (kind !== 'messages') return open(kind);
+    if (kind !== 'messages') return openOverlay({ kind });
     overlay = null;
     asked = true;
     void openMessages({
@@ -181,11 +205,11 @@
 
   // An applet asked another to do something and the user picked who: open it under the grants it already has.
   $effect(() => {
-    opener.open = async (address) => {
+    opener.open = async (address, options) => {
       try {
         const plan = await kernl.plan(await kernl.resolve(kernl.decodePointer(address)));
-        overlay = null;
-        windows.open(plan);
+        if (options?.focus !== false) overlay = null;
+        windows.open(plan, options);
         return plan.windowId;
       } catch {
         return undefined;
@@ -226,7 +250,7 @@
 
   <div class="desk" bind:this={desk} role="presentation">
     <div class="wallpaper" onpointerdown={() => windows.blur()}></div>
-    <WindowLayer {windows} {traffic} ongrants={(windowId) => (overlay = { kind: 'grants', windowId })} oninspect={(windowId) => (overlay = { kind: 'inspect', windowId })} onreload={(windowId) => void reload(windowId)}>
+    <WindowLayer {windows} {traffic} ongrants={(windowId) => openOverlay({ kind: 'grants', windowId })} oninspect={(windowId) => openOverlay({ kind: 'inspect', windowId })} onreload={(windowId) => void reload(windowId)}>
       {#snippet panel(win)}
         {@const video = sessionOfPanel(win.panel)}
         {#if video !== undefined}
@@ -236,7 +260,7 @@
           <SettingsWindow {kernl} mode={booted.mode} downloads={booted.downloads} section={settingsSection} opened={settingsOpened} onsection={chooseSettingsSection} />
         {:else}
           {#key launcherOpened}
-            <Launcher {kernl} mode={booted.mode} {storage} initialAddress={launcherAddress} onopen={openPlan} />
+            <Launcher {kernl} mode={booted.mode} {storage} initialAddress={launcherAddress} onopen={openPlan} onopenmember={openStackMember} onopenall={finishStack} />
           {/key}
         {/if}
       {/snippet}

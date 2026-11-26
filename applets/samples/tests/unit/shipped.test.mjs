@@ -53,6 +53,25 @@ test('the publisher\'s profile names the samples and verifies against the publis
   assert.equal(schnorr.verify(Buffer.from(profile.sig, 'hex'), Buffer.from(profile.id, 'hex'), Buffer.from(shipped.publisher, 'hex')), true);
 });
 
+test('two stacks name the samples, each marking what it opens, and verify against the publisher', () => {
+  const { publisher, stacks } = shipped;
+  const coordinate = (name) => `35129:${publisher}:${name}`;
+  assert.deepEqual(stacks.map((stack) => values(stack.tags, 'd')[0]), ['basics', 'live']);
+  assert.deepEqual(stacks.map((stack) => values(stack.tags, 'title')[0]), ['Basics', 'Live']);
+  assert.deepEqual(stacks[0].tags.filter((tag) => tag[0] === 'a'), [['a', coordinate('notes')], ['a', coordinate('profiles')]]);
+  assert.deepEqual(values(stacks[0].tags, 'start'), [coordinate('notes')]);
+  assert.deepEqual(stacks[1].tags.filter((tag) => tag[0] === 'a'), [['a', coordinate('pulse'), 'wss://relay.example']]);
+  assert.deepEqual(values(stacks[1].tags, 'start'), [coordinate('pulse')]);
+  // Listed newest first, Basics comes before Live.
+  assert.ok(stacks[0].created_at > stacks[1].created_at);
+  for (const stack of stacks) {
+    assert.equal(stack.kind, 30267);
+    assert.equal(stack.pubkey, publisher);
+    assert.equal(stack.id, recomputedId(stack));
+    assert.equal(schnorr.verify(Buffer.from(stack.sig, 'hex'), Buffer.from(stack.id, 'hex'), Buffer.from(publisher, 'hex')), true);
+  }
+});
+
 test('a tampered manifest no longer verifies', () => {
   const { manifest } = shipped.samples[0];
   const tampered = { ...manifest, content: `${manifest.content} ` };

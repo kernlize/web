@@ -175,6 +175,10 @@ When(/^the windows? "([^"]*)" opens?$/, (world: WmWorld, list: string) => {
   for (const id of names(list)) manager(world).open(id);
 });
 
+When('the windows {string} open without focus', (world: WmWorld, list: string) => {
+  for (const id of names(list)) manager(world).open(id, { focus: false });
+});
+
 When('the person focuses {string}', (world: WmWorld, id: string) => {
   manager(world).focus(id);
 });

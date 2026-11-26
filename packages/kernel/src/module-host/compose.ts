@@ -1,4 +1,4 @@
-import { map, type Observable } from 'rxjs';
+import { EMPTY, map, type Observable } from 'rxjs';
 import type { EventStore } from 'applesauce-core';
 import type { AccountManager } from 'applesauce-accounts';
 import type { NostrEvent } from '@napplet/core';
@@ -83,6 +83,7 @@ export interface KernelContextParts {
   readonly holds: KernelContext['holds'];
   /** Whether a window is the focused one, as the guard sees it. */
   readonly isFocused: (windowId: string) => boolean;
+  readonly focusChanges$?: Observable<string>;
 }
 
 /** The modules once set up: what they answer, what planning adds, their apis and their teardown. */
@@ -118,6 +119,7 @@ function contextFor(parts: KernelContextParts, apis: Readonly<Record<string, unk
     },
     appletOf: parts.appletOf,
     isFocused: parts.isFocused,
+    focusChanges$: parts.focusChanges$ ?? EMPTY,
     applets: parts.applets,
     secrets: parts.secrets,
     holds: parts.holds,

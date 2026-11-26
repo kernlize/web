@@ -7,6 +7,8 @@ import { createIntentDelivery } from './intents/delivery.js';
 import { createInstalledApplets, type InstalledApplets } from './intents/installed.js';
 import { createIntentRouter } from './intents/router.js';
 
+type IntentWindow = Pick<MountedApplet, 'windowId' | 'summary' | 'domains'>;
+
 /** What {@link createKernlIntents} needs from the composed shell. */
 export interface KernlIntentDeps {
   readonly host: Pick<KernlHost, 'storage' | 'now' | 'notify' | 'openApplet' | 'focusApplet'>;
@@ -16,8 +18,8 @@ export interface KernlIntentDeps {
   readonly tiers: RelayTiers;
   /** The signed-in identity: its pubkey, its changes, and a signer for the person's own preferences, none when it cannot sign. */
   readonly identity: { pubkey(): string | undefined; readonly pubkey$: Observable<unknown>; signer(): PreferenceSigner | undefined };
-  /** Live applets by window id; the source of every sender identity. */
-  readonly handles: ReadonlyMap<string, Pick<MountedApplet, 'windowId' | 'summary'>>;
+  /** Live applets and their startup domains by window id; the source of every sender identity. */
+  readonly handles: ReadonlyMap<string, Pick<MountedApplet, 'windowId' | 'summary' | 'domains'>>;
   readonly retry?: { readonly intervalMs: number; readonly attempts: number };
 }
 
@@ -31,12 +33,18 @@ export interface KernlIntents {
 
 const FAILURES: Readonly<Record<string, string>> = {
   'unavailable:delivery': 'It needs "opening other applets" switched on in its grants to receive requests from other applets.',
+  'unavailable:convention': 'This release does not take that request.',
   'unavailable:window': 'It could not be opened.',
   'unavailable:handler': 'It is no longer installed.',
 };
 
 /** What the user is told when the host itself failed while opening the handler. */
 const UNREACHABLE = 'It could not be reached.';
+
+function accepts(handle: IntentWindow, catalogId: string, convention: string): boolean {
+  const { manifest } = handle.summary;
+  return manifest.catalogId === catalogId && manifest.archetypes.some((entry) => entry.convention === convention);
+}
 
 /**
  * Keep the runtime context kehto hands the intent service, so delivery can
@@ -90,12 +98,17 @@ export function createKernlIntents(deps: KernlIntentDeps): KernlIntents {
 
   const deliver = createIntentDelivery({
     installed,
-    findWindow: (catalogId) => [...handles.values()].find((handle) => handle.summary.manifest.catalogId === catalogId)?.windowId,
-    openApplet: async (address) => host.openApplet?.(address),
+    findWindow: (catalogId, convention) => [...handles.values()].find((handle) => handle.domains.includes('intent') && accepts(handle, catalogId, convention))?.windowId,
+    openApplet: async (address, options) => host.openApplet?.(address, options),
     ...(host.focusApplet ? { focus: host.focusApplet.bind(host) } : {}),
-    // The runtime's recipient gate maps `intent.deliver` to `intent:read` since @kehto/acl 0.20.6,
-    // so delivery goes through it to a live, unblocked, granted target (DECISIONS.md D-037).
-    send: (windowId, message) => context?.sendToEligibleNapplet(windowId, message) === true,
+    send(windowId, message, { handler, convention }) {
+      const handle = handles.get(windowId);
+      if (!handle) return false;
+      // The address may have resolved to a different release after the router read the installed contracts.
+      if (!accepts(handle, handler, convention)) throw new Error('unavailable:convention');
+      // The runtime still checks session, domain and `intent:read` (D-037).
+      return handle.domains.includes('intent') && context?.sendToEligibleNapplet(windowId, message) === true;
+    },
     ...(deps.retry ? { retry: deps.retry } : {}),
   });
 
@@ -106,7 +119,10 @@ export function createKernlIntents(deps: KernlIntentDeps): KernlIntents {
     describeSender: titleOf,
     deliver: (params) =>
       deliver(params).catch((error: Error) => {
-        host.notify({ title: `${titleOf(params.handler)} could not take the request`, body: FAILURES[error.message] ?? UNREACHABLE, tone: 'warning' });
+        const body = error.message === 'unavailable:delivery' && params.behavior?.focus === false
+          ? 'Show the applet and try again. Check that it has the grant to receive requests.'
+          : FAILURES[error.message] ?? UNREACHABLE;
+        host.notify({ title: `${titleOf(params.handler)} could not take the request`, body, tone: 'warning' });
         throw error;
       }),
   });

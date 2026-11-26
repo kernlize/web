@@ -1,4 +1,4 @@
-import { filter, lastValueFrom, map, merge, switchMap, take, timer, toArray, type Observable, type OperatorFunction } from 'rxjs';
+import { filter, lastValueFrom, map, merge, switchMap, take, tap, timer, toArray, type Observable, type OperatorFunction } from 'rxjs';
 import {
   NappletResolutionError,
   openNappletArtifactCache,
@@ -8,6 +8,7 @@ import {
   type ResolvedNapplet,
 } from '@kehto/nip/5d';
 import type { NostrEvent, NostrFilter } from '@napplet/core';
+import type { GroupReqMessage } from 'applesauce-relay';
 import type { AppletPointer, AppletSummary, RelayTiers } from '../types.js';
 import { asFilters, type ApplesaucePool } from '../applesauce/relay-hooks.js';
 import { addressOf } from './address.js';
@@ -30,6 +31,12 @@ function filterFor(pointer: PublishedPointer): NostrFilter {
   const filter: NostrFilter = { kinds: [pointer.eventKind], authors: [pointer.pubkey] };
   if (pointer.identifier !== '') filter['#d'] = [pointer.identifier];
   return filter;
+}
+
+function matchesPointer(pointer: PublishedPointer, event: NostrEvent): boolean {
+  if (pointer.kind === 'event') return event.id === pointer.id;
+  return event.pubkey === pointer.pubkey && event.kind === pointer.eventKind &&
+    (event.tags.find((tag) => tag[0] === 'd')?.[1] ?? '') === pointer.identifier;
 }
 
 /**
@@ -90,10 +97,13 @@ function dialable(urls: readonly string[]): string[] {
  * `firstResponseTimeout` say, which is why the request also carries
  * `timeoutMs`.
  */
-function settleManifestRequest(timing: ManifestTiming): OperatorFunction<{ type: string }, boolean> {
-  const after = (messages: Observable<{ type: string }>, type: string, waitMs: number): Observable<number> =>
-    messages.pipe(filter((message) => message.type === type), take(1), switchMap(() => timer(waitMs)));
-  return (messages) => merge(after(messages, 'EVENT', timing.settleMs), after(messages, 'EOSE', timing.patienceMs)).pipe(map(() => true));
+function settleManifestRequest(timing: ManifestTiming, pointer: PublishedPointer): OperatorFunction<GroupReqMessage, boolean> {
+  const after = (messages: Observable<GroupReqMessage>, matches: (message: GroupReqMessage) => boolean, waitMs: number): Observable<number> =>
+    messages.pipe(filter(matches), take(1), switchMap(() => timer(waitMs)));
+  return (messages) => merge(
+    after(messages, (message) => message.type === 'EVENT' && matchesPointer(pointer, message.event), timing.settleMs),
+    after(messages, (message) => message.type === 'EOSE', timing.patienceMs),
+  ).pipe(map(() => true));
 }
 
 /** What one round of asking produced: the newest manifest, and whether any relay answered at all. */
@@ -127,21 +137,24 @@ function watchOpened(pool: ApplesaucePool, relays: readonly string[]): { opened(
  * default; one redial keeps a dead address from holding the lookup for most of
  * ten seconds. A relay that ran out its clock is not redialled: it already waited.
  */
-async function askRelays(pool: ApplesaucePool, relays: string[], filter: NostrFilter, waits: ManifestTiming): Promise<Asked> {
+async function askRelays(pool: ApplesaucePool, relays: string[], pointer: PublishedPointer, waits: ManifestTiming): Promise<Asked> {
   const watch = watchOpened(pool, relays);
-  const request = pool.request(relays, asFilters([filter]), {
-    complete: settleManifestRequest(waits),
+  const matches = (event: NostrEvent): boolean => matchesPointer(pointer, event);
+  let answered = false;
+  const request = pool.request(relays, asFilters([filterFor(pointer)]), {
+    complete: settleManifestRequest(waits, pointer),
     timeout: waits.timeoutMs,
     reconnect: { count: 1, delay: waits.retryDelayMs },
   });
   try {
-    const events = await lastValueFrom(request.pipe(toArray()), { defaultValue: [] });
+    const events = await lastValueFrom(request.pipe(tap(() => void (answered = true)), filter(matches), toArray()), { defaultValue: [] });
     const newest = events.reduce<NostrEvent | undefined>((best, event) => (best && best.created_at >= event.created_at ? best : event), undefined);
     // An empty answer from relays that never connected is not an answer; Firefox ends offline requests that way.
-    return newest ? { newest, answered: true, opened: true } : { answered: watch.opened(), opened: watch.opened() };
+    const opened = answered || watch.opened();
+    return newest ? { newest, answered: true, opened: true } : { answered: opened, opened };
   } catch {
-    // Every relay failed, or none answered in time: the network could not say, which is not "no such applet".
-    return { answered: false, opened: watch.opened() };
+    // A returned event counts as a reply even if it did not match and the rest of the request failed.
+    return { answered, opened: answered || watch.opened() };
   } finally {
     watch.stop();
   }
@@ -155,11 +168,12 @@ async function askRelays(pool: ApplesaucePool, relays: string[], filter: NostrFi
  * none of them answered, the `super` tier is asked before giving up: a
  * manifest is an ordinary event, authors publish it to general relays too, and
  * an address that opens elsewhere should not fail here because one catalogue
- * relay had a bad minute. For addresses, the newest event wins, since a named
- * applet is an addressable event that its author replaces on every release. A
- * relay that is down, silent or hangs up does not fail the lookup while
- * another one answers, a relay that refused the connection is dialled once
- * more, and hints that are not relay URLs are ignored.
+ * relay had a bad minute. Only events matching the exact ID or address
+ * coordinate are candidates. For addresses, the newest matching event wins,
+ * since an author replaces their applet on every release. A relay that is
+ * down, silent or hangs up does not fail the lookup while another one
+ * answers, a relay that refused the connection is dialled once more, and
+ * hints that are not relay URLs are ignored.
  *
  * @param pool - The shared applesauce pool.
  * @param tiers - Relay tiers; `apps` is asked first, `super` as the fallback.
@@ -179,11 +193,10 @@ export async function fetchManifestEvent(pool: ApplesaucePool, tiers: RelayTiers
   const first = dialable([...pointer.relays, ...config.apps]);
   const rounds = [first, dialable([...first, ...config.super]).slice(first.length)].filter((relays) => relays.length > 0);
   const waits = { ...MANIFEST_TIMING, ...timing };
-  const filter = filterFor(pointer);
   let answered = rounds.length === 0;
   let opened = rounds.length === 0;
   for (const relays of rounds) {
-    const asked = await askRelays(pool, relays, filter, waits);
+    const asked = await askRelays(pool, relays, pointer, waits);
     if (asked.newest) return asked.newest;
     answered ||= asked.answered;
     opened ||= asked.opened;

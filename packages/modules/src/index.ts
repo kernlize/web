@@ -150,3 +150,6 @@ export { createTorrentService, type TorrentServiceOptions } from './downloads/to
 export { createNzbService, readNzbDocument, type NzbDocument, type NzbDownloader, type NzbServiceOptions } from './downloads/nzb-service.js';
 export { createSoulseekService, DEFAULT_SOULSEEK_LIMITS, SOULSEEK_SESSION_QUESTION, type SoulseekLimits, type SoulseekServiceOptions } from './downloads/soulseek-service.js';
 export { createKernlDownloads, describeDownloadQuestion, DOWNLOAD_DOMAINS, type KernlDownloads, type KernlDownloadsDeps } from './kernl-downloads.js';
+export { gamepadModule, createControllerService, type ControllerDeps, type ControllerSettings } from './gamepad/index.js';
+export { stacksModule, DEFAULT_STACK_ID, STACK_KIND, STACK_START_TAG, newestStacks, toAppletStack, type AppletStack, type StackMember } from './stacks/index.js';
+export { STACK_EMIT_MS, STACK_LIMIT, STACK_SETTLE_MS, STACK_TIMEOUT_MS, loadStacks, stackRelays, streamStacks, type AppletStacks, type LoadStacksOptions } from './stacks/index.js';

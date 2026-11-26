@@ -14,7 +14,7 @@ export const TITLE_BAR_HEIGHT = 36;
 /** Ids an earlier build stored under `LAYOUT_KEY`, and what each is called now. */
 const RENAMED_LAYOUTS: Readonly<Record<string, string>> = { tiled: 'dwindle' };
 
-/** The layouts the bar's layout control steps through: kernl's four, with 8 px between windows and none at the desktop edge. */
+/** The layouts the bar's layout control steps through: kernl's defaults, with 8 px between windows and none at the desktop edge. */
 export function createShellLayouts(): LayoutRegistry {
   return createDefaultLayouts({ gap: 8, margin: 0 });
 }

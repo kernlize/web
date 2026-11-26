@@ -28,6 +28,10 @@ Feature: The shell host
     Given the shell host with window "w1" titled "Notes"
     Then the shell host asks the chooser, opens applets through the desktop once it can, and brings windows forward
 
+  Scenario: a request to open without focus reaches the desktop
+    Given the shell host with window "w1" titled "Notes"
+    Then the shell host asks the desktop to open without focus
+
   Scenario: a link the firewall did not decide opens only after the user agrees
     Given the shell host with window "w1" titled "Notes"
     When the shell host is asked to open "https://example.org" and the user says "no"

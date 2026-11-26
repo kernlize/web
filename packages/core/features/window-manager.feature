@@ -32,6 +32,17 @@ Feature: Window manager
       Then the front-to-back order is "a, b"
       And "a" is focused
 
+    Scenario: opening without focus leaves the front window alone and puts each new window behind it
+      Given a window manager on a desktop of 1000 by 600
+      When the window "a" opens
+      And the windows "b, c" open without focus
+      And the windows "a, b" open without focus
+      Then the front-to-back order is "a, b, c"
+      And "a" is focused
+      When the person focuses "c"
+      Then the front-to-back order is "c, a, b"
+      And "c" is focused
+
     Scenario Outline: a moved window stays on the desktop
       Given a window manager on a desktop of 1000 by 600
       When the window "a" opens
@@ -119,9 +130,9 @@ Feature: Window manager
 
     Scenario: a layout registered later is on offer at once
       Given a window manager on a desktop of 1000 by 600
-      Then the layouts on offer are "floating, dwindle, columns, master-stack"
+      Then the layouts on offer are "floating, dwindle, columns, master-stack, stacked"
       When the window manager's registry gains the layout "rows"
-      Then the layouts on offer are "floating, dwindle, columns, master-stack, rows"
+      Then the layouts on offer are "floating, dwindle, columns, master-stack, stacked, rows"
       When the windows "a, b" open
       And the person picks the layout "rows"
       Then the windows are:
@@ -169,6 +180,100 @@ Feature: Window manager
         | a  | 0   | 0   | 600 | 600 |
         | b  | 600 | 0   | 400 | 300 |
         | c  | 600 | 300 | 400 | 300 |
+
+  Rule: stacked shows only the front window
+
+    Scenario: stacking fills the desktop without changing manual minimisation
+      Given new windows are 300 by 200
+      And a window manager on a desktop of 1000 by 600
+      When the windows "a, b, c" open
+      And the person minimises "b"
+      And the person picks the layout "stacked"
+      Then the layout is "stacked" labelled "stacked"
+      And the remembered layout is "stacked"
+      And the windows cannot be moved
+      And the windows are:
+        | id | x   | y  | w    | h   | minimised |
+        | a  | 40  | 24 | 300  | 200 | yes       |
+        | b  | 72  | 56 | 300  | 200 | yes       |
+        | c  | 0   | 0  | 1000 | 600 | no        |
+      When the person focuses "a"
+      And the person turns to the shell
+      Then nothing on the desktop is focused
+      And the guard is told "a" is visible and not focused
+      And the guard is told "c" is hidden
+      When the person picks the layout "floating"
+      Then the windows are:
+        | id | x   | y  | w   | h   | minimised |
+        | a  | 40  | 24 | 300 | 200 | no        |
+        | b  | 72  | 56 | 300 | 200 | yes       |
+        | c  | 104 | 88 | 300 | 200 | no        |
+
+    Scenario: opening, minimising and closing update the front window on a compact desktop
+      Given the window manager starts in the layout "stacked"
+      And a window manager on a desktop of 600 by 800
+      When the windows "a, b, c" open
+      Then the windows are:
+        | id | w   | h   | minimised |
+        | a  | 600 | 800 | yes       |
+        | b  | 600 | 800 | yes       |
+        | c  | 600 | 800 | no        |
+      When the person minimises "c"
+      Then "b" is focused
+      When the person closes "b"
+      Then "a" is focused
+      And the guard is told "c" is hidden
+      When the person focuses "c"
+      Then "c" is focused
+      And the guard is told "a" is hidden
+
+    Scenario: hidden applets receive visibility updates when the layout changes
+      Given a window manager on a desktop of 1000 by 600
+      When the windows "a, b" open
+      And "a" is attached
+      And the person picks the layout "stacked"
+      And the person picks the layout "columns"
+      Then the reports to "a" are:
+        | visible | focused | ms |
+        | yes     | no      |    |
+        | no      | no      |    |
+        | yes     | no      |    |
+
+    Scenario: a stopped window can be shown without giving its applet focus
+      Given a window manager on a desktop of 1000 by 600
+      When the windows "a, b" open
+      And the person picks the layout "stacked"
+      And the applet in "b" is stopped
+      Then nothing on the desktop is focused
+      And the windows include:
+        | id | w    | h   | minimised | stopped |
+        | b  | 1000 | 600 | no        | yes     |
+      When the person focuses "a"
+      Then "a" is focused
+      When the person focuses "b"
+      Then nothing on the desktop is focused
+      And the guard is told "b" is hidden
+      When the window "b" starts again as "b2"
+      Then "b2" is focused
+      And the guard is told "a" is hidden
+
+    Scenario: a stopped window minimised in Stacked can be restored from the dock in Floating
+      Given a window manager on a desktop of 1000 by 600
+      When the windows "a, b" open
+      And the person picks the layout "stacked"
+      And the applet in "b" is stopped
+      And the person minimises "b"
+      And the person picks the layout "floating"
+      Then the windows include:
+        | id | minimised | stopped |
+        | b  | yes       | yes     |
+      When the person focuses "a"
+      And the person focuses "b"
+      Then the windows include:
+        | id | minimised | stopped | focused |
+        | b  | no        | yes     | no      |
+      And the front-to-back order is "b, a"
+      And the guard is told "b" is hidden
 
   Rule: a narrow desktop shows one window at a time
 
@@ -397,7 +502,7 @@ Feature: Window manager
       Given a window manager with every default
       When the window "a" opens
       Then the layout is "floating" labelled "floating"
-      And the layouts on offer are "floating, dwindle, columns, master-stack"
+      And the layouts on offer are "floating, dwindle, columns, master-stack, stacked"
       And the windows are:
         | id | x  | y  | w   | h   |
         | a  | 40 | 24 | 720 | 660 |
