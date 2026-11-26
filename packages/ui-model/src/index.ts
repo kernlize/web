@@ -37,4 +37,4 @@ export {
 } from './grants.js';
 
 export { createAskQueue, createAskQueues, createAskRenderers, type AskQueue, type AskQueues, type AskQueuesByKind } from './asks.js';
-export { NOTICE_LIFETIME_MS, createGuardLog, createNoticeStore, createTrafficLog, createUnreadCount, type GuardLog, type Notice, type NoticeStore, type TrafficLog, type TrafficMarks, type TrafficRow, type UnreadCount } from './logs.js';
+export { NOTICE_LIFETIME_MS, createGuardLog, createNoticeStore, createTrafficLog, createUnreadCount, type GuardLog, type Notice, type NoticeStore, type TrafficFold, type TrafficLog, type TrafficMarks, type TrafficRow, type UnreadCount } from './logs.js';

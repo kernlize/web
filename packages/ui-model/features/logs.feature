@@ -17,11 +17,19 @@ Feature: Logs, notices and the unread count
     When window "w1" logs rows marked "error,warning,none" and window "w2" logs a row marked "error"
     Then window "w1" shows 2 rows, newest first, with 1 error and 1 warning counted
     And window "w3" shows 0 rows, newest first, with 0 errors and 0 warnings counted
+    And window "w3" counts 0 rows
     When the traffic log keeps only window "w2"
     Then window "w1" shows 0 rows, newest first, with 0 errors and 0 warnings counted
     And window "w2" shows 1 rows, newest first, with 1 error and 0 warnings counted
     When the traffic log keeps only window "w2"
     Then the traffic log changed 5 times
+
+  Scenario: a row that repeats the one before it folds into it, and the count keeps going
+    Given a traffic log that folds repeated rows and keeps 2 rows per window
+    When window "w1" logs a row of "other" and then 3 rows of "same"
+    Then window "w1" shows 2 rows, newest first, with 0 errors and 0 warnings counted
+    And the newest row for window "w1" stands for 3 rows
+    And window "w1" counts 4 rows
 
   Scenario: notices go by themselves after their tone's time, or when dismissed
     Given a notice store with a clock the scenario moves

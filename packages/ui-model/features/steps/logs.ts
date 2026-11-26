@@ -6,7 +6,7 @@ import { createGuardLog, createNoticeStore, createTrafficLog, createUnreadCount,
 
 type DmMessage = Parameters<Parameters<MessagingBackend['subscribe']>[1]>[0];
 
-interface Row { readonly windowId: string; readonly mark?: 'error' | 'warning'; readonly n: number }
+interface Row { readonly windowId: string; readonly mark?: 'error' | 'warning'; readonly n: number; readonly kind?: string; readonly repeats?: number }
 
 interface LogsWorld {
   guard?: GuardLog;
@@ -68,6 +68,25 @@ Given('a traffic log that keeps {int} rows per window', (world: LogsWorld, keep:
   const state = world_(world);
   state.traffic = createTrafficLog<Row>(keep);
   state.traffic.changes$.subscribe(() => (state.changes += 1));
+});
+
+Given('a traffic log that folds repeated rows and keeps {int} rows per window', (world: LogsWorld, keep: number) => {
+  const state = world_(world);
+  state.traffic = createTrafficLog<Row>(keep, (kept, arriving) => (kept.kind === arriving.kind ? { ...arriving, repeats: (kept.repeats ?? 1) + 1 } : undefined));
+  state.traffic.changes$.subscribe(() => (state.changes += 1));
+});
+
+When('window {string} logs a row of {string} and then {int} rows of {string}', (world: LogsWorld, windowId: string, first: string, count: number, then: string) => {
+  world.traffic?.add({ windowId, n: 0, kind: first });
+  for (let n = 1; n <= count; n += 1) world.traffic?.add({ windowId, n, kind: then });
+});
+
+Then('the newest row for window {string} stands for {int} rows', (world: LogsWorld, windowId: string, count: number) => {
+  expect(world.traffic?.forWindow(windowId)[0].repeats).toBe(count);
+});
+
+Then('window {string} counts {int} rows', (world: LogsWorld, windowId: string, count: number) => {
+  expect(world.traffic?.total(windowId)).toBe(count);
 });
 
 When('window {string} logs rows marked {string} and window {string} logs a row marked {string}', (world: LogsWorld, first: string, marks: string, second: string, mark: string) => {

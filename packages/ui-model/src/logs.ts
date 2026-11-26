@@ -65,12 +65,21 @@ export interface TrafficMarks {
   readonly warnings: number;
 }
 
+/**
+ * Decides whether an arriving row repeats the newest one: the row to keep in its place, or `undefined`
+ * to keep both. The host owns what counts as a repeat, because only it knows which of its fields
+ * mean the same thing said twice.
+ */
+export type TrafficFold<R extends TrafficRow> = (kept: R, arriving: R) => R | undefined;
+
 /** What each applet sent and received this page, per window, newest first, with its marks counted. */
 export interface TrafficLog<R extends TrafficRow> {
   /** Emits whenever a row is added or windows are forgotten. */
   readonly changes$: Observable<void>;
   add(row: R): void;
   forWindow(windowId: string): readonly R[];
+  /** How many rows a window has had, folded ones included, which keeps counting after rows go. */
+  total(windowId: string): number;
   marks(windowId: string): TrafficMarks;
   /** Forget every window not in `ids`: a closed window's log goes with it. */
   retain(ids: ReadonlySet<string>): void;
@@ -80,9 +89,12 @@ const NO_MARKS: TrafficMarks = Object.freeze({ errors: 0, warnings: 0 });
 
 /**
  * The traffic log. Payloads can hold private messages and signed events, so it is never written to
- * storage. A window keeps its newest rows; its marks keep counting after older rows go.
+ * storage. A window keeps its newest rows; its marks and its count keep going after older rows go.
+ * A `fold` keeps a burst of the same thing from taking the room a failure needs: the repeat replaces
+ * the newest row instead of pushing everything down, and no row is lost to it.
  *
  * @param keep - Rows kept per window; 200 by default.
+ * @param fold - Whether an arriving row repeats the newest one, and what to keep in its place.
  * @returns An empty log.
  * @example
  * ```ts
@@ -90,24 +102,31 @@ const NO_MARKS: TrafficMarks = Object.freeze({ errors: 0, warnings: 0 });
  * kernl.traffic$.subscribe((message) => traffic.add({ windowId: message.windowId, text: message.type }));
  * ```
  */
-export function createTrafficLog<R extends TrafficRow>(keep = 200): TrafficLog<R> {
+export function createTrafficLog<R extends TrafficRow>(keep = 200, fold?: TrafficFold<R>): TrafficLog<R> {
   let rows: ReadonlyMap<string, readonly R[]> = new Map();
   let marks: ReadonlyMap<string, TrafficMarks> = new Map();
+  let totals: ReadonlyMap<string, number> = new Map();
   const changes = new BehaviorSubject<void>(undefined);
   const counted = (current: TrafficMarks, mark: TrafficRow['mark']): TrafficMarks => (mark === 'error' ? { ...current, errors: current.errors + 1 } : { ...current, warnings: current.warnings + 1 });
   return {
     changes$: changes.asObservable(),
     add(row) {
-      rows = new Map(rows).set(row.windowId, [row, ...(rows.get(row.windowId) ?? [])].slice(0, keep));
+      const held = rows.get(row.windowId) ?? [];
+      const [newest] = held;
+      const folded = newest && fold ? fold(newest, row) : undefined;
+      rows = new Map(rows).set(row.windowId, folded ? [folded, ...held.slice(1)] : [row, ...held].slice(0, keep));
+      totals = new Map(totals).set(row.windowId, (totals.get(row.windowId) ?? 0) + 1);
       if (row.mark) marks = new Map(marks).set(row.windowId, counted(marks.get(row.windowId) ?? NO_MARKS, row.mark));
       changes.next();
     },
     forWindow: (windowId) => rows.get(windowId) ?? [],
+    total: (windowId) => totals.get(windowId) ?? 0,
     marks: (windowId) => marks.get(windowId) ?? NO_MARKS,
     retain(ids) {
-      if ([...rows.keys(), ...marks.keys()].every((id) => ids.has(id))) return;
+      if ([...rows.keys(), ...marks.keys(), ...totals.keys()].every((id) => ids.has(id))) return;
       rows = new Map([...rows].filter(([id]) => ids.has(id)));
       marks = new Map([...marks].filter(([id]) => ids.has(id)));
+      totals = new Map([...totals].filter(([id]) => ids.has(id)));
       changes.next();
     },
   };

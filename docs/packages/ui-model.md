@@ -82,7 +82,7 @@ consent.answer(true);
 These keep order, caps and counts; the words are the host's. All of them are kept in memory only.
 
 - **`createGuardLog(keep = 50)`:** the newest guard events (`events$`), the windows in quarantine (`quarantined$`), and a `total$` that keeps counting after old events go.
-- **`createTrafficLog(keep = 200)`:** what each window sent and received, newest first, with its error and warning marks counted past the rows kept. `retain(ids)` forgets closed windows. The traffic can hold private messages, so it is never stored.
+- **`createTrafficLog(keep = 200, fold?)`:** what each window sent and received, newest first, with its error and warning marks counted past the rows kept. `total(windowId)` counts every row the window has had, folded ones included. `fold(kept, arriving)` decides whether an arriving row repeats the newest one and returns the row to keep in its place, so a burst of one message takes a single row and pushes nothing out of the list. `retain(ids)` forgets closed windows. The traffic can hold private messages, so it is never stored.
 - **`createNoticeStore(schedule?)`:** each notice goes by itself after `NOTICE_LIFETIME_MS` for its tone, or when dismissed.
 - **`createUnreadCount()`:** counts messages from other people that arrive while the person is elsewhere. A provider's own unread number never goes down, because nothing tells a provider what was read.
 
@@ -113,8 +113,9 @@ notices.push({ title: 'Saved', tone: 'info' });
 | `createAskQueues` | `() => AskQueues` | One queue for each ask kind. |
 | `createAskRenderers` | `(queues: AskQueuesByKind) => AskRenderers` | `KernlHost.asks` over the queues; a kind left out has no renderer, so the kernel refuses it. |
 | `createGuardLog`, `createTrafficLog`, `createNoticeStore`, `createUnreadCount` | factories | The logs, notices and unread count above. |
+| `TrafficFold` | `(kept: R, arriving: R) => R \| undefined` | Whether an arriving traffic row repeats the newest one, and what to keep in its place. |
 | `NOTICE_LIFETIME_MS` | `{ info: 6000, warning: 12000 }` | How long each tone stays on screen. |
 | `PACKAGE_NAME` | `'@kernlize/ui-model'` | |
-| `GrantInput`, `GrantState`, `GrantChoices`, `GrantGroup`, `GrantGroupId`, `GrantRow`, `GrantOp`, `AskQueue`, `AskQueues`, `AskQueuesByKind`, `GuardLog`, `TrafficLog`, `TrafficRow`, `TrafficMarks`, `Notice`, `NoticeStore`, `UnreadCount` | types | |
+| `GrantInput`, `GrantState`, `GrantChoices`, `GrantGroup`, `GrantGroupId`, `GrantRow`, `GrantOp`, `AskQueue`, `AskQueues`, `AskQueuesByKind`, `GuardLog`, `TrafficLog`, `TrafficRow`, `TrafficMarks`, `TrafficFold`, `Notice`, `NoticeStore`, `UnreadCount` | types | |
 
 Generated module: [`_kernlize_ui-model`](../api/modules/_kernlize_ui-model.html){target="_self"}
