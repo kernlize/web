@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <!-- KERNL_FRAME_POLICY_META: an applet frame can never load or navigate to a URL. It must come before any script. -->
+    <meta http-equiv="Content-Security-Policy" content="frame-src 'none'">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Minimal host</title>
+    <link rel="stylesheet" href="./src/style.css">
+  </head>
+  <body>
+    <header>
+      <h1>Minimal host</h1>
+      <p id="who" role="status">Not signed in</p>
+      <button id="sign-in" type="button">Sign in with a throwaway identity</button>
+    </header>
+    <main>
+      <section id="card" aria-labelledby="card-title" hidden>
+        <h2 id="card-title"></h2>
+        <p id="card-description"></p>
+        <p id="card-pin" class="muted"></p>
+        <button id="open" type="button">Open</button>
+      </section>
+      <p id="problem" role="alert" hidden></p>
+      <div id="stage"></div>
+    </main>
+    <dialog id="ask" aria-labelledby="ask-title">
+      <form method="dialog">
+        <h2 id="ask-title"></h2>
+        <ul id="ask-lines"></ul>
+        <div id="ask-extra"></div>
+        <menu>
+          <button value="no" type="submit">No</button>
+          <button value="yes" type="submit" autofocus>Yes</button>
+        </menu>
+      </form>
+    </dialog>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

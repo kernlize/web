@@ -4,7 +4,7 @@ import { createTorrentBridge, type Bridge, type BridgeResult, type DownloadJob, 
 import { describeDownload } from '../../src/shell/download-words.ts';
 import { MemoryStorage } from '../../../../packages/core/features/steps/world.ts';
 import { DOWNLOAD_MODE_KEY, canReachPeers, createShellDownloads, type DownloadMode, type ShellDownloads } from '../../src/shell/downloads.ts';
-import { createPreviewTorrentClient } from '../../src/shell/preview-downloads.ts';
+import { createPreviewTorrentClient } from '../../src/shell/offline-torrent.ts';
 
 interface DownloadsScratch {
   storage: MemoryStorage;

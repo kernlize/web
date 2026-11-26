@@ -563,6 +563,29 @@ Feature: The composed shell
     When the applet sends "outbox.publish" for a kind 1 event over its port
     Then the host was not asked for consent
 
+  Scenario: an outbox publish from someone without a relay list goes to the shell's relays
+    Given a kernl shell over that host and pool
+    And the shell is signed in
+    And a mounted applet granted "outbox" that has said hello
+    When the applet sends "outbox.publish" for a kind 1 event over its port
+    Then the applet's outbox publish succeeded on "wss://relay.damus.io"
+    And the fake pool published a kind 1 event to "wss://relay.damus.io"
+
+  Scenario: an applet's routine outbox publish reaches the person's write relays
+    Given a kernl shell over that host and pool
+    And the shell is signed in and writes to "wss://write.example"
+    And a mounted applet granted "outbox" that has said hello
+    When the applet sends "outbox.publish" for a kind 1 event over its port
+    Then the applet's outbox publish succeeded on "wss://write.example"
+    And the fake pool published a kind 1 event to "wss://write.example"
+
+  Scenario: a routine outbox publish while nobody is signed in is refused before it is planned
+    Given a kernl shell over that host and pool
+    And a mounted applet granted "outbox" that has said hello
+    When the applet sends "outbox.publish" for a kind 1 event over its port
+    Then the applet received "outbox.publish.result" failing with "denied:read-only"
+    And the fake pool published nothing
+
   Scenario: the guard facade changes the profile and lifts quarantine
     Given a kernl shell over that host and pool
     And a mounted applet

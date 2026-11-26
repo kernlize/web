@@ -1,8 +1,7 @@
 {
   "name": "@kernlize/preset",
-  "version": "0.0.0",
-  "private": true,
-  "description": "kernl's own module list as a preset over the kernel",
+  "version": "0.2.1",
+  "description": "kernl's preset: the module list kernl.run runs over the kernel, and createKernl",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -17,18 +16,37 @@
     "dist"
   ],
   "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
   "scripts": {
     "build": "tsup",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@kernlize/core": "workspace:^"
+    "@kernlize/bridges": "workspace:^",
+    "@kernlize/kernel": "workspace:^",
+    "@kernlize/messaging": "workspace:^",
+    "@kernlize/modules": "workspace:^",
+    "applesauce-core": "^7.1.3",
+    "applesauce-relay": "^7.1.1"
+  },
+  "peerDependencies": {
+    "@napplet/nap": ">=0.37.0 <0.41.0"
   },
   "devDependencies": {
+    "applesauce-signers": "^7.1.0",
     "quickpickle": "^1.11.2",
+    "rxjs": "^7.8.2",
     "tsup": "^8.5.0",
     "typescript": "^5.9.3",
     "vitest": "^5.1.0"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kernlize/web.git",
+    "directory": "packages/preset"
+  }
 }

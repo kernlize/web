@@ -24,6 +24,7 @@ Feature: Floor: secrets stay out of what the shell reports, whatever modules are
       | modules | theme          |
       | kernl's | offers         |
       | no      | does not offer |
+      | the example host's | does not offer |
 
   Scenario Outline: a note signed for an applet leaves no secret in any report
     Given the shell loads <modules> modules
@@ -40,3 +41,4 @@ Feature: Floor: secrets stay out of what the shell reports, whatever modules are
       | modules | theme          |
       | kernl's | offers         |
       | no      | does not offer |
+      | the example host's | does not offer |

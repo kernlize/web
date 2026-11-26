@@ -23,6 +23,7 @@ Feature: Floor: the firewall admits an applet before its code runs, whatever mod
       | modules | theme          |
       | kernl's | offers         |
       | no      | does not offer |
+      | the example host's | does not offer |
 
   Scenario Outline: a plan whose answers were taken back cannot be mounted
     Given the shell loads <modules> modules
@@ -38,6 +39,7 @@ Feature: Floor: the firewall admits an applet before its code runs, whatever mod
       | modules | theme          |
       | kernl's | offers         |
       | no      | does not offer |
+      | the example host's | does not offer |
 
   Scenario Outline: at most 16 plans wait unmounted
     Given the shell loads <modules> modules
@@ -51,6 +53,7 @@ Feature: Floor: the firewall admits an applet before its code runs, whatever mod
       | modules | theme          |
       | kernl's | offers         |
       | no      | does not offer |
+      | the example host's | does not offer |
 
   Scenario Outline: a window the shell did not plan is never served
     Given the shell loads <modules> modules
@@ -65,3 +68,4 @@ Feature: Floor: the firewall admits an applet before its code runs, whatever mod
       | modules | theme          |
       | kernl's | offers         |
       | no      | does not offer |
+      | the example host's | does not offer |

@@ -269,6 +269,12 @@ function createIdentitySigner(auth: KernlServiceDeps['auth']): () => Signer | nu
   };
 }
 
+function publishingPubkey(auth: KernlServiceDeps['auth']): string {
+  const pubkey = auth.getUserPubkey?.() ?? null;
+  if (pubkey === null || !auth.getSigner()?.signEvent) throw new Error('denied:read-only');
+  return pubkey;
+}
+
 function createOutbox(deps: KernlServiceDeps, identity: IdentityProviders) {
   const router = createRelayPoolOutboxRouter({
     relayPool: createOutboxRelayPool(deps.pool),
@@ -282,6 +288,8 @@ function createOutbox(deps: KernlServiceDeps, identity: IdentityProviders) {
       }
       return lists;
     },
+    // Under the firewall kehto plans a publish before signing, and plans it for the author this returns; left out, the plan has no relays and every publish is refused as `publish denied`.
+    getSignerPubkey: () => publishingPubkey(deps.auth),
     async signEvent(template: EventTemplate): Promise<NostrEvent> {
       const signer = deps.auth.getSigner();
       if (!signer?.signEvent) throw new Error('denied:read-only');

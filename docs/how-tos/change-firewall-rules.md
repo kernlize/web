@@ -15,7 +15,7 @@ A stricter rule applies to applets that are already running. An applet that star
 
 When a rule says to ask, the question names the applet and what it wants. For a link it shows the link and where it leads, with **Open link** and **Don't open**. For anything else it offers **Allow once**, **Allow while open**, **Always allow** and **Don't allow**, as far as each applies. Closing the question allows nothing and keeps nothing.
 
-The offline preview (`?preview=1`) has the same panel over its own stored rules, and its sample applets' links follow them. Nothing runs for real there, so it has no answers to list.
+The preview (`?preview=1`) has the same panel over its own stored rules, kept apart from the live shell's.
 
 ## In code
 
@@ -61,7 +61,7 @@ kernl.firewall.forgetAll();
 - **What a change stops.** `setRule` and `restoreDefaults` take back every answer the old rules gave that the new ones no longer give. Each window that ran under one is removed, and the host hears `onRevoked(windowId, 'firewall')`. `forget` and `forgetAll` do the same for the answers they take back; `forgetAll` stops every applet, because every running applet was admitted under an answer.
 - **Where it is kept.** Rules at `kernl:firewall-rules:v1`; the answers the user asked to keep at `kernl:firewall-decisions:v1` ([Persistence](../concepts/persistence.md#keys-the-core-writes)).
 
-A rule that asks needs a host that can ask. An embedding host draws `firewall.approve` in `KernlHost.asks`; without a renderer, a request a rule says to ask about is refused ([Embed kernl core](./embed-kernl-core.md#_2-implement-kernlhost-and-create-the-shell)).
+A rule that asks needs a host that can ask. An embedding host draws `firewall.approve` in `KernlHost.asks`; without a renderer, a request a rule says to ask about is refused ([Asks](../concepts/asks.md)).
 
 ## What a rule cannot change
 

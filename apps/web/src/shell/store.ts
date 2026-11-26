@@ -5,7 +5,6 @@ import { domainLabel } from '@kernlize/ui-model';
 const SHARED_ADDRESS = /(?:naddr|nevent|note)1[02-9ac-hj-np-z]{20,}/i;
 const HEX_64 = /^[0-9a-f]{64}$/i;
 const COORDINATE = /^(?:\d+:[0-9a-f]{64}|[0-9a-f]{64}:\d+):\S*$/i;
-const PREVIEW_ADDRESS = /^preview:[a-z0-9-]+$/i;
 
 /**
  * Whether what the person typed into the store's search is an applet address
@@ -14,7 +13,7 @@ const PREVIEW_ADDRESS = /^preview:[a-z0-9-]+$/i;
  */
 export function looksLikeAddress(text: string): boolean {
   const value = text.trim();
-  return SHARED_ADDRESS.test(value) || HEX_64.test(value) || COORDINATE.test(value) || PREVIEW_ADDRESS.test(value);
+  return SHARED_ADDRESS.test(value) || HEX_64.test(value) || COORDINATE.test(value);
 }
 
 /** A topic bubble: its name, how many listed applets carry it, and whether it is filtering. */

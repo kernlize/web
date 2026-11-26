@@ -149,8 +149,8 @@ test('a standing rule answers the question, and a provider that is switched off 
   await openSettings(page);
   await settings.getByRole('button', { name: 'Switch off Legacy messages' }).click();
   await expect(settings.getByRole('button', { name: 'Switch on Legacy messages' })).toBeVisible();
-  // What cannot run here says why, and cannot be switched on.
-  await expect(settings.getByRole('button', { name: 'Switch on Ratchet sessions' })).toBeDisabled();
+  // Ratchet sessions run their real backend over the preview's relays, so they can be switched on (D-070).
+  await expect(settings.getByRole('button', { name: 'Switch on Ratchet sessions' })).toBeEnabled();
 });
 
 test('a message that arrives while the user is elsewhere is counted on the bar until they look', async ({ page }) => {

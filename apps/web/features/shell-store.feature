@@ -13,7 +13,7 @@ Feature: The applet store's words and filters
       | 3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d                      | is     |
       | 35129:3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d:notes          | is     |
       | 3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d:35129:notes          | is     |
-      |   preview:notes                                                                       | is     |
+      |   preview:notes                                                                       | is not |
       | https://applets.example/n/naddr1qvzqqqrcvypzqfngzhsvjggdlgeycm96x4emzjlwf8dyyzdfg4hefp89zpkdgz99qqdkuctswpkx2apddpskuervv4ez6urjv4nx2un9de3k2uc050cjv?ref=share | is     |
       | try nevent1qqsrhuxx8l9ex335q7he0f09aej04zpazpl0ne2cgukyawd24mayt8gpp4mhxue69uhkummn9ekx7mqzyrhxagf6h8l9cjngatumrg60uq22v66qz979pm32v985ek54ndh8gj8u2gng please | is     |
       | chess                                                                                 | is not |
@@ -46,7 +46,7 @@ Feature: The applet store's words and filters
     And accepting "" reads ""
 
   Scenario: a failure the store knows is shown in its words, and nothing is logged
-    Then opening fails with "unavailable:preview-offline" and the store says "This is the offline preview, which only opens its own sample applets. Open the full shell to run this one." without a warning
+    Then opening fails with "unavailable:manifest" and the store says "No applet was found at that address. Check it and try again." without a warning
 
   Scenario: a failure the store has no words for is said generically and left in the console
     Then opening fails with "Relay sockets exploded" and the store says "Could not open the applet. Try again, or try another address." with a warning

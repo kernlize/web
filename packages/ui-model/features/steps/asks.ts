@@ -1,7 +1,7 @@
 import { combineLatest } from 'rxjs';
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
-import { ASK_KINDS, type Ask, type AskKind } from '@kernlize/core/asks';
+import { ASK_KINDS, type Ask, type AskKind } from '@kernlize/kernel/asks';
 import { createAskQueue, createAskQueues, createAskRenderers, type AskQueue, type AskQueues } from '@kernlize/ui-model';
 
 interface QueuesWorld {

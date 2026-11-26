@@ -1,14 +1,16 @@
 # @kernlize/core
 
+> **Deprecated (D-068).** `@kernlize/core` re-exports `@kernlize/kernel`, `@kernlize/modules` and `@kernlize/preset` for one minor, then goes. Import from those packages: the kernel for the floor, the modules for what a host names, the preset for kernl.run's own list and `createKernl`.
+
 Opinionated shell composition over kehto and applesauce. Browser-agnostic: the DOM is reached only through the `KernlHost` hooks and the `FrameLike` shape, so the whole composition runs in vitest against fakes.
 
 | Field | Value |
 | --- | --- |
 | npm | `@kernlize/core` |
 | JSR | `@kernl/core` |
-| Version | `0.29.3` |
+| Version | `0.30.2` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts`; `@kernlize/core/wm` (`@kernl/core/wm` on JSR) is `./dist/wm/index.js`, the layouts and the window manager without the network stack; `@kernlize/core/crypto` (`@kernl/core/crypto` on JSR) is `./dist/crypto/index.js`, the Web Crypto fallback; `@kernlize/core/asks` is `./dist/asks/index.js`, the ask kinds, refusals and channel ([Asks](#asks)) without the network stack; `@kernlize/core/seal` is `./dist/seal/index.js`, the message seal (`MESSAGE_COMPANION_DOMAINS`, `sealsApplet`, `domainsInForce` and the domain capabilities) without the network stack, which `@kernlize/ui-model` reads; `@kernlize/core/kernel` is `./dist/kernel/index.js`, everything but `createKernl`, `kernlModules` and the ratchet and group providers, so a host that names its own modules bundles only what it lists; `@kernlize/core/messaging/ratchet` and `@kernlize/core/messaging/groups` are `ratchet()` and `groups()` with their backends and libraries |
-| Dependencies | `@kernlize/bridges workspace:^`; `@kernlize/kernel workspace:^`; `@kernlize/messaging workspace:^`; `@kernlize/modules workspace:^` |
+| Dependencies | `@kernlize/bridges workspace:^`; `@kernlize/kernel workspace:^`; `@kernlize/messaging workspace:^`; `@kernlize/modules workspace:^`; `@kernlize/preset workspace:^` |
 | Peer dependencies | `@napplet/core >=0.41.0 <0.42.0`; `@napplet/nap >=0.37.0 <0.41.0`; `@napplet/shim >=0.30.0`; `nostr-tools >=2.23.3 <=2.x` |
 | Side effects | none |
 
@@ -87,7 +89,7 @@ const kernl = createKernl({ host, modules: [...kernlModules(), clock] });
 kernl.clock.now();
 ```
 
-A module's `setup(context)` returns `services` (the NAP domains it answers), `extensions` (domains kehto's prelude is told about, offered only where `supportsDomainBindings()` holds, as the download domains are), `api` (`kernl[id]`) and `dispose`. The `KernelContext` is the shell's own store, pool, relay tiers and host storage; `identity` (the active pubkey, its changes and whether it can sign); `sign(windowId, template)`, which asks the person before a write an applet asked for that replaces or erases their record and rejects `denied:read-only` when nobody can sign; `signer()`, the active account as a signer, which queues requests a remote signer needs, for a write the host started for the person ([D-065](../decisions.md#d-065)); `appletOf(windowId)`; `isFocused(windowId)`, as the guard sees it; `secrets`, the kernel's secrets provider (D-052); `holds(windowId, domain)`, whether a window's applet holds a grant, read-only; `applets()`, the applets running now; `host`, the host's `openApplet`, `focusApplet`, `notify`, `openLink`, `now` and `storage`; `ask(ask)`, a question put to the person through the host's renderer for its kind, which the module must list in `asks` ([Asks](#asks)); `canAsk(kind)`, whether the host draws a kind; `replaceableLoader`, the shell's loader, and `loadReplaceable(pointer)` over it; `use(id)`, the api of a module loaded before it; and `find(id)`, another module's api or nothing. A module never holds kehto's bridge, and its traffic passes the guard like every other. [Modules](../concepts/modules.md) explains the model.
+A module's `setup(context)` returns `services` (the NAP domains it answers), `extensions` (domains kehto's prelude is told about, offered only where `supportsDomainBindings()` holds, as the download domains are), `api` (`kernl[id]`) and `dispose`. The `KernelContext` is the shell's own store, pool, relay tiers and host storage; `identity` (the active pubkey, its changes and whether it can sign); `sign(windowId, template)`, which asks the person before a write an applet asked for that replaces or erases their record and rejects `denied:read-only` when nobody can sign; `signer()`, the active account as a signer, which queues requests a remote signer needs, for a write the host started for the person ([D-065](../decisions.md#d-065)); `appletOf(windowId)`; `isFocused(windowId)`, as the guard sees it; `secrets`, the kernel's secrets provider (D-052); `holds(windowId, domain)`, whether a window's applet holds a grant, read-only; `applets()`, the applets running now; `host`, the host's `openApplet`, `focusApplet`, `notify`, `openLink`, `now` and `storage`; `ask(ask)`, a question put to the person through the host's renderer for its kind, which the module must list in `asks` ([Asks](#asks)); `canAsk(kind)`, whether the host draws a kind; `replaceableLoader`, the shell's loader, and `loadReplaceable(pointer)` over it; `use(id)`, the api of a module loaded before it; and `find(id)`, another module's api or nothing. A module never holds kehto's bridge, and its traffic passes the guard like every other. [Kernel, modules and presets](../concepts/kernel-modules-and-presets.md) explains the model.
 
 ### The `KernlHost` contract
 
@@ -654,7 +656,7 @@ Signatures are abbreviated; the generated reference has the full ones.
 | `mountApplet` | `(plan: MountPlan, frame: FrameLike, deps: MountDeps) => MountedApplet` | The NIP-5D mount order; throws `invalid:frame-detached`. Calls `frame.setAttribute('sandbox', 'allow-scripts')`. |
 | `CONTROLLER_DENY_POLICY` | `string` | `gamepad 'none'; hid 'none'; usb 'none'`. |
 | `appletMessageFailure` | `(message: unknown) => string \| undefined` | What an envelope says failed: a non-empty `error` string, or for a `*.error` type its `message`, its `reason` or the type. |
-| `describeAppletMessage` | `(windowId: string, direction: AppletMessageDirection, via: 'window' \| 'port', message: unknown) => AppletMessage` | One `traffic$` entry, timestamped now. A host that serves applets itself, like the shell's offline preview, uses it to report the same shape. |
+| `describeAppletMessage` | `(windowId: string, direction: AppletMessageDirection, via: 'window' \| 'port', message: unknown) => AppletMessage` | One `traffic$` entry, timestamped now. A host that serves applets itself uses it to report the same shape. |
 | `createAppletTraffic` | `(owns: (windowId: string) => boolean) => AppletTraffic` | What `createKernl` feeds `traffic$` from: `fromApplet(windowId, via, message)` for kehto's `onNappletMessage` and window-level messages, and every reply kehto sends through `originRegistry.postToNapplet`, for windows `owns` accepts. `close()` stops it. |
 | `AppletMessage`, `AppletMessageDirection`, `AppletTraffic` | types | See `traffic$` above. |
 | `BLOB_TIMEOUT_MS` | `20_000` | |

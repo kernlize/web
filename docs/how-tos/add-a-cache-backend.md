@@ -11,7 +11,7 @@ Any `IEventDatabase` or `IAsyncEventDatabase` becomes a cache with `fromEventDat
 <!-- sample:skip needs better-sqlite3 and applesauce-sqlite's better-sqlite3 entry, which kernl does not install -->
 ```ts
 import { BetterSqlite3EventDatabase } from 'applesauce-sqlite/better-sqlite3';
-import { fromEventDatabase, type EventCacheAdapter } from '@kernlize/core/cache';
+import { fromEventDatabase, type EventCacheAdapter } from '@kernlize/modules/cache';
 
 export function createServerCacheAdapter(path: string): EventCacheAdapter {
   return {
@@ -31,7 +31,7 @@ The same call takes a database of your own. Anything with `hasEvent`, `add`, `re
 ```ts
 import { EventMemory } from 'applesauce-core/event-store';
 import type { NostrEvent } from 'applesauce-core/helpers';
-import { fromEventDatabase, type EventCacheAdapter } from '@kernlize/core/cache';
+import { fromEventDatabase, type EventCacheAdapter } from '@kernlize/modules/cache';
 
 export const testCacheAdapter: EventCacheAdapter = {
   name: 'test',
@@ -53,7 +53,7 @@ A store that is not an applesauce database, such as postgres through your own cl
 <!-- sample:continues -->
 ```ts
 import { matchFilter } from 'applesauce-core/helpers';
-import { createEventCache, type EventRecords } from '@kernlize/core/cache';
+import { createEventCache, type EventRecords } from '@kernlize/modules/cache';
 
 interface Sql {
   run(statement: string, params: readonly unknown[]): Promise<void>;
@@ -98,19 +98,27 @@ export const serverOnlyAdapter: EventCacheAdapter = {
 
 Use the reason to say what is missing (`unavailable:browser`, `unavailable:no-disk`, `unavailable:locked`), since it reaches `onFallback` as written.
 
-## 4. Put it in front of the defaults
+## 4. Hand it to the cache module
+
+The event cache is a module, `cacheModule(open)`, and `open` is when the shell opens it. Put your adapter first, and the browser's defaults behind it:
 
 <!-- sample:continues -->
 ```ts
-import { defaultWebCacheAdapters, openEventCache } from '@kernlize/core/cache';
+import { createKernel, type KernlHost } from '@kernlize/kernel';
+import { cacheModule, defaultWebCacheAdapters, openEventCache } from '@kernlize/modules/cache';
 
-const cache = await openEventCache([serverOnlyAdapter, ...defaultWebCacheAdapters()], {
-  onFallback: (name, reason) => console.info(`${name} cache skipped: ${reason}`),
+declare const host: KernlHost;
+
+const kernl = createKernel({
+  host,
+  modules: [cacheModule(() => openEventCache([serverOnlyAdapter, ...defaultWebCacheAdapters()], {
+    onFallback: (name, reason) => console.info(`${name} cache skipped: ${reason}`),
+  }))],
 });
-cache.name; // 'server-only' on a server; 'sqlite-opfs', 'indexeddb' or 'memory' in a browser
+await kernl.cache.cacheRequest([{ kinds: [0], limit: 1 }]); // what the cache holds, before any relay is asked
 ```
 
-Then attach it to the event store with `attachEventCache`, as [the package page](../packages/core.md#event-cache) shows.
+The kernel knows the `cache` id: its replaceable loader and the store's catalogue ask the cache before any relay, and new events are written back. The module closes the cache when the shell is destroyed. Given an opener, it also caches approved Outbox reads ([D-069](../decisions.md#d-069)). In `apps/web` the same opener goes to kernl's preset, as `kernlPreset({ eventCache })`. Without the module, or with `cacheModule()` and no opener, the shell keeps events in memory only.
 
 ## Damage and recovery
 
@@ -119,4 +127,5 @@ A backend that can find its storage damaged should never answer from it. kernl's
 ## Related
 
 - [Persistence](../concepts/persistence.md#events-kept-between-visits)
-- [`@kernlize/core` event cache reference](../packages/core.md#event-cache)
+- [Replace a module](./replace-a-module.md)
+- [`@kernlize/modules`](../packages/modules.md)

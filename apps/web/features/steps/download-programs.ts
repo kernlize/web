@@ -1,8 +1,6 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
-import { DOWNLOAD_PROGRAMS, type CheckedConnection, type DownloadClients, type DownloadClientsState, type DownloadConnection, type DownloadProgram } from '@kernlize/core';
-import { MemoryStorage } from '../../../../packages/core/features/steps/world.ts';
-import { createPreviewAccountServices } from '../../src/shell/preview-mailboxes.ts';
+import { DOWNLOAD_PROGRAMS, type DownloadClientsState, type DownloadConnection, type DownloadProgram } from '@kernlize/core';
 import {
   addFormName,
   connectionsIn,
@@ -24,8 +22,6 @@ import {
 } from '../../src/shell/download-programs.ts';
 
 interface ProgramWorld {
-  previewPrograms?: DownloadClients;
-  previewChecked?: CheckedConnection;
   saved?: DownloadConnection;
   draft?: ProgramDraft;
   connections?: DownloadClientsState;
@@ -134,32 +130,6 @@ Then('the download program fields are called {string}, {string} and {string}, an
 Then('every download program belongs to exactly one group', () => {
   const grouped = PROGRAM_GROUPS.flatMap((group) => group.programs);
   expect([...grouped].sort()).toEqual(Object.keys(DOWNLOAD_PROGRAMS).sort());
-});
-
-Given("the preview's download programs", (world: ProgramWorld) => {
-  const services = createPreviewAccountServices(new MemoryStorage());
-  expect(services.secrets).toEqual({ label: 'this device', keeps: 'plain' });
-  world.previewPrograms = services.downloads;
-});
-
-When('the preview checks the download program address {string}', async (world: ProgramWorld, url: string) => {
-  world.previewChecked = await world.previewPrograms?.check('transmission', { url, username: 'ann' });
-});
-
-Then('the preview says it would be reached at {string} and reports the version {string}', (world: ProgramWorld, url: string, version: string) => {
-  expect(world.previewChecked?.signIn).toEqual({ url, username: 'ann' });
-  expect(world.previewChecked?.probe.version).toBe(version);
-});
-
-Then('the preview refuses the download program address {string} with {string}', async (world: ProgramWorld, url: string, reason: string) => {
-  await expect(world.previewPrograms?.check('transmission', { url })).rejects.toThrow(reason);
-});
-
-Then("the preview's own requests go nowhere, through the connection kernl routes to", async (world: ProgramWorld) => {
-  const added = await world.previewPrograms?.add('transmission', { url: EXAMPLE });
-  const routed = world.previewPrograms?.routing('torrent').preferred();
-  expect(routed?.connection.id).toBe(added?.id);
-  await expect(routed?.client.probe()).rejects.toThrow('unavailable:unreachable');
 });
 
 function group(title: string): ProgramGroup {

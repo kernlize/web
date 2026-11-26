@@ -1,6 +1,6 @@
 {
   "name": "@kernlize/core",
-  "version": "0.29.3",
+  "version": "0.30.2",
   "description": "Opinionated shell composition over kehto and applesauce",
   "type": "module",
   "main": "./dist/index.js",
@@ -60,7 +60,8 @@
     "@kernlize/bridges": "workspace:^",
     "@kernlize/kernel": "workspace:^",
     "@kernlize/messaging": "workspace:^",
-    "@kernlize/modules": "workspace:^"
+    "@kernlize/modules": "workspace:^",
+    "@kernlize/preset": "workspace:^"
   },
   "peerDependencies": {
     "@napplet/core": ">=0.41.0 <0.42.0",

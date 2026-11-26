@@ -18,6 +18,7 @@ Feature: Floor: an applet holds only what the person granted, whatever modules a
       | modules | theme          |
       | kernl's | offers         |
       | no      | does not offer |
+      | the example host's | does not offer |
 
   Scenario Outline: a required domain nobody granted is missing from the plan
     Given the shell loads <modules> modules
@@ -31,6 +32,7 @@ Feature: Floor: an applet holds only what the person granted, whatever modules a
       | modules | theme          |
       | kernl's | offers         |
       | no      | does not offer |
+      | the example host's | does not offer |
 
   Scenario Outline: the signed-in identity is not shown until it is granted
     Given the shell loads <modules> modules
@@ -47,6 +49,7 @@ Feature: Floor: an applet holds only what the person granted, whatever modules a
       | modules | theme          |
       | kernl's | offers         |
       | no      | does not offer |
+      | the example host's | does not offer |
 
   Scenario Outline: a blocked applet is refused before it is planned
     Given the shell loads <modules> modules
@@ -61,3 +64,4 @@ Feature: Floor: an applet holds only what the person granted, whatever modules a
       | modules | theme          |
       | kernl's | offers         |
       | no      | does not offer |
+      | the example host's | does not offer |

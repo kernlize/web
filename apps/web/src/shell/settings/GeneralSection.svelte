@@ -21,7 +21,7 @@
   <h3 id="about-heading">About</h3>
   <dl class="shell-rows">
     <div><dt>Shell</dt><dd>kernl {core.version}</dd></div>
-    <div><dt>Mode</dt><dd>{mode === 'preview' ? 'preview, offline' : 'live'}</dd></div>
+    <div><dt>Mode</dt><dd>{mode === 'preview' ? 'preview, no network' : 'live'}</dd></div>
     <div><dt>Source</dt><dd>Private during alpha. <a href="https://kernl.run/docs/decisions">Decisions</a> are public.</dd></div>
   </dl>
 </section>

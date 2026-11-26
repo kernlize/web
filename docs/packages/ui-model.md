@@ -6,9 +6,9 @@ Framework-free view models for a kernl shell's panels. A host's UI binds to them
 | --- | --- |
 | npm | `@kernlize/ui-model` |
 | JSR | `@kernl/ui-model` |
-| Version | `0.2.2` |
+| Version | `0.2.4` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts` |
-| Dependencies | `@kernlize/core`, `@kernlize/guard`, `@kernlize/messaging` (`workspace:^`), `rxjs ^7.8.2` |
+| Dependencies | `@kernlize/guard`, `@kernlize/kernel`, `@kernlize/messaging` (`workspace:^`), `rxjs ^7.8.2` |
 | Peer dependencies | none |
 | Side effects | none |
 
@@ -22,7 +22,7 @@ npm install @kernlize/ui-model
 deno add jsr:@kernl/ui-model
 ```
 
-It reads only the message seal from `@kernlize/core`, through `@kernlize/core/seal`. A host that draws the grants list therefore bundles no network stack and no third-party code; `features/bundling.feature` checks this. No other package imports `@kernlize/ui-model` (`pnpm check:deps` enforces that), so a shell that draws its own panels never loads it.
+It reads only the message seal from the kernel, through `@kernlize/kernel/seal`. A host that draws the grants list therefore bundles no network stack and no third-party code; `features/bundling.feature` checks this. No other package imports `@kernlize/ui-model` (`pnpm check:deps` enforces that), so a shell that draws its own panels never loads it.
 
 ## The grants list
 
@@ -57,7 +57,7 @@ The kernel puts its questions to the person as asks, one renderer per kind ([Ask
 - **Revoked windows.** `dismissWindow(windowId)` answers every waiting question from a window with its refusal, for when the shell stops an applet.
 - **Withdrawn questions.** One the kernel withdraws through its `signal`, such as a firewall question left unanswered, leaves the queue by itself.
 
-`createAskRenderers` turns queues into `KernlHost.asks`, and several kinds may share one queue, as kernl.run's consent dialog does. The queues read the kinds from `@kernlize/core/asks`, so they load without the network stack.
+`createAskRenderers` turns queues into `KernlHost.asks`, and several kinds may share one queue, as kernl.run's consent dialog does. The queues read the kinds from `@kernlize/kernel/asks`, so they load without the network stack.
 
 ```ts
 import { createKernl, type KernlHost } from '@kernlize/core';

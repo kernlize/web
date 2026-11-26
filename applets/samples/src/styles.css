@@ -1,0 +1,108 @@
+:root {
+  color-scheme: light dark;
+  --surface: #f6f3ec;
+  --card: #fff;
+  --line: #ddd6c6;
+  --control: #b9b1a0;
+  --text: #16181c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #12151b;
+    --card: #1a1e26;
+    --line: #2b303b;
+    --control: #3a4050;
+    --text: #e9e4d8;
+  }
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font: 13px/1.5 system-ui, sans-serif;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.app {
+  box-sizing: border-box;
+  padding: 8px;
+  overflow: auto;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+}
+
+.granted {
+  margin: 0 0 8px;
+}
+
+ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.actions li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.actions span {
+  opacity: 0.75;
+}
+
+button {
+  font: inherit;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--control);
+  background: var(--card);
+  color: inherit;
+  cursor: pointer;
+}
+
+button[data-missing] {
+  opacity: 0.55;
+}
+
+textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  border-radius: 8px;
+  border: 1px solid var(--control);
+  padding: 4px 8px;
+  background: transparent;
+  color: inherit;
+  resize: vertical;
+}
+
+details {
+  margin-top: 8px;
+}
+
+summary {
+  cursor: pointer;
+  margin-bottom: 4px;
+}
+
+.log {
+  font: 12px ui-monospace, monospace;
+}

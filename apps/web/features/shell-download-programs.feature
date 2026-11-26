@@ -71,9 +71,3 @@ Feature: Setting up download connections in Settings
     And the row "Box" names its program "uTorrent" and the row "Transmission" names none
     And the add form of "Peer sharing" is called "Add a connection to Peer sharing"
 
-  Scenario: the preview checks an address against the page and asks no program
-    Given the preview's download programs
-    When the preview checks the download program address "localhost:9091"
-    Then the preview says it would be reached at "https://localhost:9091" and reports the version "preview"
-    And the preview refuses the download program address "ftp://localhost" with "invalid:scheme"
-    And the preview's own requests go nowhere, through the connection kernl routes to

@@ -1,4 +1,4 @@
-import type { FrameLocator, Page } from '@playwright/test';
+import type { FrameLocator, Locator, Page } from '@playwright/test';
 import { expect, openSettings, test } from './fixtures';
 
 const base = process.env.PLAYWRIGHT_BASE_URL ?? '';
@@ -27,7 +27,7 @@ test('the preview shell signs in, runs a sample applet, shows the guard and open
   await expect(frame).toHaveAttribute('sandbox', 'allow-scripts');
   expect(await frame.getAttribute('srcdoc')).toContain('<!doctype html>');
   expect(await frame.getAttribute('src')).toBeNull();
-  await expect(page.frameLocator('iframe[data-window-id]').getByRole('heading', { name: 'Notes' })).toBeVisible();
+  await expect(page.frameLocator('iframe[data-window-id]').locator('#granted')).toHaveText(/^Granted:/);
   await expect(page.locator('section.window')).toHaveAttribute('data-status', 'running');
 
   await page.getByRole('button', { name: /^Guard/ }).click();
@@ -46,10 +46,11 @@ async function runPulse(page: Page): Promise<FrameLocator> {
   await page.getByRole('button', { name: 'Try the preview' }).click();
   await page.getByRole('button', { name: 'Open an applet' }).click();
   await page.getByRole('listitem').filter({ hasText: 'Pulse' }).getByRole('button', { name: 'Open' }).click();
-  await page.getByRole('checkbox', { name: /network/ }).check();
+  // Posting is required; opening links is optional and starts off, so the link tests switch it on.
+  await page.getByRole('checkbox', { name: /opening links/ }).check();
   await page.getByRole('button', { name: 'Run' }).click();
   const applet = page.frameLocator('iframe[data-window-id]');
-  await expect(applet.getByRole('heading', { name: 'Pulse' })).toBeVisible();
+  await expect(applet.locator('#granted')).toHaveText(/^Granted:/);
   return applet;
 }
 
@@ -57,7 +58,7 @@ test('the preview asks only before destructive publishes, as the live shell does
   const applet = await runPulse(page);
 
   await applet.getByRole('button', { name: 'Publish a note' }).click();
-  await expect(applet.locator('#log li').first()).toContainText('Publish a post: done');
+  await expect(applet.locator('#log li').first()).toContainText('Note: done.');
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
   await applet.getByRole('button', { name: 'Delete a note' }).click();
@@ -98,7 +99,7 @@ test('preview applets have no WebRTC constructors and carry the guard CSP', asyn
   expect(policy).toContain("require-trusted-types-for 'script'; trusted-types default");
   expect(srcdoc.indexOf('data-kehto-nip5d-injection')).toBeLessThan(srcdoc.indexOf('RTC'));
   expect(srcdoc.indexOf('RTC')).toBeLessThan(srcdoc.indexOf('data-kernl-insertion-lock'));
-  expect(srcdoc.indexOf('data-kernl-insertion-lock')).toBeLessThan(srcdoc.indexOf('kernlPreview'));
+  expect(srcdoc.indexOf('data-kernl-insertion-lock')).toBeLessThan(srcdoc.indexOf('<script type="module"'));
 });
 
 test('a running preview applet cannot open a frame of its own', async ({ page }) => {
@@ -153,7 +154,7 @@ async function openSample(page: Page, name: string): Promise<void> {
   await page.getByRole('button', { name: 'Open an applet' }).click();
   await page.getByRole('listitem').filter({ hasText: name }).getByRole('button', { name: 'Open' }).click();
   await page.getByRole('button', { name: 'Run' }).click();
-  await expect(page.frameLocator(`iframe[title="${name} applet"]`).getByRole('heading', { name })).toBeVisible();
+  await expect(page.frameLocator(`iframe[title="${name} applet"]`).locator('#granted')).toHaveText(/^Granted:/);
 }
 
 async function startWithNotesAndPulse(page: Page): Promise<void> {
@@ -279,21 +280,29 @@ test('a sample applet\'s link asks through the firewall, and the firewall panel 
   await expect(panel.getByLabel('Opening links', { exact: true })).toHaveValue('ask');
 });
 
+const SAMPLE_MAGNET = `magnet:?xt=urn:btih:${'ab'.repeat(20)}&dn=Sample`;
+
+/** Paste a download link into the Downloads panel. Applets cannot ask for one yet: this kehto renders no binding for `torrent` (docs/concepts/download-programs.md). */
+async function pasteDownload(page: Page, link: string): Promise<Locator> {
+  await page.getByRole('button', { name: 'Downloads', exact: true }).click();
+  const panel = page.getByRole('dialog', { name: 'Downloads' });
+  await panel.getByRole('textbox', { name: 'Download link' }).fill(link);
+  await panel.getByRole('button', { name: 'Download', exact: true }).click();
+  return panel;
+}
+
 test('a shared download joins the Downloads panel, fills in and can be saved', async ({ page }) => {
-  const applet = await runPulse(page);
+  await page.goto(`${base}/app/?preview=1`);
+  await page.getByRole('button', { name: 'Try the preview' }).click();
   const asked: string[] = [];
   page.on('dialog', (dialog) => {
     asked.push(dialog.message());
     void dialog.dismiss();
   });
-  await applet.getByRole('button', { name: 'Download a shared file' }).click();
-  await expect(applet.locator('#log li').first()).toContainText('Added to your downloads.');
-  expect(asked).toHaveLength(0);
-
-  await page.getByRole('button', { name: 'Downloads', exact: true }).click();
-  const panel = page.getByRole('dialog', { name: 'Downloads' });
+  const panel = await pasteDownload(page, SAMPLE_MAGNET);
   const job = panel.getByTestId('downloads').getByRole('listitem').filter({ hasText: 'Sample' });
   await expect(job).toHaveCount(1);
+  expect(asked).toHaveLength(0);
   await expect(job).toHaveAttribute('data-state', 'done', { timeout: 10_000 });
   await expect(job.locator('.status')).toHaveText(/^Finished · 64\.0 KB of 64\.0 KB$/);
   const saved = page.waitForEvent('download');
@@ -322,7 +331,8 @@ test('a download link pasted into the panel can be paused and resumed', async ({
 });
 
 test('choosing an app on the device hands a shared download off only after the shell asks to leave', async ({ page }) => {
-  const applet = await runPulse(page);
+  await page.goto(`${base}/app/?preview=1`);
+  await page.getByRole('button', { name: 'Try the preview' }).click();
   await openSettings(page, 'Downloads');
   await page.getByRole('radio', { name: /Open in another app/ }).check();
   await expect(page.getByText('Ready (opens an app on your device)')).toHaveCount(4);
@@ -332,11 +342,12 @@ test('choosing an app on the device hands a shared download off only after the s
     asked.push(`${dialog.type()}:${dialog.message()}`);
     void dialog.dismiss();
   });
-  await applet.getByRole('button', { name: 'Download a shared file' }).click();
-  await expect(applet.locator('#log li').first()).toContainText('Handed to an app on your device.');
-  expect(asked).toHaveLength(1);
+  const panel = await pasteDownload(page, SAMPLE_MAGNET);
+  await expect(panel.getByText('Download links open in an app on your device.')).toBeVisible();
+  await expect.poll(() => asked).toHaveLength(1);
   expect(asked[0]).toMatch(/^confirm:Leave kernl and open this link\?/);
-  expect(asked[0]).toContain(`magnet:?xt=urn:btih:${'ab'.repeat(20)}&dn=Sample`);
+  expect(asked[0]).toContain(SAMPLE_MAGNET);
+  await expect(panel.getByText('Nothing downloading.')).toBeVisible();
 
   await page.reload();
   await page.getByRole('button', { name: 'Try the preview' }).click();
@@ -380,7 +391,8 @@ test('settings show a new account suggested inbox and outbox relays, and say how
   await field.press('Enter');
   await expect(page.getByRole('alert')).toHaveText('Enter a relay address such as nos.lol.');
   await page.getByRole('button', { name: 'Publish this list' }).click();
-  await expect(page.getByText('Saved to all 4 relays')).toBeVisible();
+  // The list goes to every inbox and outbox, and to the lookup relays (NIP-65).
+  await expect(page.getByText('Saved to all 6 relays')).toBeVisible();
   await expect(page.getByText('Nothing published yet. These are suggestions.')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Publish this list' })).toBeDisabled();
   // The shell's own lists say what each is for, and the outbox is no longer a separate local list.
@@ -431,7 +443,7 @@ test('an applet opens its settings, the shell draws the form from its schema and
   await page.getByRole('checkbox', { name: /its settings/ }).check();
   await page.getByRole('button', { name: 'Run' }).click();
   const applet = page.frameLocator('iframe[data-window-id]');
-  await expect(applet.getByRole('heading', { name: 'Notes' })).toBeVisible();
+  await expect(applet.locator('#granted')).toHaveText(/^Granted:/);
 
   await applet.getByRole('button', { name: 'Open its settings' }).click();
   const form = page.getByRole('dialog', { name: 'Notes settings' });
