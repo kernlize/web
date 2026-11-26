@@ -40,6 +40,7 @@ Feature: Floor: an applet that reads messages is sealed, whatever modules are lo
       | modules                    | theme          |
       | kernl's modules            | offers         |
       | only the messaging module  | does not offer |
+      | the example host's modules | does not offer |
 
   Scenario: a shell with no modules offers no messages, so no grant can seal an applet
     Given the shell loads no modules

@@ -43,6 +43,7 @@ Feature: Floor: the kernel decides what is asked, and a question nobody draws is
         | modules |
         | kernl's |
         | no      |
+        | the example host's |
 
     Scenario Outline: a renderer that fails is a refusal
       Given an ask channel over a host whose "sign.replace" renderer <fails>

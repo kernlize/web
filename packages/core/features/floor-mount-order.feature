@@ -46,3 +46,4 @@ Feature: Floor: mounting follows one order and every revocation removes the fram
       | modules | theme          |
       | kernl's | offers         |
       | no      | does not offer |
+      | the example host's | does not offer |
