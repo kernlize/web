@@ -157,8 +157,8 @@ The docs are a product. Start at [`docs/index.md`](./docs/index.md), or on the s
 | Run the shell locally | [Run the shell](./docs/tutorials/run-the-shell.md) |
 | Write an applet and open it in kernl | [Write an applet](./docs/tutorials/write-an-applet.md) |
 | Write an applet that runs well under kernl | [Applets under kernl](./docs/concepts/applets-under-kernl.md) |
-| Build a page that runs an applet | [Embed kernl in a page](./docs/tutorials/embed-a-host-page.md) |
-| Embed the shell core in your own page | [Embed kernl core](./docs/how-tos/embed-kernl-core.md) |
+| Build a shell with your own UX on kernl's kernel | [Build a shell with your own UX](./docs/tutorials/build-a-shell.md) |
+| Learn what the kernel keeps and what modules add | [Kernel, modules and presets](./docs/concepts/kernel-modules-and-presets.md) |
 | Understand the layering | [Architecture](./docs/concepts/architecture.md) |
 | Understand what protects the user | [Guard](./docs/concepts/guard.md) |
 | Understand grants and identity | [Identity and grants](./docs/concepts/identity-and-grants.md) |

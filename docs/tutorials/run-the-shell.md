@@ -140,5 +140,5 @@ Each window's **Grants** button opens its grants panel. It lists the applet's ow
 
 - [Grant and revoke](../how-tos/grant-and-revoke.md) for what each prompt means and what it changes.
 - [Applets under kernl](../concepts/applets-under-kernl.md) if you came here to test your own applet.
-- [Embed kernl core](../how-tos/embed-kernl-core.md) to run the core in your own page instead of `apps/web`.
+- [Build a shell with your own UX](./build-a-shell.md) to run kernl's kernel in your own page instead of `apps/web`.
 - [Deploy](../how-tos/deploy.md) to publish your own instance of the shell.

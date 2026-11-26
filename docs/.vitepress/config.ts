@@ -43,7 +43,7 @@ export const sidebar = [
     text: 'Concepts',
     items: [
       { text: 'Architecture', link: '/concepts/architecture' },
-      { text: 'Modules', link: '/concepts/modules' },
+      { text: 'Kernel, modules and presets', link: '/concepts/kernel-modules-and-presets' },
       { text: 'Asks', link: '/concepts/asks' },
       { text: 'Guard', link: '/concepts/guard' },
       { text: 'Identity and grants', link: '/concepts/identity-and-grants' },
@@ -65,7 +65,7 @@ export const sidebar = [
     items: [
       { text: 'Run the shell', link: '/tutorials/run-the-shell' },
       { text: 'Write an applet', link: '/tutorials/write-an-applet' },
-      { text: 'Embed kernl in a page', link: '/tutorials/embed-a-host-page' },
+      { text: 'Build a shell with your own UX', link: '/tutorials/build-a-shell' },
     ],
   },
   {
@@ -81,7 +81,6 @@ export const sidebar = [
       { text: 'Connect a program', link: '/how-tos/connect-a-download-program' },
       { text: 'Swap the secrets provider', link: '/how-tos/swap-the-secrets-provider' },
       { text: 'Grant and revoke', link: '/how-tos/grant-and-revoke' },
-      { text: 'Embed kernl core', link: '/how-tos/embed-kernl-core' },
       { text: "Change the shell's layout", link: '/how-tos/change-the-shells-layout' },
       { text: 'Write your own window manager', link: '/how-tos/write-a-window-manager' },
       { text: 'Deploy', link: '/how-tos/deploy' },
