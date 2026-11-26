@@ -6,7 +6,7 @@ kernl's floor: what every kernl shell runs, whatever modules it names. It holds 
 | --- | --- |
 | npm | `@kernlize/kernel` |
 | JSR | `@kernl/kernel` |
-| Version | `0.1.2` |
+| Version | `0.2.0` |
 | Entry | `./dist/index.js`, types `./dist/index.d.ts`; also `./crypto`, `./seal` and `./asks` |
 | Dependencies | `@kernlize/guard`, `@kernlize/messaging`, `@kernlize/bridges` (`workspace:^`), `@kehto/*`, `@noble/*`, `applesauce-*`, `rxjs` |
 | Peer dependencies | `@napplet/core`, `@napplet/nap` |
