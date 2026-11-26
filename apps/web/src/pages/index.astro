@@ -28,9 +28,13 @@ const jsonLd = [
   },
 ];
 
-const embedSample = `import { createKernl } from '@kernlize/core';
+const embedSample = `import { createKernel } from '@kernlize/kernel';
+import { filesModule } from '@kernlize/modules/uploads';
 
-const kernl = createKernl({ host });
+const kernl = createKernel({
+  host,
+  modules: [filesModule()],
+});
 const pointer = kernl.decodePointer(address);
 const applet = await kernl.resolve(pointer);
 kernl.mount(await kernl.plan(applet), frame);`;
@@ -46,17 +50,18 @@ const paths = [
     summary: 'Your page stays yours. kernl takes one frame inside it and holds everything that frame can reach.',
     steps: [
       { name: 'Set the frame policy.', detail: 'One line in your page head, so an applet frame can only ever show verified code.' },
-      { name: 'Describe your app as a host.', detail: 'Six members tell kernl how your app stores, asks for consent, notifies and opens links.' },
+      { name: 'Describe your app as a host.', detail: 'Six members tell kernl how your app stores, asks the person, notifies and opens links.' },
+      { name: 'Pick your modules.', detail: 'Load only what you want. What protects the person comes with the kernel, whatever you pick.' },
       { name: 'Mount an applet.', detail: 'Resolve it by address, ask the person what to grant, and hand kernl a frame you own.' },
     ],
     sample: embedSample,
-    primary: { label: 'Embed kernl in a page', path: 'docs/tutorials/embed-a-host-page' },
-    secondary: { label: 'The short version', path: 'docs/how-tos/embed-kernl-core' },
+    primary: { label: 'Build a shell with your own UX', path: 'docs/tutorials/build-a-shell' },
+    secondary: { label: 'Kernel, modules and presets', path: 'docs/concepts/kernel-modules-and-presets' },
   },
   {
     who: 'You are starting a shell',
     title: 'Begin with ours',
-    summary: 'The shell at /app/ is one host built on the same core. Run it, change what you disagree with, and ship it.',
+    summary: 'The shell at /app/ is the same kernel with every module kernl ships. Run it, change what you disagree with, and ship it.',
     steps: [
       { name: 'Run it.', detail: 'Install, build and start the site. The shell comes up with the guard already strict.' },
       { name: 'Make it yours.', detail: 'Choose the starting guard profile, add messaging providers and bridge backends, pick a layout.' },
@@ -93,7 +98,7 @@ const tryHref = href('app/');
       <div class="section-head reveal">
         <p class="label">Adopt</p>
         <h2 id="adopt-title">Two ways in.</h2>
-        <p class="lede">Add kernl to an application you already have, or start a shell of your own. Both run on the same four packages, with the same guard.</p>
+        <p class="lede">Add kernl to an application you already have, or start a shell of your own. Both run on the same kernel, with the same guard.</p>
       </div>
       <div class="grid cols-2">
         {paths.map((path) => (
@@ -114,7 +119,7 @@ const tryHref = href('app/');
         ))}
       </div>
       <div class="adopt-notes reveal">
-        <p class="note">kernl is alpha software. The packages are not in a public registry yet and the source opens with the first public release, so today both paths start from a copy of the source. The tutorials and <a href={DECISIONS_URL}>the decisions</a> are public now.</p>
+        <p class="note">kernl is alpha software. The packages are on npm and JSR at 0.x, so expect changes between minors. Every choice behind them is in <a href={DECISIONS_URL}>the decisions</a>.</p>
         <p>Writing an applet instead? It needs no kernl code at all. <a href={href(`${ABOUT}developers/`)}>See what your applet gets.</a></p>
       </div>
     </div>

@@ -2,9 +2,9 @@
 
 No encrypted messaging protocol is inherently superior. Each one trades metadata exposure, forward secrecy and reach against the others, and the right trade depends on who the user is writing to. kernl therefore supports several and ranks none ([D-009](../decisions.md#d-009)). A provider describes its own properties truthfully; the shell shows the description and lets the user choose.
 
-In this alpha `private`, `legacy` and `ratchet` work in the live shell when the signed-in account's signer can encrypt; `ratchet` is experimental. The offline preview runs `private` and `legacy` over the in-memory backend, and messages sent there go nowhere; it reports `ratchet` unavailable ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)).
+In this alpha `private`, `legacy` and `ratchet` work in the live shell when the signed-in account's signer can encrypt; `ratchet` is experimental. The preview runs `private` and `legacy` over the in-memory backend, where two scripted people have already written and answer after a moment; nothing sent there leaves the page ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)).
 
-The live shell also runs `group` (group sessions, experimental) for a signed-in account whose signer has `nip44`; the preview reports it as needing a sign-in.
+The live shell also runs `group` (group sessions, experimental) for a signed-in account whose signer has `nip44`. The preview lists `ratchet` and `group` switched off; switched on, they run their real backends over relays that live in the page, where nobody else speaks them.
 
 ## Protocol inventory
 
@@ -166,7 +166,7 @@ An applet that uses `dm` therefore sees one inbox. Which provider carries a give
 
 ## The in-memory backend
 
-`createMemoryBackend({ owner?, available?, now? })` is a complete `MessagingBackend` with no network, used by the shell's offline preview and by every feature in this package. Conversations are keyed `direct:<pubkey>` or `group:<pubkey>,<pubkey>` over the sorted correspondents with the owner removed; `send()` stores the message as `sent` (id `msg-<n>`, or the request's `clientMessageId`) and notifies subscribers; `deliver({ senderPubkey, content, conversationId?, createdAt? })` plays the other side and stores a `received` message; unread counts are the number of `received` messages; cursors are numeric offsets with default page sizes of 50 conversations and 100 messages. `send()` rejects with `invalid:no-recipients`, `invalid:unknown-conversation` or `unavailable:offline`; reads keep working offline so a preview can still show history. See `memory-backend.feature`.
+`createMemoryBackend({ owner?, available?, now? })` is a complete `MessagingBackend` with no network, used by the shell's preview and by every feature in this package. Conversations are keyed `direct:<pubkey>` or `group:<pubkey>,<pubkey>` over the sorted correspondents with the owner removed; `send()` stores the message as `sent` (id `msg-<n>`, or the request's `clientMessageId`) and notifies subscribers; `deliver({ senderPubkey, content, conversationId?, createdAt? })` plays the other side and stores a `received` message; unread counts are the number of `received` messages; cursors are numeric offsets with default page sizes of 50 conversations and 100 messages. `send()` rejects with `invalid:no-recipients`, `invalid:unknown-conversation` or `unavailable:offline`; reads keep working offline so a preview can still show history. See `memory-backend.feature`.
 
 ## Error reasons
 

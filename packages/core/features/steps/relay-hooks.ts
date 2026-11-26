@@ -313,6 +313,14 @@ Then('the outbox publish reported {string} as accepted', (world: CoreWorld, rela
   expect(scratch(world).outcomes).toEqual(Object.fromEntries(splitList(relays).map((url) => [url, true])));
 });
 
+Given('the fake pool gets no answer from {string}', (world: CoreWorld, relay: string) => {
+  scratch(world).pool.silent.add(relay);
+});
+
+Then('the outbox publish reported {string} as accepted and {string} as not', (world: CoreWorld, accepted: string, missed: string) => {
+  expect(scratch(world).outcomes).toEqual({ [accepted]: true, [missed]: false });
+});
+
 Then('the outbox relay pool is available', (world: CoreWorld) => {
   expect(createOutboxRelayPool(scratch(world).pool).isAvailable()).toBe(true);
 });

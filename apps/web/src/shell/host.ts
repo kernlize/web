@@ -49,7 +49,7 @@ export function pickStorage(): StorageLike {
 }
 
 /**
- * A view of `storage` whose keys all carry `prefix`. The offline preview keeps its state under its
+ * A view of `storage` whose keys all carry `prefix`. The preview keeps its state under its
  * own prefix, so the applets a person ran or kept in the live shell never show up in the preview,
  * which cannot open them, and what they try in the preview never follows them into the live shell.
  */
@@ -61,7 +61,7 @@ export function scopedStorage(storage: StorageLike, prefix: string): StorageLike
   };
 }
 
-/** The prefix the offline preview keeps its state under. */
+/** The prefix the preview keeps its state under. */
 export const PREVIEW_STORAGE_PREFIX = 'preview:';
 
 /** Every question the kernel puts to the person, each kind waiting in its dialog's queue (D-067, #74). */

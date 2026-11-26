@@ -1,20 +1,22 @@
 import type { ReplyAnswer, ReplyPrompt, ReplyRule } from '@kernlize/messaging';
 import { abbreviate } from './contract';
 
-/** What the reply question calls the person: the name the shell knows, or a short account id. */
-export const peerName = (peer: ReplyPrompt['peer']): string => peer.label ?? abbreviate(peer.pubkey);
+/**
+ * What the reply question calls the person: the label their provider gave, the name they
+ * published, or a short identity. Providers seldom label anyone, so the shell looks the name up.
+ */
+export const peerName = (peer: ReplyPrompt['peer'], published?: string): string => peer.label ?? published ?? abbreviate(peer.pubkey);
 
 /** The sentence that says why the shell is asking. */
-export function replyQuestion(prompt: ReplyPrompt): string {
-  const name = peerName(prompt.peer);
+export function replyQuestion(prompt: ReplyPrompt, name = peerName(prompt.peer)): string {
   return `${name} last wrote to you through ${prompt.theirs.name}. Your order would send this through ${prompt.mine.name}, and ${name} may not see it there.`;
 }
 
 /** The three ways to keep an answer, as the question words them for this person. */
-export function rememberChoices(prompt: ReplyPrompt): readonly { readonly id: ReplyAnswer['remember']; readonly label: string }[] {
+export function rememberChoices(prompt: ReplyPrompt, name = peerName(prompt.peer)): readonly { readonly id: ReplyAnswer['remember']; readonly label: string }[] {
   return [
     { id: 'once', label: 'For this message only' },
-    { id: 'conversation', label: `Every time I write to ${peerName(prompt.peer)}` },
+    { id: 'conversation', label: `Every time I write to ${name}` },
     { id: 'always', label: 'Every time, for everyone' },
   ];
 }

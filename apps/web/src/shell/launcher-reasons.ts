@@ -8,7 +8,6 @@ const ERRORS: Readonly<Record<string, string>> = {
   'invalid:unresolved': 'The applet could not be prepared. Look it up again.',
   'invalid:frame-detached': 'The applet window closed before the applet could start.',
   'invalid:domain': 'This shell cannot provide something that was switched on for this applet. Look it up again.',
-  'unavailable:preview-offline': 'This is the offline preview, which only opens its own sample applets. Open the full shell to run this one.',
   'unavailable:manifest': 'No applet was found at that address. Check it and try again.',
   'unavailable:network': 'The applet relays did not answer in time. Try again in a moment.',
   'unavailable:unreachable': 'The shell could not connect to any relay. You may be offline, your network may block them, or the browser may have too many connections open: closing other tabs can help.',

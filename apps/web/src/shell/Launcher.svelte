@@ -146,7 +146,7 @@
     {#if info}<p class="shell-muted" role="status">{info}</p>{/if}
 
     {#if tab === 'store'}
-      {#if mode === 'preview'}<p class="shell-muted" role="note">The preview is offline, so the store shows its three sample applets. Sign in to the live shell to browse every published applet.</p>{/if}
+      {#if mode === 'preview'}<p class="shell-muted" role="note">The preview never reaches the network, so the store shows its three sample applets. Sign in to the live shell to browse every published applet.</p>{/if}
       <StoreBrowser {kernl} {busy} onpick={(entry: CatalogEntry) => resolve(entry.address)} onaddress={resolve} />
     {:else if tab === 'stacks'}
       <StackBrowser {kernl} {busy} onopenstack={pickStack} onopenmember={openMember} />

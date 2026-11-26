@@ -23,6 +23,7 @@ Feature: Floor: a write that replaces or erases the person's record waits for th
       | modules | theme          |
       | kernl's | offers         |
       | no      | does not offer |
+      | the example host's | does not offer |
 
   Scenario Outline: an outbox publish of a destructive change asks first
     Given the shell loads <modules> modules
@@ -40,6 +41,7 @@ Feature: Floor: a write that replaces or erases the person's record waits for th
       | modules | theme          |
       | kernl's | offers         |
       | no      | does not offer |
+      | the example host's | does not offer |
 
   Scenario Outline: a destructive publish from a window the shell did not plan goes nowhere
     Given the shell loads <modules> modules
@@ -55,3 +57,4 @@ Feature: Floor: a write that replaces or erases the person's record waits for th
       | modules | theme          |
       | kernl's | offers         |
       | no      | does not offer |
+      | the example host's | does not offer |

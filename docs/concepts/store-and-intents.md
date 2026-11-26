@@ -21,7 +21,7 @@ Each manifest becomes a `CatalogEntry` (`toCatalogEntry`) only when its signatur
 
 The store shows only applets whose required domains this shell offers, and says how many it hides; one switch shows them too. Typing or pasting an address into the search offers **Look up** for it, so an address always works, and `/app/?open=<address>` opens one from a link.
 
-The [preview](../tutorials/run-the-shell.md) has no network. Its store lists its own three applets, shaped as store entries.
+The [preview](../tutorials/run-the-shell.md) never reaches the network. Its store lists the three sample applets the build signed, read from relays that live in the page.
 
 ## Stacks
 

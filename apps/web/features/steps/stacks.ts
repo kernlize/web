@@ -1,11 +1,64 @@
 import { expect } from 'vitest';
-import { Given, Then, When } from 'quickpickle';
+import { After, Given, Then, When } from 'quickpickle';
 import { firstValueFrom } from 'rxjs';
-import type { AppletPointer, AppletStack, AppletSummary, MountPlan } from '../../src/shell/contract.ts';
-import { PREVIEW_STACKS } from '../../src/shell/preview-applet.ts';
+import listing from '@kernlize/applet-samples/samples.json';
+import { createThrowawayIdentity } from '@kernlize/core';
+import type { AppletPointer, AppletStack, AppletSummary, Booted, KernlHost, MountPlan, StorageLike } from '../../src/shell/contract.ts';
+import { boot } from '../../src/shell/boot.ts';
+import { PREVIEW_STORAGE_PREFIX, scopedStorage } from '../../src/shell/host.ts';
 import { installStack, missedWords, openStack as openStackMembers, resolveStack, type StackOpening } from '../../src/shell/stack-opening.ts';
 import { applyStackGrants, stackGrantGroups, changeStackGrant, openReviewedMember, type StackChoices, stackMembers, startingStackChoices, type StackGrantMember } from '../../src/shell/stack-grants.ts';
-import { createPreviewFrame, preview, sample, type PreviewWorld } from './kernl.ts';
+import { createFakeFrame } from '../../../../packages/core/features/steps/world.ts';
+
+// The preview as the page boots it (D-070): the real kernel and modules over relays in the page,
+// with the samples and their stacks as the build signed them. Nothing here is a stand-in.
+interface PreviewWorld {
+  stacksPreview?: { booted: Booted; samples: ReadonlyMap<string, AppletSummary>; stacks: readonly AppletStack[] };
+}
+
+function previewOf(world: PreviewWorld): NonNullable<PreviewWorld['stacksPreview']> {
+  if (!world.stacksPreview) throw new Error('boot the preview first');
+  return world.stacksPreview;
+}
+
+function preview(world: PreviewWorld): { kernl: Booted['kernl'] } {
+  return { kernl: previewOf(world).booted.kernl };
+}
+
+let current: PreviewWorld | undefined;
+
+/** A sample applet, resolved and verified by the real kernel when the preview booted. */
+function sample(name: string): AppletSummary {
+  const summary = current && previewOf(current).samples.get(name);
+  if (!summary) throw new Error(`no sample ${name}`);
+  return summary;
+}
+
+function memoryStorage(): StorageLike {
+  const written = new Map<string, string>();
+  return { getItem: (key) => written.get(key) ?? null, setItem: (key, value) => void written.set(key, value), removeItem: (key) => void written.delete(key) };
+}
+
+Given('the preview, with the stacks its samples ship', async (world: PreviewWorld) => {
+  const host: KernlHost = {
+    storage: scopedStorage(memoryStorage(), PREVIEW_STORAGE_PREFIX),
+    notify: () => undefined,
+    openLink: () => undefined,
+    getVisibility: () => ({ visible: true, focused: true }),
+    onRevoked: () => undefined,
+  };
+  const booted = await boot(host, new URLSearchParams('preview=1'));
+  await booted.kernl.login(createThrowawayIdentity('Preview identity'));
+  const samples = new Map<string, AppletSummary>();
+  for (const { name } of listing.samples) samples.set(name, await booted.kernl.resolve(booted.kernl.decodePointer(`35129:${listing.publisher}:${name}`)));
+  world.stacksPreview = { booted, samples, stacks: await booted.kernl.stacks.load() };
+  current = world;
+});
+
+After((world: PreviewWorld) => {
+  world.stacksPreview?.booted.kernl.destroy();
+  if (current === world) current = undefined;
+});
 
 interface StackScratch {
   /** The stacks a scenario asked the orchestrator for. */
@@ -48,7 +101,7 @@ function scratchOf(world: PreviewWorld): StackScratch {
 }
 
 function sampleStack(identifier: string): AppletStack {
-  const stack = PREVIEW_STACKS.find((candidate) => candidate.identifier === identifier);
+  const stack = (current ? previewOf(current).stacks : []).find((candidate) => candidate.identifier === identifier);
   if (!stack) throw new Error(`no preview stack ${identifier}`);
   return stack;
 }
@@ -110,11 +163,11 @@ function choiceSet(world: PreviewWorld): StackChoices {
   return choices;
 }
 
-When('the preview kernl lists its stacks', async (world: PreviewWorld) => {
+When('the preview lists its stacks', async (world: PreviewWorld) => {
   scratchOf(world).listed = await preview(world).kernl.stacks.load();
 });
 
-When('the preview kernl streams its stacks', async (world: PreviewWorld) => {
+When('the preview streams its stacks', async (world: PreviewWorld) => {
   scratchOf(world).listed = await firstValueFrom(preview(world).kernl.stacks.stream());
 });
 
@@ -166,8 +219,8 @@ function build(world: PreviewWorld, summaries: readonly AppletSummary[], on: rea
   scratchOf(world).choices = members.map(() => ({ on: new Set(on), kept: new Set() }));
 }
 
-Given('a preview stack of an applet that reads messages and needs uploads', (world: PreviewWorld) => {
-  build(world, [{ ...sample('notes'), requires: ['dm', 'upload'], optional: [] }], ['dm']);
+Given('a preview stack of an applet that reads messages and needs links', (world: PreviewWorld) => {
+  build(world, [{ ...sample('notes'), requires: ['dm', 'link'], optional: [] }], ['dm']);
 });
 
 Given('a preview stack of applets that ask for nothing', (world: PreviewWorld) => {
@@ -214,7 +267,7 @@ When('the shell installs the preview stack {string} without opening anything', a
 
 When('the shell opens a preview applet for another applet', async (world: PreviewWorld) => {
   const kernl = preview(world).kernl;
-  const found = await kernl.resolve({ kind: 'address', pubkey: sample('notes').identity.pubkey, identifier: 'notes', eventKind: 35129, relays: [] });
+  const found = await kernl.resolve(kernl.decodePointer(`35129:${listing.publisher}:notes`));
   watchGrants(world);
   scratchOf(world).plans.push(await kernl.plan(found));
   scratchOf(world).opening = { opened: 1, missed: 0 };
@@ -363,7 +416,7 @@ async function startRunning(world: PreviewWorld, name: string, underStackGrants:
     applyStackGrants(kernl, members, startingStackChoices(members), true);
   }
   const running = await kernl.plan(sample(name));
-  kernl.mount(running, createPreviewFrame(false));
+  kernl.mount(running, createFakeFrame());
   scratchOf(world).review = { running, reused: false, heldDuring: false };
 }
 
@@ -416,6 +469,10 @@ Then('the stack window is not reused and its replacement is planned', (world: Pr
 
 Then('the review fails with {string}', (world: PreviewWorld, reason: string) => {
   expect(scratchOf(world).review?.error?.message).toBe(reason);
+});
+
+Then('{string} is no longer granted for now', (world: PreviewWorld, name: string) => {
+  expect(preview(world).kernl.grants.get(sample(name).identity)?.temporary ?? false).toBe(false);
 });
 
 Then('the grants were held for now while the replacement was reviewed', (world: PreviewWorld) => {

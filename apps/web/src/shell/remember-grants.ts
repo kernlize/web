@@ -4,7 +4,7 @@ import { REMEMBER_GRANTS_KEY, type StorageLike } from './contract';
  * Whether a person's grants are remembered when they run an applet. It starts on, and once they
  * change it the choice stays as they left it, both ways, until they change it again (D-059).
  *
- * @param storage - The shell's storage; the offline preview's is scoped away from the live shell's.
+ * @param storage - The shell's storage; the preview's is scoped away from the live shell's.
  * @returns True unless the person turned it off.
  * @example
  * ```ts

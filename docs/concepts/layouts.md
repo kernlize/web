@@ -120,4 +120,4 @@ The guard, an applet's grants and the Downloads list are sheets over the desktop
 - [Write your own window manager](../how-tos/write-a-window-manager.md)
 - [Architecture](./architecture.md)
 - [`@kernlize/core`](../packages/core.md#layouts-and-the-window-manager)
-- [Embed kernl core](../how-tos/embed-kernl-core.md)
+- [Build a shell with your own UX](../tutorials/build-a-shell.md)

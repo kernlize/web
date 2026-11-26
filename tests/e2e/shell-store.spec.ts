@@ -1,4 +1,6 @@
 import type { Page } from '@playwright/test';
+import { nip19 } from 'nostr-tools';
+import shipped from '../../applets/samples/shipped/samples.json' with { type: 'json' };
 import { expect, test } from './fixtures';
 
 const base = process.env.PLAYWRIGHT_BASE_URL ?? '';
@@ -30,7 +32,10 @@ test('the store searches loosely, filters by topic and still opens a pasted addr
   await topics.getByRole('button', { name: /^social/ }).click();
   await expect(results).toHaveCount(3);
 
-  await page.getByRole('searchbox', { name: 'Find an applet' }).fill('preview:pulse');
+  // The preview's store reads the signed sample manifests; the same Pulse opens from its address.
+  const pulse = shipped.samples.find((sample) => sample.name === 'pulse')!.manifest;
+  const address = nip19.naddrEncode({ kind: pulse.kind, pubkey: pulse.pubkey, identifier: 'pulse' });
+  await page.getByRole('searchbox', { name: 'Find an applet' }).fill(address);
   await page.getByRole('button', { name: 'Look up' }).click();
   await expect(page.getByRole('region', { name: 'Applets window' }).getByRole('heading', { name: 'Pulse' })).toBeVisible();
 });
@@ -56,14 +61,14 @@ test('an applet asks for a profile, the user picks a handler from the store, and
   await expect(chooser).toHaveCount(0);
 
   const profiles = page.frameLocator('iframe[data-window-id]').nth(1);
-  await expect(profiles.getByRole('heading', { name: 'Profiles' })).toBeVisible();
-  await expect(profiles.getByText('Notes asked this applet to open a profile.')).toBeVisible();
+  await expect(profiles.locator('#granted')).toHaveText(/^Granted:/);
+  await expect(profiles.getByText('Another applet asked this applet to open a profile for decade00….')).toBeVisible();
   await expect(notes.getByText('Profiles is taking it.')).toBeVisible();
 
   // The choice was remembered: asking again goes straight to the open Profiles window, no chooser.
   // Profiles now sits over Notes, so the click is dispatched to the button rather than at its position.
   await notes.getByRole('button', { name: 'Open a profile' }).dispatchEvent('click');
-  await expect(profiles.getByText('Notes asked this applet to open a profile.')).toHaveCount(2);
+  await expect(profiles.getByText('Another applet asked this applet to open a profile for decade00….')).toHaveCount(2);
   await expect(page.getByRole('dialog', { name: 'Choose an applet' })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Open an applet' }).click();
@@ -134,7 +139,7 @@ test('the stacks tab lists the stacks people published and opens only the applet
   await review.getByRole('button', { name: 'Open this applet' }).click();
   await expect(page.getByRole('region', { name: 'Applets window' })).toHaveCount(0);
   await expect(page.locator('iframe[data-window-id]')).toHaveCount(1);
-  await expect(page.frameLocator('iframe[data-window-id]').getByRole('heading', { name: 'Notes' })).toBeVisible();
+  await expect(page.frameLocator('iframe[title="Notes applet"]').locator('#granted')).toHaveText(/^Granted:/);
 });
 
 test('a stack reuses an equivalent window and replaces it for widened or temporarily narrowed grants', async ({ page }) => {

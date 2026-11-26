@@ -22,7 +22,7 @@ The person at the keyboard is the only principal that matters.
 
 </div>
 
-> **Alpha.** kernl is a first draft: the guard, the contracts, the composition over kehto and the shell are real and tested; private, legacy and ratchet messages work for accounts that can encrypt (ratchet sessions are experimental), and downloads, sharing and mail only hand off to apps on your device. The source is private and the packages are not released yet, neither as `@kernlize/*` on npm nor as `@kernl/*` on JSR; the [site and docs](https://kernl.run/) are public. Read [`docs/alpha-status.md`](./docs/alpha-status.md) before relying on anything, and note that the badges are measured by `pnpm check` and an agent-readiness scan, not live CI.
+> **Alpha.** kernl is a first draft: the guard, the contracts, the composition over kehto and the shell are real and tested; private, legacy and ratchet messages work for accounts that can encrypt (ratchet sessions are experimental), and downloads, sharing and mail only hand off to apps on your device. The packages are on npm as `@kernlize/*` and on JSR as `@kernl/*`, at 0.x: expect breaking changes between minors. Read [`docs/alpha-status.md`](./docs/alpha-status.md) before relying on anything, and note that the badges are measured by `pnpm check` and an agent-readiness scan, not live CI.
 
 <p align="center">
   <img src=".github/assets/shell.png" alt="The kernl preview shell in its tiled layout: the Notes and Pulse sample applets side by side, Notes granted network access and Pulse not, each listing actions such as Publish a note (no prompt), Update your profile and Delete a note (ask first), with the guard indicator reading strict and no events." width="880" />
@@ -54,11 +54,31 @@ The full reasoning is in [`SOUL.md`](./SOUL.md). Each concrete choice is in [`DE
 - **Messages across providers.** One messenger over several private-message providers, each described by its properties and none ranked. Messages are an applet like any other, shipped with the shell; you put the providers in order, and when someone last wrote to you through a different one, the shell asks before it answers for you. Private, legacy and ratchet messages work in the live shell when you sign in with an account whose signer can encrypt (browser extension, remote signer, local account). Ratchet sessions are experimental: your correspondent needs an app that speaks them, and the session keys are kept on this device, locked by your account ([Alpha status](./docs/alpha-status.md#messaging-providers-in-the-live-shell)). Group sessions are experimental too: everyone in the group needs an app that speaks them, and the group's keys change as it talks and as people join or leave ([Messaging](./docs/concepts/messaging.md#protocol-inventory)).
 - **Bridges other networks.** Web fetch works behind an SSRF policy (`https` only, private addresses blocked, redirects refused in the browser). Magnet links download inside the shell page over WebRTC, with a Downloads panel to pause, resume, remove and save, or go to an app on your device if you choose that in Settings ([D-017](./DECISIONS.md)). NZB downloads, sharing and mail hand the link to an app on your device after you confirm leaving kernl, because a browser page cannot open the raw TCP sockets their protocols need; kernl connects to nothing for them ([Bridges](./docs/concepts/bridges.md#hand-off-backends)). For applets there is a second route: kernl can drive a download program you already run (Transmission, uTorrent, NZBGet, SABnzbd or slskd) through its own API, asking you before each download, and you can connect one in Settings today. Applets cannot call it until a kehto release lets the shell offer those domains ([Download programs](./docs/concepts/download-programs.md)).
 - **A store, and applets that hand work to each other.** The shell lists published applets with loose search and topic bubbles, and still opens any pasted address. When one applet asks another to open a profile or edit a note, the user picks which applet does it, once or always.
-- **Previews without an account.** `/app/?preview=1` runs the shell offline with the core's own consent rule, kernl's guard in strict and a store of three preview applets. Refusals before dispatch need kehto's runtime, so they happen only in the live shell ([Run the shell](./docs/tutorials/run-the-shell.md)).
+- **Previews without an account.** `/app/?preview=1` runs the real kernel and kernl's own modules over relays that live in the page, with a store of three sample applets the build signed; nothing reaches the network ([Run the shell](./docs/tutorials/run-the-shell.md), [D-070](./DECISIONS.md)).
 
 <p align="center">
   <img src=".github/assets/guard.png" alt="The full guard panel in the preview: the strict, balanced and relaxed profiles with strict selected, all twelve protections in plain words with their strict limits and whether each is built into the toolkit, added by kernl or both, saying which limits refuse a request, which only report it, and that quarantine drops the message that crossed the limit, and an empty recent-events log." width="520" />
 </p>
+
+## Two ways in
+
+**Run kernl.** Open [kernl.run](https://kernl.run/app/), or deploy the shell yourself: `apps/web` is the kernel under `@kernlize/preset`, every module kernl ships ([Run the shell](./docs/tutorials/run-the-shell.md), [Deploy](./docs/how-tos/deploy.md)).
+
+**Build on its kernel.** Write your own page, with your own UX, over `@kernlize/kernel` and only the modules you want. The kernel keeps what protects the person, whatever you compose: the sandbox, grants tied to the exact code, consent before a destructive write, the guard, the firewall and the seal on messages.
+
+```bash
+npm install @kernlize/kernel @kernlize/modules
+```
+
+```ts
+import { createKernel } from '@kernlize/kernel';
+import { messagingModule, privateDm } from '@kernlize/modules/messaging';
+import { filesModule } from '@kernlize/modules/uploads';
+
+const kernl = createKernel({ host, modules: [messagingModule({ providers: [privateDm()] }), filesModule()] });
+```
+
+[`examples/minimal-host`](./examples/minimal-host) is that page, built from the published packages and tested end to end in CI. [Build a shell with your own UX](./docs/tutorials/build-a-shell.md) walks through it, and [Kernel, modules and presets](./docs/concepts/kernel-modules-and-presets.md) says what the kernel keeps, what each module adds and what each costs.
 
 ## Packages
 
@@ -67,7 +87,11 @@ The full reasoning is in [`SOUL.md`](./SOUL.md). Each concrete choice is in [`DE
 | [`@kernlize/guard`](./packages/guard) | `@kernl/guard` | Ingress flood control, visibility gating, focus-aware rate limiter, CSP profile, nested-frame lock, mitigation descriptions. Pure. | [guard](./docs/packages/guard.md) |
 | [`@kernlize/messaging`](./packages/messaging) | `@kernl/messaging` | Provider contract, registry, composite direct-message adapter, three providers. Pure. | [messaging](./docs/packages/messaging.md) |
 | [`@kernlize/bridges`](./packages/bridges) | `@kernl/bridges` | Locator parsing, bridge contract, registry, HTTP bridge with SSRF policy, backend interfaces, hand-off backends, in-page download backend, adapters for five download programs. Pure. | [bridges](./docs/packages/bridges.md) |
-| [`@kernlize/core`](./packages/core) | `@kernl/core` | Composition root over kehto and applesauce: adapters, applet resolution, mount plan, consent summaries, layouts and a replaceable window manager, download domains over the person's own programs, a replaceable secrets provider. | [core](./docs/packages/core.md) |
+| [`@kernlize/kernel`](./packages/kernel) | `@kernl/kernel` | The floor: applet resolve, plan and mount, the guard pipeline, the firewall, grants, signing consent, secrets, the media player, the module host and the ask channel. | [kernel](./docs/packages/kernel.md) |
+| [`@kernlize/modules`](./packages/modules) | `@kernl/modules` | kernl's modules over the kernel, one entry per module: messaging, uploads, the store, intents, bridges, downloads, multiplayer, people, profiles, mailboxes, the relay directory, the event cache, the theme, settings, social, keys and the window manager. | [modules](./docs/packages/modules.md) |
+| [`@kernlize/preset`](./packages/preset) | `@kernl/preset` | `kernlPreset`, kernl.run's module list; `createKernl`; and `previewPreset`, the same shell over parts that live in the page. | [preset](./docs/packages/preset.md) |
+| [`@kernlize/ui-model`](./packages/ui-model) | `@kernl/ui-model` | Framework-free view models for a shell's panels: the grants list, the ask queues and the logs. | [ui-model](./docs/packages/ui-model.md) |
+| [`@kernlize/core`](./packages/core) | `@kernl/core` | **Deprecated.** Re-exports kernel, modules and preset for one minor. | [core](./docs/packages/core.md) |
 
 Published packages have zero framework dependencies and never import `nostr-tools` directly. `pnpm check:deps` (`scripts/check-dependency-rules.mjs`) enforces both.
 
@@ -77,8 +101,14 @@ Published packages have zero framework dependencies and never import `nostr-tool
 packages/guard        @kernlize/guard        pure
 packages/messaging    @kernlize/messaging    pure
 packages/bridges      @kernlize/bridges      pure
-packages/core         @kernlize/core         kehto + applesauce composition
+packages/kernel       @kernlize/kernel       the floor, over kehto + applesauce
+packages/modules      @kernlize/modules      kernl's modules, one entry each
+packages/preset       @kernlize/preset       kernl.run's module list, and the preview's
+packages/ui-model     @kernlize/ui-model     view models for a shell's panels
+packages/core         @kernlize/core         deprecated: re-exports the three above
 apps/web              @kernlize/web          Astro site at /, shell at /app/
+applets               the applets the shell ships, and the preview's samples
+examples/minimal-host a host with its own UX, from the published packages
 docs                  @kernlize/docs         VitePress at /docs/
 features              shared step support for the package features
 tests/e2e             Playwright browser suite
@@ -87,7 +117,7 @@ scripts               build, audit and guard scripts
 
 ## Run it
 
-No install: [open the shell](https://kernl.run/app/) and choose **Just look around**. It signs you in with a throwaway identity, with every published applet in the store. The [offline preview](https://kernl.run/app/?preview=1) runs the same shell with no network and three sample applets.
+No install: [open the shell](https://kernl.run/app/) and choose **Just look around**. It signs you in with a throwaway identity, with every published applet in the store. The [preview](https://kernl.run/app/?preview=1) runs the same shell with no network and three sample applets.
 
 From source, for maintainers only during the alpha, because the repository is private (Node 22 or newer, pnpm 10 via `corepack enable`):
 
@@ -157,8 +187,8 @@ The docs are a product. Start at [`docs/index.md`](./docs/index.md), or on the s
 | Run the shell locally | [Run the shell](./docs/tutorials/run-the-shell.md) |
 | Write an applet and open it in kernl | [Write an applet](./docs/tutorials/write-an-applet.md) |
 | Write an applet that runs well under kernl | [Applets under kernl](./docs/concepts/applets-under-kernl.md) |
-| Build a page that runs an applet | [Embed kernl in a page](./docs/tutorials/embed-a-host-page.md) |
-| Embed the shell core in your own page | [Embed kernl core](./docs/how-tos/embed-kernl-core.md) |
+| Build a shell with your own UX on kernl's kernel | [Build a shell with your own UX](./docs/tutorials/build-a-shell.md) |
+| Learn what the kernel keeps and what modules add | [Kernel, modules and presets](./docs/concepts/kernel-modules-and-presets.md) |
 | Understand the layering | [Architecture](./docs/concepts/architecture.md) |
 | Understand what protects the user | [Guard](./docs/concepts/guard.md) |
 | Understand grants and identity | [Identity and grants](./docs/concepts/identity-and-grants.md) |

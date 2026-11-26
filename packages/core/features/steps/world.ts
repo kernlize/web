@@ -3,7 +3,7 @@ import { Observable, of } from 'rxjs';
 import { PasswordSigner, PrivateKeySigner } from 'applesauce-signers';
 import { PasswordAccount } from 'applesauce-accounts/accounts';
 import type { GroupReqMessage, PublishResponse } from 'applesauce-relay';
-import type { Filter } from 'applesauce-core/helpers';
+import { normalizeURL, type Filter } from 'applesauce-core/helpers';
 import type { NappletArtifactCache, WriteVerifiedResolutionInput } from '@kehto/nip/5d';
 import type { NostrEvent, NostrFilter } from '@napplet/core';
 import type { PermissionAdapter } from '@kehto/runtime';
@@ -70,6 +70,8 @@ export interface FakePool extends ApplesaucePool {
   publishOk: boolean;
   /** Relays that answer a publish with `OK false`. */
   readonly refusing: Set<string>;
+  /** Relays a publish gets no answer from, as applesauce's pool skips a relay it holds unhealthy. */
+  readonly silent: Set<string>;
   /** When true, `request` errors instead of completing. */
   failRequests: boolean;
 }
@@ -81,6 +83,7 @@ export function createFakePool(): FakePool {
     extra: [],
     publishOk: true,
     refusing: new Set<string>(),
+    silent: new Set<string>(),
     failRequests: false,
     req(relays, filters) {
       const urls = relays as string[];
@@ -103,7 +106,11 @@ export function createFakePool(): FakePool {
       const urls = relays as string[];
       pool.calls.push({ method: 'publish', relays: urls, event: event as NostrEvent });
       if (!pool.publishOk) throw new Error('publish failed');
-      return urls.map((from): PublishResponse => (pool.refusing.has(from) ? { ok: false, from, message: 'blocked: not allowed' } : { ok: true, from }));
+      // Like applesauce's pool, a response names the relay by its normalized address (`wss://host/`), not as it was asked for.
+      return urls.filter((url) => !pool.silent.has(url)).map((url): PublishResponse => {
+        const from = normalizeURL(url);
+        return pool.refusing.has(url) ? { ok: false, from, message: 'blocked: not allowed' } : { ok: true, from };
+      });
     },
   };
   return pool;

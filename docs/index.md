@@ -28,7 +28,7 @@ kernl does not fork kehto ([D-001](./decisions.md#d-001)). When kehto lacks a ho
 
 **Build an applet for it.** Applets are ordinary NIP-5D napplets; kernl adds nothing to the wire format. What kernl changes is the posture: fewer domains advertised until granted, including the user's account, rate limits, a question before each link it opens, no frames of the applet's own, closer watch while hidden or unfocused, and quarantine for floods. [Write an applet](./tutorials/write-an-applet.md) builds, tests, publishes and opens one; [Applets under kernl](./concepts/applets-under-kernl.md) tells you what to expect and how to test against it.
 
-**Extend the shell.** [Embed kernl core](./how-tos/embed-kernl-core.md) in your own page, add a [messaging provider](./how-tos/add-a-messaging-provider.md) or a [bridge backend](./how-tos/add-a-bridge-backend.md), or change how the guard is composed. Start with [Architecture](./concepts/architecture.md) and the [package pages](./packages/index.md).
+**Extend the shell.** [Build a shell with your own UX](./tutorials/build-a-shell.md) on kernl's kernel, add a [messaging provider](./how-tos/add-a-messaging-provider.md) or a [bridge backend](./how-tos/add-a-bridge-backend.md), or change how the guard is composed. Start with [Architecture](./concepts/architecture.md) and the [package pages](./packages/index.md).
 
 ## How these docs are organised
 

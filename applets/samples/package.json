@@ -1,0 +1,35 @@
+{
+  "name": "@kernlize/applet-samples",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Notes, Pulse and Profiles: three sample applets built from one page, with manifests signed by a throwaway key at build time",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build --mode notes && vite build --mode pulse && vite build --mode profiles && node scripts/ship.mjs",
+    "type-check": "tsc --noEmit",
+    "verify": "pnpm test:guidance && pnpm build && pnpm test:unit && pnpm type-check",
+    "test:guidance": "node --test tests/guidance.test.mjs",
+    "test:unit": "node --test tests/unit/*.test.mjs"
+  },
+  "dependencies": {
+    "@napplet/sdk": "^0.34.1"
+  },
+  "devDependencies": {
+    "@napplet/vite-plugin": "^0.17.0",
+    "@noble/curves": "^2.4.0",
+    "@noble/hashes": "^2.4.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.2"
+  },
+  "license": "MIT",
+  "exports": {
+    "./samples.json": "./shipped/samples.json",
+    "./notes.html": "./shipped/notes.html",
+    "./pulse.html": "./shipped/pulse.html",
+    "./profiles.html": "./shipped/profiles.html"
+  },
+  "files": [
+    "shipped"
+  ]
+}

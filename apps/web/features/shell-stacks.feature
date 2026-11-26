@@ -7,7 +7,13 @@ Feature: Opening a stack
   stack is a grant by itself.
 
   Background:
-    Given a preview kernl
+    Given the preview, with the stacks its samples ship
+
+  Scenario: the preview lists the stacks its samples ship, newest first
+    When the preview lists its stacks
+    Then the preview stacks are "basics,live"
+    When the preview streams its stacks
+    Then the preview stacks are "basics,live"
 
   Scenario: every applet in a stack is looked up in the order it was listed, and none is planned yet
     When the shell looks up the preview stack "basics"
@@ -56,13 +62,14 @@ Feature: Opening a stack
 
   Scenario: one row per permission, naming every applet that asks for it
     When the shell asks for the preview stack "basics"
-    Then the permission row "relay" names "Notes (needed)"
+    Then the permission row "outbox" names "Notes (needed)"
+    And the permission row "intent" names "Notes (needed), Profiles (needed)"
     And the permission row "notify" names "Notes, Profiles"
     And the permission row "identity" names "Notes (needed)"
 
   Scenario: what an applet needs starts on, and what it may use starts off
     When the shell asks for the preview stack "basics"
-    Then the permission row "relay" is on and fixed
+    Then the permission row "outbox" is on and fixed
     And the permission row "notify" is off and free
 
   Scenario: switching a permission on for the stack grants it to each applet that asked
@@ -72,8 +79,8 @@ Feature: Opening a stack
 
   Scenario: a permission one applet asked for is not granted to another
     When the shell asks for the preview stack "basics"
-    And the shell switches the permission "config" on
-    Then the shell grants "config" to "notes"
+    And the shell switches the permission "link" on
+    Then the shell grants "link" to "notes"
 
   Scenario: a domain another applet needs is not written for an applet that never asked for it
     When the shell asks for the preview stack "basics"
@@ -94,18 +101,18 @@ Feature: Opening a stack
     Then the shell takes "notify" back from "notes"
 
   Scenario: a domain kept beside messages is granted as the exception it is
-    Given a preview stack of an applet that reads messages and needs uploads
-    When the shell switches the permission "upload" on
-    Then the shell grants "upload" beside messages to "Notes"
+    Given a preview stack of an applet that reads messages and needs links
+    When the shell switches the permission "link" on
+    Then the shell grants "link" beside messages to "Notes"
 
   Scenario: a stack whose applets ask for nothing has no rows
     Given a preview stack of applets that ask for nothing
     Then the stack has no permission rows
 
   Scenario: a domain an applet already keeps beside messages is kept when the stack is opened
-    Given the preview applet "notes" keeps "upload" beside messages
+    Given the preview applet "notes" keeps "link" beside messages
     When the shell asks for the preview stack "basics"
-    Then the stack keeps "upload" beside messages
+    Then the stack keeps "link" beside messages
 
   Scenario: an applet that resolves but cannot be planned is counted, and the rest still open
     Given the preview applet "notes" cannot be opened
@@ -139,7 +146,7 @@ Feature: Opening a stack
     When the shell confirms "notes" from its stack for now, and its replacement cannot mount
     Then the review fails with "denied:admission-expired"
     And the grants were held for now while the replacement was reviewed
-    And "notes" is no longer granted for now in the preview kernl
+    And "notes" is no longer granted for now
 
   Scenario: a stack with no applets asks for nothing
     Then an empty stack asks for nothing

@@ -545,6 +545,11 @@ Given('the shell is signed in and only the network holds the profile {string}', 
   scratch(world).pool.events.push(await passwordSigner.signEvent({ kind: 0, tags: [], content, created_at: 1_700_000_000 }));
 });
 
+Given('the shell is signed in and writes to {string}', async (world: CoreWorld, relay: string) => {
+  await k(world).kernl.login(await passwordAccount('alice'));
+  k(world).kernl.eventStore.add(await passwordSigner.signEvent({ kind: 10002, tags: [['r', relay, 'write']], content: '', created_at: 1_700_000_000 }));
+});
+
 Given('a mounted applet granted {string} that has said hello', async (world: CoreWorld, domain: string) => {
   const { kernl } = k(world);
   const summary = await kernl.resolve(kernl.decodePointer(`${vector(world).pubkey}:35129:chat`));
@@ -645,6 +650,24 @@ Then("the applet's publish failed with {string}", (world: CoreWorld, error: stri
 
 Then('the applet received {string} failing with {string}', (world: CoreWorld, type: string, error: string) => {
   expect(k(world).received.find((entry) => entry.type === type)).toMatchObject({ ok: false, error });
+});
+
+Then("the applet's outbox publish succeeded on {string}", async (world: CoreWorld, relay: string) => {
+  const results = (): Array<Record<string, unknown>> => k(world).received.filter((entry) => entry.type === 'outbox.publish.result');
+  // Planning looks the person's relay list up first, so the answer can take a moment; a refusal never turns into an acceptance.
+  await vi.waitFor(() => expect(results().map((entry) => entry.ok)).toContain(true), { timeout: 2000 }).catch(() => undefined);
+  const result = results().at(-1);
+  expect({ id: result?.id, ok: result?.ok, error: result?.error }).toEqual({ id: 'outbox.publish-1', ok: true, error: undefined });
+  // Every relay the publish went to took it, the person's own among them, in whichever form the plan named it.
+  const relays = Object.entries(result?.relays as Record<string, boolean>);
+  expect(relays.every(([, ok]) => ok)).toBe(true);
+  expect(relays.map(([url]) => url.replace(/\/$/, ''))).toContain(relay);
+});
+
+Then('the fake pool published a kind {int} event to {string}', (world: CoreWorld, kind: number, relay: string) => {
+  const calls = scratch(world).pool.calls.filter((call) => call.method === 'publish');
+  expect(calls.map((call) => call.event?.kind)).toEqual([kind]);
+  expect(calls[0]?.relays.map((url) => url.replace(/\/$/, ''))).toContain(relay);
 });
 
 function published(world: CoreWorld): number[] {

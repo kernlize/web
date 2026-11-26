@@ -28,7 +28,7 @@
   import { WindowStore } from './window-store.svelte';
   import { createShellWindowManager } from './windows';
 
-  // The offline preview keeps its own state: it cannot open what the live shell ran, and must not list it.
+  // The preview keeps its own state: what it tries never follows the person into the live shell, and the reverse.
   const storage = new URLSearchParams(location.search).get('preview') === '1' ? scopedStorage(pickStorage(), PREVIEW_STORAGE_PREFIX) : pickStorage();
   const notices = new NoticeStore();
   const consent = new ConsentQueue();
@@ -44,11 +44,13 @@
   const host = createHost({ storage, consent, firewall, settings, notices, windows, handlers, replies, opener, shortcuts });
 
   let booted = $state.raw<Booted | null>(null);
+  /** Why the shell could not start; there is no stand-in shell to fall back on. */
+  let failure = $state<string | null>(null);
   let session = $state.raw<Session | null>(null);
   let desktop = $state<Desktop | null>(null);
   let root = $state<HTMLElement | null>(null);
 
-  const phase = $derived(booted === null ? 'boot' : session === null ? 'signin' : 'desktop');
+  const phase = $derived(failure !== null ? 'failed' : booted === null ? 'boot' : session === null ? 'signin' : 'desktop');
   const consentTitle = $derived(consent.current ? windows.windows.find((win) => win.plan.summary.identity.hash === consent.current?.summary.applet.hash)?.plan.summary.title ?? 'An applet' : '');
 
   /** The core restores the active account; a locked local account waits for its password. */
@@ -106,9 +108,10 @@
       const onVisibility = (): void => windows.setPageVisible(document.visibilityState === 'visible');
       document.addEventListener('visibilitychange', onVisibility);
       cleanups.push(() => document.removeEventListener('visibilitychange', onVisibility));
-      if (result.fallbackReason) notices.push({ title: 'Running the preview', body: result.fallbackReason, tone: 'warning' });
       restoreSession(result);
       cleanups.push(() => kernl.destroy());
+    }, (reason: unknown) => {
+      failure = reason instanceof Error ? reason.message : String(reason);
     });
     return () => {
       cleanups.forEach((cleanup) => cleanup());
@@ -161,6 +164,8 @@
 <div class="shell-root" tabindex="-1" bind:this={root} onkeydown={onKeydown} data-phase={phase}>
   {#if phase === 'boot'}
     <p class="booting shell-muted" role="status">Starting the shell…</p>
+  {:else if phase === 'failed'}
+    <div class="booting" role="alert"><p>The shell could not start.</p><p class="shell-muted">{failure}</p></div>
   {:else if booted && phase === 'signin'}
     <SignIn kernl={booted.kernl} mode={booted.mode} />
   {:else if booted && session}
@@ -175,7 +180,7 @@
 
   {#if booted && session && replies.current}
     {#key replies.current}
-      <ReplyChooser prompt={replies.current} onanswer={(answer) => replies.answer(answer)} />
+      <ReplyChooser kernl={booted.kernl} prompt={replies.current} onanswer={(answer) => replies.answer(answer)} />
     {/key}
   {/if}
 
@@ -216,5 +221,15 @@
     margin: 0;
     font-family: var(--font-mono);
     font-size: 0.85rem;
+  }
+
+  div.booting {
+    place-content: center;
+    gap: 0.5rem;
+    text-align: center;
+  }
+
+  div.booting p {
+    margin: 0;
   }
 </style>

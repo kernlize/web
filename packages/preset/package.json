@@ -1,6 +1,6 @@
 {
   "name": "@kernlize/preset",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "description": "kernl's preset: the module list kernl.run runs over the kernel, and createKernl",
   "type": "module",
   "main": "./dist/index.js",
@@ -28,13 +28,17 @@
     "@kernlize/bridges": "workspace:^",
     "@kernlize/kernel": "workspace:^",
     "@kernlize/messaging": "workspace:^",
-    "@kernlize/modules": "workspace:^"
+    "@kernlize/modules": "workspace:^",
+    "applesauce-core": "^7.1.3",
+    "applesauce-relay": "^7.1.1"
   },
   "peerDependencies": {
     "@napplet/nap": ">=0.37.0 <0.41.0"
   },
   "devDependencies": {
+    "applesauce-signers": "^7.1.0",
     "quickpickle": "^1.11.2",
+    "rxjs": "^7.8.2",
     "tsup": "^8.5.0",
     "typescript": "^5.9.3",
     "vitest": "^5.1.0"

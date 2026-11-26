@@ -3,7 +3,7 @@
 Messaging provider contract, registry, composite direct-message backend and an in-memory backend for the kernl shell. Pure: no relay code, no signer, no kehto dependency. Providers receive their backend constructor from the shell.
 
 ::: info Network backends live in `@kernlize/core`
-This package ships no backend that sends anything over a network; the only backend in it is `createMemoryBackend`. The network backends for `private`, `legacy` and `ratchet` are `createPrivateMessagesBackend`, `createLegacyMessagesBackend` and `createRatchetMessagesBackend` in [`@kernlize/core`](./core.md#messaging-backends), because they need the shell's event store, connection pool and account signer. `createKernl` wires them by default, so all three work in the live shell while the signed-in account's signer can encrypt; `ratchet` is experimental ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)). The offline preview (`?preview=1`) runs the same providers over the in-memory backend with a scripted correspondent, so messages sent there go nowhere.
+This package ships no backend that sends anything over a network; the only backend in it is `createMemoryBackend`. The network backends for `private`, `legacy` and `ratchet` are `createPrivateMessagesBackend`, `createLegacyMessagesBackend` and `createRatchetMessagesBackend` in [`@kernlize/core`](./core.md#messaging-backends), because they need the shell's event store, connection pool and account signer. `createKernl` wires them by default, so all three work in the live shell while the signed-in account's signer can encrypt; `ratchet` is experimental ([Alpha status](../alpha-status.md#messaging-providers-in-the-live-shell)). The preview (`?preview=1`) runs `private` and `legacy` over the in-memory backend, with two scripted correspondents, so messages sent there never leave the page.
 :::
 
 | Field | Value |
@@ -79,7 +79,7 @@ One contract for every private-messaging protocol, truthful self-description ins
 
 | Export | Signature | Description |
 | --- | --- | --- |
-| `createMemoryBackend` | `(options?: MemoryBackendOptions) => MemoryBackend` | A complete backend in memory for tests and the shell's offline preview. Conversations are keyed `direct:<pubkey>` or `group:<pubkey>,<pubkey>` over the sorted correspondents; cursors are numeric offsets; unread is the count of `received` messages. |
+| `createMemoryBackend` | `(options?: MemoryBackendOptions) => MemoryBackend` | A complete backend in memory for tests and the shell's preview. Conversations are keyed `direct:<pubkey>` or `group:<pubkey>,<pubkey>` over the sorted correspondents; cursors are numeric offsets; unread is the count of `received` messages. |
 | `MemoryBackendOptions` | interface | `{ owner?: string (default 'owner'); available?: boolean (default true); now?: () => number }`. `now` is in Unix seconds and defaults to the wall clock. |
 | `MemoryBackend` | interface | `MessagingBackend` plus `deliver(incoming: MemoryIncoming): DmMessage` (stores a `received` message and notifies matching subscribers) and a non-optional `close()` that drops every subscriber. |
 | `MemoryIncoming` | interface | `{ senderPubkey; content; conversationId?; createdAt? }`. Without `conversationId` the message lands in `direct:<senderPubkey>`. |

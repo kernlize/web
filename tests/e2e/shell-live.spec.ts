@@ -251,7 +251,7 @@ test('looking around needs no sign-in: a throwaway identity sees the real store 
   await expect(page.getByRole('heading', { name: /Remembered/ })).toHaveCount(0);
 });
 
-test('what the live shell ran is not listed in the offline preview, which could not open it', async ({ page }) => {
+test('what the live shell ran is not listed in the preview, which never reaches the network to open it', async ({ page }) => {
   const applet = signApplet({ servers: ['https://blobs.test'] });
   await fakeNetwork(page, applet, generalRelays('holds'), { 'blobs.test': 'has' });
   await page.goto(`${base}/app/`);

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sample</title>
+  </head>
+  <body>
+    <!--
+      The shell frames this applet and shows its name, so there is no heading:
+      the frame is working surface from the first pixel. No form elements
+      either; the frame is sandboxed without form submission.
+    -->
+    <main id="app" class="app">
+      <section class="card">
+        <p id="granted" class="granted"></p>
+        <textarea id="note" rows="2" aria-label="Note to publish">Hello from a sample applet.</textarea>
+      </section>
+      <section class="card">
+        <ul id="actions" class="actions"></ul>
+        <details id="extras" hidden>
+          <summary>More changes that ask you first</summary>
+          <ul id="extraActions" class="actions"></ul>
+        </details>
+      </section>
+      <section class="card">
+        <ul id="log" class="log" aria-live="polite" aria-label="Results"></ul>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

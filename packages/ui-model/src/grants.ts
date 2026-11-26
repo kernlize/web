@@ -1,4 +1,4 @@
-import { MESSAGE_COMPANION_DOMAINS, sealsApplet } from '@kernlize/core/seal';
+import { MESSAGE_COMPANION_DOMAINS, sealsApplet } from '@kernlize/kernel/seal';
 
 /** Plain words for every domain the shell can offer (D-006). */
 const LABELS: Readonly<Record<string, string>> = {

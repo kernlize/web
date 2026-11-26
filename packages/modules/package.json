@@ -1,6 +1,6 @@
 {
   "name": "@kernlize/modules",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "kernl's modules over the kernel: messaging, bridges, downloads, uploads, the catalog, stacks, gamepad, intents, multiplayer, people, profiles, mailboxes, the relay directory, the event cache, the theme, settings, social actions, keys and the window manager",
   "type": "module",
   "main": "./dist/index.js",
