@@ -53,13 +53,28 @@ const DIFFERS: Readonly<Record<string, Partial<TrafficEntry>>> = {
   direction: { direction: 'from-applet' },
   type: { type: 'outbox.event' },
   channel: { via: 'window' },
-  mark: { mark: 'error' },
   note: { note: 'denied: relay:read' },
 };
 
 When('the inspector folds a message whose {string} differs from the row before it', (world: TrafficWorld, field: string) => {
   const kept = row(1, 1);
   world.fold = { row: foldRepeat(kept, { ...kept, id: 2, at: 9, ...DIFFERS[field] }) };
+});
+
+const SEPARATE: Readonly<Record<string, Partial<TrafficEntry>>> = {
+  'failed reply': { mark: 'error', note: 'network-error' },
+  'guard warning': { direction: 'guard', mark: 'warning' },
+  'held request': { direction: 'guard', type: 'hidden:relay:publish' },
+};
+
+When('the inspector tries to fold two rows for {string}', (world: TrafficWorld, kind: string) => {
+  const kept = { ...row(1, 1), ...SEPARATE[kind], payload: { id: 'first' } };
+  world.fold = { row: foldRepeat(kept, { ...kept, id: 2, at: 2, payload: { id: 'second' } }) };
+});
+
+When('another message of that type arrives at {int}', (world: TrafficWorld, at: number) => {
+  const kept = world.row as TrafficEntry;
+  world.fold = { row: foldRepeat(kept, row(at, 99, kept.type)) };
 });
 
 Then('the inspector folds nothing', (world: TrafficWorld) => {

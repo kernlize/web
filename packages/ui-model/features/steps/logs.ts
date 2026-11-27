@@ -70,19 +70,25 @@ Given('a traffic log that keeps {int} rows per window', (world: LogsWorld, keep:
   state.traffic.changes$.subscribe(() => (state.changes += 1));
 });
 
-Given('a traffic log that folds repeated rows and keeps {int} rows per window', (world: LogsWorld, keep: number) => {
-  const state = world_(world);
-  state.traffic = createTrafficLog<Row>(keep, (kept, arriving) => (kept.kind === arriving.kind ? { ...arriving, repeats: (kept.repeats ?? 1) + 1 } : undefined));
-  state.traffic.changes$.subscribe(() => (state.changes += 1));
+const foldKind = (kept: Row, arriving: Row): Row | undefined => kept.kind === arriving.kind ? { ...arriving, repeats: (kept.repeats ?? 1) + 1 } : undefined;
+
+Given('a traffic log that keeps {int} rows and looks back {int} rows for a repeat', (world: LogsWorld, keep: number, lookback: number) => {
+  world.traffic = createTrafficLog<Row>(keep, foldKind, lookback);
 });
 
-When('window {string} logs a row of {string} and then {int} rows of {string}', (world: LogsWorld, windowId: string, first: string, count: number, then: string) => {
-  world.traffic?.add({ windowId, n: 0, kind: first });
-  for (let n = 1; n <= count; n += 1) world.traffic?.add({ windowId, n, kind: then });
+Given('a traffic log that folds adjacent rows', (world: LogsWorld) => {
+  world.traffic = createTrafficLog<Row>(4, foldKind);
 });
 
-Then('the newest row for window {string} stands for {int} rows', (world: LogsWorld, windowId: string, count: number) => {
-  expect(world.traffic?.forWindow(windowId)[0].repeats).toBe(count);
+When('window {string} logs the traffic {string}', (world: LogsWorld, windowId: string, kinds: string) => {
+  kinds.split(',').forEach((kind, n) => {
+    const mark = kind === 'error' ? 'error' : kind === 'guard' ? 'warning' : undefined;
+    world.traffic?.add({ windowId, n, kind, ...(mark ? { mark } : {}) }, kind !== 'guard');
+  });
+});
+
+Then('window {string} shows the traffic {string}', (world: LogsWorld, windowId: string, shown: string) => {
+  expect(world.traffic?.forWindow(windowId).map((row) => row.repeats ? `${row.kind} ×${row.repeats}` : row.kind)).toEqual(shown.split(','));
 });
 
 Then('window {string} counts {int} rows', (world: LogsWorld, windowId: string, count: number) => {

@@ -17,19 +17,34 @@ Feature: Logs, notices and the unread count
     When window "w1" logs rows marked "error,warning,none" and window "w2" logs a row marked "error"
     Then window "w1" shows 2 rows, newest first, with 1 error and 1 warning counted
     And window "w3" shows 0 rows, newest first, with 0 errors and 0 warnings counted
+    And window "w1" counts 3 rows
     And window "w3" counts 0 rows
     When the traffic log keeps only window "w2"
     Then window "w1" shows 0 rows, newest first, with 0 errors and 0 warnings counted
+    And window "w1" counts 0 rows
     And window "w2" shows 1 rows, newest first, with 1 error and 0 warnings counted
+    And window "w2" counts 1 rows
     When the traffic log keeps only window "w2"
     Then the traffic log changed 5 times
 
-  Scenario: a row that repeats the one before it folds into it, and the count keeps going
-    Given a traffic log that folds repeated rows and keeps 2 rows per window
-    When window "w1" logs a row of "other" and then 3 rows of "same"
-    Then window "w1" shows 2 rows, newest first, with 0 errors and 0 warnings counted
-    And the newest row for window "w1" stands for 3 rows
-    And window "w1" counts 4 rows
+  Scenario: an interleaved repeat moves to the front without evicting another row
+    Given a traffic log that keeps 3 rows and looks back 2 rows for a repeat
+    When window "w1" logs the traffic "error,request,reply,request,reply"
+    Then window "w1" shows the traffic "reply ×2,request ×2,error"
+    And window "w1" shows 3 rows, newest first, with 1 error and 0 warnings counted
+    And window "w1" counts 5 rows
+
+  Scenario: folding does not look outside the configured number of recent rows
+    Given a traffic log that keeps 4 rows and looks back 2 rows for a repeat
+    When window "w1" logs the traffic "request,reply,guard,request"
+    Then window "w1" shows the traffic "request,guard,reply,request"
+    And window "w1" shows 4 rows, newest first, with 0 errors and 1 warning counted
+    And window "w1" counts 3 rows
+
+  Scenario: a fold without a lookback only compares with the newest row
+    Given a traffic log that folds adjacent rows
+    When window "w1" logs the traffic "request,reply,request,request"
+    Then window "w1" shows the traffic "request ×2,reply,request"
 
   Scenario: notices go by themselves after their tone's time, or when dismissed
     Given a notice store with a clock the scenario moves

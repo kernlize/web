@@ -45,8 +45,22 @@ Feature: An applet's messages, as the inspector shows them
       | direction |
       | type      |
       | channel   |
-      | mark      |
       | note      |
+
+  Scenario Outline: failures and guard events each keep their own row even when they look alike
+    When the inspector tries to fold two rows for "<kind>"
+    Then the inspector folds nothing
+
+    Examples:
+      | kind          |
+      | failed reply  |
+      | guard warning |
+      | held request  |
+
+  Scenario: an arrival after a pause starts a new group
+    When the inspector folds a "gamepad.state" message at 1 into a row, and then 42 more of them
+    And another message of that type arrives at 2044
+    Then the inspector folds nothing
 
   Scenario: errors and warnings are counted, and say so in a few words
     When the inspector counts marks "error,warning,,warning,error,error"

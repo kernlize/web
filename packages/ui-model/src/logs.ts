@@ -66,9 +66,8 @@ export interface TrafficMarks {
 }
 
 /**
- * Decides whether an arriving row repeats the newest one: the row to keep in its place, or `undefined`
- * to keep both. The host owns what counts as a repeat, because only it knows which of its fields
- * mean the same thing said twice.
+ * Compares an arriving row with a recent row: return the merged row to move to the front, or
+ * `undefined` to keep looking for a match. The host owns what counts as a repeat.
  */
 export type TrafficFold<R extends TrafficRow> = (kept: R, arriving: R) => R | undefined;
 
@@ -76,9 +75,10 @@ export type TrafficFold<R extends TrafficRow> = (kept: R, arriving: R) => R | un
 export interface TrafficLog<R extends TrafficRow> {
   /** Emits whenever a row is added or windows are forgotten. */
   readonly changes$: Observable<void>;
-  add(row: R): void;
+  /** Add a row; pass `false` for a supplemental row that should not contribute to `total`. */
+  add(row: R, count?: boolean): void;
   forWindow(windowId: string): readonly R[];
-  /** How many rows a window has had, folded ones included, which keeps counting after rows go. */
+  /** Counted arrivals, including arrivals whose rows were folded or are no longer kept. */
   total(windowId: string): number;
   marks(windowId: string): TrafficMarks;
   /** Forget every window not in `ids`: a closed window's log goes with it. */
@@ -90,11 +90,12 @@ const NO_MARKS: TrafficMarks = Object.freeze({ errors: 0, warnings: 0 });
 /**
  * The traffic log. Payloads can hold private messages and signed events, so it is never written to
  * storage. A window keeps its newest rows; its marks and its count keep going after older rows go.
- * A `fold` keeps a burst of the same thing from taking the room a failure needs: the repeat replaces
- * the newest row instead of pushing everything down, and no row is lost to it.
+ * A `fold` keeps a burst from filling the log: the first matching row is replaced and moved to
+ * the front without evicting another row.
  *
  * @param keep - Rows kept per window; 200 by default.
- * @param fold - Whether an arriving row repeats the newest one, and what to keep in its place.
+ * @param fold - Whether an arriving row repeats a recent one, and what to keep for both.
+ * @param lookback - Maximum number of recent rows to try, newest first (default: 1).
  * @returns An empty log.
  * @example
  * ```ts
@@ -102,20 +103,26 @@ const NO_MARKS: TrafficMarks = Object.freeze({ errors: 0, warnings: 0 });
  * kernl.traffic$.subscribe((message) => traffic.add({ windowId: message.windowId, text: message.type }));
  * ```
  */
-export function createTrafficLog<R extends TrafficRow>(keep = 200, fold?: TrafficFold<R>): TrafficLog<R> {
+export function createTrafficLog<R extends TrafficRow>(keep = 200, fold?: TrafficFold<R>, lookback = 1): TrafficLog<R> {
   let rows: ReadonlyMap<string, readonly R[]> = new Map();
   let marks: ReadonlyMap<string, TrafficMarks> = new Map();
   let totals: ReadonlyMap<string, number> = new Map();
   const changes = new BehaviorSubject<void>(undefined);
+  const withArrival = (held: readonly R[], row: R): readonly R[] => {
+    if (fold) {
+      for (const [index, candidate] of held.slice(0, lookback).entries()) {
+        const merged = fold(candidate, row);
+        if (merged) return [merged, ...held.slice(0, index), ...held.slice(index + 1)];
+      }
+    }
+    return [row, ...held].slice(0, keep);
+  };
   const counted = (current: TrafficMarks, mark: TrafficRow['mark']): TrafficMarks => (mark === 'error' ? { ...current, errors: current.errors + 1 } : { ...current, warnings: current.warnings + 1 });
   return {
     changes$: changes.asObservable(),
-    add(row) {
-      const held = rows.get(row.windowId) ?? [];
-      const [newest] = held;
-      const folded = newest && fold ? fold(newest, row) : undefined;
-      rows = new Map(rows).set(row.windowId, folded ? [folded, ...held.slice(1)] : [row, ...held].slice(0, keep));
-      totals = new Map(totals).set(row.windowId, (totals.get(row.windowId) ?? 0) + 1);
+    add(row, count = true) {
+      rows = new Map(rows).set(row.windowId, withArrival(rows.get(row.windowId) ?? [], row));
+      if (count) totals = new Map(totals).set(row.windowId, (totals.get(row.windowId) ?? 0) + 1);
       if (row.mark) marks = new Map(marks).set(row.windowId, counted(marks.get(row.windowId) ?? NO_MARKS, row.mark));
       changes.next();
     },

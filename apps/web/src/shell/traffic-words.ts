@@ -117,21 +117,24 @@ export function trimPayload(payload: unknown): unknown {
   return trim(payload, 0);
 }
 
+const REPEAT_GAP_MS = 2_000;
+
 /**
- * Fold a repeat into the row it repeats: same direction, type, channel, mark and note, so a burst of
- * one message becomes one row with a count instead of taking the room a failure needs. The row keeps
- * its id, takes the newest time and payload, and remembers when the first of them arrived.
+ * Fold matching messages no more than two seconds apart. The guard and marked messages are never
+ * folded: each failure keeps its own envelope even if its error code matches another's.
+ * The row keeps its id, takes the newest time and payload, and remembers the first arrival.
  *
- * @param kept - The newest row so far.
+ * @param kept - A recent row in the same window.
  * @param arriving - The row that just came in.
- * @returns The row to keep in its place, or `undefined` when this is something else.
+ * @returns The replacement row, or `undefined` if they don't belong to the same burst.
  * @example
  * ```ts
  * foldRepeat({ id: 1, windowId: 'w1', at: 0, direction: 'to-applet', type: 'gamepad.state' }, { id: 2, windowId: 'w1', at: 9, direction: 'to-applet', type: 'gamepad.state' })?.repeat?.repeats; // 2
  * ```
  */
 export function foldRepeat(kept: TrafficEntry, arriving: TrafficEntry): TrafficEntry | undefined {
-  const same = kept.direction === arriving.direction && kept.type === arriving.type && kept.via === arriving.via && kept.mark === arriving.mark && kept.note === arriving.note;
+  if (kept.direction === 'guard' || kept.mark || arriving.mark || arriving.at - kept.at > REPEAT_GAP_MS) return undefined;
+  const same = kept.direction === arriving.direction && kept.type === arriving.type && kept.via === arriving.via && kept.note === arriving.note;
   if (!same) return undefined;
   return { ...arriving, id: kept.id, repeat: { repeats: (kept.repeat?.repeats ?? 1) + 1, since: kept.repeat?.since ?? kept.at } };
 }
