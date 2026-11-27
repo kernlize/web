@@ -10,12 +10,14 @@ The four gaps filed as [kehto/web #397](https://github.com/kehto/web/issues/397)
 - Ask for a reply kehto can send for a request the host drops, so an applet does not wait for an answer that will not come. NAP defines none today.
 - Let the runtime measure envelopes without an `event`, so its size limits see downloads and queries and kernl's size caps could move into kehto.
 - Report the four creation routes past `experimental.nestedContextLock` and ask kehto to guard insertion, so kernl can drop its insertion lock ([D-014](./decisions.md#d-014)).
+- Ask for an observe-only `ShellAdapter` hook for the messages kehto sends to an applet, the mirror of `onNappletMessage`. Until then the traffic inspector wraps `originRegistry.postToNapplet` ([D-058](./decisions.md#d-058)).
+- Ask for the offending message's `type` in a `window-message` revocation, so the shell can say what the applet posted when it stops it.
 
 ## 2. Bridge backends
 
 Applets work through the programs the person already runs, to add and control torrents, NZB jobs and Soulseek searches and transfers: Transmission or uTorrent, NZBGet or SABnzbd, and slskd, each driven over its own HTTP API behind the `torrent`, `nzb` and `soulseek` domains ([D-050](./decisions.md#d-050), [Connected programs](./concepts/download-programs.md)). This overtakes most of what this section used to plan, a companion service that would open sockets for the shell: for downloads, those programs already open them. What is left, in order:
 
-- **A kehto release that lets the domains be offered.** The three are offered only when the installed `@kehto/shell` prelude renders a binding table ([kehto/web#413](https://github.com/kehto/web/pull/413)), which 0.35 does not. Until then the settings exist and no applet can call the services. When it ships, kernl takes the binding types from kehto and drops its local declaration.
+- **A kehto release that lets the domains be offered.** The three are offered only when the installed `@kehto/shell` prelude renders a binding table (`supportsDomainBindings()`, [kehto/web#413](https://github.com/kehto/web/pull/413)), which no release does yet: kernl installs 0.35, and 0.36 has none either. Until then the settings exist and no applet can call the services. When it ships, kernl takes the binding types from kehto and drops its local declaration in `@kernlize/kernel`.
 - **File reads and saves.** The services are remote controls. `torrent.read`, `exportMetainfo`, `saveFile` and `openFile`, `nzb.files` and `nzb.read`, and `soulseek.read` and `soulseek.save` are refused, because the files are on the program's disk and kernl cannot reach them. Serving them needs a keeper with file access: a service on the person's device, or a native host.
 - **Links the person opens.** The Downloads panel and the locator bridges do not use the programs yet. A magnet link still downloads in the page through WebTorrent, which reaches browser peers only, or is handed to an app on the device ([D-017](./decisions.md#d-017)); an NZB or Soulseek link is still handed off ([Bridges](./concepts/bridges.md#hand-off-backends)). A `TorrentBackend`, `NzbBackend` and `SoulseekBackend` over the same clients would give those links a job the panel can track, and reach peers a page cannot.
 - **Seeding and uploading through a connection.** NAP-UPLOAD is not wired to these programs yet. When it is, and the person has more than one torrent connection, the prompt sequence for an upload or a seed (NAP-TORRENT's `pickFiles` and `runtime-file-set` sources) asks which connection to seed from, rather than routing it as downloads are ([D-053](./decisions.md#d-053)). NZB and Soulseek are out of scope for this: NAP-NZB has no upload or posting surface, and NAP-SOULSEEK does not expose local share administration or unsolicited uploads, whatever the daemon itself can do.
@@ -38,15 +40,19 @@ The Downloads panel shows in-kernl jobs only; a hand-off job cannot be tracked, 
 - Inbox setup: offer to publish the user's kind 10050 inbox relays when they have none, so `private` stops falling back to the `outbox` and `super` tiers ([D-015](./decisions.md#d-015)).
 - Per-conversation provider migration: move a correspondent from `legacy` to `private` when both clients can read it, shown as a reversible choice.
 - Show which provider carried a message. The applet sees opaque ids and cannot say; the shell knows, and should mark a conversation's window or a sent message when it used something other than the first provider ([D-027](./decisions.md#d-027)).
-- Messages applet: take `napplet:dm/open` requests from other applets and open the conversation they name, once its SDK has the delivery hook; publish it to the store so other shells can run it; names and pictures for people, which the shell could fill in on `DmPeer` from profiles it already holds.
+- Messages applet: take `napplet:dm/open` requests from other applets and open the conversation they name. Its SDK has the delivery hook (`intentOnDelivery`) now; the applet does not register it yet. Publish it to the store so other shells can run it. Show people's pictures: the shell fills `DmPeer.label` from profiles it holds, and could fill `avatar` the same way; the applet draws initials today.
 
 ## 4. Mobile layouts
 
-The window manager contracts come from `@kehto/wm`. A narrow-viewport layout with a window switcher, gestures for focus and dismissal, and the same visibility semantics the guard relies on (a window off screen is hidden, and hidden windows are deferred).
+At 720 px wide and below the shell already switches to a compact layout: every window fills the desktop, the bar moves its controls into a **Menu** sheet, and panels open as full-width sheets ([Layouts](./concepts/layouts.md)). What is left:
 
-## 5. Account switching
+- A window switcher. The menu lists minimised windows only.
+- Gestures for focus and dismissal.
+- The visibility the guard relies on: a window wholly covered by the front one is reported hidden, so its requests are deferred. Today only the `stacked` layout hides the windows behind the front one; in the compact view of any other layout every open window is reported visible.
 
-`AccountManager` already holds several accounts. The missing piece is a switcher that makes the active account visible on every screen, keeps grants scoped to the account that gave them, and never signs a write with an account the user did not pick for that window.
+## 5. Switching identities
+
+`KernlAccountManager` already holds several identities, the sign-in screen lists the remembered ones, and the bar shows the active one on the desktop. Switching still means signing out and in. The missing piece is a switcher that makes the active identity visible on every screen, keeps grants scoped to the identity that gave them, and never signs a write with an identity the user did not pick for that window.
 
 ## 6. Guard
 
@@ -58,7 +64,7 @@ The window manager contracts come from `@kehto/wm`. A narrow-viewport layout wit
 
 ## 7. Conformance
 
-- Run `@napplet/conformance` against the shell's bridge in `pnpm test`: envelope validators per NAP domain, manifest validation and the reference mock shell's expectations of a host. Today conformance is checked by the `packages/*/features/` scenarios and review only ([Spec conformance](./policies/spec-conformance.md)).
+- Run `@napplet/conformance` against the shell's bridge in `pnpm test`: envelope validators per NAP domain, manifest validation and the reference mock shell's expectations of a host. Today conformance is checked by the `packages/*/features/` scenarios and review ([Spec conformance](./policies/spec-conformance.md)); the Messages applet has a `test:conformance` script that runs `@napplet/conformance-cli` over its build, by hand only.
 
 ## Not planned
 
