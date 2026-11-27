@@ -6,7 +6,7 @@ import { createGuardLog, createNoticeStore, createTrafficLog, createUnreadCount,
 
 type DmMessage = Parameters<Parameters<MessagingBackend['subscribe']>[1]>[0];
 
-interface Row { readonly windowId: string; readonly mark?: 'error' | 'warning'; readonly n: number }
+interface Row { readonly windowId: string; readonly mark?: 'error' | 'warning'; readonly n: number; readonly kind?: string; readonly repeats?: number }
 
 interface LogsWorld {
   guard?: GuardLog;
@@ -68,6 +68,31 @@ Given('a traffic log that keeps {int} rows per window', (world: LogsWorld, keep:
   const state = world_(world);
   state.traffic = createTrafficLog<Row>(keep);
   state.traffic.changes$.subscribe(() => (state.changes += 1));
+});
+
+const foldKind = (kept: Row, arriving: Row): Row | undefined => kept.kind === arriving.kind ? { ...arriving, repeats: (kept.repeats ?? 1) + 1 } : undefined;
+
+Given('a traffic log that keeps {int} rows and looks back {int} rows for a repeat', (world: LogsWorld, keep: number, lookback: number) => {
+  world.traffic = createTrafficLog<Row>(keep, foldKind, lookback);
+});
+
+Given('a traffic log that folds adjacent rows', (world: LogsWorld) => {
+  world.traffic = createTrafficLog<Row>(4, foldKind);
+});
+
+When('window {string} logs the traffic {string}', (world: LogsWorld, windowId: string, kinds: string) => {
+  kinds.split(',').forEach((kind, n) => {
+    const mark = kind === 'error' ? 'error' : kind === 'guard' ? 'warning' : undefined;
+    world.traffic?.add({ windowId, n, kind, ...(mark ? { mark } : {}) }, kind !== 'guard');
+  });
+});
+
+Then('window {string} shows the traffic {string}', (world: LogsWorld, windowId: string, shown: string) => {
+  expect(world.traffic?.forWindow(windowId).map((row) => row.repeats ? `${row.kind} ×${row.repeats}` : row.kind)).toEqual(shown.split(','));
+});
+
+Then('window {string} counts {int} rows', (world: LogsWorld, windowId: string, count: number) => {
+  expect(world.traffic?.total(windowId)).toBe(count);
 });
 
 When('window {string} logs rows marked {string} and window {string} logs a row marked {string}', (world: LogsWorld, first: string, marks: string, second: string, mark: string) => {

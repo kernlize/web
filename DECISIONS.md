@@ -1266,3 +1266,18 @@ The preview keeps its storage under the `preview:` prefix, apart from the live s
 **Decision.** Register `stacked` after `master-stack`. The layout fills the desktop with the front window; `singleWindow` tells the manager to report the rest as minimised to the shell and hidden to the guard. That visibility is derived, not written over the person's minimise choices. The dock and accepted intents both use the existing focus path, so bringing a handler forward hides the caller without unmounting either frame. An intent brings its handler forward by default or with `focus: true`. With `focus: false`, a reused handler stays where it is and a new handler opens behind the existing windows without taking focus. A connected handler can receive the request without becoming visible. A fresh hidden handler cannot finish its handshake until shown; delivery can expire while it waits. The chooser, guard and recipient checks are unchanged. A stopped applet's window can still be brought forward for its shell controls, but its applet never gets focus.
 
 **Reversal cost.** Remove the registry entry; a remembered `stacked` id falls back to the default layout.
+
+## D-077 · A repeated message folds into the row it repeats, with a count
+
+**Context.** An applet that streams state, as a gamepad does, sends the same message hundreds of times; an applet that opens an outbox can receive a burst of events of the same type. D-058's log keeps 200 rows per window, so a stream of one message filled it and pushed out the failure the person had opened the panel to find. The counts kept going past the rows, which left a header saying "200 messages · 1 error" over a list with no error in it, and **Problems only** saying "No problems."
+
+**Decision.**
+
+- **The host defines a repeat.** `createTrafficLog(keep, fold?, lookback = 1)` tries the newest candidates within the configured lookback. It moves the first match to the front with the newest time and payload, keeping the id, count and time of the first occurrence. A merged row replaces a row instead of evicting another one.
+- **A burst can interleave requests, replies and guard events.** The shell checks up to 12 recent rows in the same window and matches unmarked messages with the same direction, type, channel and note, at most two seconds after the last occurrence. This folds a burst into a request group and a reply group without matching activity from much earlier. The payload is not a match key: it changes in a stream of state. Groups are ordered by their latest occurrence, not by the order of every message inside them.
+- **Problems stay separate.** Never fold a marked message or a guard event. Two failures with the same error code can carry different envelopes; both must remain inspectable. Opening a row snapshots its payload until it is closed; reopening shows the latest one.
+- **The header counts all messages, not just retained rows.** Guard entries don't contribute to the message total; their warnings still count. With **Problems only** on, if all marked rows have aged out, the panel says "No problems among the messages kept" rather than contradicting the total.
+
+**Consequences.** A repeated stream or interleaved burst takes fewer of the 200 retained rows. Problem rows can still age out, and the header and Inspect button counts still cover the window's lifetime. The log shows representative payloads for unmarked repeats, not a complete request/reply trace.
+
+**Reversal cost.** Drop the fold and lookback arguments at the shell's call site to go back to one row per message.

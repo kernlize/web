@@ -10,6 +10,7 @@ export interface TrafficEntry {
   /** Unique across the page, for keyed lists. */
   readonly id: number;
   readonly windowId: string;
+  /** When the newest of the messages this row stands for arrived. */
   readonly at: number;
   readonly direction: AppletMessage['direction'] | 'guard';
   readonly via?: AppletMessage['via'];
@@ -18,8 +19,18 @@ export interface TrafficEntry {
   readonly mark?: TrafficMark;
   /** One line about the mark: what failed, or what the guard did. */
   readonly note?: string;
+  /** Set when the same message repeated: how many of them this row stands for, and when the first came. */
+  readonly repeat?: TrafficRepeat;
   /** The envelope itself; kept in memory only. */
   readonly payload?: unknown;
+}
+
+/** A run of one message, folded into the row it repeats. */
+export interface TrafficRepeat {
+  /** Two or more: one message is not a repeat. */
+  readonly repeats: number;
+  /** When the first of the run arrived; `at` is when the newest did. */
+  readonly since: number;
 }
 
 /** Errors and warnings an applet has had. */
@@ -104,6 +115,43 @@ export function trimPayload(payload: unknown): unknown {
     return copy;
   };
   return trim(payload, 0);
+}
+
+const REPEAT_GAP_MS = 2_000;
+
+/**
+ * Fold matching messages no more than two seconds apart. The guard and marked messages are never
+ * folded: each failure keeps its own envelope even if its error code matches another's.
+ * The row keeps its id, takes the newest time and payload, and remembers the first arrival.
+ *
+ * @param kept - A recent row in the same window.
+ * @param arriving - The row that just came in.
+ * @returns The replacement row, or `undefined` if they don't belong to the same burst.
+ * @example
+ * ```ts
+ * foldRepeat({ id: 1, windowId: 'w1', at: 0, direction: 'to-applet', type: 'gamepad.state' }, { id: 2, windowId: 'w1', at: 9, direction: 'to-applet', type: 'gamepad.state' })?.repeat?.repeats; // 2
+ * ```
+ */
+export function foldRepeat(kept: TrafficEntry, arriving: TrafficEntry): TrafficEntry | undefined {
+  if (kept.direction === 'guard' || kept.mark || arriving.mark || arriving.at - kept.at > REPEAT_GAP_MS) return undefined;
+  const same = kept.direction === arriving.direction && kept.type === arriving.type && kept.via === arriving.via && kept.note === arriving.note;
+  if (!same) return undefined;
+  return { ...arriving, id: kept.id, repeat: { repeats: (kept.repeat?.repeats ?? 1) + 1, since: kept.repeat?.since ?? kept.at } };
+}
+
+/**
+ * "43 times, first at 8:25:39 PM": what a folded row hides.
+ *
+ * @param repeat - The run the row stands for.
+ * @param timeOf - How the shell writes a time.
+ * @returns The words for the row's count.
+ * @example
+ * ```ts
+ * repeatWords({ repeats: 3, since: 0 }, (at) => new Date(at).toISOString()); // '3 times, first at 1970-01-01T00:00:00.000Z'
+ * ```
+ */
+export function repeatWords(repeat: TrafficRepeat, timeOf: (at: number) => string): string {
+  return `${repeat.repeats} times, first at ${timeOf(repeat.since)}`;
 }
 
 /**

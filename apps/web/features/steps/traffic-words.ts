@@ -2,10 +2,11 @@ import { expect } from 'vitest';
 import { Then, When } from 'quickpickle';
 import type { GuardEvent } from '@kernlize/guard';
 import type { AppletMessage } from '../../src/shell/contract.ts';
-import { countMark, describeMarks, directionLabel, entryOfGuardEvent, entryOfMessage, formatPayload, trimPayload, type TrafficEntry, type TrafficMarks } from '../../src/shell/traffic-words.ts';
+import { countMark, describeMarks, directionLabel, entryOfGuardEvent, entryOfMessage, foldRepeat, formatPayload, repeatWords, trimPayload, type TrafficEntry, type TrafficMarks, type TrafficRepeat } from '../../src/shell/traffic-words.ts';
 
 interface TrafficWorld {
   row?: TrafficEntry;
+  fold?: { row?: TrafficEntry };
   marks?: TrafficMarks;
 }
 
@@ -28,6 +29,56 @@ Then('the inspector row reads {string}', (world: TrafficWorld, label: string) =>
 
 Then('the inspector shows nothing for a guard {string}', (_world: TrafficWorld, disposition: GuardEvent['disposition']) => {
   expect(entryOfGuardEvent({ disposition, windowId: 'w1', napplet: 'n', opClass: 'generic', reason: 'ok', at: 1 }, 3, '')).toBeUndefined();
+});
+
+/** A row for a message an applet got, with the clock read as UTC so the words do not depend on the machine. */
+const row = (at: number, id: number, type = 'gamepad.state'): TrafficEntry => entryOfMessage({ windowId: 'w1', direction: 'to-applet', via: 'port', type, message: {}, at }, id);
+const clock = (at: number): string => new Date(at).toISOString().slice(11, 19);
+
+When('the inspector folds a {string} message at {int} into a row, and then {int} more of them', (world: TrafficWorld, type: string, at: number, more: number) => {
+  let folded = row(at, 1, type);
+  for (let n = 1; n <= more; n += 1) folded = foldRepeat(folded, row(at + n, n + 1, type)) ?? folded;
+  world.row = folded;
+});
+
+Then('the inspector row stands for {int} messages, the first at {int}', (world: TrafficWorld, count: number, first: number) => {
+  expect(world.row?.repeat).toEqual({ repeats: count, since: first });
+});
+
+Then('the inspector says {string}', (world: TrafficWorld, words: string) => {
+  expect(repeatWords((world.row as TrafficEntry).repeat as TrafficRepeat, clock)).toBe(words);
+});
+
+const DIFFERS: Readonly<Record<string, Partial<TrafficEntry>>> = {
+  direction: { direction: 'from-applet' },
+  type: { type: 'outbox.event' },
+  channel: { via: 'window' },
+  note: { note: 'denied: relay:read' },
+};
+
+When('the inspector folds a message whose {string} differs from the row before it', (world: TrafficWorld, field: string) => {
+  const kept = row(1, 1);
+  world.fold = { row: foldRepeat(kept, { ...kept, id: 2, at: 9, ...DIFFERS[field] }) };
+});
+
+const SEPARATE: Readonly<Record<string, Partial<TrafficEntry>>> = {
+  'failed reply': { mark: 'error', note: 'network-error' },
+  'guard warning': { direction: 'guard', mark: 'warning' },
+  'held request': { direction: 'guard', type: 'hidden:relay:publish' },
+};
+
+When('the inspector tries to fold two rows for {string}', (world: TrafficWorld, kind: string) => {
+  const kept = { ...row(1, 1), ...SEPARATE[kind], payload: { id: 'first' } };
+  world.fold = { row: foldRepeat(kept, { ...kept, id: 2, at: 2, payload: { id: 'second' } }) };
+});
+
+When('another message of that type arrives at {int}', (world: TrafficWorld, at: number) => {
+  const kept = world.row as TrafficEntry;
+  world.fold = { row: foldRepeat(kept, row(at, 99, kept.type)) };
+});
+
+Then('the inspector folds nothing', (world: TrafficWorld) => {
+  expect(world.fold?.row).toBeUndefined();
 });
 
 When('the inspector counts marks {string}', (world: TrafficWorld, marks: string) => {
