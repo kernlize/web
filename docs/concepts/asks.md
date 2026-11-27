@@ -25,7 +25,3 @@ Two kinds keep what a host without them always got: a reply leaves the way the p
 ## Modules ask through the kernel
 
 A module lists the kinds it may raise in `asks` and puts them through `KernelContext.ask`. It cannot ask a kind it did not list, and it never draws the question itself. `canAsk(kind)` tells it whether the host draws a kind, for a module that offers something only when it can be asked about, as the settings module does.
-
-## The callbacks they replace
-
-`presentConsent`, `presentApproval`, `chooseHandler`, `chooseReply` and `presentSettings` still draw the kinds they used to for one minor. A renderer in `asks` wins over the callback it replaces.

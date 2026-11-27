@@ -10,11 +10,9 @@ import type { AppletMessage } from './applets/traffic.js';
 import type { NappletArtifactCache, NappletManifest } from '@kehto/nip/5d';
 import type { NostrEvent } from '@napplet/core';
 import type { GuardConfig, GuardEvent, GuardProfile, MitigationDescription, WindowVisibility } from '@kernlize/guard';
-import type { ReplyAnswer, ReplyPrompt } from '@kernlize/messaging';
 import type { ClientFetch, PageScheme } from '@kernlize/bridges';
 import type { SecretsDescription, SecretsProvider } from './secrets/secrets.js';
 import type { KernlMedia } from './media/kernl-media.js';
-import type { SettingsPrompt } from './applets/applet-config.js';
 import type { HandlerDefaults, InstalledApplet } from './intents-contract.js';
 import type { ShortcutKey } from './shortcut-key.js';
 
@@ -381,22 +379,10 @@ export interface KernlHost {
   readonly outboxCacheStorage?: StorageLike;
   /**
    * How the host draws each question the kernel puts to the person, one renderer per kind (D-067).
-   * A kind with no renderer, and no prompt callback below, is refused. Every ask carries its facts
+   * A kind with no renderer is refused. Every ask carries its facts
    * and kernl's own wording; a renderer may reword, never answer for another window.
    */
   readonly asks?: AskRenderers;
-  /**
-   * Ask the user. Resolve `false` on dismiss. The core never times this out. Draws `sign.replace`, `upload.file`,
-   * `download.add` and `connection.direct` when `asks` has no renderer for them. Deprecated: register a renderer in `asks` instead (D-067); this callback goes after one minor.
-   * @deprecated
-   */
-  presentConsent?(prompt: ConsentPrompt): void;
-  /**
-   * Show an applet's settings form. Without it applets cannot have settings, and the `config` domain is not offered (D-036).
-   * Draws `settings.present`. Deprecated: register a renderer in `asks` instead (D-067); this callback goes after one minor.
-   * @deprecated
-   */
-  presentSettings?(prompt: SettingsPrompt): void;
   /** Show something the applet or the guard wants the user to know. */
   notify(notice: { readonly title: string; readonly body?: string; readonly windowId?: string; readonly tone: 'info' | 'warning' }): void;
   /**
@@ -412,31 +398,10 @@ export interface KernlHost {
    * `blocked`, `firewall`). `details` carries what else is known about the stop.
    */
   onRevoked(windowId: string, reason: string, details?: AppletStopDetails): void;
-  /**
-   * Ask the user which applet should take a request. Resolve `undefined` on
-   * dismiss. Without it, requests with several handlers and no default are refused.
-   * Draws `intent.choose-handler`. Deprecated: register a renderer in `asks` instead (D-067); this callback goes after one minor.
-   * @deprecated
-   */
-  chooseHandler?(prompt: HandlerPrompt): Promise<HandlerChoice | undefined>;
   /** Open the applet under its existing grants, preserving the foreground when focus is false; resolve its window id, or undefined when it did not open. */
   openApplet?(address: string, options?: { readonly focus?: boolean }): Promise<string | undefined>;
   /** Bring a running applet's window to the front. */
   focusApplet?(windowId: string): void;
-  /**
-   * Ask the user which provider a reply should leave through when the person it is for last wrote
-   * through another one. Resolve `undefined` on dismiss, which stops the send. Without it the
-   * provider the user's order picked is used. Draws `messaging.choose-reply`. Deprecated: register a renderer in `asks` instead (D-067); this callback goes after one minor.
-   * @deprecated
-   */
-  chooseReply?(prompt: ReplyPrompt): Promise<ReplyAnswer | undefined>;
-  /**
-   * Put a firewall question to the person: a request a rule says to ask about, such as opening a link.
-   * Close the prompt when `signal` aborts. Without it, such a request is refused (D-056).
-   * Draws `firewall.approve`. Deprecated: register a renderer in `asks` instead (D-067); this callback goes after one minor.
-   * @deprecated
-   */
-  presentApproval?(prompt: FirewallPrompt): void;
   /** Verify an artifact blob. Defaults to `fetch` over the manifest's servers. */
   fetchBlob?(sha256: string, servers: readonly string[]): Promise<Uint8Array>;
   /**

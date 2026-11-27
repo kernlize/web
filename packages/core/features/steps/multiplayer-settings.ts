@@ -21,6 +21,7 @@ import {
 } from '@kernlize/core';
 import { startLoopbackRelay, type LoopbackRelay } from './loopback-relay.js';
 import { MemoryStorage, scratch, splitList, type CoreWorld } from './world.js';
+import { consentAsks } from './prompt-asks.js';
 
 const INPUT = { type: 'object', properties: { subject: { type: 'string' } } };
 const OUTPUT = { type: 'object', properties: { score: { type: 'number' } } };
@@ -340,7 +341,7 @@ Then('with the host\'s families {string} and the person\'s {string} from the sam
 Given('a live kernl shell', (world: CoreWorld) => {
   const state = tools(world);
   state.kernl = createKernl({
-    host: { storage: state.storage, presentConsent: () => undefined, notify: () => undefined, openLink: () => undefined, getVisibility: () => ({ visible: true, focused: true }), onRevoked: () => undefined },
+    host: { storage: state.storage, asks: consentAsks(() => undefined), notify: () => undefined, openLink: () => undefined, getVisibility: () => ({ visible: true, focused: true }), onRevoked: () => undefined },
     relays: { apps: [], super: [], discovery: [], outbox: [] },
     artifactCache: async () => undefined,
   });

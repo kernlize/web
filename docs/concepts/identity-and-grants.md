@@ -84,7 +84,7 @@ Three limits are deliberate:
 - **Answers are not remembered.** Each destructive write asks again; `ConsentPrompt` has no "always allow" switch.
 - **The user never approves raw JSON.** The unsigned draft (empty `id` and `sig`) is on `ConsentSummary.event` for an "advanced" disclosure.
 
-kehto's own `ConsentRequest` is a different thing: the runtime's former rate gate raised it, without an event, for a `prompt` policy. kernl no longer runs that gate ([D-056](../decisions.md#d-056)), so the request is not expected. `createConsentHandler` stays registered for it and refuses one without an event; a request that carries an event, from a window the shell can name, would be described and put to the user. A firewall question is separate again: it reaches the host through `presentApproval`, not through consent ([Guard](./guard.md#the-firewall)).
+kehto's own `ConsentRequest` is a different thing: the runtime's former rate gate raised it, without an event, for a `prompt` policy. kernl no longer runs that gate ([D-056](../decisions.md#d-056)), so the request is not expected. `createConsentHandler` stays registered for it and refuses one without an event; a request that carries an event, from a window the shell can name, would be described and put to the user. A firewall question is separate again: it reaches the host as a `firewall.approve` ask, not through consent ([Guard](./guard.md#the-firewall)).
 
 Deletions have their own, tighter budget only in kernl's rate limiter, which drops a deletion over it before dispatch with a `rate:relay:publish:delete` guard event. In kehto's runtime, kind 5 shares the `relay:publish` budget with other publishes ([Guard](./guard.md#where-enforcement-happens)). The rate is not what stops an unwanted deletion; consent is.
 

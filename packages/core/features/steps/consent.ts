@@ -16,6 +16,7 @@ import {
   type LookupReplaceableOptions,
 } from '@kernlize/core';
 import { scratch, signEvent, splitList, type CoreWorld } from './world.js';
+import { consentAsks } from './prompt-asks.js';
 
 const HASH = 'ab'.repeat(32);
 
@@ -204,7 +205,7 @@ function installHandler(world: CoreWorld, store: EventStore, network?: (pointer:
     }) as AddressPointerLoader;
     options = { loader, timeoutMs: SHORT_TIMEOUT_MS };
   }
-  const handle = createConsentHandler({ presentConsent: (prompt) => void prompts.push(prompt) }, lookupReplaceable(store, options), (windowId) => windows.get(windowId));
+  const handle = createConsentHandler({ asks: consentAsks((prompt) => void prompts.push(prompt)) }, lookupReplaceable(store, options), (windowId) => windows.get(windowId));
   scratch(world).handler = { prompts, answers: [], handle, asked } satisfies HandlerScratch;
 }
 

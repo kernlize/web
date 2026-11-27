@@ -5,6 +5,7 @@ import { decodeAddressPointer } from 'applesauce-core/helpers';
 import { createWindowManager, type AppletSummary, type CatalogEntry, type HandlerPrompt, type KernlHost, type WindowManager } from '@kernlize/core';
 import { boot, k } from './kernl.js';
 import { attempt, createFakeFrame, scratch, signManifest, splitList, type CoreWorld, type ManifestVector } from './world.js';
+import { handlerAsks } from './prompt-asks.js';
 
 const WAIT = { timeout: 3000, interval: 10 };
 
@@ -115,7 +116,7 @@ async function setUp(world: CoreWorld, { canOpen, source, domain, handler, role 
   scratch(world).pool.events = [chat.event, profiles.event];
   const host: Partial<KernlHost> = {
     fetchBlob: async (sha256) => new TextEncoder().encode(state.blobs.get(sha256)),
-    chooseHandler: async (prompt) => void state.prompts.push(prompt),
+    asks: handlerAsks(async (prompt) => void state.prompts.push(prompt)),
     focusApplet(windowId) {
       state.focused.push(windowId);
       state.stack?.focus(windowId);

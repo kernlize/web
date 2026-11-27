@@ -272,10 +272,9 @@ Then('the shell host shows an applet\'s settings in the settings form', (world: 
   expect(scratch.settings).toEqual([prompt]);
 });
 
-Then('the shell host draws every kind of question the kernel asks, through no prompt callback', (world: HostWorld) => {
+Then('the shell host draws every kind of question the kernel asks', (world: HostWorld) => {
   const { host } = hostOf(world);
   expect(Object.keys(host.asks ?? {}).sort()).toEqual([...ASK_KINDS].sort());
-  for (const callback of ['presentConsent', 'presentApproval', 'chooseHandler', 'chooseReply', 'presentSettings']) expect(callback in host).toBe(false);
 });
 
 Then('an upload, a download and a direct session wait in the consent queue with kernl\'s words', (world: HostWorld) => {

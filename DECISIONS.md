@@ -1102,6 +1102,8 @@ This changes D-062's "the context holds no signer" and the composability plan's 
 
 ## D-067 · Typed asks: the kernel decides what is asked, the host draws it
 
+*The prompt callbacks were removed in #106, after the minor that shipped `asks`.*
+
 **Context.** #73. `KernlHost` was a flat bag of callbacks whose prompts were kernl's own shapes. `presentConsent` alone carried five different questions: a write that replaces the person's record, kehto's consent request, an upload, a download program's action, and a direct session. A host could not tell them apart except by reading the wording. A host that wanted its own UX had to reimplement kernl's prompts or accept their shape.
 
 **Decision.** The owner settled the four open questions as recommended.

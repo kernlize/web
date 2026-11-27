@@ -1,12 +1,12 @@
 import type { KernlHost } from '../types.js';
 import { ASK_REFUSALS, type Ask, type AskAnswer, type AskKind, type AskRenderer } from './kinds.js';
 
-/** The host's side of the asks: its renderers, and the prompt callbacks they replace. */
-export type AskHost = Pick<KernlHost, 'asks' | 'presentConsent' | 'presentApproval' | 'chooseHandler' | 'chooseReply' | 'presentSettings'>;
+/** The host's side of the asks: one renderer per kind it draws. */
+export type AskHost = Pick<KernlHost, 'asks'>;
 
 /** Puts questions to the person through the host's renderers. */
 export interface AskChannel {
-  /** Whether the host draws this kind, through a renderer or a prompt callback. */
+  /** Whether the host has a renderer for this kind. */
   has(kind: AskKind): boolean;
   /**
    * Ask, and resolve with the person's answer. Resolves with the kind's refusal when nothing draws
@@ -23,47 +23,15 @@ export interface AskChannelOptions {
   readonly isAsking?: (windowId: string, ask: Ask) => boolean;
 }
 
-type Legacy = { readonly [K in AskKind]: (host: AskHost) => AskRenderer<K> | undefined };
-
-const consent = (host: AskHost) => {
-  const present = host.presentConsent?.bind(host);
-  return present ? (ask: Ask<'sign.replace' | 'upload.file' | 'download.add' | 'connection.direct'>) => new Promise<boolean>((resolve) => present({ summary: ask.defaultText, resolve })) : undefined;
-};
-
-/** The prompt callbacks a host had before asks, each drawing the kinds it used to (deprecated, D-067). */
-const LEGACY: Legacy = {
-  'sign.replace': consent,
-  'upload.file': consent,
-  'download.add': consent,
-  'connection.direct': consent,
-  'firewall.approve': (host) => {
-    const present = host.presentApproval?.bind(host);
-    return present ? (ask) => new Promise((resolve) => present({ summary: ask.facts, signal: ask.signal as NonNullable<Ask['signal']>, resolve })) : undefined;
-  },
-  'intent.choose-handler': (host) => {
-    const choose = host.chooseHandler?.bind(host);
-    return choose ? (ask) => choose(ask.facts) : undefined;
-  },
-  'messaging.choose-reply': (host) => {
-    const choose = host.chooseReply?.bind(host);
-    return choose ? (ask) => choose(ask.facts) : undefined;
-  },
-  'settings.present': (host) => {
-    const present = host.presentSettings?.bind(host);
-    return present ? (ask) => present(ask.facts) : undefined;
-  },
-};
-
 function rendererFor<K extends AskKind>(host: AskHost, kind: K): AskRenderer<K> | undefined {
   const own = host.asks?.[kind] as AskRenderer<K> | undefined;
-  return own ? (ask) => own.call(host.asks, ask) : (LEGACY[kind] as (host: AskHost) => AskRenderer<K> | undefined)(host);
+  return own ? (ask) => own.call(host.asks, ask) : undefined;
 }
 
 /**
  * The kernel's ask channel over a host (D-067). A kind the host registers in `asks` is drawn by
- * that renderer; otherwise by the prompt callback it replaces, while those last; otherwise it is
- * refused. The kernel decides that the person is asked and what they are told; the host decides
- * how it looks.
+ * that renderer; any other kind is refused. The kernel decides that the person is asked and what
+ * they are told; the host decides how it looks.
  *
  * @param options - The host, and how to tell whether the window that asked is still open.
  * @returns The channel.
@@ -95,8 +63,8 @@ export function createAskChannel(options: AskChannelOptions): AskChannel {
 }
 
 /**
- * The channel a host or a channel stands for: a host's own, built from its renderers and prompt
- * callbacks, or the kernel's, which also discards answers for windows that have closed.
+ * The channel a host or a channel stands for: a host's own, built from its renderers, or the
+ * kernel's, which also discards answers for windows that have closed.
  *
  * @param source - A host, or the kernel's channel.
  * @returns The channel.

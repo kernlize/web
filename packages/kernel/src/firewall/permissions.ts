@@ -62,7 +62,7 @@ const FIREWALL_TITLES: Readonly<Record<FirewallSummary['kind'], string>> = Objec
 
 /** Options for {@link createFirewallPermissions}. */
 export interface FirewallPermissionsOptions {
-  readonly host: Pick<KernlHost, 'storage' | 'asks' | 'presentApproval' | 'notify' | 'now'>;
+  readonly host: Pick<KernlHost, 'storage' | 'asks' | 'notify' | 'now'>;
   /** The channel `firewall.approve` goes through; the host's own by default. */
   readonly asks?: AskChannel;
   readonly rules: Pick<FirewallRules, 'decide'>;

@@ -8,6 +8,7 @@ import { naddrEncode } from 'applesauce-core/helpers';
 import type { NostrEvent, NostrFilter } from '@napplet/core';
 import { createKernl, createRelayTiers, fetchManifestEvent, publishAccepted, subscribeWithEose, type AppletSummary, type Kernl, type ManifestTiming } from '@kernlize/core';
 import { MemoryStorage, attempt, scratch, signEvent, signManifest, splitList, type CoreWorld, type ManifestVector } from './world.js';
+import { consentAsks } from './prompt-asks.js';
 
 /** A relay on a loopback port: it answers a REQ with what it holds, after a delay, or never. */
 interface LocalRelay {
@@ -213,7 +214,7 @@ function bootLive(world: CoreWorld, apps: string, general: string): void {
   live(world).kernl = createKernl({
     host: {
       storage: scratch(world).storage,
-      presentConsent: () => undefined,
+      asks: consentAsks(() => undefined),
       notify: () => undefined,
       openLink: () => undefined,
       getVisibility: () => ({ visible: true, focused: true }),
