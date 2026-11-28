@@ -2,12 +2,11 @@ import { createRelayEventResultWithHints, type RelayEventResult } from '@kehto/r
 import type { OutboxRelayPlan, StreamingOutboxRouter } from '@kehto/services';
 import { isEvent, matchFilter, verifyEvent, type NostrEvent } from 'applesauce-core/helpers';
 import { asFilters } from './applesauce/relay-hooks.js';
-import type { StorageLike } from './types.js';
+import type { OutboxCacheBacking, OutboxCacheRecord, StorageLike } from './types.js';
 
 const STORAGE_KEY = 'kernl:outbox-tree-events:v2';
 const PUBLIC_TREE_KINDS = new Set([31971, 31969, 31108, 1111]);
 const PUBLIC_TREE_RELAYS = new Set(['wss://nos.lol', 'wss://relay.routstr.com', 'wss://relay.redsh1ft.com']);
-const MAX_AGE_MS = 24 * 60 * 60 * 1_000;
 const MAX_RECORDS = 256;
 const MAX_STORAGE_CHARS = 256_000;
 const MAX_EVENT_CHARS = 16_000;
@@ -15,6 +14,7 @@ const MAX_FILTERS = 32;
 const MAX_FILTER_KEYS = 32;
 const MAX_FILTER_VALUES = 256;
 const MAX_REPLAY = 128;
+const CACHE_READ_MS = 250;
 
 type PlannedSubscribe = NonNullable<StreamingOutboxRouter['subscribeWithPlan']>;
 type Filters = Parameters<PlannedSubscribe>[0];
@@ -48,7 +48,7 @@ function isObservation(value: unknown): value is Observation {
   if (!value || typeof value !== 'object') return false;
   const row = value as Partial<Observation>;
   if (typeof row.relay !== 'string' || !publicRelay(row.relay)) return false;
-  if (typeof row.observed !== 'number' || !Number.isSafeInteger(row.observed) || row.observed > Date.now() || row.observed <= Date.now() - MAX_AGE_MS) return false;
+  if (typeof row.observed !== 'number' || !Number.isSafeInteger(row.observed)) return false;
   return isEvent(row.event) && PUBLIC_TREE_KINDS.has(row.event.kind) && verifyEvent(row.event);
 }
 
@@ -77,7 +77,8 @@ function compareEvents(a: Observation, b: Observation): number {
 }
 
 /** D-069: a shared observation is replayable only through an approved read of its source relay. */
-export function createOutboxEventCache(storage?: StorageLike) {
+export function createOutboxEventCache(storage?: StorageLike, backing?: OutboxCacheBacking) {
+  let durable = backing;
   let rows: Observation[] | undefined;
   let flush: ReturnType<typeof setTimeout> | undefined;
   const load = () => (rows ??= storage ? readStorage(storage) : []);
@@ -96,6 +97,26 @@ export function createOutboxEventCache(storage?: StorageLike) {
     }
   }
 
+  function close(): void {
+    persist();
+    durable = undefined;
+    backing?.close();
+  }
+
+  async function read(replay: (isCurrent: () => boolean) => Promise<RelayEventResult[]>, isCurrent: () => boolean, fallback: () => RelayEventResult[]): Promise<RelayEventResult[]> {
+    let finished = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<RelayEventResult[]>((resolve) => {
+      timer = setTimeout(() => resolve(fallback()), CACHE_READ_MS);
+    });
+    try {
+      return await Promise.race([deadline, replay(() => !finished && isCurrent())]);
+    } finally {
+      finished = true;
+      clearTimeout(timer);
+    }
+  }
+
   function open(filters: Filters, plan: OutboxRelayPlan, authors: readonly string[] | undefined) {
     const relays = plannedRelays(plan);
     if (relays.size === 0 || filters.length > MAX_FILTERS || (authors?.length ?? 0) > MAX_FILTER_VALUES) return undefined;
@@ -104,6 +125,56 @@ export function createOutboxEventCache(storage?: StorageLike) {
     if (supported.length === 0) return undefined;
     const limited = filters.some((filter) => filter.limit !== undefined);
     const matchesAuthor = (event: NostrEvent) => !authors || authors.includes(event.pubkey);
+
+    async function replayFrom(backing: OutboxCacheBacking, isCurrent: () => boolean): Promise<RelayEventResult[]> {
+      const matched = supported.map((filter) => ({ filter, limit: Math.min(filter.limit ?? MAX_REPLAY, MAX_REPLAY), events: [] as RelayEventResult[] }));
+      if (matched.every(({ limit }) => limit === 0)) return [];
+      await backing.visit((record: OutboxCacheRecord) => {
+        if (!isCurrent()) return false;
+        const event = record?.event;
+        if (!isEvent(event) || !PUBLIC_TREE_KINDS.has(event.kind) || !matchesAuthor(event) || !Array.isArray(record.relays)) return true;
+        const hints = [...new Set(record.relays.filter((relay) => relays.has(relay)))];
+        if (hints.length === 0) return true;
+        const accepting = matched.filter(({ filter, limit, events }) => events.length < limit && matchesEvent(filter, event));
+        if (accepting.length === 0) return true;
+        const signed = signedFields(event);
+        if (!verifyEvent(signed)) return true;
+        const result = createRelayEventResultWithHints(signedFields(signed), hints);
+        for (const { events } of accepting) events.push(result);
+        return matched.some(({ events, limit }) => events.length < limit);
+      });
+      const results = new Map<string, RelayEventResult>();
+      for (const { events } of matched) {
+        for (const result of events) {
+          results.set(result.event.id, result);
+          if (results.size === MAX_REPLAY) return [...results.values()];
+        }
+      }
+      return [...results.values()];
+    }
+
+    function replayMemory(): RelayEventResult[] {
+      const events = load().filter((row) => relays.has(row.relay) && matchesAuthor(row.event)).sort(compareEvents);
+      const results = new Map<string, RelayEventResult>();
+      for (const filter of supported) {
+        const ids = new Set<string>();
+        for (const row of events) {
+          if (!matchesEvent(filter, row.event) || (!ids.has(row.event.id) && ids.size >= (filter.limit ?? MAX_REPLAY))) continue;
+          const existing = results.get(row.event.id);
+          if (!existing && results.size >= MAX_REPLAY) continue;
+          ids.add(row.event.id);
+          const hints = new Set([...(existing?.sidecar?.relayHints ?? []), row.relay]);
+          results.set(row.event.id, createRelayEventResultWithHints(row.event, [...hints]));
+        }
+      }
+      return [...results.values()];
+    }
+
+    function remember(event: NostrEvent, relay: string): void {
+      const row = { relay, observed: Date.now(), event };
+      rows = [row, ...load().filter((old) => old.relay !== relay || old.event.id !== event.id)].slice(0, MAX_RECORDS);
+      if (storage) flush ??= setTimeout(persist, 50);
+    }
 
     return {
       // A relay-only extension (e.g. search) cannot be evaluated when allocating per-filter limits.
@@ -117,22 +188,13 @@ export function createOutboxEventCache(storage?: StorageLike) {
         }
         return events.filter(({ event }) => selected.has(event.id));
       },
-      replay(): RelayEventResult[] {
-        const fresh = load().filter((row) => relays.has(row.relay) && row.observed > Date.now() - MAX_AGE_MS);
-        const events = fresh.filter((row) => matchesAuthor(row.event)).sort(compareEvents);
-        const results = new Map<string, RelayEventResult>();
-        for (const filter of supported) {
-          const ids = new Set<string>();
-          for (const row of events) {
-            if (!matchesEvent(filter, row.event) || (!ids.has(row.event.id) && ids.size >= (filter.limit ?? MAX_REPLAY))) continue;
-            const existing = results.get(row.event.id);
-            if (!existing && results.size >= MAX_REPLAY) continue;
-            ids.add(row.event.id);
-            const hints = new Set([...(existing?.sidecar?.relayHints ?? []), row.relay]);
-            results.set(row.event.id, createRelayEventResultWithHints(row.event, [...hints]));
-          }
-        }
-        return [...results.values()];
+      replay(isCurrent = () => true): RelayEventResult[] | Promise<RelayEventResult[]> {
+        const active = durable;
+        if (!active) return replayMemory();
+        return read((current) => replayFrom(active, current), isCurrent, replayMemory).catch(() => {
+          durable = undefined;
+          return replayMemory();
+        });
       },
       observe(result: RelayEventResult): void {
         const event = signedFields(result.event);
@@ -141,13 +203,14 @@ export function createOutboxEventCache(storage?: StorageLike) {
         if (!relay || extra.length !== 0 || !relays.has(relay) || !PUBLIC_TREE_KINDS.has(event.kind)) return;
         if (!matchesAuthor(event) || !supported.some((filter) => matchesEvent(filter, event))) return;
         if (JSON.stringify(event).length > MAX_EVENT_CHARS) return;
-        const row: Observation = { relay, observed: Date.now(), event };
-        const recent = load().filter((old) => old.observed > row.observed - MAX_AGE_MS);
-        rows = [row, ...recent.filter((old) => old.relay !== relay || old.event.id !== event.id)].slice(0, MAX_RECORDS);
-        if (storage) flush ??= setTimeout(persist, 50);
+        if (!durable) remember(event, relay);
+        else void durable.observe(event, relay).catch(() => {
+          durable = undefined;
+          remember(event, relay);
+        });
       },
     };
   }
 
-  return { open, persist };
+  return { open, persist, close };
 }

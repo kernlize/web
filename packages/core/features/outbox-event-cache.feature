@@ -102,3 +102,35 @@ Feature: Approved Outbox reads reuse public tree events
     Given a previously observed Outbox tree event on "wss://nos.lol"
     When its applet queries with independently limited filters and an overall limit
     Then the query returns the newest match from each limited filter
+
+  Scenario: A tab can replay old observations after reloading
+    Given a browser Outbox cache has a public tree observation from weeks ago
+    When the same tab reopens its Outbox cache
+    Then the old tree event still replays on its observed relay
+    And another tab cannot replay the observation
+
+  Scenario: The browser Outbox cache evicts by observation order across tabs only above the byte budget
+    Given two tabs have filled their shared Outbox byte budget with multibyte events
+    When the first tab observes its old event again and the second tab observes one more event
+    Then only the least recently observed event is evicted from the shared byte budget
+
+  Scenario: A cache read that finishes after closing cannot replay or open a relay
+    Given an approved Outbox subscription is waiting for browser cache replay
+    When the applet closes the subscription before the cache read finishes
+    Then no cached Outbox event is sent
+    And no relay subscription opens after the cache read finishes
+
+  Scenario: Slow cache storage does not hold a live subscription indefinitely
+    Given an approved Outbox subscription is waiting for browser cache replay
+    When its browser cache read does not finish in time
+    Then the live Outbox relay opens without cached events
+
+  Scenario: Persisted records still need a valid signature and approved provenance
+    Given invalid and out-of-plan records sit beside a signed browser Outbox observation
+    When its applet subscribes to the tree on "wss://nos.lol"
+    Then only the signed observation replays with its approved source hint
+
+  Scenario: Storing an event from another relay keeps one event body and both source hints
+    Given the browser Outbox cache observed an oversized record and one event from two relays
+    Then only the eligible event remains in the cache with both observed relay hints
+    And browser schema changes release the cache connection

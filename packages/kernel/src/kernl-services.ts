@@ -74,7 +74,7 @@ export interface KernlServiceDeps {
   readonly auth: Pick<AuthHooks, 'getSigner'> & Partial<Pick<AuthHooks, 'getUserPubkey'>>;
   /** Gates the outbox service's publishes, which kehto signs without naming the window. */
   readonly consent: SigningConsent;
-  readonly host: Pick<KernlHost, 'notify' | 'openLink' | 'storage' | 'outboxCacheStorage'>;
+  readonly host: Pick<KernlHost, 'notify' | 'openLink' | 'storage' | 'outboxCache' | 'outboxCacheStorage'>;
   /** The bridges module's registry; without it the `resource` domain is not offered and the shell plays only what applets play themselves. */
   readonly bridges?: BridgeRegistry;
   /** Applet settings (NAP-CONFIG); without them the `config` domain is not offered. */
@@ -301,7 +301,7 @@ function createOutbox(deps: KernlServiceDeps, identity: IdentityProviders) {
   if (!deps.cacheOutboxReads) return createOutboxService({ router: accepting });
   return createCachedOutboxService({
     router: accepting,
-    cache: createOutboxEventCache(deps.host.outboxCacheStorage),
+    cache: createOutboxEventCache(deps.host.outboxCacheStorage, deps.host.outboxCache),
   });
 }
 

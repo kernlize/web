@@ -39,7 +39,14 @@ kernl's own module list is `kernlPreset`, and `createKernl` from `@kernlize/core
 
 ## Outbox reads
 
-With the cache module and an event cache opener, the kernel replays [shared public tree observations](../concepts/persistence.md#outbox-replay) after an Outbox read is approved. `outbox.subscribe` delivers cached events before opening the approved relays. `outbox.query` returns cached matches together with the relay results at the normal completion time. No applet changes or additional grants are needed. Hosts can supply `KernlHost.outboxCacheStorage` to retain observations across reloads in the same tab. This storage must not be shared across tabs; if omitted, observations live only in page memory. Without an opener the Outbox service uses the relay router directly.
+With the cache module and an event cache opener, the kernel replays [shared public tree observations](../concepts/persistence.md#outbox-replay) after an Outbox read is approved. `outbox.subscribe` delivers cached events before opening the approved relays. `outbox.query` merges cached matches with the relay results. The kernel waits up to 250 ms for persistent cache reads. No applet changes or additional grants are needed. Without an opener the Outbox service uses the relay router directly.
+
+| Host hook or type | Contract |
+| --- | --- |
+| `KernlHost.outboxCache` | Optional asynchronous `OutboxCacheBacking`. Keep observations isolated to the current tab's namespace if they survive reloads. |
+| `OutboxCacheBacking` | `visit(visitor)` delivers records newest by creation time, then ascending by event ID, stopping when the visitor returns `false`. `observe(event, relay)` upserts a live observation. `close()` releases the backing without clearing it. |
+| `OutboxCacheRecord` | A signed `event` and its observed `relays`. The kernel checks the signature, filters and relay plan before replay. |
+| `KernlHost.outboxCacheStorage` | Legacy tab-scoped `StorageLike` fallback when no asynchronous backing is supplied. Keeps the previous small size and count limits, with no age expiry. Without either hook, the cache lives only in page memory. |
 
 ## Reviewed grants and intent focus
 

@@ -23,15 +23,14 @@ function stop(read: PendingRead): void {
   delete read.active;
 }
 
-function replayedSubscription(options: OutboxReads, pending: PendingRead, observation: ReturnType<OutboxEventCache['open']>, args: Parameters<PlannedSubscribe>): Subscription {
+function replayedSubscription(options: OutboxReads, pending: PendingRead, observation: ReturnType<OutboxEventCache['open']>, args: Parameters<PlannedSubscribe>, cached: RelayEventResult[]): Subscription | undefined {
   const [filters, plan, sink] = args;
   const isCurrent = () => !pending.closed;
   const seen = new Map<string, ReadonlySet<string>>();
-  if (!isCurrent()) throw new Error('outbox subscription closed');
-  for (const result of observation?.replay() ?? []) {
+  for (const result of cached) {
     seen.set(result.event.id, new Set(result.sidecar?.relayHints));
     sink.event(result);
-    if (!isCurrent()) throw new Error('outbox subscription closed');
+    if (!isCurrent()) return undefined;
   }
 
   return options.router.subscribeWithPlan!(filters, plan, {
@@ -70,7 +69,18 @@ function subscriptionRouter(options: OutboxReads, pending: PendingRead): Streami
     },
     subscribeWithPlan(filters, plan, sink) {
       const observation = cache.open(filters, plan, authors);
-      pending.active = replayedSubscription(options, pending, observation, [filters, plan, sink]);
+      const cached = observation?.replay(() => !pending.closed) ?? [];
+      const start = (results: RelayEventResult[]) => {
+        if (pending.closed) return;
+        const active = replayedSubscription(options, pending, observation, [filters, plan, sink], results);
+        if (!active) return;
+        if (pending.closed) active.close();
+        else pending.active = active;
+      };
+      if (Array.isArray(cached)) start(cached);
+      else void cached.then(start).catch(() => {
+        if (!pending.closed) sink.closed('policy denied');
+      });
       return { close: () => stop(pending) };
     },
   };
@@ -89,7 +99,8 @@ function queryRouter(options: OutboxReads): StreamingOutboxRouter {
       if (signal?.aborted || live.error === 'policy denied') return live;
       const observation = cache.open(filters, plan, readOptions?.authors);
       if (!observation?.canMergeQuery) return live;
-      const cached = observation.replay();
+      const cached = await observation.replay(() => !signal?.aborted);
+      if (signal?.aborted) return live;
       const merged = new Map(live.events.map((result) => [result.event.id, result]));
       for (const result of cached) {
         // The installed kehto planned query puts the whole plan in each sidecar, not the actual source.
@@ -165,7 +176,7 @@ export function createCachedOutboxService(options: OutboxReads): ServiceHandler 
     },
     onUnregistered() {
       for (const windowId of pending.keys()) forget(windowId);
-      options.cache.persist();
+      options.cache.close();
       service.onUnregistered?.();
     },
   };
