@@ -135,6 +135,7 @@ Given('the shell host with window {string} titled {string}', (world: HostWorld, 
     opener,
     storage: { getItem: () => null, setItem: () => undefined, removeItem: () => undefined },
     consent: { model: models.consent },
+    appletLinks: { model: createAskQueue<'link.open-applet'>() },
     firewall: { model: models.firewall },
     settings: { model: models.settings },
     notices: { push: (notice: unknown) => notices.push(notice) },
@@ -354,4 +355,20 @@ Then("the consent queue holds only window {string}'s question", (world: HostWorl
 Then("window {string}'s question was answered no", async (world: HostWorld, windowId: string) => {
   await new Promise((resolve) => setTimeout(resolve, 0));
   expect(hostOf(world).answers.get(windowId)).toBe(false);
+});
+
+const linkedPointer = { kind: 'address', identifier: 'linked', eventKind: 35129, pubkey: 'a'.repeat(64), relays: [] } as const;
+
+Then('an internal link is refused without an applet opener', async (world: HostWorld) => {
+  expect(await hostOf(world).host.openAppletLink?.('w1', linkedPointer)).toBe(false);
+  expect(hostOf(world).opened).toHaveLength(0);
+});
+
+Then("an internal link goes to the host's applet opener when wired", async (world: HostWorld) => {
+  const { host, opener, opened } = hostOf(world);
+  const controller = new AbortController();
+  opener.link = vi.fn(async () => true);
+  expect(await host.openAppletLink?.('w1', linkedPointer, controller.signal)).toBe(true);
+  expect(opener.link).toHaveBeenCalledWith('w1', linkedPointer, controller.signal);
+  expect(opened).toHaveLength(0);
 });

@@ -99,6 +99,7 @@ export function createAskQueues(): AskQueues {
     'download.add': createAskQueue(),
     'connection.direct': createAskQueue(),
     'firewall.approve': createAskQueue(),
+    'link.open-applet': createAskQueue(),
     'intent.choose-handler': createAskQueue(),
     'messaging.choose-reply': createAskQueue(),
     'settings.present': createAskQueue(),

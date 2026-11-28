@@ -32,6 +32,10 @@ export function destinationOf(target: string): string {
   }
 }
 
+export function isAppletLink(summary: Pick<FirewallSummary, 'kind' | 'requests'>): boolean {
+  return summary.kind === 'link' && summary.requests.some((request) => request.target.startsWith('nostr:'));
+}
+
 function sentenceList(items: readonly string[]): string {
   if (items.length <= 1) return items.join('');
   return `${items.slice(0, -1).join(', ')} and ${items.at(-1) as string}`;
@@ -39,6 +43,7 @@ function sentenceList(items: readonly string[]): string {
 
 /** The question a firewall prompt puts, after "<applet> wants to". */
 export function firewallTitle(summary: Pick<FirewallSummary, 'kind' | 'requests'>): string {
+  if (isAppletLink(summary)) return 'Look up a linked applet';
   if (summary.kind === 'link') return 'Open a link outside kernl';
   if (summary.kind === 'access') return `Use ${sentenceList([...new Set(summary.requests.map((request) => domainLabel(request.domain)))])}`;
   return 'Go ahead with a request';
@@ -59,6 +64,7 @@ function lineFor(request: FirewallRequest): FirewallLine {
 export function firewallLines(summary: Pick<FirewallSummary, 'kind' | 'requests'>): readonly FirewallLine[] {
   if (summary.kind === 'link') {
     const [link] = summary.requests as readonly [FirewallRequest, ...FirewallRequest[]];
+    if (isAppletLink(summary)) return [{ label: 'Applet link', value: link.target }];
     return [{ label: 'Link', value: link.target }, { label: 'Leads to', value: destinationOf(link.target) }];
   }
   const lines = summary.requests.map(lineFor);

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { abbreviate } from './contract';
   import Publisher from './Publisher.svelte';
   import type { AppletSummary, ShellKernl, StorageLike } from './contract';
   import { grantGroups, grantsToApply, startingChoices, type GrantChoices, type GrantInput, type GrantState } from '@kernlize/ui-model';
@@ -16,10 +17,12 @@
     storage?: StorageLike;
     onback: () => void;
     /** Called after the user's grant choices were written. Throw to show an error. */
-    onconfirm: (summary: AppletSummary) => Promise<void>;
+    onconfirm?: (summary: AppletSummary) => Promise<void>;
+    /** An applet link keeps this review in scope until the new window mounts. */
+    linked?: { readonly source: string; readonly start: (apply: () => void) => Promise<void> };
   }
 
-  const { kernl, summary, action, storage, onback, onconfirm }: Props = $props();
+  const { kernl, summary, action, storage, onback, onconfirm, linked }: Props = $props();
 
   const input: GrantInput = {
     requires: summary.requires,
@@ -37,6 +40,7 @@
   let error = $state<string | null>(null);
 
   const groups = $derived(grantGroups(input, choices));
+  const missingRequired = $derived(groups.some((group) => group.rows.some((row) => row.required && !row.on)));
   const accepts = $derived(acceptsWords(summary.manifest.archetypes.map((entry) => entry.convention)));
 
   function change(domain: string, group: string, on: boolean): void {
@@ -47,15 +51,22 @@
     choices = next;
   }
 
+  function apply(): void {
+    for (const op of grantsToApply(input, choices, standing)) {
+      if (op.kind === 'allow') kernl.grants.allowDomain(summary.identity, op.domain, { remember, ...(op.unsafe === undefined ? {} : { unsafe: op.unsafe }) });
+      else kernl.grants.revokeDomain(summary.identity, op.domain, { remember });
+    }
+  }
+
   async function confirm(): Promise<void> {
     busy = true;
     error = null;
     try {
-      for (const op of grantsToApply(input, choices, standing)) {
-        if (op.kind === 'allow') kernl.grants.allowDomain(summary.identity, op.domain, { remember, ...(op.unsafe === undefined ? {} : { unsafe: op.unsafe }) });
-        else kernl.grants.revokeDomain(summary.identity, op.domain, { remember });
+      if (linked) await linked.start(apply);
+      else {
+        apply();
+        await onconfirm?.(summary);
       }
-      await onconfirm(summary);
     } catch (reason) {
       error = explainOpenFailure(reason);
     } finally {
@@ -66,21 +77,21 @@
 
 <article class="summary" aria-live="polite">
   <header>
-    <h3>{summary.title}</h3>
-    <p class="shell-muted"><Publisher {kernl} applet={summary} /></p>
+    <h3>{#if linked}{linked.source} wants to {action === 'Open' ? 'open' : 'install and open'}{' '}{/if}{summary.title}</h3>
+    <p class="shell-muted">{#if linked}<span title={summary.publisher}>Publisher: {abbreviate(summary.publisher)}</span>{:else}<Publisher {kernl} applet={summary} />{/if}</p>
   </header>
   {#if summary.description}<p>{summary.description}</p>{/if}
   {#if accepts}<p class="shell-muted">Other applets can ask it to {accepts}.</p>{/if}
   {#if groups.length}
-    <GrantList {groups} onchange={(row, group, on) => change(row.domain, group, on)} />
+    <GrantList {groups} frozen={linked !== undefined && (busy || record?.blocked === true)} onchange={(row, group, on) => change(row.domain, group, on)} />
   {:else}
-    <p class="shell-muted">This applet asks for nothing beyond the baseline.</p>
+    <p class="shell-muted">{linked ? 'No permissions requested.' : 'This applet asks for nothing beyond the baseline.'}</p>
   {/if}
-  {#if error}<p class="shell-error" role="alert">{error}</p>{/if}
+  {#if error || (linked && record?.blocked)}<p class="shell-error" role="alert">{error ?? 'You blocked this applet. Unblock it from its grants first.'}</p>{/if}
   <div class="shell-actions">
-    <button type="button" class="shell-button primary" onclick={confirm} disabled={busy}>{action}</button>
-    <button type="button" class="shell-button quiet" onclick={onback} disabled={busy}>Back</button>
-    {#if storage}
+    <button type="button" class="shell-button primary" onclick={confirm} disabled={busy || (linked !== undefined && (missingRequired || record?.blocked))}>{action}</button>
+    <button type="button" class="shell-button quiet" onclick={onback} disabled={busy}>{linked ? 'Cancel' : 'Back'}</button>
+    {#if storage && (!linked || groups.length)}
       <label class="remember">
         <input type="checkbox" bind:checked={remember} onchange={() => storage && writeRemember(storage, remember)} />
         <span>Remember grants</span>
@@ -103,6 +114,10 @@
   .summary h3 {
     margin: 0;
     font-size: 1.4rem;
+  }
+
+  .summary p, .summary h3 {
+    overflow-wrap: anywhere;
   }
 
   .summary p {

@@ -172,12 +172,12 @@ export function createAppletLifecycle(context: LifecycleContext): AppletLifecycl
     return resolveApplet(cache ? { event, fetchBlob, cache, relays } : { event, fetchBlob, relays });
   };
 
-  async function plan(summary: AppletSummary): Promise<MountPlan> {
+  async function plan(summary: AppletSummary, install = true): Promise<MountPlan> {
     const indexHtml = verified.get(keyOf(summary.identity));
     if (indexHtml === undefined) throw new Error('invalid:unresolved');
     if (context.grants.get(summary.identity)?.blocked) throw new Error('denied:blocked');
     context.grants.ensure(summary.identity);
-    context.intents()?.record(summary);
+    if (install) context.intents()?.record(summary);
     windowCounter += 1;
     const windowId = `applet-${windowCounter}`;
     context.remember(summary);

@@ -7,7 +7,7 @@ export type { InstalledApplet, InstalledContract } from '@kernlize/kernel';
 
 
 /** What installing reads from a verified applet's summary. */
-export type InstallableApplet = Pick<AppletSummary, 'address' | 'title' | 'publisher'> & {
+export type InstallableApplet = Pick<AppletSummary, 'address' | 'title' | 'publisher'> & Partial<Pick<AppletSummary, 'identity'>> & {
   readonly manifest: Pick<AppletSummary['manifest'], 'catalogId' | 'archetypes'>;
 };
 
@@ -81,6 +81,7 @@ export function createInstalledApplets(storage: StorageLike, now: () => number =
       const previous = changes$.value.find((applet) => applet.catalogId === manifest.catalogId);
       const applet: InstalledApplet = Object.freeze({
         catalogId: manifest.catalogId,
+        ...(summary.identity ? { artifactHash: summary.identity.hash } : {}),
         address: summary.address,
         title: summary.title,
         publisher: summary.publisher,

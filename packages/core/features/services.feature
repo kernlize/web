@@ -140,3 +140,45 @@ Feature: Shell services and adapter
       | nzb    | https://indexer.example/get/1.nzb                                       | https://indexer.example/get/1.nzb                                       |
       | slsk   | slsk://ada/Music/01.flac                                                | slsk://ada/Music/01.flac                                                |
       | mailto | mailto:ada@example.com?subject=Hi                                       | mailto:ada@example.com?subject=Hi                                       |
+
+  Scenario: A named applet address only goes to the internal link opener
+    Given kernl services with an internal applet link opener
+    When window "w1" opens a link to a kind 35129 address
+    Then the internal opener received the address from "w1"
+    And the service replied with a "link.open.result" whose "status" is "opened"
+    And the host opened 0 links
+
+  Scenario: A named applet address needs no relay hints
+    Given kernl services with an internal applet link opener
+    When window "w1" opens an applet-shaped link with "no relay hints"
+    Then the service replied with a "link.open.result" whose "status" is "opened"
+    And the host opened 0 links
+
+  Scenario: An internal opener can refuse an applet link
+    Given kernl services with an internal applet link opener that refuses
+    When window "w1" opens a link to a kind 35129 address
+    Then the service replied with a "link.open.result" whose "status" is "denied"
+    And the host opened 0 links
+
+  Scenario Outline: Other applet-shaped links are not sent to any opener
+    Given kernl services with an internal applet link opener
+    When window "w1" opens an applet-shaped link with "<defect>"
+    Then the service replied with a "link.open.result" whose "status" is "denied"
+    And no applet link was sent to the internal opener
+    And the host opened 0 links
+
+    Examples:
+      | defect        |
+      | wrong kind    |
+      | malformed     |
+      | query suffix  |
+      | fragment      |
+      | authority     |
+      | mixed case    |
+      | space         |
+
+  Scenario: Hosts without an internal opener refuse applet links
+    Given kernl services with a signing account and a fake bridge registry
+    When window "w1" opens a link to a kind 35129 address
+    Then the service replied with a "link.open.result" whose "status" is "denied"
+    And the host opened 0 links

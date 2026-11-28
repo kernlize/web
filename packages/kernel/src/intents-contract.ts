@@ -12,6 +12,8 @@ export interface InstalledContract {
 /** An applet the user has run, remembered so other applets can hand work to it. */
 export interface InstalledApplet {
   readonly catalogId: string;
+  /** Artifact that was installed; absent only in records from older shells. */
+  readonly artifactHash?: string;
   /** What the shell resolves to open it again. */
   readonly address: string;
   readonly title: string;

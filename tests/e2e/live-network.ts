@@ -27,6 +27,7 @@ export interface AppletOptions {
   readonly optional?: readonly string[];
   /** The artifact; {@link APPLET_HTML} by default. */
   readonly html?: string;
+  readonly title?: string;
 }
 
 /** Sign a named applet manifest whose artifact is `options.html`, {@link APPLET_HTML} by default. */
@@ -42,7 +43,7 @@ export function signApplet(options: AppletOptions): SignedApplet {
     tags: [
       ['d', 'feed'],
       ['x', hash],
-      ['title', 'Feed applet'],
+      ['title', options.title ?? 'Feed applet'],
       ...(options.requires ?? ['identity', 'outbox']).map((domain) => ['R', domain]),
       ...(options.optional ?? ['config', 'theme', 'cvm']).map((domain) => ['O', domain]),
       ...options.servers.map((server) => ['server', server]),
@@ -69,7 +70,7 @@ function matches(filter: Filter, event: VerifiedEvent): boolean {
   return !identifiers || event.tags.some((tag) => tag[0] === 'd' && identifiers.includes(tag[1] ?? ''));
 }
 
-function answer(socket: WebSocketRoute, behaviour: RelayBehaviour, applet: SignedApplet, onLookup: () => void): void {
+function answer(socket: WebSocketRoute, behaviour: RelayBehaviour, applets: readonly SignedApplet[], onLookup: () => void): void {
   if (behaviour === 'down') {
     void socket.close({ code: 1011, reason: 'down' });
     return;
@@ -79,7 +80,7 @@ function answer(socket: WebSocketRoute, behaviour: RelayBehaviour, applet: Signe
     if (verb !== 'REQ' || behaviour === 'silent') return;
     // A lookup names one applet; the store's catalogue listing asks for every manifest kind instead.
     if (filters.some((filter) => filter.ids !== undefined || filter['#d'] !== undefined)) onLookup();
-    if (behaviour === 'holds' && filters.some((filter) => matches(filter, applet.event))) socket.send(JSON.stringify(['EVENT', subId, applet.event]));
+    if (behaviour === 'holds') for (const applet of applets.filter(({ event }) => filters.some((filter) => matches(filter, event)))) socket.send(JSON.stringify(['EVENT', subId, applet.event]));
     socket.send(JSON.stringify(['EOSE', subId]));
   });
 }
@@ -105,21 +106,22 @@ export function generalRelays(behaviour: RelayBehaviour): Record<string, RelayBe
  * Route every secure websocket and the named blob hosts. A relay host not listed is down, so the
  * shell's built-in servers never reach the real network from a test.
  */
-export async function fakeNetwork(page: Page, applet: SignedApplet, relays: Readonly<Record<string, RelayBehaviour>>, blobs: Readonly<Record<string, 'has' | 'down'>>): Promise<FakeNetwork> {
+export async function fakeNetwork(page: Page, applet: SignedApplet | readonly SignedApplet[], relays: Readonly<Record<string, RelayBehaviour>>, blobs: Readonly<Record<string, 'has' | 'down'>>): Promise<FakeNetwork> {
+  const applets = Array.isArray(applet) ? applet : [applet as SignedApplet];
   const network: FakeNetwork = { dialled: [], blobRequests: [], lookups: [] };
   // Secure sockets only: every relay the shell knows is one, and a dev server's own plain socket is left alone.
   await page.routeWebSocket(/^wss:\/\//, (socket) => {
     const { host } = new URL(socket.url());
     network.dialled.push(host);
-    answer(socket, relays[host] ?? 'down', applet, () => network.lookups.push(host));
+    answer(socket, relays[host] ?? 'down', applets, () => network.lookups.push(host));
   });
   for (const [host, state] of Object.entries(blobs)) {
     await page.route(`https://${host}/**`, async (route) => {
       network.blobRequests.push(route.request().url());
       if (state === 'down') return route.abort('connectionrefused');
-      const wanted = route.request().url().endsWith(`/${applet.hash}`);
+      const wanted = applets.find(({ hash }) => route.request().url().endsWith(`/${hash}`));
       return route.fulfill(wanted
-        ? { status: 200, contentType: 'application/octet-stream', headers: { 'access-control-allow-origin': '*' }, body: applet.html }
+        ? { status: 200, contentType: 'application/octet-stream', headers: { 'access-control-allow-origin': '*' }, body: wanted.html }
         : { status: 404, headers: { 'access-control-allow-origin': '*' }, body: '' });
     });
   }

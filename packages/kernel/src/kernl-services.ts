@@ -1,5 +1,6 @@
 import type { EventStore } from 'applesauce-core';
-import { verifyEvent } from 'applesauce-core/helpers';
+import { decodeAddressPointer, verifyEvent } from 'applesauce-core/helpers';
+import { NAPPLET_KIND_NAMED } from '@kehto/nip/5d';
 import type { AuthHooks } from '@kehto/shell';
 import type { ServiceHandler, ServiceRegistry, Signer } from '@kehto/runtime';
 import {
@@ -26,7 +27,7 @@ import {
 import type { Theme } from '@napplet/nap/theme/types';
 import type { EventTemplate, NostrEvent } from '@napplet/core';
 import { createBridgeRegistry, createBridgeResourceResolver, type BridgeContext, type BridgeRegistry, type ResourceResolveInit } from '@kernlize/bridges';
-import type { KernlHost, RelayTiers } from './types.js';
+import type { AppletPointer, KernlHost, RelayTiers } from './types.js';
 import { createKernlMedia, type KernlMedia } from './media/kernl-media.js';
 import type { ApplesaucePool } from './applesauce/relay-hooks.js';
 import { createAppletRelayService, createOutboxRelayPool } from './applesauce/relay-backend.js';
@@ -53,7 +54,7 @@ export function isTheme(value: Record<string, unknown> | undefined): value is Re
 }
 
 /**
- * Protocols an applet may ask the shell to open.
+ * Protocols an applet may ask the shell to open outside itself.
  *
  * @example
  * ```ts
@@ -62,6 +63,17 @@ export function isTheme(value: Record<string, unknown> | undefined): value is Re
  * ```
  */
 export const LINK_PROTOCOLS: readonly string[] = Object.freeze(['https:', 'mailto:']);
+
+// Unlike the paste field, a link is exactly an applet address, not text containing one.
+const APPLET_LINK = /^nostr:(naddr1[02-9ac-hj-np-z]+)$/i;
+
+function namedAppletLink(href: string): Extract<AppletPointer, { kind: 'address' }> | undefined {
+  const encoded = APPLET_LINK.exec(href)?.[1];
+  if (!encoded) return undefined;
+  const pointer = decodeAddressPointer(encoded);
+  if (!pointer || pointer.kind !== NAPPLET_KIND_NAMED) return undefined;
+  return { kind: 'address', pubkey: pointer.pubkey, identifier: pointer.identifier, eventKind: pointer.kind, relays: Object.assign([] as string[], pointer.relays) };
+}
 
 /** What the services need from the rest of the shell. */
 export interface KernlServiceDeps {
@@ -74,7 +86,7 @@ export interface KernlServiceDeps {
   readonly auth: Pick<AuthHooks, 'getSigner'> & Partial<Pick<AuthHooks, 'getUserPubkey'>>;
   /** Gates the outbox service's publishes, which kehto signs without naming the window. */
   readonly consent: SigningConsent;
-  readonly host: Pick<KernlHost, 'notify' | 'openLink' | 'storage' | 'outboxCacheStorage'>;
+  readonly host: Pick<KernlHost, 'notify' | 'openLink' | 'openAppletLink' | 'storage' | 'outboxCacheStorage'>;
   /** The bridges module's registry; without it the `resource` domain is not offered and the shell plays only what applets play themselves. */
   readonly bridges?: BridgeRegistry;
   /** Applet settings (NAP-CONFIG); without them the `config` domain is not offered. */
@@ -347,7 +359,8 @@ function gateOutboxPublish(outbox: ServiceHandler, consent: SigningConsent): Ser
  * `relay`, `identity`, `theme`, `notify`, `link`, `resource`,
  * and `outbox` are wired; every network path goes through the one pool, every
  * resource fetch through the bridge registry's SSRF policy, links open only
- * over `https:` and `mailto:`, notifications surface through the host, outbox
+ * over `https:` and `mailto:` externally, or to a named applet through the
+ * host’s internal opener. Notifications surface through the host, outbox
  * publishes pass the consent gate before they are signed, and remote tools are
  * called under each window's own key. An applet's shortcut runs in the focused
  * window only.
@@ -383,11 +396,16 @@ export function createKernlServices(deps: KernlServiceDeps): KernlServices {
       present: ({ windowId, message }) => deps.host.notify({ title: message.title, windowId, tone: 'info', ...(message.body ? { body: message.body } : {}) }),
     }),
     link: createLinkService({
-      allowedProtocols: LINK_PROTOCOLS,
-      // kehto calls this only after the firewall let this exact link through, so the host need not ask again (D-056).
-      open: ({ url }) => {
-        deps.host.openLink(url.href, { approved: true });
-        return { status: 'opened' };
+      allowedProtocols: deps.host.openAppletLink ? [...LINK_PROTOCOLS, 'nostr:'] : LINK_PROTOCOLS,
+      // Kehto authorizes this exact link before either the lookup or external navigation (D-056).
+      async open({ windowId, url, signal }) {
+        if (url.protocol !== 'nostr:') {
+          deps.host.openLink(url.href, { approved: true });
+          return { status: 'opened' };
+        }
+        const pointer = namedAppletLink(url.href);
+        const opened = pointer && await deps.host.openAppletLink?.(windowId, pointer, signal);
+        return { status: opened ? 'opened' : 'denied' };
       },
     }),
     // The firewall approves a web address's server before it is contacted (D-056); a bridge's reason becomes a NAP-RESOURCE code (D-055).

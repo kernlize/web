@@ -3,7 +3,7 @@ import type { ReplyAnswer, ReplyPrompt } from '@kernlize/messaging';
 import type { NostrEvent } from 'applesauce-core/helpers';
 import type { SettingsPrompt } from '../applets/applet-config.js';
 import type { DownloadQuestion, UploadDetails } from './facts.js';
-import type { AppletIdentity, ConsentSummary, FirewallChoice, FirewallSummary, HandlerChoice, HandlerPrompt } from '../types.js';
+import type { AppletIdentity, AppletSummary, ConsentSummary, FirewallChoice, FirewallSummary, HandlerChoice, HandlerPrompt } from '../types.js';
 
 /**
  * Every question the kernel puts to the person, by kind: the facts the host receives, kernl's own
@@ -21,6 +21,8 @@ export interface AskKinds {
   readonly 'connection.direct': { readonly facts: { readonly requirements: readonly PermissionRequirement[] }; readonly text: ConsentSummary; readonly answer: boolean };
   /** A request a firewall rule says to ask about, such as opening a link. `undefined` dismisses it, and with no renderer it is refused (D-056). Withdrawn after ten minutes. */
   readonly 'firewall.approve': { readonly facts: FirewallSummary; readonly text: { readonly title: string }; readonly answer: FirewallChoice | undefined };
+  /** Review another verified applet a link points to. False cancels without installing or opening it. */
+  readonly 'link.open-applet': { readonly facts: { readonly source: string; readonly target: AppletSummary }; readonly text: { readonly title: string }; readonly answer: boolean };
   /** Which applet takes a request one applet made of another. `undefined` cancels it; with no renderer kehto refuses a request no default settles. */
   readonly 'intent.choose-handler': { readonly facts: HandlerPrompt; readonly text: { readonly title: string }; readonly answer: HandlerChoice | undefined };
   /** Which provider carries a reply to someone who wrote through another. `undefined` dismisses it, which stops the send; with no renderer the order picks. */
@@ -69,7 +71,7 @@ export type AskRenderers = { readonly [K in AskKind]?: AskRenderer<K> };
  * ASK_KINDS.includes('sign.replace'); // true
  * ```
  */
-export const ASK_KINDS: readonly AskKind[] = Object.freeze(['sign.replace', 'upload.file', 'download.add', 'connection.direct', 'firewall.approve', 'intent.choose-handler', 'messaging.choose-reply', 'settings.present']);
+export const ASK_KINDS: readonly AskKind[] = Object.freeze(['sign.replace', 'upload.file', 'download.add', 'connection.direct', 'firewall.approve', 'link.open-applet', 'intent.choose-handler', 'messaging.choose-reply', 'settings.present']);
 
 /**
  * The answer each kind gets when no renderer draws it, when its renderer fails, or when the window
@@ -86,6 +88,7 @@ export const ASK_REFUSALS: { readonly [K in AskKind]: AskAnswer<K> } = Object.fr
   'download.add': false,
   'connection.direct': false,
   'firewall.approve': undefined,
+  'link.open-applet': false,
   'intent.choose-handler': undefined,
   'messaging.choose-reply': undefined,
   'settings.present': undefined,
