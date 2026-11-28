@@ -34,6 +34,8 @@
   let pending = $state.raw<{ stack: AppletStack; members: readonly StackGrantMember[]; missed: number } | null>(null);
   let info = $state<string | null>(null);
   let busy = $state(false);
+  /** The stack whose applets are being looked up, so only its own button says it is opening. */
+  let openingStack = $state<string | null>(null);
   let error = $state<string | null>(null);
   let recent = $state.raw<readonly RecentApplet[]>(readRecent(storage));
 
@@ -77,6 +79,7 @@
     info = null;
     error = null;
     busy = true;
+    openingStack = stack.id;
     try {
       const { found, missed } = await resolveStack(kernl, stack);
       if (found.length === 0) {
@@ -95,6 +98,7 @@
       error = explainOpenFailure(reason);
     } finally {
       busy = false;
+      openingStack = null;
     }
   }
 
@@ -149,7 +153,7 @@
       {#if mode === 'preview'}<p class="shell-muted" role="note">The preview never reaches the network, so the store shows its three sample applets. Sign in to the live shell to browse every published applet.</p>{/if}
       <StoreBrowser {kernl} {busy} onpick={(entry: CatalogEntry) => resolve(entry.address)} onaddress={resolve} />
     {:else if tab === 'stacks'}
-      <StackBrowser {kernl} {busy} onopenstack={pickStack} onopenmember={openMember} />
+      <StackBrowser {kernl} {busy} opening={openingStack} onopenstack={pickStack} onopenmember={openMember} />
     {:else if tab === 'installed'}
       <InstalledApplets {kernl} {mode} {busy} onopen={resolve} />
     {:else}

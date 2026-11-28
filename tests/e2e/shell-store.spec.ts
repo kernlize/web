@@ -142,6 +142,33 @@ test('the stacks tab lists the stacks people published and opens only the applet
   await expect(page.frameLocator('iframe[title="Notes applet"]').locator('#granted')).toHaveText(/^Granted:/);
 });
 
+test('only the stack being opened says it is opening', async ({ page }) => {
+  await page.goto(`${base}/app/?preview=1`);
+  await page.getByRole('button', { name: 'Try the preview' }).click();
+  await page.getByRole('button', { name: 'Open an applet' }).click();
+  await page.getByRole('tab', { name: 'Stacks' }).click();
+  const buttons = page.getByRole('list', { name: 'Stacks' }).locator('button.primary');
+  await expect(buttons).toHaveText(['Open 1', 'Open all']);
+
+  // A stack is looked up applet by applet, so its button says it is opening for a moment. Read the
+  // words one frame after the click, inside the page, while that look-up is still running: they
+  // belong to the stack the person picked, never to the whole list.
+  const words = await page.evaluate(async () => {
+    const list = document.querySelector('ul[aria-label="Stacks"]');
+    const opened = [...(list?.querySelectorAll<HTMLButtonElement>('button.primary') ?? [])];
+    opened[1]?.click();
+    await new Promise<void>((done) => requestAnimationFrame(() => done()));
+    return opened.map((button) => button.textContent?.trim());
+  });
+  expect(words).toEqual(['Open 1', 'Opening…']);
+
+  // The stack the person picked is the one the review names, and going back leaves no button saying it is opening.
+  const review = page.getByRole('article');
+  await expect(review).toContainText('1 applet in Live');
+  await review.getByRole('button', { name: 'Back' }).click();
+  await expect(buttons).toHaveText(['Open 1', 'Open all']);
+});
+
 test('a stack reuses an equivalent window and replaces it for widened or temporarily narrowed grants', async ({ page }) => {
   await openStore(page);
   const notes = page.frameLocator('iframe[data-window-id]').getByRole('button', { name: 'Send a notification' });
