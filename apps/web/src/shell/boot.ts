@@ -1,8 +1,9 @@
 import { NostrConnectSigner } from 'applesauce-signers';
-import type { Booted, KernlHost, StorageLike } from './contract';
+import type { Booted, KernlHost } from './contract';
 import { openShellEventCache } from './event-cache';
 import { canReachPeers, createShellDownloads } from './downloads';
 import { MESSAGES_APPLET } from './messages-applet';
+import { browserOutboxCache } from './outbox-cache';
 import { createPreviewTorrentClient } from './offline-torrent';
 import type { ShellTheme } from './shell-theme';
 import { SHELL_CHORDS } from './shortcuts';
@@ -21,14 +22,6 @@ async function preview(host: KernlHost, theme: ShellTheme | undefined): Promise<
   return { kernl, mode: 'preview', downloads };
 }
 
-function outboxCacheStorage(): StorageLike | undefined {
-  try {
-    return globalThis.sessionStorage;
-  } catch {
-    return undefined;
-  }
-}
-
 async function live(host: KernlHost, theme: ShellTheme | undefined): Promise<Booted> {
   const [core, preset] = await Promise.all([import('@kernlize/core'), import('@kernlize/preset')]);
   if (!('createKernl' in core) || typeof core.createKernl !== 'function') throw new Error('This build has no live shell.');
@@ -38,8 +31,8 @@ async function live(host: KernlHost, theme: ShellTheme | undefined): Promise<Boo
   // A shell that names them hands the theme, the event cache, its reserved shortcuts and its torrent engine to the modules; `createKernl` reads none of them (D-062).
   // The settings form is the host's `settings.present` renderer, which the settings module draws through (D-067).
   const modules = preset.kernlPreset({ eventCache: openShellEventCache, shortcuts: { reserved: SHELL_CHORDS }, torrent: downloads.torrent, ...(theme ? { theme } : {}) });
-  const sessionCache = outboxCacheStorage();
-  const kernl = core.createKernl({ host: sessionCache ? { ...host, outboxCacheStorage: sessionCache } : host, builtins: [MESSAGES_APPLET], modules });
+  const sessionCache = browserOutboxCache();
+  const kernl = core.createKernl({ host: sessionCache ? { ...host, outboxCache: sessionCache } : host, builtins: [MESSAGES_APPLET], modules });
   NostrConnectSigner.pool = kernl.pool;
   return { kernl, mode: 'live', downloads };
 }

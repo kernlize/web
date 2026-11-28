@@ -52,3 +52,97 @@ it.each(['unsupported limited filter', 'empty cache', 'policy denied'] as const)
   service.handleMessage('w', { type: 'outbox.query', id: 'q', filters } as NappletMessage, send);
   await vi.waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'outbox.query.result', id: 'q', ...reply }));
 });
+
+it('closes a live relay that starts throwing after asynchronous cache replay', async () => {
+  const plan: OutboxRelayPlan = { relays: ['wss://nos.lol'], source: 'policy' };
+  const router = {
+    async planRead() { return plan; },
+    subscribeWithPlan() { throw new Error('relay unavailable'); },
+  };
+  const cache = createOutboxEventCache(undefined, { async visit() {}, async observe() {}, close() {} });
+  const service = createCachedOutboxService({ router: router as unknown as StreamingOutboxRouter, cache });
+  const signal = new AbortController().signal;
+  service.onRegistered?.({ authorizeOperation: async (_win, _op, _req, execute) => ({ status: 'executed', value: await execute(signal) }) } as ServiceRuntimeContext);
+  const send = vi.fn();
+  service.handleMessage('w', { type: 'outbox.subscribe', subId: 'tree', filters: [{ kinds: [31971] }] } as NappletMessage, send);
+  await vi.waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'outbox.closed', subId: 'tree', reason: 'policy denied' }));
+});
+
+it('discards cached query results if approval is revoked during cache replay', async () => {
+  const plan: OutboxRelayPlan = { relays: ['wss://nos.lol'], source: 'policy' };
+  const controller = new AbortController();
+  const live = { events: [], incomplete: true };
+  const router = { async planRead() { return plan; }, async queryWithPlan() { return live; } };
+  const cache = createOutboxEventCache(undefined, {
+    async visit(visit) {
+      const event = finalizeEvent({ kind: 31971, created_at: 1, tags: [], content: '' }, new Uint8Array(32).fill(1));
+      visit({ event, relays: plan.relays });
+      controller.abort();
+    },
+    async observe() {},
+    close() {},
+  });
+  const service = createCachedOutboxService({ router: router as unknown as StreamingOutboxRouter, cache });
+  service.onRegistered?.({ authorizeOperation: async (_win, _op, _req, execute) => ({ status: 'executed', value: await execute(controller.signal) }) } as ServiceRuntimeContext);
+  const send = vi.fn();
+  service.handleMessage('w', { type: 'outbox.query', id: 'q', filters: [{ kinds: [31971] }] } as NappletMessage, send);
+  await vi.waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'outbox.query.result', id: 'q', events: [], error: 'policy denied' }));
+});
+
+it('closes a relay if its first synchronous event closes the pending read', async () => {
+  const plan: OutboxRelayPlan = { relays: ['wss://nos.lol'], source: 'policy' };
+  const close = vi.fn();
+  const event = finalizeEvent({ kind: 31971, content: '', tags: [], created_at: 1 }, new Uint8Array(32).fill(1));
+  const router = {
+    async planRead() { return plan; },
+    subscribeWithPlan(_filters, _plan, sink) {
+      sink.event(createRelayEventResultWithHints(event, plan.relays));
+      return { close };
+    },
+  } satisfies Pick<StreamingOutboxRouter, 'planRead' | 'subscribeWithPlan'>;
+  const service = createCachedOutboxService({ router: router as StreamingOutboxRouter, cache: createOutboxEventCache() });
+  const signal = new AbortController().signal;
+  service.onRegistered?.({ authorizeOperation: async (_win, _op, _req, execute) => ({ status: 'executed', value: await execute(signal) }) } as ServiceRuntimeContext);
+  service.handleMessage('w', { type: 'outbox.subscribe', subId: 'tree', filters: [{ kinds: [31971] }] } as NappletMessage, (response) => {
+    if (response.type === 'outbox.event') service.handleMessage('w', { type: 'outbox.close', subId: 'tree' } as NappletMessage, () => {});
+  });
+  await vi.waitFor(() => expect(close).toHaveBeenCalledOnce());
+});
+
+it('does not report a late relay failure after a pending read has closed', async () => {
+  const plan: OutboxRelayPlan = { relays: ['wss://nos.lol'], source: 'policy' };
+  const send = vi.fn();
+  const message = { type: 'outbox.subscribe', subId: 'tree', filters: [{ kinds: [31971] }] } as NappletMessage;
+  const close = { type: 'outbox.close', subId: 'tree' } as NappletMessage;
+  const router = {
+    async planRead() { return plan; },
+    subscribeWithPlan() {
+      service.handleMessage('w', close, send);
+      throw new Error('relay unavailable');
+    },
+  };
+  const cache = createOutboxEventCache(undefined, { async visit() {}, async observe() {}, close() {} });
+  const service = createCachedOutboxService({ router: router as unknown as StreamingOutboxRouter, cache });
+  const signal = new AbortController().signal;
+  service.onRegistered?.({ authorizeOperation: async (_win, _op, _req, execute) => ({ status: 'executed', value: await execute(signal) }) } as ServiceRuntimeContext);
+  service.handleMessage('w', message, send);
+  await vi.waitFor(() => expect(send).toHaveBeenCalledOnce());
+  expect(send).toHaveBeenCalledWith({ type: 'outbox.closed', subId: 'tree' });
+});
+
+it('does not deliver a denial that arrives after closing a pending read', async () => {
+  const plan: OutboxRelayPlan = { relays: ['wss://nos.lol'], source: 'policy' };
+  const router = { async planRead() { return plan; }, subscribeWithPlan: vi.fn() };
+  const service = createCachedOutboxService({ router: router as unknown as StreamingOutboxRouter, cache: createOutboxEventCache() });
+  const response = Promise.withResolvers<{ status: 'denied' }>();
+  const authorizeOperation = vi.fn(() => response.promise);
+  service.onRegistered?.({ authorizeOperation } as unknown as ServiceRuntimeContext);
+  const send = vi.fn();
+  service.handleMessage('w', { type: 'outbox.subscribe', subId: 'tree', filters: [{ kinds: [31971] }] } as NappletMessage, send);
+  await vi.waitFor(() => expect(authorizeOperation).toHaveBeenCalledOnce());
+  service.handleMessage('w', { type: 'outbox.close', subId: 'tree' } as NappletMessage, () => {});
+  response.resolve({ status: 'denied' });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(send).not.toHaveBeenCalled();
+  expect(router.subscribeWithPlan).not.toHaveBeenCalled();
+});

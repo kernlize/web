@@ -25,8 +25,7 @@ async function bootWith(core: Record<string, unknown> | (() => never)): Promise<
   return import('./boot');
 }
 
-// Node 25 and later define a global sessionStorage, which the live shell hands to Outbox replay; the tests
-// that do not name it start without one, so they hold on every Node the project runs.
+// Node versions with a global sessionStorage also start these tests without one.
 beforeEach(() => {
   vi.stubGlobal('sessionStorage', undefined);
 });
@@ -107,13 +106,15 @@ describe('boot', () => {
   });
 });
 
-it('uses browser session storage only for live Outbox replay', async () => {
+it('uses IndexedDB with a tab session namespace for live Outbox replay', async () => {
   const createKernl = vi.fn(() => ({ pool: {} }));
   const { boot } = await bootWith({ createKernl });
   const session = { getItem: () => null, setItem() {}, removeItem() {} };
   vi.stubGlobal('sessionStorage', session);
+  vi.stubGlobal('indexedDB', {});
+  vi.stubGlobal('navigator', { locks: { request: () => Promise.reject(new Error('lock unavailable')) } });
   await boot(host, new URLSearchParams());
-  expect(createKernl).toHaveBeenCalledWith(expect.objectContaining({ host: { ...host, outboxCacheStorage: session } }));
+  expect(createKernl).toHaveBeenCalledWith(expect.objectContaining({ host: { ...host, outboxCache: expect.objectContaining({ visit: expect.any(Function), observe: expect.any(Function) }) } }));
 });
 
 it('boots live when browser session storage is forbidden', async () => {

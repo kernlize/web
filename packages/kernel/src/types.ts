@@ -372,10 +372,36 @@ export interface HandlerChoice {
   readonly remember: boolean;
 }
 
+/** One signed Outbox event and the relays on which this host observed it. */
+export interface OutboxCacheRecord {
+  readonly event: NostrEvent;
+  readonly relays: readonly string[];
+}
+
+/**
+ * Optional backing for public Outbox observations in this session. Replay always rechecks filters,
+ * approved relays and signatures. Never share a tab's observation namespace with another tab.
+ *
+ * @example
+ * ```ts
+ * const host: KernlHost = { ...hostHooks, outboxCache: sessionCache };
+ * ```
+ */
+export interface OutboxCacheBacking {
+  /** Visit records by descending creation time, then ascending event id. Stop when the visitor returns false. */
+  visit(visitor: (record: OutboxCacheRecord) => boolean): Promise<void>;
+  /** Upsert an observation from one approved relay. */
+  observe(event: NostrEvent, relay: string): Promise<void>;
+  /** Release this page's access without deleting its storage. */
+  close(): void;
+}
+
 /** Host hooks the core calls. Applets never reach these. */
 export interface KernlHost {
   readonly storage: StorageLike;
-  /** Optional Outbox cache backing for this browsing session only. Never share it across tabs. */
+  /** Optional observation backing for this browsing session. */
+  readonly outboxCache?: OutboxCacheBacking;
+  /** Legacy small synchronous backing; used only when `outboxCache` is absent. Never share it across tabs. */
   readonly outboxCacheStorage?: StorageLike;
   /**
    * How the host draws each question the kernel puts to the person, one renderer per kind (D-067).

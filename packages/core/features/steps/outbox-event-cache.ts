@@ -2,9 +2,11 @@ import { EventStore } from 'applesauce-core';
 import { merge, Subject } from 'rxjs';
 import type { ApprovalSignal, RelayEventResult, ServiceHandler, ServiceRuntimeContext } from '@kehto/runtime';
 import type { NappletMessage, NostrFilter } from '@napplet/core';
-import { createKernlServices, createRelayTiers } from '@kernlize/kernel';
-import { Given, Then, When } from 'quickpickle';
-import { expect } from 'vitest';
+import { IDBFactory, IDBKeyRange } from 'fake-indexeddb';
+import { createIndexedDbOutboxCache } from '../../../../apps/web/src/shell/outbox-indexeddb.js';
+import { createKernlServices, createRelayTiers, type OutboxCacheBacking } from '@kernlize/kernel';
+import { After, Given, Then, When } from 'quickpickle';
+import { expect, vi } from 'vitest';
 import { allowAllSigning, createFakePool, MemoryStorage, signEvent, type CoreWorld, type ReqMessage } from './world.js';
 
 const FIRST = 'wss://nos.lol';
@@ -14,7 +16,7 @@ const ROOT = 'tree';
 const TREE: NostrFilter = { kinds: [31971], '#A': [ROOT] };
 type Event = Awaited<ReturnType<typeof signEvent>>;
 
-function state(storage = new MemoryStorage()) {
+function state(storage = new MemoryStorage(), outboxCache?: OutboxCacheBacking) {
   const pool = createFakePool();
   const sent: NappletMessage[] = [];
   const timeline: string[] = [];
@@ -34,7 +36,7 @@ function state(storage = new MemoryStorage()) {
     cacheOutboxReads: true,
     auth: { getSigner: () => null, getUserPubkey: () => identity },
     consent: allowAllSigning,
-    host: { storage, outboxCacheStorage: storage, notify() {}, openLink() {} },
+    host: { storage, outboxCacheStorage: storage, ...(outboxCache ? { outboxCache } : {}), notify() {}, openLink() {} },
     shortcuts: { isFocused: () => true },
     resolveIdentity: () => artifact ? { dTag: 'test-tree', aggregateHash: artifact } : null,
   }).registry.outbox as ServiceHandler;
@@ -368,4 +370,191 @@ Then('the query returns the newest match from each limited filter', async (world
   const s = fixture(world);
   const ids = s.current.pool.events.map(({ id }) => id).reverse();
   await expect.poll(() => s.current.sent).toMatchObject([{ type: 'outbox.query.result', events: ids.map((id) => ({ event: { id } })) }]);
+});
+
+interface BrowserFixture {
+  factory: IDBFactory;
+  first: OutboxCacheBacking;
+  second: OutboxCacheBacking;
+  oldest: Event;
+  next?: Event;
+  newest?: Event;
+}
+
+const browserWorlds = new WeakMap<CoreWorld, BrowserFixture>();
+const browser = (world: CoreWorld): BrowserFixture => browserWorlds.get(world)!;
+
+After((world: CoreWorld) => {
+  const s = browserWorlds.get(world);
+  if (!s) return;
+  s.first.close();
+  s.second.close();
+  vi.unstubAllGlobals();
+});
+
+async function replayFrom(cache: OutboxCacheBacking): Promise<string[]> {
+  const seen: string[] = [];
+  await cache.visit(({ event, relays }) => {
+    expect(relays).toEqual([FIRST]);
+    seen.push(event.id);
+    return true;
+  });
+  return seen;
+}
+
+async function browserFixture(world: CoreWorld, budget?: number): Promise<BrowserFixture> {
+  vi.stubGlobal('IDBKeyRange', IDBKeyRange);
+  const factory = new IDBFactory();
+  const first = createIndexedDbOutboxCache(factory, 'first-tab', budget);
+  const second = createIndexedDbOutboxCache(factory, 'second-tab', budget);
+  const oldest = await signEvent({ kind: 31971, created_at: 1, content: '🟠'.repeat(100) });
+  const s = { factory, first, second, oldest };
+  browserWorlds.set(world, s);
+  return s;
+}
+
+Given('a browser Outbox cache has a public tree observation from weeks ago', async (world: CoreWorld) => {
+  const s = await browserFixture(world);
+  await s.first.observe(s.oldest, FIRST);
+});
+
+When('the same tab reopens its Outbox cache', (world: CoreWorld) => {
+  const s = browser(world);
+  s.first.close();
+  s.first = createIndexedDbOutboxCache(s.factory, 'first-tab');
+});
+
+Then('the old tree event still replays on its observed relay', async (world: CoreWorld) => {
+  const s = browser(world);
+  expect(await replayFrom(s.first)).toEqual([s.oldest.id]);
+});
+
+Then('another tab cannot replay the observation', async (world: CoreWorld) => {
+  const s = browser(world);
+  expect(await replayFrom(s.second)).toEqual([]);
+});
+
+Given('two tabs have filled their shared Outbox byte budget with multibyte events', async (world: CoreWorld) => {
+  const s = await browserFixture(world, 2_000);
+  s.next = await signEvent({ kind: 31971, created_at: 3, content: '🟠'.repeat(100) });
+  await s.first.observe(s.oldest, FIRST);
+  await s.second.observe(s.next, FIRST);
+  expect(await replayFrom(s.first)).toEqual([s.oldest.id]);
+  expect(await replayFrom(s.second)).toEqual([s.next.id]);
+});
+
+When('the first tab observes its old event again and the second tab observes one more event', async (world: CoreWorld) => {
+  const s = browser(world);
+  s.newest = await signEvent({ kind: 31971, created_at: 2, content: '🟠'.repeat(100) });
+  await s.first.observe(s.oldest, FIRST);
+  expect(await replayFrom(s.second)).toEqual([s.next!.id]);
+  await s.second.observe(s.newest, FIRST);
+});
+
+Then('only the least recently observed event is evicted from the shared byte budget', async (world: CoreWorld) => {
+  const s = browser(world);
+  expect(await replayFrom(s.first)).toEqual([s.oldest.id]);
+  expect(await replayFrom(s.second)).toEqual([s.newest!.id]);
+});
+
+const pendingReplay = new WeakMap<CoreWorld, () => void>();
+
+Given('an approved Outbox subscription is waiting for browser cache replay', async (world: CoreWorld) => {
+  const event = await signEvent({ kind: 31971, tags: [['A', ROOT]] });
+  let begin!: () => void;
+  const started = new Promise<void>((resolve) => { begin = resolve; });
+  const backing: OutboxCacheBacking = {
+    visit: (visit) => new Promise<void>((resolve) => {
+      pendingReplay.set(world, () => {
+        visit({ event, relays: [FIRST] });
+        resolve();
+      });
+      begin();
+    }),
+    async observe() {},
+    close() {},
+  };
+  const s = { current: state(new MemoryStorage(), backing), event, relays: [FIRST], filter: TREE };
+  worlds.set(world, s);
+  subscribe(s);
+  await started;
+});
+
+When('the applet closes the subscription before the cache read finishes', async (world: CoreWorld) => {
+  clear(fixture(world));
+  pendingReplay.get(world)!();
+  await settle();
+});
+
+Then('no relay subscription opens after the cache read finishes', (world: CoreWorld) => {
+  expect(fixture(world).current.timeline).toEqual([]);
+});
+
+When('its browser cache read does not finish in time', async (world: CoreWorld) => {
+  await expect.poll(() => fixture(world).current.timeline).toContain(FIRST);
+  pendingReplay.get(world)!();
+  await settle();
+});
+
+Then('the live Outbox relay opens without cached events', (world: CoreWorld) => {
+  const s = fixture(world);
+  expect(s.current.timeline).toEqual([FIRST]);
+  expect(results(s)).toEqual([]);
+});
+
+Given('invalid and out-of-plan records sit beside a signed browser Outbox observation', async (world: CoreWorld) => {
+  const event = await signEvent({ kind: 31971, tags: [['A', ROOT]] });
+  const draft = await signEvent({ kind: 31234, tags: [['A', ROOT]] });
+  const unsigned = { ...event, content: 'changed' };
+  const records = [
+    { event: draft, relays: [FIRST] },
+    { event: unsigned, relays: [FIRST] },
+    { event, relays: [SECOND, 'wss://private.example'] },
+    { event, relays: [FIRST, SECOND, FIRST] },
+  ];
+  const backing: OutboxCacheBacking = {
+    async visit(visit) { records.every(visit); },
+    async observe() {},
+    close() {},
+  };
+  worlds.set(world, { current: state(new MemoryStorage(), backing), event, relays: [FIRST], filter: TREE });
+});
+
+Then('only the signed observation replays with its approved source hint', (world: CoreWorld) => {
+  const s = fixture(world);
+  expect(s.current.timeline).toEqual(['outbox.event', FIRST]);
+  expect(results(s).map(({ event, sidecar }) => ({ id: event.id, hints: sidecar?.relayHints }))).toEqual([{ id: s.event.id, hints: [FIRST] }]);
+});
+
+Given('the browser Outbox cache observed an oversized record and one event from two relays', async (world: CoreWorld) => {
+  const s = await browserFixture(world, 1_000);
+  const oversized = await signEvent({ kind: 31971, content: '🟠'.repeat(300) });
+  await s.first.observe(oversized, FIRST);
+  await s.first.observe(s.oldest, FIRST);
+  await s.first.observe(s.oldest, SECOND);
+});
+
+Then('only the eligible event remains in the cache with both observed relay hints', async (world: CoreWorld) => {
+  const s = browser(world);
+  const seen = new Map<string, readonly string[]>();
+  await s.first.visit(({ event, relays }) => {
+    seen.set(event.id, relays);
+    return true;
+  });
+  expect(seen).toEqual(new Map([[s.oldest.id, [FIRST, SECOND]]]));
+});
+
+Then('browser schema changes release the cache connection', async (world: CoreWorld) => {
+  const s = browser(world);
+  await new Promise<void>((resolve, reject) => {
+    const upgrade = s.factory.open('kernl-outbox-events', 2);
+    upgrade.onerror = () => reject(upgrade.error);
+    upgrade.onsuccess = () => {
+      upgrade.result.close();
+      resolve();
+    };
+  });
+  await expect(s.first.visit(() => false)).rejects.toMatchObject({ name: 'InvalidStateError' });
+  s.first.close();
+  await expect(s.first.visit(() => false)).rejects.toThrow('unavailable:outbox-cache-closed');
 });
