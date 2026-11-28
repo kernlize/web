@@ -81,3 +81,8 @@ Feature: Grants made for now end with the applet's last window
     When the shell resolves the address "kernl:nested"
     And the reviewed applet fails to build its mount plan
     Then the mounted applet is not granted for now
+
+  Scenario: Preparing a linked applet for admission is not an installation
+    Given a mounted applet
+    When a linked applet is planned for review without installing
+    Then the reviewed plan has not installed the applet

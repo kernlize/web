@@ -2,7 +2,7 @@ import type { AppletIdentity, AppletSummary, Kernel, MountPlan } from '../types.
 
 /** Lifecycle hooks for an artifact whose grants are being reviewed. */
 export interface GrantReviewHost {
-  plan(summary: AppletSummary): Promise<MountPlan>;
+  plan(summary: AppletSummary, install?: boolean): Promise<MountPlan>;
   current(plan: MountPlan): boolean;
   domains(summary: AppletSummary): readonly string[];
   discardWaiting(plan: MountPlan): void;
@@ -36,8 +36,8 @@ export function createGrantReviews(host: GrantReviewHost): Pick<Kernel, 'withGra
       const owned: MountPlan[] = [];
       try {
         await open({
-          plan: async () => {
-            const plan = await host.plan(summary);
+          plan: async (options) => {
+            const plan = await host.plan(summary, options?.install);
             owned.push(plan);
             return plan;
           },

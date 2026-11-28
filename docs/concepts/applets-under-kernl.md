@@ -70,6 +70,8 @@ Grants decide which domains your applet holds. kehto's firewall decides, inside 
 
 - **`link.open` asks every time.** The user sees the link and where it leads and chooses "Open link" or "Don't open". Nothing is remembered, so the next link asks again. Expect the result to take as long as a person takes to read, and handle `denied`: the user said no, dismissed the question, or the shell they run cannot ask. Open links on a click, one at a time; an applet that asks more than twelve questions a minute has the rest dropped.
 
+- **An applet link stays in the shell.** `link.open('nostr:naddr1…')` accepts a named applet (kind `35129`). The link firewall still decides whether the shell may look up the address; by default it asks about that first. The shell then verifies the target and shows who asked, the target’s title and publisher key, and its required and optional permissions. **Install and open** starts it under those choices. A previously installed artifact with its required grants says **Open** instead; **Cancel** installs and opens nothing. The link’s optional label does not supply either applet’s name. No other `nostr:` destination is opened.
+
 The user can change the rules, so do not assume the shipped ones:
 
 - A domain set to "ask" is put to the user before your applet starts. If they refuse a domain in your `requires`, the applet does not start; a refused `optional` domain is left out of `shell.init`, like one that was never granted.

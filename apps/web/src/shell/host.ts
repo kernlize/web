@@ -1,5 +1,6 @@
 import { createAskRenderers } from '@kernlize/ui-model';
 import type { AskRenderers, KernlHost, StorageLike } from './contract';
+import type { AppletLinkQueue } from './applet-link-queue.svelte';
 import type { ConsentQueue } from './consent-queue.svelte';
 import type { FirewallQueue } from './firewall-queue.svelte';
 import type { HandlerQueue } from './handler-queue.svelte';
@@ -13,6 +14,7 @@ import type { WindowStore } from './window-store.svelte';
 interface HostDeps {
   readonly storage: StorageLike;
   readonly consent: Pick<ConsentQueue, 'model'>;
+  readonly appletLinks: Pick<AppletLinkQueue, 'model'>;
   readonly firewall: Pick<FirewallQueue, 'model'>;
   readonly settings: Pick<SettingsQueue, 'model'>;
   readonly notices: NoticeStore;
@@ -28,6 +30,7 @@ interface HostDeps {
  * fills `open` once it is on screen; until then nothing opens and the request is reported as failed.
  */
 export interface AppletOpener {
+  link?: KernlHost['openAppletLink'];
   open?: NonNullable<KernlHost['openApplet']>;
 }
 
@@ -73,6 +76,7 @@ function asksFor(deps: HostDeps): AskRenderers {
     'download.add': consent,
     'connection.direct': consent,
     'firewall.approve': deps.firewall.model,
+    'link.open-applet': deps.appletLinks.model,
     'intent.choose-handler': deps.handlers.model,
     'messaging.choose-reply': deps.replies.model,
     'settings.present': deps.settings.model,
@@ -90,6 +94,7 @@ export function createHost(deps: HostDeps): KernlHost {
       if (!options?.approved && !window.confirm(`Leave kernl and open this link?\n\n${url}`)) return;
       window.open(url, '_blank', 'noopener,noreferrer');
     },
+    openAppletLink: async (windowId, pointer, signal) => await deps.opener.link?.(windowId, pointer, signal) ?? false,
     getVisibility: (windowId) => deps.windows.visibilityOf(windowId),
     openApplet: async (address, options) => deps.opener.open?.(address, options),
     focusApplet: (windowId) => deps.windows.focus(windowId),
@@ -99,7 +104,7 @@ export function createHost(deps: HostDeps): KernlHost {
       const report = describeStop(reason, details, Date.now());
       deps.windows.markRevoked(windowId, report);
       // A stopped applet's questions go with it, each answered with its refusal (#74).
-      for (const queue of [deps.consent, deps.firewall, deps.handlers, deps.replies, deps.settings]) queue.model.dismissWindow(windowId);
+      for (const queue of [deps.consent, deps.firewall, deps.appletLinks, deps.handlers, deps.replies, deps.settings]) queue.model.dismissWindow(windowId);
       deps.notices.push({ title: `${title} was stopped`, body: report.words, tone: 'warning', windowId });
     },
   };

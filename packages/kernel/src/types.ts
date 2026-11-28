@@ -162,8 +162,8 @@ export interface GrantChoice {
 export interface ReviewedStart {
   /** Whether a mounted instance already runs with the reviewed startup domains. */
   canReuse(plan: MountPlan): boolean;
-  /** Plan under the grants now in force. Await the mount before leaving the review. */
-  plan(): Promise<MountPlan>;
+  /** Plan under the grants now in force. Await the mount before leaving the review. Pass `install: false` to record installation separately. */
+  plan(options?: { readonly install?: boolean }): Promise<MountPlan>;
 }
 
 /** User-facing grant operations. Everything here is per applet identity and reversible. */
@@ -390,6 +390,12 @@ export interface KernlHost {
    * through, by asking the person or by a rule they set, so the host should not ask again.
    */
   openLink(url: string, options?: { readonly approved?: boolean }): void;
+  /**
+   * Review an internal applet link after the firewall admits it. Use the source window, not the
+   * caller's link label, and the normal verified-applet/grants path. Return true only after opening
+   * it in the shell. A withdrawn signal must cancel pending review and prevent opening it.
+   */
+  openAppletLink?(windowId: string, pointer: Extract<AppletPointer, { kind: 'address' }>, signal?: import('./asks/kinds.js').AskSignal): Promise<boolean>;
   /** Current visibility for a window, when the core needs it synchronously. */
   getVisibility(windowId: string): WindowVisibility;
   /**

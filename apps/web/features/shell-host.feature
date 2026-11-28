@@ -125,3 +125,8 @@ Feature: The shell host
       | /      | Minus  | held | launcher |
       | /      | Slash  | up   | none     |
       | k      | KeyK   | held | none     |
+
+  Scenario: The host does not use external navigation for an internal applet link
+    Given the shell host with window "w1" titled "Notes"
+    Then an internal link is refused without an applet opener
+    And an internal link goes to the host's applet opener when wired

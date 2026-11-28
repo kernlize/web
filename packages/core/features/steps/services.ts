@@ -1,6 +1,7 @@
 import { expect } from 'vitest';
 import { Given, Then, When } from 'quickpickle';
 import type { EventStore } from 'applesauce-core';
+import { naddrEncode } from 'applesauce-core/helpers';
 import { PrivateKeySigner } from 'applesauce-signers';
 import { AccountManager } from 'applesauce-accounts';
 import { PrivateKeyAccount } from 'applesauce-accounts/accounts';
@@ -20,6 +21,7 @@ import {
   isTheme,
   resourceInitFor,
   wrapAccountSigner,
+  type KernlHost,
   type KernlServices,
   type RelayTiers,
 } from '@kernlize/core';
@@ -30,6 +32,7 @@ interface ServicesScratch {
   sent: NappletMessage[];
   notices: Array<{ title: string; body?: string; windowId?: string; tone: string }>;
   links: string[];
+  appletLinks: Parameters<NonNullable<KernlHost['openAppletLink']>>[];
   bridgeCalls: Array<{ uri: string; requester: BridgeContext['requester'] }>;
   pubkey: string;
   bridges: BridgeRegistry;
@@ -56,7 +59,7 @@ function fakeBridges(calls: ServicesScratch['bridgeCalls']): BridgeRegistry {
   };
 }
 
-async function build(world: CoreWorld, options: { signer?: boolean; theme?: Record<string, unknown> | null; uploader?: Uploader; config?: ConfigServiceOptions } = {}): Promise<void> {
+async function build(world: CoreWorld, options: { signer?: boolean; theme?: Record<string, unknown> | null; uploader?: Uploader; config?: ConfigServiceOptions; appletLink?: boolean } = {}): Promise<void> {
   const s = scratch(world);
   const signer = new PrivateKeySigner();
   const pubkey = await signer.getPublicKey();
@@ -65,6 +68,7 @@ async function build(world: CoreWorld, options: { signer?: boolean; theme?: Reco
   const bridges = fakeBridges(bridgeCalls);
   const notices: ServicesScratch['notices'] = [];
   const links: string[] = [];
+  const appletLinks: ServicesScratch['appletLinks'] = [];
   const theme = options.theme;
   const services = createKernlServices({
     pool: s.pool,
@@ -76,6 +80,10 @@ async function build(world: CoreWorld, options: { signer?: boolean; theme?: Reco
       storage: s.storage,
       notify: (notice) => void notices.push(notice),
       openLink: (url) => void links.push(url),
+      ...(options.appletLink === undefined ? {} : { openAppletLink: async (...args: ServicesScratch['appletLinks'][number]) => {
+        appletLinks.push(args);
+        return options.appletLink as boolean;
+      } }),
     },
     bridges,
     ...(theme === null ? { theme } : isTheme(theme) ? { theme } : {}),
@@ -84,7 +92,7 @@ async function build(world: CoreWorld, options: { signer?: boolean; theme?: Reco
     shortcuts: { isFocused: () => true },
     resolveIdentity: (windowId) => (windowId === 'w1' ? IDENTITY : null),
   });
-  s.services = { services, sent: [], notices, links, bridgeCalls, pubkey, bridges, signer } satisfies ServicesScratch;
+  s.services = { services, sent: [], notices, links, appletLinks, bridgeCalls, pubkey, bridges, signer } satisfies ServicesScratch;
 }
 
 async function settle(): Promise<void> {
@@ -113,6 +121,45 @@ Given('kernl services that leave the theme to a module and are handed an uploade
 
 Given('kernl services without a signer', async (world: CoreWorld) => {
   await build(world, { signer: false });
+});
+
+Given('kernl services with an internal applet link opener', async (world: CoreWorld) => build(world, { appletLink: true }));
+Given('kernl services with an internal applet link opener that refuses', async (world: CoreWorld) => build(world, { appletLink: false }));
+
+const STATS_LINK = 'nostr:naddr1qvzqqqyf8ypzqjl32rpa7lyzzge6x5j7yquuaw405c6sfarygvz0c5r69nc0zgwaqy28wumn8ghj7un9d3shjtnyv9kh2uewd9hszrthwden5te0dehhxtnvdakqqrtjda6hgum5wgkhxarpw3esedljyh';
+
+async function linkFrom(world: CoreWorld, windowId: string, url: string): Promise<void> {
+  const { services, sent } = state(world);
+  services.registry.link?.handleMessage(windowId, { type: 'link.open', id: 'applet-link', url, options: { label: 'Not verified' } }, (result) => void sent.push(result));
+  await settle();
+}
+
+When('window {string} opens a link to a kind 35129 address', async (world: CoreWorld, windowId: string) => linkFrom(world, windowId, STATS_LINK));
+
+When('window {string} opens an applet-shaped link with {string}', async (world: CoreWorld, windowId: string, defect: string) => {
+  const cases: Record<string, string> = {
+    'no relay hints': `nostr:${naddrEncode({ kind: 35129, pubkey: state(world).pubkey, identifier: 'test' })}`,
+    'wrong kind': `nostr:${naddrEncode({ kind: 30023, pubkey: state(world).pubkey, identifier: 'test' })}`,
+    malformed: 'nostr:naddr1qq',
+    'query suffix': `${STATS_LINK}?next=other`,
+    fragment: `${STATS_LINK}#x`,
+    authority: STATS_LINK.replace('nostr:', 'nostr://'),
+    'mixed case': STATS_LINK.replace('naddr1qv', 'NADDR1qv'),
+    space: STATS_LINK.replace('naddr1', 'naddr1 '),
+  };
+  await linkFrom(world, windowId, cases[defect]!);
+});
+
+Then('the internal opener received the address from {string}', (world: CoreWorld, windowId: string) => {
+  expect(state(world).appletLinks).toEqual([[windowId, {
+    kind: 'address', eventKind: 35129, identifier: 'routstr-stats',
+    pubkey: '4bf150c3df7c821233a3525e2039cebaafa63504f4644304fc507a2cf0f121dd',
+    relays: ['wss://relay.damus.io', 'wss://nos.lol'],
+  }, undefined]]);
+});
+
+Then('no applet link was sent to the internal opener', (world: CoreWorld) => {
+  expect(state(world).appletLinks).toHaveLength(0);
 });
 
 Then('the service registry has {string}', (world: CoreWorld, names: string) => {

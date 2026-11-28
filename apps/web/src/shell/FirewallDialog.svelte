@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { FirewallChoice, FirewallPrompt } from './contract';
   import { shortId } from './contract';
-  import { choiceWords, firewallLines, firewallNote, firewallTitle } from './firewall-words';
+  import { choiceWords, firewallLines, firewallNote, firewallTitle, isAppletLink } from './firewall-words';
   import { trapFocus } from './focus-trap';
 
   interface Props {
@@ -13,6 +13,7 @@
 
   const { prompt, waiting, onanswer }: Props = $props();
   const summary = $derived(prompt.summary);
+  const internal = $derived(isAppletLink(summary));
   const allows = $derived(summary.choices.filter((choice) => choice !== 'deny'));
   let denyButton = $state<HTMLButtonElement | null>(null);
 </script>
@@ -30,12 +31,12 @@
         <div><dt>{line.label}</dt><dd>{line.value}</dd></div>
       {/each}
     </dl>
-    <p id="firewall-note" class="shell-muted note">{firewallNote(summary.kind)}</p>
+    <p id="firewall-note" class="shell-muted note">{internal ? 'This looks up another applet. You can review its permissions before opening it.' : firewallNote(summary.kind)}</p>
     {#if waiting > 0}<p class="shell-muted note" role="status">{waiting} more {waiting === 1 ? 'question is' : 'questions are'} waiting.</p>{/if}
     <div class="shell-actions">
-      <button type="button" class="shell-button" bind:this={denyButton} onclick={() => onanswer('deny')}>{choiceWords('deny', summary.kind)}</button>
+      <button type="button" class="shell-button" bind:this={denyButton} onclick={() => onanswer('deny')}>{internal ? 'Cancel' : choiceWords('deny', summary.kind)}</button>
       {#each allows as choice, index (choice)}
-        <button type="button" class="shell-button" class:primary={index === 0} onclick={() => onanswer(choice)}>{choiceWords(choice, summary.kind)}</button>
+        <button type="button" class="shell-button" class:primary={index === 0} onclick={() => onanswer(choice)}>{internal ? 'Look up applet' : choiceWords(choice, summary.kind)}</button>
       {/each}
     </div>
   </section>

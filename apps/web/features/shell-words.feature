@@ -229,6 +229,7 @@ Feature: Shell words
     Examples:
       | kind    | requests                                                                                                           | title                                 | rows                                                   |
       | link    | [{"kind":"resource","domain":"link","operation":"link.open","target":"https://example.org/a?b=1"}]                 | Open a link outside kernl             | Link=https://example.org/a?b=1; Leads to=example.org   |
+      | link    | [{"kind":"resource","domain":"link","operation":"link.open","target":"nostr:naddr1qq"}]                         | Look up a linked applet               | Applet link=nostr:naddr1qq |
       | link    | [{"kind":"resource","domain":"link","operation":"link.open","target":"mailto:ada@example.org"}]                    | Open a link outside kernl             | Link=mailto:ada@example.org; Leads to=your mail app    |
       | link    | [{"kind":"resource","domain":"link","operation":"link.open","target":"not an address"}]                            | Open a link outside kernl             | Link=not an address; Leads to=not an address           |
       | access  | [{"kind":"access","domain":"relay","operation":"access","target":"relay"}]                                         | Use network                           | Uses=network                                           |

@@ -100,3 +100,14 @@ When('the reviewed applet fails to build its mount plan', async (world: CoreWorl
     await start.plan();
   })).rejects.toThrow('denied:nested-frame');
 });
+
+When('a linked applet is planned for review without installing', async (world: CoreWorld) => {
+  const { kernl, summary } = k(world);
+  kernl.intents.uninstall(summary!.manifest.catalogId);
+  await kernl.withGrantReview(summary!, async (review) => { await review.plan({ install: false }); });
+});
+
+Then('the reviewed plan has not installed the applet', (world: CoreWorld) => {
+  const { kernl, summary } = k(world);
+  expect(kernl.intents.installed().some((entry) => entry.catalogId === summary!.manifest.catalogId)).toBe(false);
+});

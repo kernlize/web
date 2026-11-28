@@ -6,18 +6,19 @@
     title: string;
     onclose: () => void;
     wide?: boolean;
+    closeDisabled?: boolean;
     children: Snippet;
   }
 
-  const { title, onclose, wide = false, children }: Props = $props();
+  const { title, onclose, wide = false, closeDisabled = false, children }: Props = $props();
   const headingId = `overlay-${Math.random().toString(36).slice(2, 8)}`;
 </script>
 
-<div class="backdrop" onpointerdown={(event) => event.target === event.currentTarget && onclose()}>
+<div class="backdrop" onpointerdown={(event) => !closeDisabled && event.target === event.currentTarget && onclose()}>
   <section class="panel" class:wide role="dialog" aria-modal="true" aria-labelledby={headingId} {@attach trapFocus()}>
     <header>
       <h2 id={headingId}>{title}</h2>
-      <button type="button" class="shell-button quiet" onclick={onclose} aria-label="Close {title}">Close</button>
+      <button type="button" class="shell-button quiet" onclick={onclose} disabled={closeDisabled} aria-label="Close {title}">Close</button>
     </header>
     <div class="body">
       {@render children()}
