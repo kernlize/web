@@ -6,13 +6,15 @@
   interface Props {
     kernl: ShellKernl;
     busy?: boolean;
+    /** The `id` of the stack whose applets are being looked up, if one is. */
+    opening?: string | null;
     /** Open the applets this stack has ticked; the rest are installed, not opened. */
     onopenstack: (stack: AppletStack, chosen: readonly StackMember[]) => void;
     /** Open one applet of a stack on its own, through the review that single applets get. */
     onopenmember: (stack: AppletStack, member: StackMember) => void;
   }
 
-  const { kernl, busy = false, onopenstack, onopenmember }: Props = $props();
+  const { kernl, busy = false, opening = null, onopenstack, onopenmember }: Props = $props();
 
   let stacks = $state.raw<readonly AppletStack[] | null>(null);
   let failed = $state(false);
@@ -97,7 +99,7 @@
             </div>
             <div class="shell-actions">
               <button type="button" class="shell-button primary" onclick={() => onopenstack(stack, chosenMembers(stack))} disabled={busy} aria-label={installWords(stack)}>
-                {busy ? 'Opening…' : openWords(stack)}
+                {opening === stack.id ? 'Opening…' : openWords(stack)}
               </button>
               <button type="button" class="shell-button quiet disclosure" aria-expanded={shown} aria-controls="members-{stack.id}" onclick={() => toggle(stack.id)}>
                 <span class="caret" class:shown aria-hidden="true">▾</span> Show applets
